@@ -37,6 +37,26 @@ class BLACS(object):
 		# Need to connect signals!
         self.builder.connect_signals(self)
         
+        ######################################
+        # TODO: Load From Connection Table   #
+        ######################################
+        
+        # Get H5 file
+        
+        # Create Connection Table
+        
+        # Instantiate Devices from Connection Table, Place in Array
+        
+        
+        ##
+        
+        # Open BLACS Config File
+        # Load Virtual Devices
+        
+        
+        ############
+        # END TODO #
+        ############
         
         # Here we pretend we loaded a H5 file, and found a ni_pcie_6363 device!
         
