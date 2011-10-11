@@ -1,17 +1,28 @@
 import pygtk
 import gtk
-import urllib, threading, cgi
+import urllib
+import threading
+import cgi
+import time
+import numpy
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import spinapi
 
+# Connection Table Code
+from connections import *
 
-imp_test="ni_pcie_6363"
-exec("from hardware_interfaces."+imp_test+" import *")
-from hardware_interfaces.novatechdds9m import novatechdds9m
-from hardware_interfaces.pulseblaster import pulseblaster
+# Hardware Interface Imports
+device_list=["ni_pcie_6363","novatechdds9m","pulseblaster"]
+for device in device_list:    
+    exec("from hardware_interfaces."+device+" import "+device)
+    
 from hardware_interfaces.andor_ixon import andor_ixon
 
-import numpy
+# Virtual Devices Import
+#needs to be dynamic import
+from virtual_devices.shutter import *
+
+
+# Temporary imports to demonstrate plotting
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -19,11 +30,6 @@ from matplotlib.lines import Line2D
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 
 
-
-#needs to be dynamic import
-from virtual_devices.shutter import *
-
-from connections import *
 
 class BLACS(object):       
     def __init__(self):
@@ -66,8 +72,8 @@ class BLACS(object):
         # Here we pretend we loaded a H5 file, and found a ni_pcie_6363 device!
         
         
-        self.tab = globals()[imp_test]({"device_name":"ni_pcie_6363_0"})
-        self.notebook.append_page(self.tab.tab,gtk.Label(imp_test+"_0"))
+        self.tab = globals()["ni_pcie_6363"]({"device_name":"ni_pcie_6363_0"})
+        self.notebook.append_page(self.tab.tab,gtk.Label("ni_pcie_6363"+"_0"))
         
         self.do_test = self.tab.get_child("DO",2)
         self.do_test1 = self.tab.get_child("DO",16)
