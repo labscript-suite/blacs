@@ -7,7 +7,7 @@ import spinapi
 
 imp_test="ni_pcie_6363"
 exec("from hardware_interfaces."+imp_test+" import *")
-from hardware_interfaces.novatech_dds9m import novatech_dds9m
+from hardware_interfaces.novatechdds9m import novatechdds9m
 from hardware_interfaces.pulseblaster import pulseblaster
 from hardware_interfaces.andor_ixon import andor_ixon
 
@@ -76,7 +76,7 @@ class BLACS(object):
         #self.novatech_0_tab = globals()["novatech_dds9m"](self.notebook,{"device_name":"novatechdds9m_0","COM":"com10"})
         
         
-        self.novatech_1_tab = globals()["novatech_dds9m"](self.notebook,{"device_name":"novatechdds9m_0","COM":"com1"})
+        self.novatech_1_tab = globals()["novatechdds9m"](self.notebook,{"device_name":"novatechdds9m_0","COM":"com1"})
         self.andor_ixon_tab = globals()["andor_ixon"](self.notebook,{})
         
                 

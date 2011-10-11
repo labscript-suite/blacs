@@ -4,7 +4,7 @@ import pygtk
 import gtk
 import serial
 from hardware_programming import novatech as novatech_programming
-class novatech_dds9m(object):
+class novatechdds9m(object):
 
     # settings should contain a dictionary of information from the connection table, relevant to this device.
     # aka, it could be parent: pb_0/flag_0 (pseudoclock)
@@ -29,7 +29,7 @@ class novatech_dds9m(object):
         # PyGTK stuff #
         ###############
         self.builder = gtk.Builder()
-        self.builder.add_from_file('hardware_interfaces/novatech_dds9m.glade')
+        self.builder.add_from_file('hardware_interfaces/novatechdds9m.glade')
         
         self.builder.get_object('title').set_text(self.settings["device_name"]+" - Port: "+self.settings["COM"])
         
