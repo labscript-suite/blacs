@@ -20,15 +20,21 @@ class ConnectionTable(object):
             return False
     
         # Check if top level children in other table are a subset of self.        
-        for key,value in other_table.toplevel_children:
+        for key,value in other_table.toplevel_children.items():
             if not key in self.toplevel_children:
+                print 'missing: '+key
                 return False
             
             # for each top level child in other, check if children of that object are also children of the child in self.
             if not self.toplevel_children[key].compare_to(value):
                 return False
                 
-        return True        
+        return True
+
+    def print_details(self):
+        for key,value in self.toplevel_children.items():
+            print key
+            value.print_details('    ')
     
 class Connection(object):
     
@@ -41,7 +47,7 @@ class Connection(object):
         
         # Create children
         for row in table:
-            if row[3] == self.name:
+            if row[2] == self.name:
                 self.child_list[row[0]] = Connection(row[0],row[1],self,row[3],table)
         
     def compare_to(self,other_connection):
@@ -57,9 +63,20 @@ class Connection(object):
             return False
         
         # for each child in other_connection, check that the child also exists here
-        for key,value in other_connection.child_list:
+        for key,value in other_connection.child_list.items():
             if not key in self.child_list:
                 return False
                 
             # call compare_to on child so that we can check it's children!
-            if not self.child_list[key].compare_to(value)
+            if not self.child_list[key].compare_to(value):
+                return False
+                
+        # We made it!
+        return True
+        
+    def print_details(self,indent):
+        for key, value in self.child_list.items():
+            print indent + key
+            value.print_details(indent+'    ')
+            
+            

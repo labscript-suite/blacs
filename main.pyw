@@ -23,6 +23,8 @@ from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanva
 #needs to be dynamic import
 from virtual_devices.shutter import *
 
+from connections import *
+
 class BLACS(object):       
     def __init__(self):
         self.exiting = False
@@ -42,11 +44,14 @@ class BLACS(object):
         ######################################
         
         # Get H5 file
+        h5_file = "connectiontable.h5"
         
         # Create Connection Table
-        
+        self.connection_table = ConnectionTable(h5_file)
         # Instantiate Devices from Connection Table, Place in Array
-        
+        x = ConnectionTable("C:\pythonlib\labscript\example.h5")
+        x.print_details()
+        print self.connection_table.compare_to(x)
         
         ##
         
