@@ -42,6 +42,9 @@ class BLACS(object):
         self.window = self.builder.get_object("window")
         self.notebook = self.builder.get_object("notebook1")
         self.queue = self.builder.get_object("remote_liststore")
+        self.listwidget = self.builder.get_object("treeview1")
+        treeselection = self.listwidget.get_selection()
+        treeselection.set_mode(gtk.SELECTION_MULTIPLE)
         
 		# Need to connect signals!
         self.builder.connect_signals(self)
@@ -126,6 +129,22 @@ class BLACS(object):
         #self.ax.plot(data[1,:],data[0,:])
         self.canvas.draw_idle()
         pass
+    
+    def on_pause_queue(self,widget):
+        self.manager_paused = widget.get_active()
+    
+    def on_delete_queue_element(self,widget):
+        #selection = self.listwidget.get_selection()
+        #selection.selected_foreach(self.delete_item)
+        selection = self.listwidget.get_selection()
+        model, selection = selection.get_selected_rows()
+
+        for path in selection:
+            iter = model.get_iter(path)
+            model.remove(iter)
+    
+    def delete_item(self,treemodel,path,iter):
+        self.queue.remove(iter)
     
     def on_window_destroy(self,widget):
         self.destroy()
@@ -220,7 +239,13 @@ def do_stuff(h5_filepath):
         
     if app.connection_table.compare_to(new_conn):    
         app.queue.append([h5_filepath])
-        return "Experiment added successfully"
+        message = "Experiment added successfully"
+        if app.manager_paused:
+            message += "\nWarning: Queue is currently paused"
+            
+        if not app.manager_running:
+            message += "\nError: Queue is not running"
+        return message
     else:
         message =  "Connection table of your file is not a subset of the experimental control apparatus.\n"
         message += "You may have:\n"
