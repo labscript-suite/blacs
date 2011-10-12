@@ -14,6 +14,7 @@ class ConnectionTable(object):
                 
             except:
                 print 'Unable to load connection table from '+h5file
+                raise
         
     def compare_to(self,other_table):
         if not isinstance(other_table,ConnectionTable):

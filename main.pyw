@@ -5,6 +5,7 @@ import threading
 import cgi
 import time
 import numpy
+import socket
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 # Connection Table Code
@@ -49,40 +50,32 @@ class BLACS(object):
         # TODO: Load From Connection Table   #
         ######################################
         
-        # Get H5 file
-        h5_file = "connectiontable.h5"
+        # Get H5 file        
+        h5_file = "connectiontables\\"+socket.gethostname()+".h5"
         
         # Create Connection Table
         self.connection_table = ConnectionTable(h5_file)
-        # Instantiate Devices from Connection Table, Place in Array
-        x = ConnectionTable("C:\pythonlib\labscript\example.h5")
-        x.print_details()
-        print self.connection_table.compare_to(x)
+        
+        # Instantiate Devices from Connection Table, Place in Array        
         attached_devices = self.connection_table.find_devices(device_list)
-        print attached_devices
-        ##
         
-        # Open BLACS Config File
-        # Load Virtual Devices
-        
-        
-        ############
-        # END TODO #
-        ############
         self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
                               "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
                               "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
                               "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
-                              "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"}
+                              "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
+                              "andor_ixon":{"device_name":"andor_ixon"}
                              }
         self.tablist = {}
         for k,v in attached_devices.items():
             self.tablist[k] = globals()[v](self.notebook,self.settings_dict[k])
-        
-        #self.tablist["andor_ixon"] = globals()["andor_ixon"](self.notebook,{})
-        
                 
+        # Open BLACS Config File
+        # Load Virtual Devices
         
+        ############
+        # END TODO #
+        ############
         
         #self.shutter_tab = globals()["shutter"]([self.tab.get_child("DO",1),self.tab.get_child("DO",5),self.tab.get_child("DO",27),self.tab.get_child("DO",13)])
         #self.notebook.append_page(self.shutter_tab.tab,gtk.Label("shutter_0"))
@@ -218,9 +211,27 @@ class BLACS(object):
 
 def do_stuff(h5_filepath):
     #print 'got a filepath:', h5_filepath
-    gtk.gdk.threads_enter()
-    app.queue.append([h5_filepath])
-    gtk.gdk.threads_leave()
+    
+    # check connection table
+    try:
+        new_conn = ConnectionTable(h5_filepath)
+    except:
+        return "H5 file not accessible to Control PC"
+        
+    if app.connection_table.compare_to(new_conn):    
+        app.queue.append([h5_filepath])
+        return "Experiment added successfully"
+    else:
+        message =  "Connection table of your file is not a subset of the experimental control apparatus.\n"
+        message += "You may have:\n"
+        message += "    Submitted your file to the wrong control PC\n"
+        message += "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
+        message += "    Renamed a channel at the top of your script\n"
+        message += "    Submitted an old file, and the experiment has since been rewired\n"
+        message += "\n"
+        message += "Please verify your experiment script matches the current experiment configuration, and try again"
+        return message
+    
         
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -230,8 +241,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         length = int(self.headers.getheader('content-length'))
         postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
         h5_filepath =  postvars['filepath'][0]
-        do_stuff(h5_filepath)
-        self.wfile.write('response_data!')
+        gtk.gdk.threads_enter()
+        message = do_stuff(h5_filepath)
+        gtk.gdk.threads_leave()
+        self.wfile.write(message)
 
 
 port = 42517
