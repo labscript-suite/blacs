@@ -64,7 +64,9 @@
     </data>
   </object>
   <object class="GtkAdjustment" id="tempadjustment">
-    <property name="upper">100</property>
+    <property name="lower">-58</property>
+    <property name="upper">20</property>
+    <property name="value">20</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
@@ -608,13 +610,14 @@
                 </child>
                 <child>
                   <object class="GtkVBox" id="tempstabl">
+                    <property name="width_request">120</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
                       <object class="GtkLabel" id="label3">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Temperature</property>
+                        <property name="label" translatable="yes">Set temperature</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -639,16 +642,17 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkProgressBar" id="tempbar">
+                          <object class="GtkVScale" id="vscale1">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="fraction">0.25</property>
-                            <property name="orientation">bottom-to-top</property>
+                            <property name="can_focus">True</property>
+                            <property name="adjustment">tempadjustment</property>
+                            <property name="inverted">True</property>
+                            <property name="round_digits">1</property>
+                            <property name="draw_value">False</property>
                           </object>
                           <packing>
-                            <property name="expand">False</property>
+                            <property name="expand">True</property>
                             <property name="fill">True</property>
-                            <property name="padding">4</property>
                             <property name="position">1</property>
                           </packing>
                         </child>
@@ -671,10 +675,17 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="templabel">
+                      <object class="GtkSpinButton" id="settemp">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">temperature unknown</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">●</property>
+                        <property name="invisible_char_set">True</property>
+                        <property name="primary_icon_activatable">False</property>
+                        <property name="secondary_icon_activatable">False</property>
+                        <property name="primary_icon_sensitive">True</property>
+                        <property name="secondary_icon_sensitive">True</property>
+                        <property name="adjustment">tempadjustment</property>
+                        <signal name="output" handler="set_temp" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -698,7 +709,7 @@
                       <object class="GtkLabel" id="label4">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Set temperature:</property>
+                        <property name="label" translatable="yes">Actual temperature:</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -708,16 +719,10 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkSpinButton" id="settemp">
+                      <object class="GtkLabel" id="templabel">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">●</property>
-                        <property name="primary_icon_activatable">False</property>
-                        <property name="secondary_icon_activatable">False</property>
-                        <property name="primary_icon_sensitive">True</property>
-                        <property name="secondary_icon_sensitive">True</property>
-                        <property name="adjustment">tempadjustment</property>
-                        <property name="digits">1</property>
+                        <property name="can_focus">False</property>
+                        <property name="label" translatable="yes">label</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -745,6 +750,7 @@
                         <property name="receives_default">False</property>
                         <property name="use_action_appearance">False</property>
                         <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="enable_temp" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -761,9 +767,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="label" translatable="yes">Temperature not stable</property>
-                            <attributes>
-                              <attribute name="foreground" value="#ffff00000000"/>
-                            </attributes>
+                            <property name="use_markup">True</property>
                           </object>
                           <packing>
                             <property name="expand">True</property>

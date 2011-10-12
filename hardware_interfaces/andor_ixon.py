@@ -4,7 +4,7 @@ import gtk
 import time
 import pyandor
 import h5py
-
+import numpy
 
 class andor_ixon(object):
 
@@ -26,7 +26,7 @@ class andor_ixon(object):
         pyandor.lock.acquire()
         self.cam = pyandor.Andor()
         self.cam.Initialize()
-       
+        self.cam.SetCoolerMode(1)
         
         pyandor.lock.release()
         ###############
@@ -52,6 +52,10 @@ class andor_ixon(object):
         self.tempon = self.builder.get_object('tempon')
         self.tempworking = self.builder.get_object('tempworking')
         self.tempoff = self.builder.get_object('tempoff')
+        self.tempstable = self.builder.get_object('tempstable')
+        self.enabletemp=self.builder.get_object('enabletemp')
+        self.templabel=self.builder.get_object('templabel')
+        self.settemp=self.builder.get_object('settemp')
         #set some default values
         self.emon.set_active(False)
         self.emccd_enable(self.emon)
@@ -64,7 +68,23 @@ class andor_ixon(object):
         self.horizontal.set_active(2)
         self.vertical.set_active(1)
         self.exposure.set_value(20.00)
+        
 
+        if self.cam.IsCoolerOn():
+            
+            self.enabletemp.set_active(True)
+            pyandor.lock.acquire()
+            self.cam.GetTemperature()
+            pyandor.lock.release()
+            if self.cam.temperature < 20:
+                self.settemp.set_value(self.cam.temperature)
+            
+        else:
+            
+            self.enabletemp.set_active(False)
+            
+        
+        #self.previewimage = gtk.gdk.Pixmap(None,512,512,24)
         
         self.timeout = gtk.timeout_add(50,self.temperature_monitor)
         
@@ -102,6 +122,35 @@ class andor_ixon(object):
     def temperature_monitor(self):
         #if self.pause_status is True:
         #    return True
+        
+        pyandor.lock.acquire()
+        self.tempstatus=self.cam.GetTemperature()
+        self.cooler = self.cam.IsCoolerOn()
+        self.tempstatus = self.tempstatus[4:]
+        self.tempstatus = self.tempstatus.replace('_',' ')
+        if self.tempstatus == "NOT INITIALIZED" or self.tempstatus == "ACQUIRING" or self.tempstatus == "ERROR ACK" or self.tempstatus == "TEMP OFF":
+            self.tempstable.set_markup('<span foreground="red" size="100">%s</span>'%self.tempstatus)
+            self.tempworking.hide()
+            self.tempon.hide()
+            self.tempoff.show()
+        elif self.tempstatus == "TEMP NOT REACHED" or self.tempstatus == "TEMP_DRIFT" or self.tempstatus == "TEMP NOT STABILIZED":
+            self.tempstable.set_markup('<span foreground="orange" size="100">%s</span>'%self.tempstatus)
+            self.tempworking.show()
+            self.tempon.hide()
+            self.tempoff.hide()
+        elif self.tempstatus == "TEMP STABILIZED":
+            self.tempstable.set_markup('<span foreground="green" size="100">%s</span>'%self.tempstatus)
+            self.tempworking.hide()
+            self.tempon.show()
+            self.tempoff.hide()
+        else:
+            self.tempstable.set_markup('<span foreground="red" size="100">ERROR!</span>')
+            self.tempworking.hide()
+            self.tempon.hide()
+            self.tempoff.show()
+        self.templabel.set_text(str(self.cam.temperature))
+        pyandor.lock.release()
+        
         return True
         
   
@@ -174,8 +223,17 @@ class andor_ixon(object):
         self.cam.StartAcquisition()
         data = []
         self.cam.GetAcquiredData(data)
+        #maxIntensity = max(data)
+        #if maxIntensity > 0:
+        #    for i in range(len(data)):
+        #        data[i] = int(round(data[i]*255.0/maxIntensity))
+        #data = numpy.array(data)
+        #data.shape=(512,512)
+        #data=numpy.array([data,data,data])
+        #previewimage = gtk.gdk.pixmap_create_from_data(None,data,512,512,24,gtk.gdk.Color('#FFFFFFFFFFFF'),gtk.gdk.Color('#000000000000'))
         self.cam.SaveAsBmpNormalised('manual_img.bmp')
         self.preview.set_from_file('manual_img.bmp')
+        #self.preview.set_from_pixmap(previewimage,None)
         pyandor.lock.release()
     
     def horizontal_speed(self,widget):
@@ -222,4 +280,23 @@ class andor_ixon(object):
         else:
             self.emccd.set_sensitive(False)
             self.cam.SetEMCCDGain(0)
-        
+    def set_temp(self,widget):
+        if not self.init_done:
+            return
+        if widget.is_sensitive():
+            temp = int(widget.get_value())
+            pyandor.lock.acquire()
+            self.cam.SetTemperature(temp)
+            pyandor.lock.release()
+    def enable_temp(self,widget):
+        if not self.init_done:
+            return
+        if widget.is_sensitive():
+            if widget.get_active():
+                pyandor.lock.acquire()
+                self.cam.CoolerON()
+                pyandor.lock.release()
+            else:
+                pyandor.lock.acquire()
+                self.cam.CoolerOFF()
+                pyandor.lock.release()
