@@ -56,6 +56,9 @@ class andor_ixon(object):
         self.enabletemp=self.builder.get_object('enabletemp')
         self.templabel=self.builder.get_object('templabel')
         self.settemp=self.builder.get_object('settemp')
+        self.save0=self.builder.get_object('save0')
+        self.save1=self.builder.get_object('save1')
+        self.save2=self.builder.get_object('save2')
         #set some default values
         self.emon.set_active(False)
         self.emccd_enable(self.emon)
@@ -225,17 +228,18 @@ class andor_ixon(object):
         self.cam.GetAcquiredData(data)
         #maxIntensity = max(data)
         #if maxIntensity > 0:
-        #    for i in range(len(data)):
-        #        data[i] = int(round(data[i]*255.0/maxIntensity))
-        #data = numpy.array(data)
-        #data.shape=(512,512)
-        #data=numpy.array([data,data,data])
-        #previewimage = gtk.gdk.pixmap_create_from_data(None,data,512,512,24,gtk.gdk.Color('#FFFFFFFFFFFF'),gtk.gdk.Color('#000000000000'))
+        #   for i in range(len(data)):
+        #       data[i] = int(round(data[i]*255.0/maxIntensity))
+        #
+        #data=numpy.array([data[i:i+512] for i in range(0, len(data), 512)])
+        #pixels=gtk.gdk.pixbuf_new_from_array(data,gtk.gdk.COLORSPACE_RGB,24)
         self.cam.SaveAsBmpNormalised('manual_img.bmp')
         self.preview.set_from_file('manual_img.bmp')
-        #self.preview.set_from_pixmap(previewimage,None)
+        #self.preview.set_from_pixbuf(pixels)
         pyandor.lock.release()
-    
+        self.save0.set_sensitive(True)
+        self.save1.set_sensitive(True)
+        self.save2.set_sensitive(True)
     def horizontal_speed(self,widget):
         speed = widget.get_active()
         if speed > -1 and speed <4:
@@ -300,3 +304,59 @@ class andor_ixon(object):
                 pyandor.lock.acquire()
                 self.cam.CoolerOFF()
                 pyandor.lock.release()
+    
+    def save_file(self,widget):
+        chooser = gtk.FileChooserDialog(title='Save',action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                        buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
+                                                   gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+        chooser.set_default_response(gtk.RESPONSE_OK)
+
+        chooser.set_do_overwrite_confirmation(True)
+        chooser.set_current_folder_uri(r'C:\Users\beclab\Pictures')
+        chooser.set_current_name('manual_photo.bmp')
+        response = chooser.run()
+        if response == gtk.RESPONSE_OK:
+            self.current_file = chooser.get_filename()
+        else:
+            chooser.destroy()
+            return 'not saved'
+        chooser.destroy()
+        with open(self.current_file,'w') as current_file:
+            self.cam.SaveAsBmp(current_file)
+    def save_norm(self,widget):
+        chooser = gtk.FileChooserDialog(title='Save',action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                        buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
+                                                   gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+        chooser.set_default_response(gtk.RESPONSE_OK)
+
+        chooser.set_do_overwrite_confirmation(True)
+        chooser.set_current_folder_uri(r'C:\Users\beclab\Pictures')
+        chooser.set_current_name('manual_photo.bmp')
+        response = chooser.run()
+        if response == gtk.RESPONSE_OK:
+            self.current_file = chooser.get_filename()
+        else:
+            chooser.destroy()
+            return 'not saved'
+        chooser.destroy()
+        with open(self.current_file,'w') as current_file:
+            self.cam.SaveAsBmpNormalised(current_file)
+            
+    def save_text(self,widget):
+        chooser = gtk.FileChooserDialog(title='Save',action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                        buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
+                                                   gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+        chooser.set_default_response(gtk.RESPONSE_OK)
+
+        chooser.set_do_overwrite_confirmation(True)
+        chooser.set_current_folder_uri(r'C:\Users\beclab\Pictures')
+        chooser.set_current_name('manual_photo.txt')
+        response = chooser.run()
+        if response == gtk.RESPONSE_OK:
+            self.current_file = chooser.get_filename()
+        else:
+            chooser.destroy()
+            return 'not saved'
+        chooser.destroy()
+        with open(self.current_file,'w') as current_file:
+            self.cam.SaveAsTxt(current_file)

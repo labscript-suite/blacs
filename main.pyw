@@ -275,7 +275,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 port = 42517
 if __name__ == "__main__":
     app = BLACS()
-    
+    settings = gtk.settings_get_default()
+    settings.props.gtk_button_images = True
     gtk.threads_init()
     
     serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
