@@ -25,7 +25,7 @@ class pulseblaster(object):
     #   com_port:
     #
     #
-    def __init__(self,settings):
+    def __init__(self,notebook,settings):
         
         # is the init method finished...no!
         self.init_done = False
@@ -139,6 +139,8 @@ class pulseblaster(object):
         # TODO: Replace Via a global spinapi lock
         #self.pause_status = False
         self.timeout = gtk.timeout_add(50,self.status_monitor)
+        
+        notebook.append_page(self.tab,gtk.Label(settings["device_name"]))
         
         # We are done with the init!
         self.init_done = True 

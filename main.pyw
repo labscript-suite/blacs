@@ -11,11 +11,11 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from connections import *
 
 # Hardware Interface Imports
-device_list=["ni_pcie_6363","novatechdds9m","pulseblaster"]
+from hardware_interfaces import *
 for device in device_list:    
     exec("from hardware_interfaces."+device+" import "+device)
     
-from hardware_interfaces.andor_ixon import andor_ixon
+
 
 # Virtual Devices Import
 #needs to be dynamic import
@@ -58,7 +58,7 @@ class BLACS(object):
         x = ConnectionTable("C:\pythonlib\labscript\example.h5")
         x.print_details()
         print self.connection_table.compare_to(x)
-        
+        attached_devices = self.connection_table.find_devices(device_list)
         ##
         
         # Open BLACS Config File
@@ -71,9 +71,9 @@ class BLACS(object):
         
         # Here we pretend we loaded a H5 file, and found a ni_pcie_6363 device!
         
-        
-        self.tab = globals()["ni_pcie_6363"]({"device_name":"ni_pcie_6363_0"})
-        self.notebook.append_page(self.tab.tab,gtk.Label("ni_pcie_6363"+"_0"))
+                
+        self.tab = globals()["ni_pcie_6363"](self.notebook,{"device_name":"ni_pcie_6363_0"})
+        #self.notebook.append_page(self.tab.tab,gtk.Label("ni_pcie_6363"+"_0"))
         
         self.do_test = self.tab.get_child("DO",2)
         self.do_test1 = self.tab.get_child("DO",16)
@@ -81,8 +81,7 @@ class BLACS(object):
         self.do_test.add_callback(self.update_test)
         self.do_test1.add_callback(self.update_test)
         
-        self.shutter_tab = globals()["shutter"]([self.tab.get_child("DO",1),self.tab.get_child("DO",5),self.tab.get_child("DO",27),self.tab.get_child("DO",13)])
-        self.notebook.append_page(self.shutter_tab.tab,gtk.Label("shutter_0"))
+        
         
         #self.novatech_0_tab = globals()["novatech_dds9m"](self.notebook,{"device_name":"novatechdds9m_0","COM":"com10"})
         
@@ -91,15 +90,16 @@ class BLACS(object):
         self.andor_ixon_tab = globals()["andor_ixon"](self.notebook,{})
         
                 
-        self.pulseblaster_0_tab = globals()["pulseblaster"]({"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"})
-        self.notebook.append_page(self.pulseblaster_0_tab.tab,gtk.Label("pulseblaster_0"))        
-        self.pulseblaster_0_tab.set_defaults()
+        self.pulseblaster_0_tab = globals()["pulseblaster"](self.notebook,{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"})
+        #self.notebook.append_page(self.pulseblaster_0_tab.tab,gtk.Label("pulseblaster_0"))        
+        #self.pulseblaster_0_tab.set_defaults()
         
         #self.pulseblaster_1_tab = globals()["pulseblaster"]({"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"})
         #self.notebook.append_page(self.pulseblaster_1_tab.tab,gtk.Label("pulseblaster_1"))        
         #self.pulseblaster_1_tab.set_defaults()
         
-        
+        #self.shutter_tab = globals()["shutter"]([self.tab.get_child("DO",1),self.tab.get_child("DO",5),self.tab.get_child("DO",27),self.tab.get_child("DO",13)])
+        #self.notebook.append_page(self.shutter_tab.tab,gtk.Label("shutter_0"))
         #
         # Setup a quick test of plotting data!
         #
@@ -119,7 +119,7 @@ class BLACS(object):
         vbox.pack_start(canvas)
         self.notebook.append_page(vbox,gtk.Label("graph!"))
         
-        self.tab.request_analog_input(0,10000,self.update_plot)
+        #self.tab.request_analog_input(0,10000,self.update_plot)
         
         # Setup the sequence manager thread
         # This thread will listen on a specific port, and will add items it recieves to a queue

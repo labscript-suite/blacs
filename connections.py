@@ -35,6 +35,18 @@ class ConnectionTable(object):
         for key,value in self.toplevel_children.items():
             print key
             value.print_details('    ')
+            
+    def find_devices(self,device_list):
+        return_list = {}
+        for key,value in self.toplevel_children.items():
+            for device in device_list:
+                if device in key:
+                    return_list[key] = device
+                    break
+            
+            return_list = value.find_devices(device_list,return_list)
+        
+        return return_list
     
 class Connection(object):
     
@@ -78,5 +90,14 @@ class Connection(object):
         for key, value in self.child_list.items():
             print indent + key
             value.print_details(indent+'    ')
+    
+    def find_devices(self,device_list,return_list):
+        for key,value in self.child_list.items():
+            for device in device_list:
+                if device in key:
+                    return_list[key] = device
+                    break
             
+            return_list = value.find_devices(device_list,return_list)
             
+        return return_list    
