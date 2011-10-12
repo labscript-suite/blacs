@@ -372,12 +372,7 @@ class ni_pcie_6363(object):
         
         
         self.ao_task, self.do_task = ni_programming.program_buffered_output(h5file,self.settings["device_name"],self.ao_task,self.do_task)
-        
-        print type(self.ao_task)
-        
-        # Return Ready status   
-        print 'returned from programming'
-        
+                        
             
     def transition_to_static(self):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
@@ -478,6 +473,8 @@ class Worker(multiprocessing.Process):
         self.buffered_rate = 0
         self.buffered = False
         self.buffered_data = None
+        
+        self.task = None
       
     def run(self):
         while not self.kill_received:
@@ -526,15 +523,16 @@ class Worker(multiprocessing.Process):
                     error = self.task.ReadAnalogF64(self.samples_per_channel,10.0,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
                 except:
                     print 'acquisition error'
+                    print error
                     
-                
                             
                 # send the data to the queue
                 if self.buffered:
                     # rearrange ai_data into correct form
                     data = numpy.copy(self.ai_data)
-                    data.shape = (len(chnl_list),self.ai_read.value)              
-                    data = data.transpose()
+                    if len(chnl_list) > 1:
+                        data.shape = (len(chnl_list),self.ai_read.value)              
+                        data = data.transpose()
                     self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
                 else:
                     self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
@@ -551,8 +549,11 @@ class Worker(multiprocessing.Process):
             chnl_list = self.channels
             rate = self.rate
             
+        if len(chnl_list) < 1:
+            return
+            
         if rate < 1000:
-            self.samples_per_channel = rate
+            self.samples_per_channel = int(rate)
         else:
             self.samples_per_channel = 1000
         
@@ -577,9 +578,10 @@ class Worker(multiprocessing.Process):
         self.task_running = True
     
     def stop_task(self):
-        self.task_running = False
-        self.task.StopTask()
-        self.task.ClearTask()
+        if self.task_running:
+            self.task_running = False
+            self.task.StopTask()
+            self.task.ClearTask()
         
     def transition_to_buffered(self,h5file,device_name):
         # stop current task
@@ -616,7 +618,11 @@ class Worker(multiprocessing.Process):
             self.buffered_rate = self.rate
         
         self.buffered = True
-        self.buffered_data = numpy.zeros((1,len(self.buffered_channels)),dtype=numpy.float64)
+        if len(self.buffered_channels) == 1:
+            self.buffered_data = numpy.zeros((1,),dtype=numpy.float64)
+        else:
+            self.buffered_data = numpy.zeros((1,len(self.buffered_channels)),dtype=numpy.float64)
+        
         self.setup_task()     
     
     def transition_to_static(self,device_name):
@@ -628,7 +634,10 @@ class Worker(multiprocessing.Process):
             try:
                 data_group = hdf5_file['/'].create_group('data')
                 ni_group = data_group.create_group(device_name)
-                ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):,:])
+                if len(self.buffered_channels) == 1:
+                    ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):])
+                else:
+                    ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):,:])
                 
             except Exception as e:
                 print str(e)

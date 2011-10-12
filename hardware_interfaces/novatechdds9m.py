@@ -73,7 +73,13 @@ class novatechdds9m(object):
         self.tab = self.builder.get_object('toplevel')
         notebook.append_page(self.tab,gtk.Label(self.settings["device_name"]))  
 
-		
+	
+    def destroy(self):
+        try:
+            self.connection.close()
+        except:
+            pass
+	
     def set_defaults(self):
         try:
             self.connection.write('QUE\r\n')

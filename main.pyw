@@ -59,6 +59,7 @@ class BLACS(object):
         x.print_details()
         print self.connection_table.compare_to(x)
         attached_devices = self.connection_table.find_devices(device_list)
+        print attached_devices
         ##
         
         # Open BLACS Config File
@@ -68,35 +69,20 @@ class BLACS(object):
         ############
         # END TODO #
         ############
+        self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
+                              "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
+                              "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
+                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
+                              "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"}
+                             }
+        self.tablist = {}
+        for k,v in attached_devices.items():
+            self.tablist[k] = globals()[v](self.notebook,self.settings_dict[k])
         
-        # Here we pretend we loaded a H5 file, and found a ni_pcie_6363 device!
-        
-                
-        self.tab = globals()["ni_pcie_6363"](self.notebook,{"device_name":"ni_pcie_6363_0"})
-        #self.notebook.append_page(self.tab.tab,gtk.Label("ni_pcie_6363"+"_0"))
-        
-        self.do_test = self.tab.get_child("DO",2)
-        self.do_test1 = self.tab.get_child("DO",16)
-        self.do_widget = self.builder.get_object("test_toggle")
-        self.do_test.add_callback(self.update_test)
-        self.do_test1.add_callback(self.update_test)
-        
-        
-        
-        #self.novatech_0_tab = globals()["novatech_dds9m"](self.notebook,{"device_name":"novatechdds9m_0","COM":"com10"})
-        
-        
-        self.novatech_1_tab = globals()["novatechdds9m"](self.notebook,{"device_name":"novatechdds9m_0","COM":"com1"})
-        self.andor_ixon_tab = globals()["andor_ixon"](self.notebook,{})
+        #self.tablist["andor_ixon"] = globals()["andor_ixon"](self.notebook,{})
         
                 
-        self.pulseblaster_0_tab = globals()["pulseblaster"](self.notebook,{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"})
-        #self.notebook.append_page(self.pulseblaster_0_tab.tab,gtk.Label("pulseblaster_0"))        
-        #self.pulseblaster_0_tab.set_defaults()
         
-        #self.pulseblaster_1_tab = globals()["pulseblaster"]({"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"})
-        #self.notebook.append_page(self.pulseblaster_1_tab.tab,gtk.Label("pulseblaster_1"))        
-        #self.pulseblaster_1_tab.set_defaults()
         
         #self.shutter_tab = globals()["shutter"]([self.tab.get_child("DO",1),self.tab.get_child("DO",5),self.tab.get_child("DO",27),self.tab.get_child("DO",13)])
         #self.notebook.append_page(self.shutter_tab.tab,gtk.Label("shutter_0"))
@@ -147,14 +133,6 @@ class BLACS(object):
         #self.ax.plot(data[1,:],data[0,:])
         self.canvas.draw_idle()
         pass
-
-    def update_test(self,a):
-        if self.do_widget.get_active() != a.state:
-            self.do_widget.set_active(a.state)
-			
-    def toggle_test(self,widget):
-        self.do_test.update_value(widget.get_active())
-        self.do_test1.update_value(widget.get_active())
     
     def on_window_destroy(self,widget):
         self.destroy()
@@ -167,10 +145,10 @@ class BLACS(object):
             self.exiting = True
             self.manager_running = False
             self.window.hide()
-            self.tab.destroy()
-            self.pulseblaster_0_tab.destroy()
-            self.andor_ixon_tab.destroy()
-            #self.pulseblaster_1_tab.destroy()
+            
+            for k,v in self.tablist.items():
+                v.destroy()
+            
             gtk.main_quit()
 
         
@@ -211,50 +189,29 @@ class BLACS(object):
             
             print path
             
-            # Transition devices to buffered mode!
-            #gtk.gdk.threads_leave()
-            # Create Event
-            #pb0_event = threading.Event()
-            #threading.Thread(target = self.pulseblaster_0_tab.transition_to_buffered, args=(path, pb0_event)).start()
-            #ni0_event = threading.Event()
-            #threading.Thread(target = self.tab.transition_to_buffered,args=(path,ni0_event)).start()
-            #nt1_event = threading.Event()
-            #gtk.gdk.threads_enter()
+            # Transition devices to buffered mode
             gtk.gdk.threads_enter()
             #self.tab.setup_buffered_trigger()
-            self.pulseblaster_0_tab.transition_to_buffered(path)
-            print 'pb_event done'
-            self.tab.transition_to_buffered(path)
-            print 'ni_event done'
-            self.novatech_1_tab.transition_to_buffered(path)
-            print 'nt_event done'
+            for k,v in self.tablist.items():
+                v.transition_to_buffered(path)
             
-            # Wait for programming to complete!
-            #pb0_event.wait()
-            
-            #ni0_event.wait()
-            
-            #print 'done programming!'
-            self.pulseblaster_0_tab.start()
-            #self.tab.start_buffered()
-            
-            #time.sleep(0.2)
+            self.tablist["pulseblaster_0"].start()
+           
             #force status update
-            self.pulseblaster_0_tab.status_monitor()
+            self.tablist["pulseblaster_0"].status_monitor()
             gtk.gdk.threads_leave()
             
-            while self.pulseblaster_0_tab.status["waiting"] is not True:
+            while self.tablist["pulseblaster_0"].status["waiting"] is not True:
                 if not self.manager_running:
                     break
                 #print 'waiting'
                 time.sleep(0.05)
             
             gtk.gdk.threads_enter()
-            self.pulseblaster_0_tab.transition_to_static()
-            self.tab.transition_to_static()
-            self.novatech_1_tab.transition_to_static()
-            #print 'transitioning back'
-            self.pulseblaster_0_tab.start()
+            for k,v in self.tablist.items():
+                v.transition_to_static()
+                
+            self.tablist["pulseblaster_0"].start()
             gtk.gdk.threads_leave()
             #print 'started'
             
