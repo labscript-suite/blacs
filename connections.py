@@ -43,6 +43,14 @@ class ConnectionTable(object):
             return_list = value.find_devices(device_list,return_list)
         
         return return_list
+        
+    def find_child(self,device_name,connected_to):
+        for k,v in self.toplevel_children.items():
+            val = v.find_child(device_name,connected_to)
+            if val is not None:
+                return val
+                
+        return None
     
 class Connection(object):
     
@@ -95,4 +103,18 @@ class Connection(object):
         for key,value in self.child_list.items():
             return_list = value.find_devices(device_list,return_list)
             
-        return return_list    
+        return return_list   
+
+    def find_child(self,device_name,connected_to):
+        for k,v in self.child_list.items():
+            if v.parent.name == device_name and v.connected_to == connected_to:
+                return v
+        
+        # This is done separately to the above iteration for speed. 
+        # We search for all children first, before going down another layer.
+        for k,v in self.child_list.items():
+            val = v.find_child(device_name,connected_to)
+            if val is not None:
+                return val
+        
+        return None

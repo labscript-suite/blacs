@@ -62,12 +62,12 @@ class BLACS(object):
         # Instantiate Devices from Connection Table, Place in Array        
         attached_devices = self.connection_table.find_devices(device_list)
         
-        self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
-                              "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
-                              "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
-                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
-                              "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
-                              "andor_ixon":{"device_name":"andor_ixon"}
+        self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0","connection_table":self.connection_table},
+                              "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0","connection_table":self.connection_table},
+                              "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0","connection_table":self.connection_table},
+                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10","connection_table":self.connection_table},
+                              "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13","connection_table":self.connection_table},
+                              "andor_ixon":{"device_name":"andor_ixon","connection_table":self.connection_table}
                              }
         self.tablist = {}
         for k,v in attached_devices.items():

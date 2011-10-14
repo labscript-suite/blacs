@@ -65,27 +65,44 @@ class ni_pcie_6363(object):
             temp2 = self.builder.get_object("do_real_label_"+str(i+1))
             if i < 32:
                 temp.set_text("DO P0:"+str(i))
+                channel = "port0/line"+str(i)
             elif i < 40:
                 temp.set_text("DO P1:"+str(i-32)+" (PFI "+str(i-32)+")")
+                channel = "port1/line"+str(i-32)
             else:
                 temp.set_text("DO P2:"+str(i-40)+" (PFI "+str(i-32)+")")
+                channel = "port2/line"+str(i-40)
             
-            temp2.set_text("blah")
+            channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],channel)
+            if channel_name is not None:
+                name = channel_name.name
+            else:
+                name = "-"
+            
+            
+            temp2.set_text(name)
             
             # Create DO object
             # channel is currently being set to i in the DO. It should probably be a NI channel 
             # identifier
-            self.digital_outs.append(DO(self,self.static_update,i,temp.get_text(),temp2.get_text()))
+            self.digital_outs.append(DO(self,self.static_update,i,temp.get_text(),name))
         
         self.analog_outs = []
         self.analog_widgets = []
         for i in range(0,self.num_AO):
+            channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],"ao"+str(i))
+            if channel_name is not None:
+                name = channel_name.name
+            else:
+                name = "-"
+                
             # store widget objects
             self.analog_widgets.append(self.builder.get_object("AO_value_"+str(i+1)))
             
-            self.builder.get_object("AO_label_a"+str(i+1)).set_text("AO"+str(i))
+            self.builder.get_object("AO_label_a"+str(i+1)).set_text("AO"+str(i))            
+            self.builder.get_object("AO_label_b"+str(i+1)).set_text(name)            
             
-            self.analog_outs.append(AO(self,self.static_update,i,"AO"+str(i),"blah",[-10.,10.]))
+            self.analog_outs.append(AO(self,self.static_update,i,"AO"+str(i),name,[-10.,10.]))
             
         # Need to connect signals!
         self.builder.connect_signals(self)

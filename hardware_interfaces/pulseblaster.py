@@ -82,9 +82,12 @@ class pulseblaster(object):
             self.dds_widgets.append([w1,w2,w3,w4])
             
             hardware_name = "DDS "+str(i)
-            real_name = "blah"
-            
-            self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + " - " + real_name)
+            channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],"dds "+str(i))
+            if channel_name is not None:
+                real_name = " - "+channel_name.name
+            else:
+                real_name = ""
+            self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + real_name)
             
             # Make RF objects
             self.rf_outputs.append(RF(self,self.ignore_update,i,hardware_name,real_name,[0.0000003,100.0,0.0,1.0,0,360]))
@@ -108,10 +111,17 @@ class pulseblaster(object):
                 temp = self.builder.get_object("flag_hardware_label_"+str(i))
                 temp.set_text("Flag "+str(i))
                 temp2 = self.builder.get_object("flag_real_label_"+str(i))
-                temp2.set_text("blah")
+                
+                channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],"flag "+str(i))
+                if channel_name is not None:
+                    real_name = channel_name.name
+                else:
+                    real_name = "-"
+                
+                temp2.set_text(real_name)
                 
                 # create DO object
-                self.do_outputs.append(DO(self,self.static_update,i,temp.get_text(),temp2.get_text()))
+                self.do_outputs.append(DO(self,self.static_update,i,temp.get_text(),real_name))
             
             # inactive widgets
             else:

@@ -46,9 +46,13 @@ class novatechdds9m(object):
             self.rf_widgets.append([w1,w2,w3])
 
             hardware_name = "Channel "+str(i)
-            real_name = "blah"
+            channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],"channel "+str(i))
+            if channel_name is not None:
+                real_name = " - "+channel_name.name
+            else:
+                real_name = ""
 
-            self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + " - " + real_name)
+            self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + real_name)
 
             # Make RF objects
             self.rf_outputs.append(RF(self,self.static_update,i,hardware_name,real_name,[0.0000001,170.0,0.0,1.0,0,360]))
