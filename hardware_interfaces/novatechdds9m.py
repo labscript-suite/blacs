@@ -76,7 +76,7 @@ class novatechdds9m(object):
         self.set_defaults()
         self.tab = self.builder.get_object('toplevel')
         notebook.append_page(self.tab,gtk.Label(self.settings["device_name"]))  
-
+        notebook.set_tab_reorderable(self.tab,True)
 	
     def destroy(self):
         try:

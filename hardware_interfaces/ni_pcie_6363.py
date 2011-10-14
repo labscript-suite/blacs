@@ -107,6 +107,7 @@ class ni_pcie_6363(object):
         # Need to connect signals!
         self.builder.connect_signals(self)
         notebook.append_page(self.tab,gtk.Label(settings["device_name"]))
+        notebook.set_tab_reorderable(self.tab,True)
         
         # Set up AI/DI input manager. This subprocess will communicate with the main gtk thread via a queue or pipe (see subprocessing module)
         # Through the ni_pcie_6363 device, virtual devices will request data from a channel (or list of channels).

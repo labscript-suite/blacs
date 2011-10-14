@@ -151,6 +151,7 @@ class pulseblaster(object):
         self.timeout = gtk.timeout_add(50,self.status_monitor)
         
         notebook.append_page(self.tab,gtk.Label(settings["device_name"]))
+        notebook.set_tab_reorderable(self.tab,True)
         
         # We are done with the init!
         self.init_done = True 

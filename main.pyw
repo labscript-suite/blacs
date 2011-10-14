@@ -101,7 +101,7 @@ class BLACS(object):
         vbox.pack_start(canvas)
         self.notebook.append_page(vbox,gtk.Label("graph!"))
         
-        #self.tab.request_analog_input(0,10000,self.update_plot)
+        self.tablist["ni_pcie_6363_0"].request_analog_input(0,10000,self.update_plot)
         
         # Setup the sequence manager thread
         # This thread will listen on a specific port, and will add items it recieves to a queue
