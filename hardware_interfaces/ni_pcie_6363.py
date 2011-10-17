@@ -659,23 +659,26 @@ class Worker(multiprocessing.Process):
                 
                 i = 0
                 t = time.time()
+                self.buffered_data = numpy.zeros((len(self.buffered_data_list)*1000,len(self.buffered_channels)))
                 print 'starting! t=0'
                 for data in self.buffered_data_list:
                     if len(self.buffered_channels) > 1:
                         data.shape = (len(self.buffered_channels),self.ai_read.value)              
                         data = data.transpose()
-                    self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
+                    #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
+                    self.buffered_data[i*1000:(i*1000)+1000] = data
                     
                     if i % 100 == 0:
-                        print str(i%100) + " time: "+str(time.time()-t)
+                        print str(i/100) + " time: "+str(time.time()-t)
                     i += 1
                 print 'data appended'
-                
+                print " time: "+str(time.time()-t)
                 if len(self.buffered_channels) == 1:
                     ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):])
                 else:
                     ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):,:])
                 print 'data written'
+                print " time: "+str(time.time()-t)
             except Exception as e:
                 print str(e)
                 print 'failed at writing data'
