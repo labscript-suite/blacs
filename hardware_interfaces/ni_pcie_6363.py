@@ -491,6 +491,7 @@ class Worker(multiprocessing.Process):
         self.buffered_rate = 0
         self.buffered = False
         self.buffered_data = None
+        self.buffered_data_list = []
         
         self.task = None
       
@@ -548,10 +549,12 @@ class Worker(multiprocessing.Process):
                 if self.buffered:
                     # rearrange ai_data into correct form
                     data = numpy.copy(self.ai_data)
-                    if len(chnl_list) > 1:
-                        data.shape = (len(chnl_list),self.ai_read.value)              
-                        data = data.transpose()
-                    self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
+                    self.buffered_data_list.append(data)
+                    
+                    #if len(chnl_list) > 1:
+                    #    data.shape = (len(chnl_list),self.ai_read.value)              
+                    #    data = data.transpose()
+                    #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
                 else:
                     self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
                     self.t0 = self.t0 + self.samples_per_channel/self.rate
@@ -606,6 +609,7 @@ class Worker(multiprocessing.Process):
         self.stop_task()
         
         self.buffered_channels = []
+        self.buffered_data_list = []
         
         # Save h5file path (for storing data later!)
         self.h5_file = h5file
@@ -652,15 +656,32 @@ class Worker(multiprocessing.Process):
             try:
                 data_group = hdf5_file['/'].create_group('data')
                 ni_group = data_group.create_group(device_name)
+                
+                i = 0
+                t = time.time()
+                print 'starting! t=0'
+                for data in self.buffered_data_list:
+                    if len(self.buffered_channels) > 1:
+                        data.shape = (len(self.buffered_channels),self.ai_read.value)              
+                        data = data.transpose()
+                    self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
+                    
+                    if i % 100 == 0:
+                        print str(i%100) + " time: "+str(time.time()-t)
+                    i += 1
+                print 'data appended'
+                
                 if len(self.buffered_channels) == 1:
                     ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):])
                 else:
                     ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):,:])
-                
+                print 'data written'
             except Exception as e:
                 print str(e)
                 print 'failed at writing data'
         
+        self.buffered_data = None
+        self.buffered_data_list = []
         
         # Send data to callback functions as requested (in one big chunk!)
         #self.result_queue.put([self.t0,self.rate,self.ai_read,len(self.channels),self.ai_data])
