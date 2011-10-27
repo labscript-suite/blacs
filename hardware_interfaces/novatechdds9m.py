@@ -92,7 +92,7 @@ class novatechdds9m(object):
                 settings = values[i].split()
                 f = float(int(settings[0],16))/10**7
                 p = int(settings[1],16)*360/16384.0
-                a = int(settings[2],16)/1024.0
+                a = int(settings[2],16)/1023.0
                 self.rf_outputs[i].update_value(f,a,p)
         except:
             pass
@@ -102,7 +102,7 @@ class novatechdds9m(object):
     def static_update(self,output):
         
         # convert numbers to correct representation
-        output.amp = int(output.amp*1024)/1024.0
+        output.amp = int(output.amp*1023)/1023.0
         output.phase = (int((output.phase/360)*16384)/16384.0)*360
         
                 
@@ -137,8 +137,9 @@ class novatechdds9m(object):
             print "channel"+str(channel)+" broken f"
             
         try:
-            self.connection.write('V%d %u\r\n'%(channel,output.amp*1024))
-            self.connection.readline(),        
+            self.connection.write('V%d %u\r\n'%(channel,output.amp*1023))
+            response = self.connection.readline(),        
+            print repr(response)
         except:
             print "channel"+str(channel)+" broken a"
             
