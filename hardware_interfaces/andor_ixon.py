@@ -167,7 +167,7 @@ class andor_ixon(object):
     def transition_to_buffered(self,h5file):        
         # disable static update
         self.static_mode = False
-        self.shutter.set_sensitive(False)
+        #self.shutter.set_sensitive(False)
     
     #
     # ** This method should be common to all hardware interfaces **
@@ -181,8 +181,9 @@ class andor_ixon(object):
                 
         #reenable static updates
         self.static_mode = True
-        self.shutter.set_active(False)
-        self.shutter.set_sensitive(True)
+        #TODO: Fix! shutter is a list!
+        #self.shutter.set_active(False)
+        #self.shutter.set_sensitive(True)
     #
     # ** This method should be common to all hardware interfaces **
     #        

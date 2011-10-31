@@ -69,8 +69,8 @@ class novatechdds9m(object):
             self.connection.write('e d\r\n')
             self.connection.readline()
                                        
-        except:
-            print "help, I'm broken!?"
+        except Exception as e:
+            print "help, I'm broken!?: %s"%str(e)
             
         
         self.set_defaults()

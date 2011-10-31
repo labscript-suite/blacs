@@ -662,11 +662,12 @@ class Worker(multiprocessing.Process):
                 self.buffered_data = numpy.zeros((len(self.buffered_data_list)*1000,len(self.buffered_channels)))
                 print 'starting! t=0'
                 for data in self.buffered_data_list:
-                    if len(self.buffered_channels) > 1:
-                        data.shape = (len(self.buffered_channels),self.ai_read.value)              
-                        data = data.transpose()
+                    data.shape = (len(self.buffered_channels),self.ai_read.value)              
+                    data = data.transpose()
                     #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
-                    self.buffered_data[i*1000:(i*1000)+1000] = data
+                    print data.shape
+                    print self.buffered_data[i*1000:(i*1000)+1000].shape
+                    self.buffered_data[i*1000:(i*1000)+1000,:] = data
                     
                     if i % 100 == 0:
                         print str(i/100) + " time: "+str(time.time()-t)
@@ -680,6 +681,7 @@ class Worker(multiprocessing.Process):
                 print 'data written'
                 print " time: "+str(time.time()-t)
             except Exception as e:
+                raise
                 print str(e)
                 print 'failed at writing data'
         

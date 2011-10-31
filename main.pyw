@@ -65,7 +65,7 @@ class BLACS(object):
         self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0","connection_table":self.connection_table},
                               "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0","connection_table":self.connection_table},
                               "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0","connection_table":self.connection_table},
-                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10","connection_table":self.connection_table},
+                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com1","connection_table":self.connection_table},
                               "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13","connection_table":self.connection_table},
                               "andor_ixon":{"device_name":"andor_ixon","connection_table":self.connection_table}
                              }
