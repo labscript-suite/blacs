@@ -259,6 +259,13 @@ def do_stuff(h5_filepath):
     
         
 class RequestHandler(BaseHTTPRequestHandler):
+
+    #def address_string(self):
+    #    print 'address string!'
+    #    host, port = self.client_address[:2]
+        #return socket.getfqdn(host)
+    #    return host
+        
     def do_POST(self):
         self.send_response(200)
         self.end_headers()
@@ -270,15 +277,18 @@ class RequestHandler(BaseHTTPRequestHandler):
         message = do_stuff(h5_filepath)
         gtk.gdk.threads_leave()
         self.wfile.write(message)
+        self.wfile.close()
 
 
 port = 42517
 if __name__ == "__main__":
+    gtk.threads_init()
+    gtk.gdk.threads_enter()
     app = BLACS()
     settings = gtk.settings_get_default()
     settings.props.gtk_button_images = True
-    gtk.threads_init()
     
+    gtk.gdk.threads_leave()
     serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
     serverthread.daemon = True # process will end if only daemon threads are left
     serverthread.start()
