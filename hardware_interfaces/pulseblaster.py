@@ -150,8 +150,16 @@ class pulseblaster(object):
         #self.pause_status = False
         self.timeout = gtk.timeout_add(50,self.status_monitor)
         
-        notebook.append_page(self.tab,gtk.Label(settings["device_name"]))
+        tablabelbuilder = gtk.Builder()
+        tablabelbuilder.add_from_file('tab_label.glade')
+        tablabel = tablabelbuilder.get_object('toplevel')
+        self.tab_label_widgets = {"not_ready":tablabelbuilder.get_object('not_ready'),"ready":tablabelbuilder.get_object('ready'),"inadvisable":tablabelbuilder.get_object('inadvisable')}
+        tablabelbuilder.get_object('label').set_label(self.settings["device_name"])
+        
+        notebook.append_page(self.tab,tablabel)
         notebook.set_tab_reorderable(self.tab,True)
+        
+        self.sm = settings["state_machine"]
         
         # We are done with the init!
         self.init_done = True 
@@ -189,7 +197,7 @@ class pulseblaster(object):
     def status_monitor(self):
         #if self.pause_status is True:
         #    return True
-        
+        self.sm.enter("Status Check")
         spinapi.lock.acquire()
         spinapi.pb_select_board(self.pb_num)
         self.status = spinapi.pb_read_status()
@@ -205,8 +213,28 @@ class pulseblaster(object):
                 self.status_widgets[name+"_no"].show()
                 self.status_widgets[name+"_yes"].hide()
                 
-        return True
+        # Update Tab Label
+        if self.ready() and self.static_mode:
+            self.tab_label_widgets["ready"].show()
+            self.tab_label_widgets["not_ready"].hide()
+        else:
+            self.tab_label_widgets["ready"].hide()
+            self.tab_label_widgets["not_ready"].show()
+            
         
+        self.sm.exit()        
+        return True
+    
+    #
+    # ** This method should be common to all hardware interfaces **
+    #        
+    # Returns the status of the device. Is it ready for transition to buffered?
+    #
+    def ready(self):
+        if self.status["running"] and not self.status["stopped"] and not self.status["reset"] and not self.status["waiting"] and self.static_mode and self.init_done:
+            return True
+        return False
+    
     #
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
     # ** This method is an internal method, registered as a callback with each AO/DO/RF channel **

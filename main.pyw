@@ -43,11 +43,16 @@ class BLACS(object):
         self.notebook = self.builder.get_object("notebook1")
         self.queue = self.builder.get_object("remote_liststore")
         self.listwidget = self.builder.get_object("treeview1")
+        self.statusbar = self.builder.get_object("statusbar")
+        
         treeselection = self.listwidget.get_selection()
         treeselection.set_mode(gtk.SELECTION_MULTIPLE)
         
 		# Need to connect signals!
         self.builder.connect_signals(self)
+        
+        # Create State Machine
+        self.state_machine = StateMachine(self.statusbar,"Main GUI")
         
         ######################################
         # TODO: Load From Connection Table   #
@@ -62,13 +67,19 @@ class BLACS(object):
         # Instantiate Devices from Connection Table, Place in Array        
         attached_devices = self.connection_table.find_devices(device_list)
         
-        self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0","connection_table":self.connection_table},
-                              "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0","connection_table":self.connection_table},
-                              "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0","connection_table":self.connection_table},
-                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com1","connection_table":self.connection_table},
-                              "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13","connection_table":self.connection_table},
-                              "andor_ixon":{"device_name":"andor_ixon","connection_table":self.connection_table}
+        self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
+                              "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
+                              "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
+                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
+                              "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
+                              "andor_ixon":{"device_name":"andor_ixon"}
                              }
+                             
+        for k,v in self.settings_dict.items():
+            # add common keys to settings:
+            v["connection_table"] = self.connection_table
+            v["state_machine"] = self.state_machine
+        
         self.tablist = {}
         for k,v in attached_devices.items():
             self.tablist[k] = globals()[v](self.notebook,self.settings_dict[k])
@@ -91,8 +102,6 @@ class BLACS(object):
         ax = fig.add_subplot(111)
         t = numpy.arange(0,10000,1)
         s = numpy.arange(-10,11,21/10000.)
-        print len(s)
-        print len(t)
         self.plot_data = s
         ax.plot(t,s)
         self.ax = ax
@@ -239,6 +248,33 @@ class BLACS(object):
             self.tablist["pulseblaster_0"].start()
             gtk.gdk.threads_leave()
             #print 'started'
+
+class StateMachine(object):
+    def __init__(self, hbox, thread_name):
+        # Add widget to "status bar"
+        self.label = gtk.Label(thread_name)
+        self.label.set_has_tooltip(True)
+        self.label.set_tooltip_text(thread_name)
+        self.statusbar = hbox
+        hbox.pack_start(self.label,expand = False, padding = 10)
+        
+        self.lock = threading.Condition(threading.Lock())
+        self.name = thread_name
+        
+    def enter(self,state):
+        while not self.lock.acquire(False):
+            print "State Machine ("+self.name+"): Could not acquire the state machine lock. This shouldn't ever happen. Either a part of the application has not released the lock, multiple threads are using the same state machine or methods are running concurently within the same thread" 
+        self.label.set_label(state)
+        
+        #while gtk.events_pending():            
+        #    gtk.main_iteration(False)
+        
+        #self.statusbar.show()
+        #self.statusbar.draw(gtk.gdk.Rectangle())
+        
+    def exit(self):
+        self.label.set_label("Idle")
+        self.lock.release()
             
 
 def do_stuff(h5_filepath):
