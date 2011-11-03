@@ -89,9 +89,11 @@ class BLACS(object):
 
         fig = Figure(figsize=(5,4), dpi=100)
         ax = fig.add_subplot(111)
-        t = numpy.arange(0,1000,1)
-        s = numpy.arange(-10,11,21/1000.)
-
+        t = numpy.arange(0,10000,1)
+        s = numpy.arange(-10,11,21/10000.)
+        print len(s)
+        print len(t)
+        self.plot_data = s
         ax.plot(t,s)
         self.ax = ax
         self.figure = fig
@@ -101,7 +103,7 @@ class BLACS(object):
         vbox.pack_start(canvas)
         self.notebook.append_page(vbox,gtk.Label("graph!"))
         
-        self.tablist["ni_pcie_6363_0"].request_analog_input(0,10000,self.update_plot)
+        self.tablist["ni_pcie_6363_0"].request_analog_input(0,1000,self.update_plot)
         
         # Setup the sequence manager thread
         # This thread will listen on a specific port, and will add items it recieves to a queue
@@ -121,7 +123,18 @@ class BLACS(object):
     def update_plot(self,channel,data,rate):
         line = self.ax.get_lines()[0]
         #print line
-        line.set_ydata(data[0,:])
+        #print rate
+        #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
+        t = time.time()
+        #print 'a'
+        a = numpy.zeros(len(self.plot_data))
+        a[0:len(self.plot_data)-len(data[0,:])] = self.plot_data[len(data[0,:]):]
+        a[len(self.plot_data)-len(data[0,:]):] = data[0,:]
+        #print str(time.time()-t)
+        self.plot_data = a
+        #print str(time.time()-t)
+        line.set_ydata(self.plot_data)
+        #print str(time.time()-t)
         #self.ax.draw_artist(line)
         # just redraw the axes rectangle
         #self.canvas.blit(self.ax.bbox)

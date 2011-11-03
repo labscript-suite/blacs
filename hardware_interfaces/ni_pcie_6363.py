@@ -244,7 +244,7 @@ class ni_pcie_6363(object):
         
             # communicate with subprocess. Request data from channel be included in the queue. Up aquisition rate if necessary
             
-            self.write_queue.put(["add channel","ni_pcie_6363_0/ai"+str(channel),"10000"])
+            self.write_queue.put(["add channel","ni_pcie_6363_0/ai"+str(channel),str(rate)])
             
             return True
         else:
