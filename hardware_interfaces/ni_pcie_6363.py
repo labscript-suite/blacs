@@ -654,7 +654,7 @@ class Worker(multiprocessing.Process):
         # save the data acquired to the h5 file
         with h5py.File(self.h5_file,'a') as hdf5_file:
             try:
-                data_group = hdf5_file['/'].create_group('data')
+                data_group = hdf5_file['/data']
                 ni_group = data_group.create_group(device_name)
                 
                 i = 0

@@ -70,7 +70,7 @@ class BLACS(object):
         self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
                               "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
                               "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
-                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
+                              "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com1"},
                               "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
                               "andor_ixon":{"device_name":"andor_ixon"}
                              }
@@ -225,12 +225,13 @@ class BLACS(object):
             
             # Transition devices to buffered mode
             gtk.gdk.threads_enter()
+            #print "transitioning to buffered"
             #self.tab.setup_buffered_trigger()
             for k,v in self.tablist.items():
                 v.transition_to_buffered(path)
-            
+            #print "Devices programmed"
             self.tablist["pulseblaster_0"].start()
-           
+            
             #force status update
             self.tablist["pulseblaster_0"].status_monitor()
             gtk.gdk.threads_leave()
@@ -240,8 +241,15 @@ class BLACS(object):
                     break
                 #print 'waiting'
                 time.sleep(0.05)
-            
             gtk.gdk.threads_enter()
+            with h5py.File(path,'a') as hdf5_file:
+                try:
+                    data_group = hdf5_file['/'].create_group('data')
+                except Exception as e:
+                    raise
+                    print str(e)
+                    print 'failed creating data group'
+            
             for k,v in self.tablist.items():
                 v.transition_to_static()
                 
@@ -284,6 +292,7 @@ def do_stuff(h5_filepath):
     # check connection table
     try:
         new_conn = ConnectionTable(h5_filepath)
+        
     except:
         return "H5 file not accessible to Control PC"
         
@@ -323,8 +332,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         length = int(self.headers.getheader('content-length'))
         postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
         h5_filepath =  postvars['filepath'][0]
+       
         gtk.gdk.threads_enter()
+        
         message = do_stuff(h5_filepath)
+        print message
         gtk.gdk.threads_leave()
         self.wfile.write(message)
         self.wfile.close()

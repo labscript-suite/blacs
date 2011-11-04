@@ -5,6 +5,8 @@ import time
 import pyandor
 import h5py
 import numpy
+from hardware_programming import andor_ixon as ixon_programming
+
 
 class andor_ixon(object):
 
@@ -166,9 +168,20 @@ class andor_ixon(object):
     #
     def transition_to_buffered(self,h5file):        
         # disable static update
+        self.h5file=h5file
         self.static_mode = False
-        #self.shutter.set_sensitive(False)
-    
+        self.shutter[0].set_active(True)
+        self.shutter[0].set_sensitive(False)
+        self.shutter[1].set_sensitive(False)
+        self.shutter[2].set_sensitive(False)
+        pyandor.lock.acquire()
+        self.cam.SetTriggerMode(1)
+        self.cam.SetFastExtTrigger(1)
+        self.cam.SetReadMode(4)
+        self.cam.SetImage(1,1,1,self.cam.width,1,self.cam.height) # could be moved to hardware programming section to allow the user to set up binning?
+        pyandor.lock.release()
+        ixon_programming.program_from_h5_file(self.cam,self.settings['device_name'],h5file)
+        
     #
     # ** This method should be common to all hardware interfaces **
     #        
@@ -177,13 +190,38 @@ class andor_ixon(object):
     # Needs to handle seemless transition from experiment sequence to static mode
     #    
     def transition_to_static(self):
-        # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is sending out updates.
-                
+        # read out the images we took!
+        pyandor.lock.acquire()
+        self.cam.GetTotalNumberImagesAcquired()
+        #imagedata = numpy.empty(self.cam.numpics,self.cam.width,self.cam.height)
+        self.cam.GetAcquiredData()
+        self.cam.GetAcquisitionTimings()
+        
+        dtype = [('Exposure time',float32),('Kinetic Cycle Time',float32),('Accumulate Cycle Time',float32)]
+        settings = numpy.array((self.cam.exposure,self.cam.kinetic,self.cam.accumulate),dtype=dtype)
+        
+        with h5py.File(self.h5_file,'a') as hdf5_file:
+            try:
+                data_group = hdf5_file['/data']
+                iXon_group = data_group.create_group(device_name)
+                iXon_group.create_dataset('actual_exposure_timing', data=settings)
+                for p in range(len(self.cam.imageArray)):
+                    iXon_group.create_dataset('image_%d'%p, data=self.cam.imageArray[p])
+            except Exception as e:
+                raise
+                print str(e)
+                print 'failed at writing camera data'
+        
+        
         #reenable static updates
         self.static_mode = True
         #TODO: Fix! shutter is a list!
-        #self.shutter.set_active(False)
-        #self.shutter.set_sensitive(True)
+        self.shutter[0].set_sensitive(True)
+        self.shutter[1].set_sensitive(True)
+        self.shutter[2].set_sensitive(True)
+        self.shutter[2].set_active(True)
+        self.cam.SetTriggerMode(0)
+        
     #
     # ** This method should be common to all hardware interfaces **
     #        
@@ -218,15 +256,19 @@ class andor_ixon(object):
     def take_picture(self,widget):
         pyandor.lock.acquire()
         self.cam.SetSingleScan()
+        self.cam.SetAcquisitionMode(1)
+        self.cam.SetReadMode(4)
+        self.cam.SetImage(1,1,1,self.cam.width,1,self.cam.height)
         self.cam.SetTriggerMode(0)
         #self.cam.SetShutter(1,1,0,0)
-        self.cam.SetPreAmpGain(1)
-        self.cam.SetEMCCDGain(0)
-        self.cam.SetExposureTime(0.002)
-        self.cam.SetCoolerMode(1)
+        #self.cam.SetPreAmpGain(1)
+        #self.cam.SetEMCCDGain(0)
+        #self.cam.SetExposureTime(0.002)
+        #self.cam.SetCoolerMode(1)
         self.cam.StartAcquisition()
-        data = []
-        self.cam.GetAcquiredData(data)
+        
+        self.cam.GetTotalNumberImagesAcquired()
+        self.cam.GetAcquiredData()
         #maxIntensity = max(data)
         #if maxIntensity > 0:
         #   for i in range(len(data)):
@@ -234,7 +276,7 @@ class andor_ixon(object):
         #
         #data=numpy.array([data[i:i+512] for i in range(0, len(data), 512)])
         #pixels=gtk.gdk.pixbuf_new_from_array(data,gtk.gdk.COLORSPACE_RGB,24)
-        self.cam.SaveAsBmpNormalised('manual_img.bmp')
+        self.cam.SaveAsNormalisedPic('manual_img.bmp')
         self.preview.set_from_file('manual_img.bmp')
         #self.preview.set_from_pixbuf(pixels)
         pyandor.lock.release()
@@ -323,7 +365,7 @@ class andor_ixon(object):
             return 'not saved'
         chooser.destroy()
         with open(self.current_file,'w') as current_file:
-            self.cam.SaveAsBmp(current_file)
+            self.cam.SaveAsPic(current_file)
     def save_norm(self,widget):
         chooser = gtk.FileChooserDialog(title='Save',action=gtk.FILE_CHOOSER_ACTION_SAVE,
                                         buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
@@ -332,7 +374,7 @@ class andor_ixon(object):
 
         chooser.set_do_overwrite_confirmation(True)
         chooser.set_current_folder_uri(r'C:\Users\beclab\Pictures')
-        chooser.set_current_name('manual_photo.bmp')
+        chooser.set_current_name('manual_photo_norm.bmp')
         response = chooser.run()
         if response == gtk.RESPONSE_OK:
             self.current_file = chooser.get_filename()
@@ -341,7 +383,7 @@ class andor_ixon(object):
             return 'not saved'
         chooser.destroy()
         with open(self.current_file,'w') as current_file:
-            self.cam.SaveAsBmpNormalised(current_file)
+            self.cam.SaveAsNormalisedPic(current_file)
             
     def save_text(self,widget):
         chooser = gtk.FileChooserDialog(title='Save',action=gtk.FILE_CHOOSER_ACTION_SAVE,
@@ -360,4 +402,4 @@ class andor_ixon(object):
             return 'not saved'
         chooser.destroy()
         with open(self.current_file,'w') as current_file:
-            self.cam.SaveAsTxt(current_file)
+            self.cam.SaveAsCsv(current_file)
