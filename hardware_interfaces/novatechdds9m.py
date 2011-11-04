@@ -139,7 +139,7 @@ class novatechdds9m(object):
         try:
             self.connection.write('V%d %u\r\n'%(channel,output.amp*1023))
             response = self.connection.readline(),        
-            print repr(response)
+            #print repr(response)
         except:
             print "channel"+str(channel)+" broken a"
             

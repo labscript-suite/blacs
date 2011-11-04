@@ -266,8 +266,9 @@ class StateMachine(object):
             print "State Machine ("+self.name+"): Could not acquire the state machine lock. This shouldn't ever happen. Either a part of the application has not released the lock, multiple threads are using the same state machine or methods are running concurently within the same thread" 
         self.label.set_label(state)
         
-        #while gtk.events_pending():            
-        #    gtk.main_iteration(False)
+        # Force the redraw and resize of the status bar!        
+        while gtk.events_pending():            
+            gtk.main_iteration(False)
         
         #self.statusbar.show()
         #self.statusbar.draw(gtk.gdk.Rectangle())
