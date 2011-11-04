@@ -55,7 +55,7 @@ class novatechdds9m(object):
             self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + real_name)
 
             # Make RF objects
-            self.rf_outputs.append(RF(self,self.static_update,i,hardware_name,real_name,[0.0000001,170.0,0.0,1.0,0,360]))
+            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[0.0000001,170.0,0.0,1.0,0,360]))
             
                 
         
@@ -126,9 +126,22 @@ class novatechdds9m(object):
                 
         if self.rf_widgets[channel][2].get_value() != output.phase:
             self.rf_widgets[channel][2].set_value(output.phase)
-        
+     
+    def program_static(self,output):    
         if not self.init_done or not self.static_mode:
             return
+            
+        #find channel
+        channel = None
+        for i in range(0,self.num_RF):
+            if output == self.rf_outputs[i]:
+                channel = i
+                break
+    
+        if channel is None:
+            #return error
+            pass     
+        
         # program hardware
         try:            
             self.connection.write('F%d %f\r\n'%(channel,output.freq))

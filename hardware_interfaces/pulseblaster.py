@@ -90,11 +90,11 @@ class pulseblaster(object):
             self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + real_name)
             
             # Make RF objects
-            self.rf_outputs.append(RF(self,self.ignore_update,i,hardware_name,real_name,[0.0000003,100.0,0.0,1.0,0,360]))
+            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[0.0000003,100.0,0.0,1.0,0,360]))
             # Make DO control object for RF channels
-            self.rf_do_outputs.append(DO(self,self.ignore_update,i,hardware_name + " active",real_name + " active"))
+            self.rf_do_outputs.append(DO(self,self.static_update,self.program_static,i,hardware_name + " active",real_name + " active"))
             # Make DDS object
-            self.dds_outputs.append(DDS(self,self.static_update,self.rf_outputs[i],self.rf_do_outputs[i]))            
+            self.dds_outputs.append(DDS(self,self.rf_outputs[i],self.rf_do_outputs[i]))            
             # Set defaults
             self.rf_outputs[i].update_value(settings["f"+str(i)],settings["a"+str(i)],settings["p"+str(i)])  
         
@@ -121,7 +121,7 @@ class pulseblaster(object):
                 temp2.set_text(real_name)
                 
                 # create DO object
-                self.do_outputs.append(DO(self,self.static_update,i,temp.get_text(),real_name))
+                self.do_outputs.append(DO(self,self.static_update,self.program_static,i,temp.get_text(),real_name))
             
             # inactive widgets
             else:
@@ -254,7 +254,7 @@ class pulseblaster(object):
         #output.phase = int(output.phase*16384)/16384.0
               
         # is it a DO update or a DDS update?
-        if isinstance(output,DDS):
+        if isinstance(output,RF):
             search_array = self.dds_outputs
         elif isinstance(output,DO):
             search_array = self.do_outputs
@@ -270,7 +270,7 @@ class pulseblaster(object):
             #return error
             return
         # Update GUI    
-        if isinstance(output,DDS):                    
+        if isinstance(output,RF):                    
             if self.dds_widgets[channel][0].get_value() != output.rf.freq:         
                 self.dds_widgets[channel][0].set_value(output.rf.freq)
             
@@ -287,9 +287,12 @@ class pulseblaster(object):
             if self.do_widgets[channel].get_active() != output.state:
                 self.do_widgets[channel].set_active(output.state)
         
-        # Pause status check so we don't query status halfway through programming
-        # TODO: Replace with global spinapi lock
-        #self.pause_status = True
+        
+    
+    def program_static(self,output):
+        # if the init isn't done, skip this!
+        if not self.init_done or not self.static_mode:
+            return
         # Program hardware 
         spinapi.lock.acquire()
         spinapi.pb_select_board(self.pb_num)

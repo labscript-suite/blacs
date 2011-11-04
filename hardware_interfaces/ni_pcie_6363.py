@@ -85,7 +85,7 @@ class ni_pcie_6363(object):
             # Create DO object
             # channel is currently being set to i in the DO. It should probably be a NI channel 
             # identifier
-            self.digital_outs.append(DO(self,self.static_update,i,temp.get_text(),name))
+            self.digital_outs.append(DO(self,self.static_update,self.program_static,i,temp.get_text(),name))
         
         self.analog_outs = []
         self.analog_widgets = []
@@ -102,7 +102,7 @@ class ni_pcie_6363(object):
             self.builder.get_object("AO_label_a"+str(i+1)).set_text("AO"+str(i))            
             self.builder.get_object("AO_label_b"+str(i+1)).set_text(name)            
             
-            self.analog_outs.append(AO(self,self.static_update,i,"AO"+str(i),name,[-10.,10.]))
+            self.analog_outs.append(AO(self,self.static_update,self.program_static,i,"AO"+str(i),name,[-10.,10.]))
             
         # Need to connect signals!
         self.builder.connect_signals(self)
@@ -320,7 +320,10 @@ class ni_pcie_6363(object):
                 elif rate == ai_callback_list[i][j][1]:
                     exists_twice = True
         return rate,exists_twice
-           
+    
+    
+        
+    
     #
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
     # ** This method is an internal method, registered as a callback with each AO/DO/RF channel **
@@ -328,7 +331,7 @@ class ni_pcie_6363(object):
     # Static update 
     # Should not program change during experimental run
     #
-    def static_update(self,output):
+    def program_static(self,output):
         if not self.init_done or not self.static_mode:
             return
         # Program a static change
@@ -345,7 +348,11 @@ class ni_pcie_6363(object):
                 self.do_data[i] = 0
         
         self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
-        
+    
+    
+    def static_update(self,output):    
+        if not self.init_done or not self.static_mode:
+            return    
         # update the GUI too!
         # Select the output array to search from
         search_array = None
@@ -353,7 +360,7 @@ class ni_pcie_6363(object):
             search_array = self.digital_outs
         elif isinstance(output,AO):
             search_array = self.analog_outs
-        
+            
         # search for the output that has been updated, so we can get the right widget to update
         channel = None
         for i in range(0,len(search_array)):
