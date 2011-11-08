@@ -275,8 +275,8 @@ class StateMachine(object):
         self.label.set_label(state)
         
         # Force the redraw and resize of the status bar!        
-        while gtk.events_pending():            
-            gtk.main_iteration(False)
+        #while gtk.events_pending():            
+        #    gtk.main_iteration(False)
         
         #self.statusbar.show()
         #self.statusbar.draw(gtk.gdk.Rectangle())
