@@ -38,10 +38,11 @@ class Tab(object):
         self.errorlabel = builder.get_object('notrespondinglabel')
         self.viewport = builder.get_object('viewport')
         builder.get_object('restart').connect('clicked',self.restart)
-        notebook.add(toplevel)
+        self.notebook = notebook
+        self.notebook.add(toplevel)
         toplevel.show()
         self.set_state('idle')
-    
+        
     def set_state(self,state):
         print 'Producer: state changed to', state
         self.state = state
@@ -65,9 +66,9 @@ class Tab(object):
             self.event_queue.put(('_quit',None,None))
             print 'joining'
             self.mainloop_thread.join()
-        w.remove(w.get_child())
+        self.notebook.remove_page(self.notebook.get_current_page())
         print '***RESTART***'
-        self.__init__(self.worker.__class__)
+        self.__init__(self.worker.__class__,self.notebook)
     
     def queue_work(self,funcname,*args,**kwargs):
         self._work = (funcname,args,kwargs)
@@ -245,11 +246,11 @@ if __name__ == '__main__':
             barbutton = gtk.Button('bar, 10 seconds, then error!')
             bazbutton = gtk.Button('baz, 0.5 seconds!')
             fatalbutton = gtk.Button('fatal error, forgot to add @event to callback!')
-            buttonbox = gtk.VBox()
-            buttonbox.pack_start(foobutton)
-            buttonbox.pack_start(barbutton)
-            buttonbox.pack_start(bazbutton)
-            buttonbox.pack_start(fatalbutton)
+            self.toplevel = gtk.VBox()
+            self.toplevel.pack_start(foobutton)
+            self.toplevel.pack_start(barbutton)
+            self.toplevel.pack_start(bazbutton)
+            self.toplevel.pack_start(fatalbutton)
             
             foobutton.connect('clicked', self.foo)
             barbutton.connect('clicked', self.bar)
@@ -257,8 +258,8 @@ if __name__ == '__main__':
             fatalbutton.connect('clicked',self.fatal )
             # These two lines are required to top level widget (buttonbox
             # in this case) to the existing GUI:
-            self.viewport.add(buttonbox) 
-            buttonbox.show_all()        
+            self.viewport.add(self.toplevel) 
+            self.toplevel.show_all()        
 
         # It is critical that you decorate your callbacks with @event
         # as below. This makes the function get queued up and executed
@@ -271,6 +272,7 @@ if __name__ == '__main__':
         @event
         def foo(self, button):
             print 'MyTab: entered foo'
+            self.toplevel.set_sensitive(False)
             # Here's how you instruct the worker process to do
             # something. When this callback returns, the worker will be
             # requested to do whatever you ask in queue_work (in this
@@ -284,6 +286,7 @@ if __name__ == '__main__':
         # So this function will get executed when the worker process is
         # finished with foo():
         def leave_foo(self,*args,**kwargs):
+            self.toplevel.set_sensitive(True)
             print 'Mytab: leaving foo', args, kwargs
         
         # Here's what's NOT to do: forgetting to decorate a callback with @event
