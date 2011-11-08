@@ -121,12 +121,9 @@ class Tab(object):
                     raise RuntimeError(message)    
                 print 'Producer: processing event:', funcname
                 # Run the task with the GUI lock, catching any exceptions:
-                try:
-                    func = getattr(self,funcname)
-                    with gtk.gdk.lock:
-                        func(self,*args,**kwargs)
-                except:
-                    raise #TODO error handling here
+                func = getattr(self,funcname)
+                with gtk.gdk.lock:
+                    func(self,*args,**kwargs)
                 # Do any work that was queued up:
                 results = None
                 if self._work is not None:
