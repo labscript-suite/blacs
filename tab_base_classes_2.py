@@ -11,7 +11,7 @@ def event(function):
     return f
         
 class Tab(object):
-    def __init__(self,WorkerClass):
+    def __init__(self,WorkerClass,notebook):
         self.event_queue = Queue()
         self.to_worker = Queue()
         self.from_worker = Queue()
@@ -38,9 +38,8 @@ class Tab(object):
         self.errorlabel = builder.get_object('notrespondinglabel')
         self.viewport = builder.get_object('viewport')
         builder.get_object('restart').connect('clicked',self.restart)
-        w.add(toplevel)
+        notebook.add(toplevel)
         toplevel.show()
-        w.resize(800,600)
         self.set_state('idle')
     
     def set_state(self,state):
@@ -240,8 +239,8 @@ if __name__ == '__main__':
     # and a Worker class, and get the Tab to request work to be done by
     # the worker in response to GUI events.
     class MyTab(Tab):
-        def __init__(self,workerclass):
-            Tab.__init__(self,workerclass) # Make sure to call this first in your __init__!
+        def __init__(self,workerclass,notebook):
+            Tab.__init__(self,workerclass,notebook) # Make sure to call this first in your __init__!
             foobutton = gtk.Button('foo, 10 seconds!')
             barbutton = gtk.Button('bar, 10 seconds, then error!')
             bazbutton = gtk.Button('baz, 0.5 seconds!')
@@ -354,9 +353,13 @@ if __name__ == '__main__':
 
     # Run the demo!:
     gtk.gdk.threads_init() 
-    w = gtk.Window()   
-    w.connect('destroy',lambda widget: gtk.main_quit())  
-    w.show()  
-    tab = MyTab(MyWorker)
+    window = gtk.Window() 
+    notebook = gtk.Notebook()
+    window.connect('destroy',lambda widget: gtk.main_quit())  
+    window.add(notebook)
+    notebook.show()
+    window.show()  
+    window.resize(800,600)
+    tab = MyTab(MyWorker,notebook)
     with gtk.gdk.lock:
         gtk.main()
