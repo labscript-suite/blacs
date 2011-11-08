@@ -16,6 +16,7 @@ class Tab(object):
         self.to_worker = Queue()
         self.from_worker = Queue()
         self.worker = WorkerClass(args = [self.to_worker, self.from_worker])
+        self.worker.daemon = True
         self.worker.start()
         self.not_responding_for = 0
         self.hide_not_responding_error_until = 0
@@ -112,12 +113,12 @@ class Tab(object):
                     break
                 if self._work is not None or self._finalisation is not None:
                     message = ('There has been work queued up for the subprocess, '
-                                       'or a finalisation queued up, even though no initial event'
-                                       ' has been processed that could have done this! Did someone '
-                                       'forget to decorate an earlier event callback with @event?\n'
-                                       'Details:\n'
-                                       'queue_work: ' + str(self._work) + '\n'
-                                       'do_after: ' + str(self._finalisation))  
+                               'or a finalisation queued up, even though no initial event'
+                               ' has been processed that could have done this! Did someone '
+                               'forget to decorate an earlier event callback with @event?\n'
+                               'Details:\n'
+                               'queue_work: ' + str(self._work) + '\n'
+                               'do_after: ' + str(self._finalisation))  
                     raise RuntimeError(message)    
                 print 'Producer: processing event:', funcname
                 # Run the task with the GUI lock, catching any exceptions:
@@ -353,7 +354,8 @@ if __name__ == '__main__':
 
     # Run the demo!:
     gtk.gdk.threads_init() 
-    w = gtk.Window()     
+    w = gtk.Window()   
+    w.connect('destroy',lambda widget: gtk.main_quit())  
     w.show()  
     tab = MyTab(MyWorker)
     with gtk.gdk.lock:
