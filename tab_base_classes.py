@@ -12,7 +12,7 @@ def define_state(function):
     return f
         
 class Tab(object):
-    def __init__(self,WorkerClass,notebook,device_name):
+    def __init__(self,WorkerClass,notebook,settings):
         self.event_queue = Queue()
         self.event_args = []
         self.to_worker = Queue()
@@ -41,13 +41,13 @@ class Tab(object):
         self.viewport = builder.get_object('viewport')
         builder.get_object('restart').connect('clicked',self.restart)
         self.notebook = notebook
-        self.device_name = device_name
+        self.settings = settings
         
         tablabelbuilder = gtk.Builder()
         tablabelbuilder.add_from_file('tab_label.glade')
         tablabel = tablabelbuilder.get_object('toplevel')
         self.tab_label_widgets = {"not_ready":tablabelbuilder.get_object('not_ready'),"ready":tablabelbuilder.get_object('ready'),"inadvisable":tablabelbuilder.get_object('inadvisable')}
-        tablabelbuilder.get_object('label').set_label(self.device_name)
+        tablabelbuilder.get_object('label').set_label(self.settings["device_name"])
         
         self.notebook.append_page(toplevel, tablabel)
         toplevel.show()
@@ -78,7 +78,8 @@ class Tab(object):
             self.mainloop_thread.join()
         self.notebook.remove_page(self.notebook.get_current_page())
         print '***RESTART***'
-        self.__init__(self.worker.__class__,self.notebook)
+        #self.__init__(self.worker.__class__,self.notebook,self.device_name)
+        self.__init__(self.notebook,self.settings)
     
     def queue_work(self,funcname,*args,**kwargs):
         self._work = (funcname,args,kwargs)

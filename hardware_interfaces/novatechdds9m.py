@@ -19,7 +19,7 @@ class novatechdds9m(Tab):
     #
     #
     def __init__(self,notebook,settings):
-        Tab.__init__(self,NovatechDDS9mWorker,notebook,settings["device_name"])
+        Tab.__init__(self,NovatechDDS9mWorker,notebook,settings)
         self.init_done = False
         self.static_mode = True
         self.destroy_complete = False
