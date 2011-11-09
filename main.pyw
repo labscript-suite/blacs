@@ -1,8 +1,10 @@
+import sys
 import threading
 import cgi
 import time
 import socket
 import urllib
+import logging, logging.handlers
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 import gtk
@@ -14,6 +16,29 @@ import excepthook
 from connections import ConnectionTable
 
 
+def setup_logging():
+    logger = logging.getLogger('BLACS')
+    handler = logging.handlers.RotatingFileHandler(r'C:\\pythonlib\BLACS.log', maxBytes=1024**2, backupCount=0)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    if sys.stdout.isatty():
+        terminalhandler = logging.StreamHandler(sys.stdout)
+        terminalhandler.setFormatter(formatter)
+        terminalhandler.setLevel(logging.INFO) # only display info or higher in the terminal
+        logger.addHandler(terminalhandler)
+    else:
+        # Prevent bug on windows where writing to stdout without a command
+        # window causes a crash:
+        sys.stdout = sys.stderr = os.devnull
+    logger.setLevel(logging.DEBUG)
+    return logger
+    
+logger = setup_logging()
+logger.info('\n\n===============starting===============\n')
+    
+    
 # Hardware Interface Imports
 from hardware_interfaces import *
 for device in device_list:    

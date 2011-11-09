@@ -4,6 +4,7 @@ import time
 import traceback
 import threading
 import logging
+import logging.handlers
 
 def define_state(function):
     def f(self,*args,**kwargs):
@@ -275,6 +276,7 @@ class Worker(Process):
                     results = func(*args,**kwargs)
                     success = True
                     message = ''
+                    self.logger.debug('Job complete')
                 except:
                     results = None
                     success = False
@@ -412,11 +414,11 @@ if __name__ == '__main__':
     import excepthook
     # Setup logging:
     logger = logging.getLogger('BLACS')
-    hdlr = logging.FileHandler('BLACS.log')
+    handler = logging.handlers.RotatingFileHandler('BLACS.log', maxBytes=1024**2, backupCount=0)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
-    hdlr.setFormatter(formatter)
-    hdlr.setLevel(logging.DEBUG)
-    logger.addHandler(hdlr)
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
     if sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
         terminalhandler.setFormatter(formatter)
