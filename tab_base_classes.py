@@ -17,7 +17,7 @@ class Tab(object):
         self.notebook = notebook
         self.settings = settings
         self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
-        self.logger.debug('started')     
+        self.logger.debug('Started')     
         self.event_queue = Queue()
         self.event_args = []
         self.to_worker = Queue()
@@ -425,7 +425,7 @@ if __name__ == '__main__':
     else:
         sys.stdout = sys.stderr = os.devnull
     logger.setLevel(logging.DEBUG)
-    logger.info('=================starting===================')
+    logger.info('\n\n===============starting===============\n')
 
     # Run the demo!:
     gtk.gdk.threads_init() 
