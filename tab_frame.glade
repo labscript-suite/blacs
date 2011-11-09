@@ -16,6 +16,8 @@
                 <property name="icon-size">5</property>
               </object>
               <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
                 <property name="padding">8</property>
                 <property name="position">0</property>
               </packing>
@@ -26,18 +28,33 @@
                 <property name="label" translatable="yes">    </property>
               </object>
               <packing>
+                <property name="expand">False</property>
                 <property name="position">1</property>
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="notrespondinglabel">
+              <object class="GtkScrolledWindow" id="scrolledwindow1">
+                <property name="height_request">140</property>
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">Error messages appear here.</property>
-                <property name="wrap">True</property>
+                <property name="can_focus">True</property>
+                <property name="hscrollbar_policy">automatic</property>
+                <property name="vscrollbar_policy">automatic</property>
+                <child>
+                  <object class="GtkViewport" id="viewport1">
+                    <property name="visible">True</property>
+                    <property name="resize_mode">queue</property>
+                    <property name="shadow_type">etched-in</property>
+                    <child>
+                      <object class="GtkLabel" id="notrespondinglabel">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Error messages appear here.</property>
+                        <property name="wrap">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
               <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
                 <property name="padding">10</property>
                 <property name="position">2</property>
               </packing>
@@ -47,6 +64,7 @@
                 <property name="visible">True</property>
               </object>
               <packing>
+                <property name="expand">False</property>
                 <property name="position">3</property>
               </packing>
             </child>
@@ -119,6 +137,7 @@
                 <property name="label" translatable="yes">    </property>
               </object>
               <packing>
+                <property name="expand">False</property>
                 <property name="position">5</property>
               </packing>
             </child>

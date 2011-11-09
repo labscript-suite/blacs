@@ -7,12 +7,14 @@ import threading
 def define_state(function):
     def f(self,*args,**kwargs):
         setattr(self,'_' + function.__name__,function)
-        self.event_queue.put(('_' + function.__name__,args,kwargs))
+        self.event_queue.put('_' + function.__name__)
+        self.event_args.append([args,kwargs])
     return f
         
 class Tab(object):
     def __init__(self,WorkerClass,notebook):
         self.event_queue = Queue()
+        self.event_args = []
         self.to_worker = Queue()
         self.from_worker = Queue()
         self.worker = WorkerClass(args = [self.to_worker, self.from_worker])
@@ -42,6 +44,7 @@ class Tab(object):
         self.notebook.add(toplevel)
         toplevel.show()
         self.set_state('idle')
+        self.error = ''
         
     def set_state(self,state):
         print 'Producer: state changed to', state
@@ -78,7 +81,8 @@ class Tab(object):
     def hide_error(self,button):
         # dont show the error again until the not responding time has doubled:
         self.hide_not_responding_error_until = 2*self.not_responding_for
-        self.notresponding.hide()     
+        self.notresponding.hide()  
+        self.error = '' 
             
     def check_time(self):
         if self.state in ['idle','fatal error']:
@@ -96,7 +100,8 @@ class Tab(object):
                 s = '%s minutes'%minutes
             else:
                 s = '%s seconds'%seconds
-            self.errorlabel.set_text('The hardware process has not responded for %s.'%s)
+            self.errorlabel.set_markup('The hardware process has not responded for %s.\n'%s
+                                      + self.error)
         return True
         
     def mainloop(self):
@@ -105,7 +110,8 @@ class Tab(object):
             while True:
                 # Get the next task from the event queue:
                 print 'Producer: Waiting for an event to process'
-                funcname,args,kwargs = self.event_queue.get()
+                funcname = self.event_queue.get()
+                args,kwargs = self.event_args.pop(0)
                 if funcname == '_quit':
                     # The user has requested a restart:
                     print 'Producer: Recieved quit signal'
@@ -151,13 +157,19 @@ class Tab(object):
                         break
                     with gtk.gdk.lock:
                         self.set_state('idle')
-                        self.notresponding.hide()
-                        self.hide_not_responding_error_until = 0
+                        if not self.error:
+                            self.notresponding.hide()
+                            self.hide_not_responding_error_until = 0
                     if not success:
                         print 'Producer: Worker reported exception during job'
+                       
+                        now = time.strftime('%a %b %-1d, %H:%M:%S ',time.localtime())
+                        self.error += ('\nException in worker - %s:\n' % now +
+                                       '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
+                        while self.error.startswith('\n'):
+                            self.error = self.error[1:]
                         with gtk.gdk.lock:
-                            self.errorlabel.set_markup('Exception in worker:\n' + 
-                                                     '<span foreground="red">%s</span>'%message)
+                            self.errorlabel.set_markup(self.error)
                             self.notresponding.show()
                 # Do any finalisation that was queued up, with the GUI lock:
                 if self._finalisation is not None:
@@ -182,11 +194,15 @@ class Tab(object):
         except:
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
+            self.set_state('fatal error')
+            now = time.strftime('%a %b %-1d, %H:%M:%S ',time.localtime())
+            self.error += ('\nUnhandled exception in main process - %s:\n '%now +
+                           '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
+            while self.error.startswith('\n'):
+                self.error = self.error[1:]
             with gtk.gdk.lock:
-                self.set_state('fatal error')
-                self.errorlabel.set_markup('Unhandled exception in main process:\n ' + 
-                                         '<span foreground="red">%s</span>'%message)
-                self._close.hide()
+                self.errorlabel.set_markup(self.error)
+                self._close.set_sensitive(False)
                 self.notresponding.show()
         print 'Producer: Main loop quit'
         
