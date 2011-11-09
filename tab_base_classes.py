@@ -4,7 +4,7 @@ import time
 import traceback
 import threading
 
-def event(function):
+def define_state(function):
     def f(self,*args,**kwargs):
         setattr(self,'_' + function.__name__,function)
         self.event_queue.put(('_' + function.__name__,args,kwargs))
@@ -114,7 +114,7 @@ class Tab(object):
                     message = ('There has been work queued up for the subprocess, '
                                'or a finalisation queued up, even though no initial event'
                                ' has been processed that could have done this! Did someone '
-                               'forget to decorate an earlier event callback with @event?\n'
+                               'forget to decorate an earlier event callback with @define_state?\n'
                                'Details:\n'
                                'queue_work: ' + str(self._work) + '\n'
                                'do_after: ' + str(self._finalisation))  
@@ -244,7 +244,7 @@ if __name__ == '__main__':
             foobutton = gtk.Button('foo, 10 seconds!')
             barbutton = gtk.Button('bar, 10 seconds, then error!')
             bazbutton = gtk.Button('baz, 0.5 seconds!')
-            fatalbutton = gtk.Button('fatal error, forgot to add @event to callback!')
+            fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
             self.toplevel = gtk.VBox()
             self.toplevel.pack_start(foobutton)
             self.toplevel.pack_start(barbutton)
@@ -260,7 +260,7 @@ if __name__ == '__main__':
             self.viewport.add(self.toplevel) 
             self.toplevel.show_all()        
 
-        # It is critical that you decorate your callbacks with @event
+        # It is critical that you decorate your callbacks with @define_state
         # as below. This makes the function get queued up and executed
         # in turn by our state machine instead of immediately by the
         # GTK mainloop. Only don't decorate if you're certain that your
@@ -268,7 +268,7 @@ if __name__ == '__main__':
         # in (for example, adjusting the axis range of a plot, or other
         # appearance settings). You should never be calling queue_work
         # or do_after from un undecorated callback.
-        @event
+        @define_state
         def foo(self, button):
             print 'MyTab: entered foo'
             self.toplevel.set_sensitive(False)
@@ -288,7 +288,7 @@ if __name__ == '__main__':
             self.toplevel.set_sensitive(True)
             print 'Mytab: leaving foo', args, kwargs
         
-        # Here's what's NOT to do: forgetting to decorate a callback with @event
+        # Here's what's NOT to do: forgetting to decorate a callback with @define_state
         # when it's not something that can safely be done asynchronously
         # to the state machine:
         def fatal(self,button):
@@ -298,7 +298,7 @@ if __name__ == '__main__':
             # something is wrong. So don't make this mistake!
             self.queue_work('foo', 5,6,7,x='x')
             
-        @event
+        @define_state
         def bar(self, button):
             print 'MyTab: entered bar'
             self.queue_work('bar', 5,6,7,x='x')
@@ -307,7 +307,7 @@ if __name__ == '__main__':
         def leave_bar(self,*args,**kwargs):
             print 'Mytab: leaving bar', args, kwargs
             
-        @event
+        @define_state
         def baz(self, button):
             print 'MyTab: entered baz'
             self.queue_work('baz', 5,6,7,x='x')
