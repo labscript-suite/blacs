@@ -163,7 +163,7 @@ class Tab(object):
                     if not success:
                         print 'Producer: Worker reported exception during job'
                        
-                        now = time.strftime('%a %b %-1d, %H:%M:%S ',time.localtime())
+                        now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
                         self.error += ('\nException in worker - %s:\n' % now +
                                        '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
                         while self.error.startswith('\n'):
@@ -195,7 +195,7 @@ class Tab(object):
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
             self.set_state('fatal error')
-            now = time.strftime('%a %b %-1d, %H:%M:%S ',time.localtime())
+            now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
             self.error += ('\nUnhandled exception in main process - %s:\n '%now +
                            '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
             while self.error.startswith('\n'):
