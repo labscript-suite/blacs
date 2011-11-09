@@ -31,7 +31,7 @@ class Tab(object):
         
         builder = gtk.Builder()
         builder.add_from_file('tab_frame.glade')
-        toplevel = builder.get_object('toplevel')
+        self._toplevel = builder.get_object('toplevel')
         self._close = builder.get_object('close')
         self._close.connect('clicked',self.hide_error)
         self.statusbar = builder.get_object('statusbar')
@@ -52,8 +52,8 @@ class Tab(object):
                                   "buffered": tablabelbuilder.get_object('buffered_mode')}
         tablabelbuilder.get_object('label').set_label(self.settings["device_name"])
         
-        self.notebook.append_page(toplevel, tablabel)
-        toplevel.show()
+        self.notebook.append_page(self._toplevel, tablabel)
+        self._toplevel.show()
         self.error = ''
         self.set_state('idle')
         
@@ -99,9 +99,12 @@ class Tab(object):
             self.event_queue.put(('_quit',None,None))
             print 'joining'
             self.mainloop_thread.join()
-        self.notebook.remove_page(self.notebook.get_current_page())
+        currentpage = self.notebook.get_current_page()
+        self.notebook.remove_page(currentpage)
         print '***RESTART***'
         self.__init__(self.notebook, self.settings)
+        self.notebook.reorder_child(self._toplevel,currentpage)
+        self.notebook.set_current_page(currentpage)
     
     def queue_work(self,funcname,*args,**kwargs):
         self._work = (funcname,args,kwargs)
@@ -411,6 +414,7 @@ if __name__ == '__main__':
     notebook.show()
     window.show()  
     window.resize(800,600)
-    tab = MyTab(notebook,settings = {'device_name': 'Example'})
+    tab1 = MyTab(notebook,settings = {'device_name': 'Example'})
+    tab2 = MyTab(notebook,settings = {'device_name': 'Example2'})
     with gtk.gdk.lock:
         gtk.main()
