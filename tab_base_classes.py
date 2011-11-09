@@ -151,11 +151,11 @@ class Tab(object):
                 # Get the next task from the event queue:
                 logger.debug('Waiting for next event')
                 funcname = self.event_queue.get()
-                args,kwargs = self.event_args.pop(0)
                 if funcname == '_quit':
                     # The user has requested a restart:
                     logger.debug('Received quit signal')
                     break
+                args,kwargs = self.event_args.pop(0)
                 if self._work is not None or self._finalisation is not None:
                     message = ('There has been work queued up for the subprocess, '
                                'or a finalisation queued up, even though no initial event'
@@ -316,7 +316,7 @@ class MyTab(Tab):
 
     # It is critical that you decorate your callbacks with @define_state
     # as below. This makes the function get queued up and executed
-    # in turn by our state machine instead of immediately by the
+    # in turn by our state machine instead of immediately by theargs,kwargs = self.event_args.pop(0)
     # GTK mainloop. Only don't decorate if you're certain that your
     # callback can safely happen no matter what state the system is
     # in (for example, adjusting the axis range of a plot, or other
