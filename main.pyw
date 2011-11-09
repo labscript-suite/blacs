@@ -1,15 +1,17 @@
-import pygtk
-import gtk
-import urllib
 import threading
 import cgi
 import time
-import numpy
 import socket
+import urllib
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
+import gtk
+import numpy
+import h5py
+
 # Connection Table Code
-from connections import *
+from connections import ConnectionTable
+
 
 # Hardware Interface Imports
 from hardware_interfaces import *
@@ -125,9 +127,7 @@ class BLACS(object):
         # Start Queue Manager
         self.manager_running = True
         self.manager_paused = False
-        gtk.gdk.threads_leave()
         self.manager = threading.Thread(target = self.manage).start()
-        gtk.gdk.threads_enter()
         
     def update_plot(self,channel,data,rate):
         line = self.ax.get_lines()[0]
@@ -224,37 +224,35 @@ class BLACS(object):
             print path
             
             # Transition devices to buffered mode
-            gtk.gdk.threads_enter()
-            #print "transitioning to buffered"
-            #self.tab.setup_buffered_trigger()
-            for k,v in self.tablist.items():
-                v.transition_to_buffered(path)
-            #print "Devices programmed"
-            self.tablist["pulseblaster_0"].start()
-            
-            #force status update
-            self.tablist["pulseblaster_0"].status_monitor()
-            gtk.gdk.threads_leave()
+            with gtk.gdk.lock:
+                #print "transitioning to buffered"
+                #self.tab.setup_buffered_trigger()
+                for k,v in self.tablist.items():
+                    v.transition_to_buffered(path)
+                #print "Devices programmed"
+                self.tablist["pulseblaster_0"].start()
+                
+                #force status update
+                self.tablist["pulseblaster_0"].status_monitor()
             
             while self.tablist["pulseblaster_0"].status["waiting"] is not True:
                 if not self.manager_running:
                     break
                 #print 'waiting'
                 time.sleep(0.05)
-            gtk.gdk.threads_enter()
-            with h5py.File(path,'a') as hdf5_file:
-                try:
-                    data_group = hdf5_file['/'].create_group('data')
-                except Exception as e:
-                    raise
-                    print str(e)
-                    print 'failed creating data group'
-            
-            for k,v in self.tablist.items():
-                v.transition_to_static()
+            with gtk.gdk.lock:
+                with h5py.File(path,'a') as hdf5_file:
+                    try:
+                        data_group = hdf5_file['/'].create_group('data')
+                    except Exception as e:
+                        raise
+                        print str(e)
+                        print 'failed creating data group'
                 
-            self.tablist["pulseblaster_0"].start()
-            gtk.gdk.threads_leave()
+                for k,v in self.tablist.items():
+                    v.transition_to_static()
+                    
+                self.tablist["pulseblaster_0"].start()
             #print 'started'
 
 class StateMachine(object):
@@ -286,45 +284,11 @@ class StateMachine(object):
         self.lock.release()
             
 
-def do_stuff(h5_filepath):
-    #print 'got a filepath:', h5_filepath
-    
-    # check connection table
-    try:
-        new_conn = ConnectionTable(h5_filepath)
-        
-    except:
-        return "H5 file not accessible to Control PC"
-        
-    if app.connection_table.compare_to(new_conn):    
-        app.queue.append([h5_filepath])
-        message = "Experiment added successfully"
-        if app.manager_paused:
-            message += "\nWarning: Queue is currently paused"
-            
-        if not app.manager_running:
-            message += "\nError: Queue is not running"
-        return message
-    else:
-        message =  "Connection table of your file is not a subset of the experimental control apparatus.\n"
-        message += "You may have:\n"
-        message += "    Submitted your file to the wrong control PC\n"
-        message += "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
-        message += "    Renamed a channel at the top of your script\n"
-        message += "    Submitted an old file, and the experiment has since been rewired\n"
-        message += "\n"
-        message += "Please verify your experiment script matches the current experiment configuration, and try again"
-        return message
+
     
         
 class RequestHandler(BaseHTTPRequestHandler):
 
-    #def address_string(self):
-    #    print 'address string!'
-    #    host, port = self.client_address[:2]
-        #return socket.getfqdn(host)
-    #    return host
-        
     def do_POST(self):
         self.send_response(200)
         self.end_headers()
@@ -333,28 +297,52 @@ class RequestHandler(BaseHTTPRequestHandler):
         postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
         h5_filepath =  postvars['filepath'][0]
        
-        gtk.gdk.threads_enter()
-        
-        message = do_stuff(h5_filepath)
-        print message
-        gtk.gdk.threads_leave()
+        message = self.process_request(h5_filepath)
+        print 'Request handler: ', message
         self.wfile.write(message)
         self.wfile.close()
+        
+    def process_request(self,h5_filepath):
+        #print 'Request Handler: got a filepath:', h5_filepath
+        # check connection table
+        try:
+            new_conn = ConnectionTable(h5_filepath)
+            
+        except:
+            return "H5 file not accessible to Control PC"
+            
+        if app.connection_table.compare_to(new_conn):  
+            with gtk.gdk.lock:  
+                app.queue.append([h5_filepath])
+            message = "Experiment added successfully"
+            if app.manager_paused:
+                message += "\nWarning: Queue is currently paused"
+                
+            if not app.manager_running:
+                message += "\nError: Queue is not running"
+            return message
+        else:
+            message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
+                       "You may have:\n"
+                       "    Submitted your file to the wrong control PC\n"
+                       "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
+                       "    Renamed a channel at the top of your script\n"
+                       "    Submitted an old file, and the experiment has since been rewired\n"
+                       "\n"
+                       "Please verify your experiment script matches the current experiment configuration, and try again")
+            return message
 
 
 port = 42517
 if __name__ == "__main__":
     gtk.threads_init()
-    gtk.gdk.threads_enter()
     app = BLACS()
     settings = gtk.settings_get_default()
     settings.props.gtk_button_images = True
     
-    gtk.gdk.threads_leave()
     serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
     serverthread.daemon = True # process will end if only daemon threads are left
     serverthread.start()
-    gtk.gdk.threads_enter()
-    gtk.main()
-    gtk.gdk.threads_leave()
+    with gtk.gdk.lock:
+        gtk.main()
         
