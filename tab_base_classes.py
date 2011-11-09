@@ -46,17 +46,40 @@ class Tab(object):
         tablabelbuilder = gtk.Builder()
         tablabelbuilder.add_from_file('tab_label.glade')
         tablabel = tablabelbuilder.get_object('toplevel')
-        self.tab_label_widgets = {"not_ready":tablabelbuilder.get_object('not_ready'),"ready":tablabelbuilder.get_object('ready'),"inadvisable":tablabelbuilder.get_object('inadvisable')}
+        self.tab_label_widgets = {"working": tablabelbuilder.get_object('working'),
+                                  "ready": tablabelbuilder.get_object('ready'),
+                                  "error": tablabelbuilder.get_object('error'),
+                                  "buffered": tablabelbuilder.get_object('buffered_mode')}
         tablabelbuilder.get_object('label').set_label(self.settings["device_name"])
         
         self.notebook.append_page(toplevel, tablabel)
         toplevel.show()
-        self.set_state('idle')
         self.error = ''
+        self.set_state('idle')
         
     def set_state(self,state):
+        ready = self.tab_label_widgets['ready']
+        working = self.tab_label_widgets['working']
+        error = self.tab_label_widgets['error']
         print 'Producer: state changed to', state
         self.state = state
+        if state == 'idle':
+            print 'idle!'
+            working.hide()
+            if self.error:
+                error.show()
+            else:
+                ready.show()
+                error.hide()
+        elif state == 'fatal error':
+            print 'fatal!!'
+            working.hide()
+            error.show()
+            ready.hide()
+        else:
+            print 'other!'
+            ready.hide()
+            working.show()
         self.time_of_last_state_change = time.time()
         self.statusbar.push(self.context_id, state)
                 
@@ -78,8 +101,7 @@ class Tab(object):
             self.mainloop_thread.join()
         self.notebook.remove_page(self.notebook.get_current_page())
         print '***RESTART***'
-        #self.__init__(self.worker.__class__,self.notebook,self.device_name)
-        self.__init__(self.notebook,self.settings)
+        self.__init__(self.notebook, self.settings)
     
     def queue_work(self,funcname,*args,**kwargs):
         self._work = (funcname,args,kwargs)
@@ -92,6 +114,7 @@ class Tab(object):
         self.hide_not_responding_error_until = 2*self.not_responding_for
         self.notresponding.hide()  
         self.error = '' 
+        self.tab_label_widgets['error'].hide()
             
     def check_time(self):
         if self.state in ['idle','fatal error']:
@@ -101,6 +124,7 @@ class Tab(object):
         if self.not_responding_for > 5 + self.hide_not_responding_error_until:
             self.hide_not_responding_error_for = 0
             self.notresponding.show()
+            self.tab_label_widgets['error'].show()
             hours, remainder = divmod(int(self.not_responding_for), 3600)
             minutes, seconds = divmod(remainder, 60)
             if hours:
@@ -118,7 +142,7 @@ class Tab(object):
         try:
             while True:
                 # Get the next task from the event queue:
-                print 'Producer: Waiting for an event to process'
+                print 'Producer: Waiting for next event'
                 funcname = self.event_queue.get()
                 args,kwargs = self.event_args.pop(0)
                 if funcname == '_quit':
@@ -164,14 +188,8 @@ class Tab(object):
                         # The user has requested a restart:
                         print 'Producer: Recieved quit signal'
                         break
-                    with gtk.gdk.lock:
-                        self.set_state('idle')
-                        if not self.error:
-                            self.notresponding.hide()
-                            self.hide_not_responding_error_until = 0
                     if not success:
                         print 'Producer: Worker reported exception during job'
-                       
                         now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
                         self.error += ('\nException in worker - %s:\n' % now +
                                        '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
@@ -180,6 +198,12 @@ class Tab(object):
                         with gtk.gdk.lock:
                             self.errorlabel.set_markup(self.error)
                             self.notresponding.show()
+                    with gtk.gdk.lock:
+                        self.set_state('idle')
+                        if not self.error:
+                            self.notresponding.hide()
+                            self.hide_not_responding_error_until = 0
+                            
                 # Do any finalisation that was queued up, with the GUI lock:
                 if self._finalisation is not None:
                     funcname, args, kwargs = self._finalisation
@@ -203,13 +227,13 @@ class Tab(object):
         except:
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
-            self.set_state('fatal error')
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
             self.error += ('\nUnhandled exception in main process - %s:\n '%now +
                            '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
             while self.error.startswith('\n'):
                 self.error = self.error[1:]
             with gtk.gdk.lock:
+                self.set_state('fatal error')
                 self.errorlabel.set_markup(self.error)
                 self._close.set_sensitive(False)
                 self.notresponding.show()
@@ -264,8 +288,8 @@ if __name__ == '__main__':
     # and a Worker class, and get the Tab to request work to be done by
     # the worker in response to GUI events.
     class MyTab(Tab):
-        def __init__(self,workerclass,notebook):
-            Tab.__init__(self,workerclass,notebook,"Tab Name Here") # Make sure to call this first in your __init__!
+        def __init__(self,notebook,settings):
+            Tab.__init__(self,MyWorker,notebook,settings) # Make sure to call this first in your __init__!
             foobutton = gtk.Button('foo, 10 seconds!')
             barbutton = gtk.Button('bar, 10 seconds, then error!')
             bazbutton = gtk.Button('baz, 0.5 seconds!')
@@ -387,6 +411,6 @@ if __name__ == '__main__':
     notebook.show()
     window.show()  
     window.resize(800,600)
-    tab = MyTab(MyWorker,notebook)
+    tab = MyTab(notebook,settings = {'device_name': 'Example'})
     with gtk.gdk.lock:
         gtk.main()
