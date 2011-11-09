@@ -8,6 +8,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import gtk
 import numpy
 import h5py
+import excepthook
 
 # Connection Table Code
 from connections import ConnectionTable
