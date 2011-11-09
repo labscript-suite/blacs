@@ -60,7 +60,6 @@ class Tab(object):
         # we can instruct it to quit by telling it to do so through the
         # queue itself. That way we don't leave extra threads running
         # (albeit doing nothing) that we don't need:
-        print self.mainloop_thread.is_alive()
         if self.mainloop_thread.is_alive():
             self.from_worker.put((False,'quit',None))
             self.event_queue.put(('_quit',None,None))

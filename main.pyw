@@ -29,7 +29,6 @@ from virtual_devices.shutter import *
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
-#from matplotlib.backends.backend_gtk import FigureCanvasGTK as FigureCanvas
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 
 
@@ -212,16 +211,18 @@ class BLACS(object):
                 continue
             
             # Get the top file
-            iter = self.queue.get_iter_first()
+            with gtk.gdk.lock:
+                iter = self.queue.get_iter_first()
             # If no files, sleep for 1s,
             if iter is None:
                 #print 'sleeping'
                 time.sleep(1)
                 continue
-            path = "".join(self.queue.get(iter,0))
-            self.queue.remove(iter)
+            with gtk.gdk.lock:
+                path = "".join(self.queue.get(iter,0))
+                self.queue.remove(iter)
             
-            print path
+            print 'Queue Manager: got a path:',path
             
             # Transition devices to buffered mode
             with gtk.gdk.lock:
