@@ -3,6 +3,7 @@ import gtk, gobject
 import time
 import traceback
 import threading
+import logging
 
 def define_state(function):
     def f(self,*args,**kwargs):
@@ -13,11 +14,15 @@ def define_state(function):
         
 class Tab(object):
     def __init__(self,WorkerClass,notebook,settings):
+        self.notebook = notebook
+        self.settings = settings
+        self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
+        self.logger.debug('started')     
         self.event_queue = Queue()
         self.event_args = []
         self.to_worker = Queue()
         self.from_worker = Queue()
-        self.worker = WorkerClass(args = [self.to_worker, self.from_worker])
+        self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker])
         self.worker.daemon = True
         self.worker.start()
         self.not_responding_for = 0
@@ -40,8 +45,6 @@ class Tab(object):
         self.errorlabel = builder.get_object('notrespondinglabel')
         self.viewport = builder.get_object('viewport')
         builder.get_object('restart').connect('clicked',self.restart)
-        self.notebook = notebook
-        self.settings = settings
         
         tablabelbuilder = gtk.Builder()
         tablabelbuilder.add_from_file('tab_label.glade')
@@ -61,10 +64,9 @@ class Tab(object):
         ready = self.tab_label_widgets['ready']
         working = self.tab_label_widgets['working']
         error = self.tab_label_widgets['error']
-        print 'Producer: state changed to', state
+        self.logger.info('State changed to %s'% state)
         self.state = state
         if state == 'idle':
-            print 'idle!'
             working.hide()
             if self.error:
                 error.show()
@@ -72,12 +74,10 @@ class Tab(object):
                 ready.show()
                 error.hide()
         elif state == 'fatal error':
-            print 'fatal!!'
             working.hide()
             error.show()
             ready.hide()
         else:
-            print 'other!'
             ready.hide()
             working.show()
         self.time_of_last_state_change = time.time()
@@ -97,11 +97,14 @@ class Tab(object):
         if self.mainloop_thread.is_alive():
             self.from_worker.put((False,'quit',None))
             self.event_queue.put(('_quit',None,None))
-            print 'joining'
+            self.logger.debug('attempting to join mainloop thread')
             self.mainloop_thread.join()
         currentpage = self.notebook.get_current_page()
         self.notebook.remove_page(currentpage)
-        print '***RESTART***'
+        self.logger.info('***RESTART***')
+        # Note: the following function call will break if the user hasn't
+        # overridden the __init__ function to take these arguments. So
+        # make sure you do that!
         self.__init__(self.notebook, self.settings)
         self.notebook.reorder_child(self._toplevel,currentpage)
         self.notebook.set_current_page(currentpage)
@@ -141,16 +144,17 @@ class Tab(object):
         return True
         
     def mainloop(self):
-        print 'Starting producer mainloop'
+        logger = logging.getLogger('BLACS.%s.mainloop'%self.settings['device_name'])   
+        logger.debug('Starting')
         try:
             while True:
                 # Get the next task from the event queue:
-                print 'Producer: Waiting for next event'
+                logger.debug('Waiting for next event')
                 funcname = self.event_queue.get()
                 args,kwargs = self.event_args.pop(0)
                 if funcname == '_quit':
                     # The user has requested a restart:
-                    print 'Producer: Recieved quit signal'
+                    logger.debug('Received quit signal')
                     break
                 if self._work is not None or self._finalisation is not None:
                     message = ('There has been work queued up for the subprocess, '
@@ -161,7 +165,7 @@ class Tab(object):
                                'queue_work: ' + str(self._work) + '\n'
                                'do_after: ' + str(self._finalisation))  
                     raise RuntimeError(message)    
-                print 'Producer: processing event:', funcname
+                logger.debug('Processing event %s' % funcname)
                 # Run the task with the GUI lock, catching any exceptions:
                 func = getattr(self,funcname)
                 with gtk.gdk.lock:
@@ -169,30 +173,29 @@ class Tab(object):
                 # Do any work that was queued up:
                 results = None
                 if self._work is not None:
-                    print 'Producer: Instructing worker to do some work for', funcname 
+                    logger.debug('Instructing worker to do job %s'%self._work[0] )
                     self.to_worker.put(self._work)
                     with gtk.gdk.lock:
                         self.set_state(self._work[0])
                     self._work = None
                     # Confirm that the worker got the message:
-                    print 'Producer: Waiting for worker to acknowledge job request'
+                    logger.debug('Waiting for worker to acknowledge job request')
                     success, message = self.from_worker.get()
                     if not success:
                         if message == 'quit':
                             # The user has requested a restart:
-                            print 'Producer: Recieved quit signal'
+                            logger.debug('Received quit signal')
                             break
-                        print 'Producer: Worker reported failure to start job.'
-                        print message
+                        logger.info('Worker reported failure to start job')
                     # Wait for and get the results of the work:
-                    print 'Producer: Worker reported job started, waiting for completion'
+                    logger.debug('Worker reported job started, waiting for completion')
                     success,message,results = self.from_worker.get()
                     if not success and message == 'quit':
                         # The user has requested a restart:
-                        print 'Producer: Recieved quit signal'
+                        logger.debug('Received quit signal')
                         break
                     if not success:
-                        print 'Producer: Worker reported exception during job'
+                        logger.info('Worker reported exception during job')
                         now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
                         self.error += ('\nException in worker - %s:\n' % now +
                                        '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
@@ -201,6 +204,8 @@ class Tab(object):
                         with gtk.gdk.lock:
                             self.errorlabel.set_markup(self.error)
                             self.notresponding.show()
+                    else:
+                        logger.debug('Job completed')
                     with gtk.gdk.lock:
                         self.set_state('idle')
                         if not self.error:
@@ -209,27 +214,17 @@ class Tab(object):
                             
                 # Do any finalisation that was queued up, with the GUI lock:
                 if self._finalisation is not None:
+                    logger.debug('doing finalisation function %s' % self._finalisation[0])
                     funcname, args, kwargs = self._finalisation
                     func = getattr(self,funcname)
-                    try:
-                        with gtk.gdk.lock:
-                            kwargs['_results'] = results
-                            func(*args,**kwargs)
-                    except:
-                        # If the subprocess had an exception, then it
-                        # is likely finalisation will fail, since the
-                        # user probably can't handle the 'results' object
-                        # being None for their finalisation function. We
-                        # don't want the resulting exception popping
-                        # up and hiding the one that happened in the
-                        # subprocess, since that's where the real error
-                        # lies. So don't raise in that case.
-                        if success:
-                            raise
+                    with gtk.gdk.lock:
+                        kwargs['_results'] = results
+                        func(*args,**kwargs)
                     self._finalisation = None
         except:
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
+            logger.critical('An unhandled exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
             self.error += ('\nUnhandled exception in main process - %s:\n '%now +
                            '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
@@ -240,7 +235,7 @@ class Tab(object):
                 self.errorlabel.set_markup(self.error)
                 self._close.set_sensitive(False)
                 self.notresponding.show()
-        print 'Producer: Main loop quit'
+        logger.info('Exiting')
         
         
         
@@ -250,16 +245,18 @@ class Worker(Process):
         pass
     
     def run(self):
-        self.from_parent, self.to_parent = self._args
+        self.name, self.from_parent, self.to_parent = self._args
+        self.logger = logging.getLogger('BLACS.%s.worker'%self.name)
+        self.logger.debug('Starting')
         self.init()
         self.mainloop()
         
     def mainloop(self):
-        print 'Starting consumer mainloop'
         while True:
             # Get the next task to be done:
-            print 'Consumer: Waiting for a job to process'
+            self.logger.debug('Waiting for next job request')
             funcname, args, kwargs = self.from_parent.get()
+            self.logger.debug('Got job request %s' % funcname)
             try:
                 # See if we have a method with that name:
                 func = getattr(self,funcname)
@@ -268,10 +265,12 @@ class Worker(Process):
             except AttributeError:
                 success = False
                 message = traceback.format_exc()
+                self.logger.error('Couldn\'t start job:\n %s'%message)
             # Report to the parent whether method lookup was successful or not:
             self.to_parent.put((success,message))
             if success:
                 # Try to do the requested work:
+                self.logger.debug('Starting job %s'%funcname)
                 try:
                     results = func(*args,**kwargs)
                     success = True
@@ -280,130 +279,153 @@ class Worker(Process):
                     results = None
                     success = False
                     message = traceback.format_exc()
+                    self.logger.error('Exception in job:\n%s'%message)
                 # Report to the parent whether work was successful or not,
                 # and what the results were:
                 self.to_parent.put((success,message,results))
  
  
+ 
+ 
+
+# Example code! Two classes are defined below, which are subclasses
+# of the ones defined above.  They show how to make a Tab class,
+# and a Worker class, and get the Tab to request work to be done by
+# the worker in response to GUI events.
+class MyTab(Tab):
+    def __init__(self,notebook,settings):
+        Tab.__init__(self,MyWorker,notebook,settings) # Make sure to call this first in your __init__!
+        foobutton = gtk.Button('foo, 10 seconds!')
+        barbutton = gtk.Button('bar, 10 seconds, then error!')
+        bazbutton = gtk.Button('baz, 0.5 seconds!')
+        fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
+        self.toplevel = gtk.VBox()
+        self.toplevel.pack_start(foobutton)
+        self.toplevel.pack_start(barbutton)
+        self.toplevel.pack_start(bazbutton)
+        self.toplevel.pack_start(fatalbutton)
+        
+        foobutton.connect('clicked', self.foo)
+        barbutton.connect('clicked', self.bar)
+        bazbutton.connect('clicked', self.baz)
+        fatalbutton.connect('clicked',self.fatal )
+        # These two lines are required to top level widget (buttonbox
+        # in this case) to the existing GUI:
+        self.viewport.add(self.toplevel) 
+        self.toplevel.show_all()        
+
+    # It is critical that you decorate your callbacks with @define_state
+    # as below. This makes the function get queued up and executed
+    # in turn by our state machine instead of immediately by the
+    # GTK mainloop. Only don't decorate if you're certain that your
+    # callback can safely happen no matter what state the system is
+    # in (for example, adjusting the axis range of a plot, or other
+    # appearance settings). You should never be calling queue_work
+    # or do_after from un undecorated callback.
+    @define_state
+    def foo(self, button):
+        print 'MyTab: entered foo'
+        self.toplevel.set_sensitive(False)
+        # Here's how you instruct the worker process to do
+        # something. When this callback returns, the worker will be
+        # requested to do whatever you ask in queue_work (in this
+        # case, MyWorker.foo(5,6,7,x='x') ). Then, no events will
+        # be processed until that work is done. Once the work is
+        # done, whatever has been set with do_after will be executed
+        # (in this case self.leave_foo(1,2,3,bar=baz) ).
+        self.queue_work('foo', 5,6,7,x='x')
+        self.do_after('leave_foo', 1,2,3,bar='baz')
+    
+    # So this function will get executed when the worker process is
+    # finished with foo():
+    def leave_foo(self,*args,**kwargs):
+        self.toplevel.set_sensitive(True)
+        print 'Mytab: leaving foo', args, kwargs
+    
+    # Here's what's NOT to do: forgetting to decorate a callback with @define_state
+    # when it's not something that can safely be done asynchronously
+    # to the state machine:
+    def fatal(self,button):
+        # This bug could be hard to track because nothing will happen
+        # when you click the button -- only once you do some other,
+        # correcly decorated callback will it become apparant that
+        # something is wrong. So don't make this mistake!
+        self.queue_work('foo', 5,6,7,x='x')
+        
+    @define_state
+    def bar(self, button):
+        print 'MyTab: entered bar'
+        self.queue_work('bar', 5,6,7,x='x')
+        self.do_after('leave_bar', 1,2,3,bar='baz')
+        
+    def leave_bar(self,*args,**kwargs):
+        print 'Mytab: leaving bar', args, kwargs
+        
+    @define_state
+    def baz(self, button):
+        print 'MyTab: entered baz'
+        self.queue_work('baz', 5,6,7,x='x')
+        self.do_after('leave_baz', 1,2,3,bar='baz')
+        
+    def leave_baz(self,*args,**kwargs):
+        print 'Mytab: leaving baz', args, kwargs
+        
+class MyWorker(Worker):
+    def init(self):
+        # You read correctly, this isn't __init__, it's init. It's the
+        # first thing that will be called in the new process. You should
+        # do imports here, define instance variables, that sort of thing. You
+        # shouldn't import the hardware modules at the top of your file,
+        # because then they will be imported in both the parent and
+        # the child processes and wont be cleanly restarted when the subprocess
+        # is restarted. Since we're inside a method call though, you'll
+        # have to use global statements for the module imports, as shown
+        # below. Either that or you can make them instance variables, ie:
+        # import module; self.module = module. Up to you, I prefer
+        # the former.
+        global serial; import serial
+        self.x = 5
+    
+    # Here's a function that will be called when requested by the parent
+    # process. There's nothing special about it really. Its return
+    # value will be passed as a keyword argument _results to the
+    # function which was queued with do_after, if there was one.
+    def foo(self,*args,**kwargs):
+        print 'working on foo!', args, kwargs
+        time.sleep(10)
+        return 'results!!!'
+        
+    def bar(self,*args,**kwargs):
+        print 'working on foo!', args, kwargs
+        time.sleep(10)
+        raise Exception('error!')
+        return 'results!!!'
+        
+    def baz(self,*args,**kwargs):
+        print 'working on foo!', args, kwargs
+        time.sleep(0.5)
+        return 'results!!!'
+
+
 if __name__ == '__main__':  
-    # Example code! Two classes are defined below, which are subclasses
-    # of the ones defined above.  They show how to make a Tab class,
-    # and a Worker class, and get the Tab to request work to be done by
-    # the worker in response to GUI events.
-    class MyTab(Tab):
-        def __init__(self,notebook,settings):
-            Tab.__init__(self,MyWorker,notebook,settings) # Make sure to call this first in your __init__!
-            foobutton = gtk.Button('foo, 10 seconds!')
-            barbutton = gtk.Button('bar, 10 seconds, then error!')
-            bazbutton = gtk.Button('baz, 0.5 seconds!')
-            fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
-            self.toplevel = gtk.VBox()
-            self.toplevel.pack_start(foobutton)
-            self.toplevel.pack_start(barbutton)
-            self.toplevel.pack_start(bazbutton)
-            self.toplevel.pack_start(fatalbutton)
-            
-            foobutton.connect('clicked', self.foo)
-            barbutton.connect('clicked', self.bar)
-            bazbutton.connect('clicked', self.baz)
-            fatalbutton.connect('clicked',self.fatal )
-            # These two lines are required to top level widget (buttonbox
-            # in this case) to the existing GUI:
-            self.viewport.add(self.toplevel) 
-            self.toplevel.show_all()        
-
-        # It is critical that you decorate your callbacks with @define_state
-        # as below. This makes the function get queued up and executed
-        # in turn by our state machine instead of immediately by the
-        # GTK mainloop. Only don't decorate if you're certain that your
-        # callback can safely happen no matter what state the system is
-        # in (for example, adjusting the axis range of a plot, or other
-        # appearance settings). You should never be calling queue_work
-        # or do_after from un undecorated callback.
-        @define_state
-        def foo(self, button):
-            print 'MyTab: entered foo'
-            self.toplevel.set_sensitive(False)
-            # Here's how you instruct the worker process to do
-            # something. When this callback returns, the worker will be
-            # requested to do whatever you ask in queue_work (in this
-            # case, MyWorker.foo(5,6,7,x='x') ). Then, no events will
-            # be processed until that work is done. Once the work is
-            # done, whatever has been set with do_after will be executed
-            # (in this case self.leave_foo(1,2,3,bar=baz) ).
-            self.queue_work('foo', 5,6,7,x='x')
-            self.do_after('leave_foo', 1,2,3,bar='baz')
-        
-        # So this function will get executed when the worker process is
-        # finished with foo():
-        def leave_foo(self,*args,**kwargs):
-            self.toplevel.set_sensitive(True)
-            print 'Mytab: leaving foo', args, kwargs
-        
-        # Here's what's NOT to do: forgetting to decorate a callback with @define_state
-        # when it's not something that can safely be done asynchronously
-        # to the state machine:
-        def fatal(self,button):
-            # This bug could be hard to track because nothing will happen
-            # when you click the button -- only once you do some other,
-            # correcly decorated callback will it become apparant that
-            # something is wrong. So don't make this mistake!
-            self.queue_work('foo', 5,6,7,x='x')
-            
-        @define_state
-        def bar(self, button):
-            print 'MyTab: entered bar'
-            self.queue_work('bar', 5,6,7,x='x')
-            self.do_after('leave_bar', 1,2,3,bar='baz')
-            
-        def leave_bar(self,*args,**kwargs):
-            print 'Mytab: leaving bar', args, kwargs
-            
-        @define_state
-        def baz(self, button):
-            print 'MyTab: entered baz'
-            self.queue_work('baz', 5,6,7,x='x')
-            self.do_after('leave_baz', 1,2,3,bar='baz')
-            
-        def leave_baz(self,*args,**kwargs):
-            print 'Mytab: leaving baz', args, kwargs
-            
-    class MyWorker(Worker):
-        def init(self):
-            # You read correctly, this isn't __init__, it's init. It's the
-            # first thing that will be called in the new process. You should
-            # do imports here, define instance variables, that sort of thing. You
-            # shouldn't import the hardware modules at the top of your file,
-            # because then they will be imported in both the parent and
-            # the child processes and wont be cleanly restarted when the subprocess
-            # is restarted. Since we're inside a method call though, you'll
-            # have to use global statements for the module imports, as shown
-            # below. Either that or you can make them instance variables, ie:
-            # import module; self.module = module. Up to you, I prefer
-            # the former.
-            global serial; import serial
-            self.x = 5
-        
-        # Here's a function that will be called when requested by the parent
-        # process. There's nothing special about it really. Its return
-        # value will be passed as a keyword argument _results to the
-        # function which was queued with do_after, if there was one.
-        def foo(self,*args,**kwargs):
-            print 'working on foo!', args, kwargs
-            time.sleep(10)
-            return 'results!!!'
-            
-        def bar(self,*args,**kwargs):
-            print 'working on foo!', args, kwargs
-            time.sleep(10)
-            raise Exception('error!')
-            return 'results!!!'
-            
-        def baz(self,*args,**kwargs):
-            print 'working on foo!', args, kwargs
-            time.sleep(0.5)
-            return 'results!!!'
-
+    import sys
+    import excepthook
+    # Setup logging:
+    logger = logging.getLogger('BLACS')
+    hdlr = logging.FileHandler('BLACS.log')
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
+    hdlr.setFormatter(formatter)
+    hdlr.setLevel(logging.DEBUG)
+    logger.addHandler(hdlr)
+    if sys.stdout.isatty():
+        terminalhandler = logging.StreamHandler(sys.stdout)
+        terminalhandler.setFormatter(formatter)
+        terminalhandler.setLevel(logging.INFO)
+        logger.addHandler(terminalhandler)
+    else:
+        sys.stdout = sys.stderr = os.devnull
+    logger.setLevel(logging.DEBUG)
+    logger.info('=================starting===================')
 
     # Run the demo!:
     gtk.gdk.threads_init() 
