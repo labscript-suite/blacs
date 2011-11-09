@@ -122,7 +122,7 @@ class BLACS(object):
         # experimental run if appropriate
         
         
-        self.window.show_all()
+        self.window.show()
         
         # Start Queue Manager
         self.manager_running = True
@@ -339,9 +339,12 @@ port = 42517
 if __name__ == "__main__":
     gtk.threads_init()
     app = BLACS()
-    settings = gtk.settings_get_default()
-    settings.props.gtk_button_images = True
-    
+    # Make it not look so terrible (if icons and themes are installed):
+    gtk.settings_get_default().set_string_property('gtk-icon-theme-name','gnome-human','')
+    #gtk.settings_get_default().set_string_property('gtk-theme-name','Clearlooks','')
+    gtk.settings_get_default().set_string_property('gtk-font-name','ubuntu 10','')
+    #gtk.settings_get_default().set_long_property('gtk-button-images',False,'')
+    gtk.settings_get_default().props.gtk_button_images = True
     serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
     serverthread.daemon = True # process will end if only daemon threads are left
     serverthread.start()

@@ -12,7 +12,7 @@ def define_state(function):
     return f
         
 class Tab(object):
-    def __init__(self,WorkerClass,notebook):
+    def __init__(self,WorkerClass,notebook,device_name):
         self.event_queue = Queue()
         self.event_args = []
         self.to_worker = Queue()
@@ -41,7 +41,15 @@ class Tab(object):
         self.viewport = builder.get_object('viewport')
         builder.get_object('restart').connect('clicked',self.restart)
         self.notebook = notebook
-        self.notebook.add(toplevel)
+        self.device_name = device_name
+        
+        tablabelbuilder = gtk.Builder()
+        tablabelbuilder.add_from_file('tab_label.glade')
+        tablabel = tablabelbuilder.get_object('toplevel')
+        self.tab_label_widgets = {"not_ready":tablabelbuilder.get_object('not_ready'),"ready":tablabelbuilder.get_object('ready'),"inadvisable":tablabelbuilder.get_object('inadvisable')}
+        tablabelbuilder.get_object('label').set_label(self.device_name)
+        
+        self.notebook.append_page(toplevel, tablabel)
         toplevel.show()
         self.set_state('idle')
         self.error = ''
@@ -256,7 +264,7 @@ if __name__ == '__main__':
     # the worker in response to GUI events.
     class MyTab(Tab):
         def __init__(self,workerclass,notebook):
-            Tab.__init__(self,workerclass,notebook) # Make sure to call this first in your __init__!
+            Tab.__init__(self,workerclass,notebook,"Tab Name Here") # Make sure to call this first in your __init__!
             foobutton = gtk.Button('foo, 10 seconds!')
             barbutton = gtk.Button('bar, 10 seconds, then error!')
             bazbutton = gtk.Button('baz, 0.5 seconds!')
