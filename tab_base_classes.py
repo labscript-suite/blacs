@@ -1,19 +1,25 @@
 from multiprocessing import Process, Queue
-import gtk, gobject
 import time
-import traceback
 import threading
-import logging
-import logging.handlers
 import cPickle
+import traceback
+import logging
 import cgi
+import gtk, gobject
+import excepthook
+
 
 def define_state(function):
+    unescaped_name = function.__name__
+    escapedname = '_' + function.__name__
     def f(self,*args,**kwargs):
-        setattr(self,'_' + function.__name__,function)
+        function.__name__ = escapedname
+        setattr(self,escapedname,function)
         self.event_args.append([args,kwargs])
-        self.event_queue.put('_' + function.__name__)
+        self.event_queue.put(escapedname)
+    f.__name__ = unescaped_name
     return f
+    
         
 class Tab(object):
     def __init__(self,WorkerClass,notebook,settings,workerargs={}):
@@ -70,7 +76,6 @@ class Tab(object):
         """A wrapper around gobject_timeout_add so that it can be queued in our state machine"""
         gobject.timeout_add(*args,**kwargs)
         
-            
     def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
         # Add the timeout to our set of registered timeouts. Timeouts
         # can thus be removed by the user at ay time by calling
@@ -276,7 +281,6 @@ class Tab(object):
         logger.info('Exiting')
         
         
-        
 class Worker(Process):
     def init(self):
         # To be overridden by subclasses
@@ -326,7 +330,7 @@ class Worker(Process):
                     cPickle.dumps(results)
                 except:
                     message = traceback.format_exc()
-                    self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.')
+                    self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)
                     message = 'Attempt to pass unserialisable object %s to parent process:\n' % str(results) + message
                     success = False
                     results = None
@@ -336,8 +340,7 @@ class Worker(Process):
  
  
  
- 
-
+     
 # Example code! Two classes are defined below, which are subclasses
 # of the ones defined above.  They show how to make a Tab class,
 # and a Worker class, and get the Tab to request work to be done by
@@ -453,6 +456,7 @@ class MyTab(Tab):
     # Similarly, no @define_state is required here -- same applies as above.    
     def remove_baz_timeout(self,button):
         self.timeouts.remove(self.baz)
+    
         
 class MyWorker(Worker):
     def init(self):
@@ -493,9 +497,10 @@ class MyWorker(Worker):
         return 'results!!!'
 
 
-if __name__ == '__main__':  
+if __name__ == '__main__':
+    # Run the demo code
     import sys
-    import excepthook
+    import logging.handlers
     # Setup logging:
     logger = logging.getLogger('BLACS')
     handler = logging.handlers.RotatingFileHandler('BLACS.log', maxBytes=1024**2, backupCount=0)
