@@ -23,11 +23,13 @@ class pulseblaster(Tab):
     #
     #
     def __init__(self,notebook,settings):
-        Tab.__init__(self,PulseblasterWorker,notebook,settings)
         # is the init method finished...no!
         self.init_done = False
         self.static_mode = False
         self.destroy_complete = False
+        
+        Tab.__init__(self,PulseblasterWorker,notebook,settings)
+        
         
         # Capabilities
         self.num_RF = 2
@@ -137,10 +139,6 @@ class pulseblaster(Tab):
         
         # Need to connect signals!
         self.builder.connect_signals(self)
-               
-        # We are done with the init!
-        self.init_done = True 
-        self.static_mode = True
     
     #
     # ** This method should be common to all hardware interfaces **
