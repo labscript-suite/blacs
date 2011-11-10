@@ -5,6 +5,8 @@ import traceback
 import threading
 import logging
 import logging.handlers
+import cPickle
+import cgi
 
 def define_state(function):
     def f(self,*args,**kwargs):
@@ -203,6 +205,12 @@ class Tab(object):
                 results = None
                 if self._work is not None:
                     logger.debug('Instructing worker to do job %s'%self._work[0] )
+                    # This line is to catch if you try to pass unpickleable objects.
+                    try:
+                        cPickle.dumps(self._work)
+                    except:
+                        self.error += 'Attempt to pass unserialisable object to child process:'
+                        raise
                     self.to_worker.put(self._work)
                     with gtk.gdk.lock:
                         self.set_state(self._work[0])
@@ -227,7 +235,7 @@ class Tab(object):
                         logger.info('Worker reported exception during job')
                         now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
                         self.error += ('\nException in worker - %s:\n' % now +
-                                       '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
+                                       '<span foreground="red" size="small" font_family="mono">%s</span>'%cgi.escape(message))
                         while self.error.startswith('\n'):
                             self.error = self.error[1:]
                         with gtk.gdk.lock:
@@ -256,7 +264,7 @@ class Tab(object):
             logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
             self.error += ('\nFatal exception in main process - %s:\n '%now +
-                           '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
+                           '<span foreground="red" size="small" font_family="mono">%s</span>'%cgi.escape(message))
             while self.error.startswith('\n'):
                 self.error = self.error[1:]
             with gtk.gdk.lock:
@@ -312,6 +320,15 @@ class Worker(Process):
                     success = False
                     message = traceback.format_exc()
                     self.logger.error('Exception in job:\n%s'%message)
+                # Check if results object is serialisable:
+                try:
+                    cPickle.dumps(results)
+                except:
+                    message = traceback.format_exc()
+                    self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.')
+                    message = 'Attempt to pass unserialisable object %s to parent process:\n' % str(results) + message
+                    success = False
+                    results = None
                 # Report to the parent whether work was successful or not,
                 # and what the results were:
                 self.to_parent.put((success,message,results))
@@ -334,6 +351,7 @@ class MyTab(Tab):
         removebazbutton = gtk.Button('remove baz timeout')
         bazunpickleable= gtk.Button('try to pass baz a queue')
         fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
+        self.checkbutton=gtk.CheckButton('have baz\nreturn a Queue')
         self.toplevel = gtk.VBox()
         self.toplevel.pack_start(foobutton)
         self.toplevel.pack_start(barbutton)
@@ -343,6 +361,7 @@ class MyTab(Tab):
         hbox.pack_start(addbazbutton)
         hbox.pack_start(removebazbutton)
         hbox.pack_start(bazunpickleable)
+        hbox.pack_start(self.checkbutton)
         
         self.toplevel.pack_start(fatalbutton)
         
@@ -408,7 +427,7 @@ class MyTab(Tab):
     @define_state
     def baz(self, button=None):
         self.logger.debug('entered baz')
-        self.queue_work('baz', 5,6,7,x='x')
+        self.queue_work('baz', 5,6,7,x='x',return_queue=self.checkbutton.get_active())
         self.do_after('leave_baz', 1,2,3,bar='baz')
     
     # This event shows what happens if you try to send a unpickleable
@@ -468,6 +487,8 @@ class MyWorker(Worker):
     def baz(self,*args,**kwargs):
         self.logger.debug('working on baz: time is %s'%repr(time.time()))
         time.sleep(0.5)
+        if kwargs['return_queue']:
+            return Queue()
         return 'results!!!'
 
 
