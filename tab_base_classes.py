@@ -332,6 +332,7 @@ class MyTab(Tab):
         bazbutton = gtk.Button('baz, 0.5 seconds!')
         addbazbutton = gtk.Button('add 2 second timeout to baz')
         removebazbutton = gtk.Button('remove baz timeout')
+        bazunpickleable= gtk.Button('try to pass baz a queue')
         fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
         self.toplevel = gtk.VBox()
         self.toplevel.pack_start(foobutton)
@@ -341,6 +342,7 @@ class MyTab(Tab):
         hbox.pack_start(bazbutton)
         hbox.pack_start(addbazbutton)
         hbox.pack_start(removebazbutton)
+        hbox.pack_start(bazunpickleable)
         
         self.toplevel.pack_start(fatalbutton)
         
@@ -350,6 +352,7 @@ class MyTab(Tab):
         fatalbutton.connect('clicked',self.fatal )
         addbazbutton.connect('clicked',self.add_baz_timeout)
         removebazbutton.connect('clicked',self.remove_baz_timeout)
+        bazunpickleable.connect('clicked', self.baz_unpickleable)
         # These two lines are required to top level widget (buttonbox
         # in this case) to the existing GUI:
         self.viewport.add(self.toplevel) 
@@ -396,7 +399,7 @@ class MyTab(Tab):
     @define_state
     def bar(self, button):
         self.logger.debug('entered bar')
-        self.queue_work('bar', 5,6,7,x=Queue())
+        self.queue_work('bar', 5,6,7,x=5)
         self.do_after('leave_bar', 1,2,3,bar='baz')
         
     def leave_bar(self,*args,**kwargs):
@@ -407,6 +410,14 @@ class MyTab(Tab):
         self.logger.debug('entered baz')
         self.queue_work('baz', 5,6,7,x='x')
         self.do_after('leave_baz', 1,2,3,bar='baz')
+    
+    # This event shows what happens if you try to send a unpickleable
+    # event through a queue to the subprocess:
+    @define_state    
+    def baz_unpickleable(self, button):
+        self.logger.debug('entered bar')
+        self.queue_work('baz', 5,6,7,x=Queue())
+        self.do_after('leave_bar', 1,2,3,bar='baz')
         
     def leave_baz(self,*args,**kwargs):
         self.logger.debug('leaving baz')
