@@ -34,6 +34,7 @@ class Tab(object):
         self.mainloop_thread.start()
         self._work = None
         self._finalisation = None
+        self.timeouts = set()
         
         builder = gtk.Builder()
         builder.add_from_file('tab_frame.glade')
@@ -57,10 +58,37 @@ class Tab(object):
         tablabelbuilder.get_object('label').set_label(self.settings["device_name"])
         
         self.notebook.append_page(self._toplevel, tablabel)
+        self.notebook.set_tab_reorderable(self._toplevel, True)
         self._toplevel.show()
         self.error = ''
         self.set_state('idle')
-        
+
+    @define_state
+    def gobject_timeout_add(self,*args,**kwargs):
+        """A wrapper around gobject_timeout_add so that it can be queued in our state machine"""
+        gobject.timeout_add(*args,**kwargs)
+            
+    def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
+        # Add the timeout to our set of registered timeouts. Timeouts
+        # can thus be removed by the user at ay time by calling
+        # self.timeouts.remove(function)
+        self.timeouts.add(statefunction)
+        # Here's a function which executes the timeout once, then queues
+        # itself up again after a delay:
+        def execute_timeout():
+            # queue up the state function, but only if it hasn't been
+            # removed from self.timeouts:
+            if statefunction in self.timeouts:
+                statefunction(*args, **kwargs)
+                # queue up another call to this function (execute_timeout)
+                # after the delay time:
+                self.gobject_timeout_add(delay,execute_timeout)
+            # Return false so at to cancel the gobject.timeout so we
+            # don't call more than required:
+            return False
+        # queue the first run:
+        self.gobject_timeout_add(delay,execute_timeout)        
+    
     def set_state(self,state):
         ready = self.tab_label_widgets['ready']
         working = self.tab_label_widgets['working']
@@ -300,17 +328,26 @@ class MyTab(Tab):
         foobutton = gtk.Button('foo, 10 seconds!')
         barbutton = gtk.Button('bar, 10 seconds, then error!')
         bazbutton = gtk.Button('baz, 0.5 seconds!')
+        addbazbutton = gtk.Button('add 2 second timeout to baz')
+        removebazbutton = gtk.Button('remove baz timeout')
         fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
         self.toplevel = gtk.VBox()
         self.toplevel.pack_start(foobutton)
         self.toplevel.pack_start(barbutton)
-        self.toplevel.pack_start(bazbutton)
+        hbox = gtk.HBox()
+        self.toplevel.pack_start(hbox)
+        hbox.pack_start(bazbutton)
+        hbox.pack_start(addbazbutton)
+        hbox.pack_start(removebazbutton)
+        
         self.toplevel.pack_start(fatalbutton)
         
         foobutton.connect('clicked', self.foo)
         barbutton.connect('clicked', self.bar)
         bazbutton.connect('clicked', self.baz)
         fatalbutton.connect('clicked',self.fatal )
+        addbazbutton.connect('clicked',self.add_baz_timeout)
+        removebazbutton.connect('clicked',self.remove_baz_timeout)
         # These two lines are required to top level widget (buttonbox
         # in this case) to the existing GUI:
         self.viewport.add(self.toplevel) 
@@ -326,7 +363,7 @@ class MyTab(Tab):
     # or do_after from un undecorated callback.
     @define_state
     def foo(self, button):
-        print 'MyTab: entered foo'
+        self.logger.debug('entered foo')
         self.toplevel.set_sensitive(False)
         # Here's how you instruct the worker process to do
         # something. When this callback returns, the worker will be
@@ -342,7 +379,7 @@ class MyTab(Tab):
     # finished with foo():
     def leave_foo(self,*args,**kwargs):
         self.toplevel.set_sensitive(True)
-        print 'Mytab: leaving foo', args, kwargs
+        self.logger.debug('leaving foo')
     
     # Here's what's NOT to do: forgetting to decorate a callback with @define_state
     # when it's not something that can safely be done asynchronously
@@ -356,21 +393,33 @@ class MyTab(Tab):
         
     @define_state
     def bar(self, button):
-        print 'MyTab: entered bar'
+        self.logger.debug('entered bar')
         self.queue_work('bar', 5,6,7,x='x')
         self.do_after('leave_bar', 1,2,3,bar='baz')
         
     def leave_bar(self,*args,**kwargs):
-        print 'Mytab: leaving bar', args, kwargs
+        self.logger.debug('leaving bar')
         
     @define_state
-    def baz(self, button):
-        print 'MyTab: entered baz'
+    def baz(self, button=None):
+        self.logger.debug('entered baz')
         self.queue_work('baz', 5,6,7,x='x')
         self.do_after('leave_baz', 1,2,3,bar='baz')
         
     def leave_baz(self,*args,**kwargs):
-        print 'Mytab: leaving baz', args, kwargs
+        self.logger.debug('leaving baz')
+    
+    # You don't need to decorate with @define_state if all you're
+    # doing is adding a timeout -- adding a timeout can safely be done
+    # asynchronously. But you can still decorate if you want, and you
+    # should if you're doing other work in the same function call which
+    # can't be done asynchronously.
+    def add_baz_timeout(self,button):
+        self.statemachine_timeout_add(2000,self.baz)
+    
+    # Similarly, no @define_state is required here -- same applies as above.    
+    def remove_baz_timeout(self,button):
+        self.timeouts.remove(self.baz)
         
 class MyWorker(Worker):
     def init(self):
@@ -393,18 +442,18 @@ class MyWorker(Worker):
     # value will be passed as a keyword argument _results to the
     # function which was queued with do_after, if there was one.
     def foo(self,*args,**kwargs):
-        print 'working on foo!', args, kwargs
+        self.logger.debug('working on foo!')
         time.sleep(10)
         return 'results!!!'
         
     def bar(self,*args,**kwargs):
-        print 'working on foo!', args, kwargs
+        self.logger.debug('working on bar!')
         time.sleep(10)
         raise Exception('error!')
         return 'results!!!'
         
     def baz(self,*args,**kwargs):
-        print 'working on foo!', args, kwargs
+        self.logger.debug('working on baz: time is %s'%repr(time.time()))
         time.sleep(0.5)
         return 'results!!!'
 
