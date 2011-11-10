@@ -2,18 +2,15 @@ from hardware_interfaces.output_types.RF import *
 from hardware_interfaces.output_types.DO import *
 from hardware_interfaces.output_types.DDS import *
 
-import spinapi
 from hardware_programming import pulseblaster as pb_programming
 
-import gobject
-import pygtk
 import gtk
 import time
-
 import h5py
 
+from tab_base_classes import Tab, Worker, define_state
 
-class pulseblaster(object):
+class pulseblaster(Tab):
 
     # settings should contain a dictionary of information from the connection table, relevant to this device.
     # aka, it could be parent: pb_0/flag_0 (pseudoclock)
@@ -26,44 +23,29 @@ class pulseblaster(object):
     #
     #
     def __init__(self,notebook,settings):
-        
+        Tab.__init__(self,PulseblasterWorker,notebook,settings)
         # is the init method finished...no!
         self.init_done = False
         self.static_mode = False
+        self.destroy_complete = False
         
         # Capabilities
         self.num_RF = 2
-        self.num_DO = 4 #sometimes might be 4
+        self.num_DO = 4 #sometimes might be 12
         self.num_DO_widgets = 12
         
         self.settings = settings
         self.device_name = settings["device_name"]        
         self.pb_num = int(settings["device_num"])
         
-        spinapi.lock.acquire()
-        # start pulseblaster
-        spinapi.pb_select_board(self.pb_num)
-        
-        # Clean up any mess from previous bad closes
-        spinapi.pb_init()
-        spinapi.pb_core_clock(75)
-        spinapi.pb_start()
-        spinapi.pb_stop()
-        spinapi.pb_close()
-        
-        # Now initialise properly!
-        spinapi.pb_init()
-        spinapi.pb_core_clock(75)     
-        spinapi.pb_start()
-        
-        spinapi.lock.release()
+
         
         ###############
         # PyGTK stuff #
         ###############
         self.builder = gtk.Builder()
         self.builder.add_from_file('hardware_interfaces/pulseblaster.glade')
-        self.tab = self.builder.get_object('toplevel')
+        self.toplevel = self.builder.get_object('toplevel')
         self.builder.get_object('title').set_text(self.settings["device_name"])
         
         # Need to connect signals!
@@ -131,7 +113,9 @@ class pulseblaster(object):
                 temp.set_text("Flag "+str(i))
                 temp2 = self.builder.get_object("flag_real_label_"+str(i))
                 temp2.set_text("")
-                
+   
+        # Status Monitor timeout check
+        self.statemachine_timeout_add(2000, self.status_monitor)
         
         # Set up status monitor
         self.status = {"stopped":False,"reset":False,"running":False, "waiting":False}
@@ -145,22 +129,13 @@ class pulseblaster(object):
                                "waiting_yes":self.builder.get_object('waiting_yes'),
                                "waiting_no":self.builder.get_object('waiting_no')}
         
-        # This prevents the status check from being called while another API call is in progress (eg, mid programming)
-        # TODO: Replace Via a global spinapi lock
-        #self.pause_status = False
-        self.timeout = gtk.timeout_add(50,self.status_monitor)
+                
+        self.toplevel.hide()
+        self.viewport.add(self.toplevel)
         
-        tablabelbuilder = gtk.Builder()
-        tablabelbuilder.add_from_file('tab_label.glade')
-        tablabel = tablabelbuilder.get_object('toplevel')
-        self.tab_label_widgets = {"not_ready":tablabelbuilder.get_object('not_ready'),"ready":tablabelbuilder.get_object('ready'),"inadvisable":tablabelbuilder.get_object('inadvisable')}
-        tablabelbuilder.get_object('label').set_label(self.settings["device_name"])
-        
-        notebook.append_page(self.tab,tablabel)
-        notebook.set_tab_reorderable(self.tab,True)
-        
-        self.sm = settings["state_machine"]
-        
+        self.initialise_pulseblaster()
+        self.set_defaults()  
+               
         # We are done with the init!
         self.init_done = True 
         self.static_mode = True
@@ -170,23 +145,35 @@ class pulseblaster(object):
     #
     # This method cleans up the class before the program exits. In this case, we close the worker thread!
     #
+    @define_state
     def destroy(self):        
-        gtk.timeout_remove(self.timeout)
-        spinapi.lock.acquire()
-        spinapi.pb_select_board(self.pb_num)
-        spinapi.pb_stop()
-        spinapi.pb_close()
-        spinapi.lock.release()
+        #gtk.timeout_remove(self.timeout)
+        self.queue_work('close_pulseblaster')
+        self.do_after('leave_destroy')
+        
+    def leave_destroy(self):
+        self.destroy_complete = True
+        
     
     #
     # ** This method should be common to all hardware interfaces **
     #
     # This method sets the values of front panel controls to "defaults"
-    #    
+    #
+    @define_state
     def set_defaults(self):    
         for i in range(0,self.num_RF):
             self.rf_outputs[i].update_value(self.settings["f"+str(i)],self.settings["a"+str(i)],self.settings["p"+str(i)])
-           
+        
+        
+        self.toplevel.show()
+        self.init_done = True
+        self.static_mode = True
+    
+    @define_state
+    def initialise_pulseblaster(self):
+        self.queue_work('initialise_pulseblaster', self.pb_num)
+    
     # Dummy function!
     def ignore_update(self,output):
         pass
@@ -194,15 +181,14 @@ class pulseblaster(object):
     # 
     # This function gets the status of the Pulseblaster from the spinapi, and updates the front panel widgets!
     #
+    @define_state
     def status_monitor(self):
-        #if self.pause_status is True:
-        #    return True
-        self.sm.enter("Status Check")
-        spinapi.lock.acquire()
-        spinapi.pb_select_board(self.pb_num)
-        self.status = spinapi.pb_read_status()
-        spinapi.lock.release()
-        #print self.status
+        self.queue_work('get_status')
+        self.do_after('status_monitor_leave')
+        
+    def status_monitor_leave(self,_results):
+        self.status = _results
+        
         # Update widgets
         a = ["stopped","reset","running","waiting"]
         for name in a:
@@ -212,28 +198,22 @@ class pulseblaster(object):
             else:                
                 self.status_widgets[name+"_no"].show()
                 self.status_widgets[name+"_yes"].hide()
-                
-        # Update Tab Label
-        if self.ready() and self.static_mode:
-            self.tab_label_widgets["ready"].show()
-            self.tab_label_widgets["not_ready"].hide()
-        else:
-            self.tab_label_widgets["ready"].hide()
-            self.tab_label_widgets["not_ready"].show()
-            
         
-        self.sm.exit()        
-        return True
+        if not self.status["running"]:
+            raise Exception('Pulseblaster is not running')
+        
+        
+        
     
     #
     # ** This method should be common to all hardware interfaces **
     #        
     # Returns the status of the device. Is it ready for transition to buffered?
     #
-    def ready(self):
-        if self.status["running"] and not self.status["stopped"] and not self.status["reset"] and not self.status["waiting"] and self.static_mode and self.init_done:
-            return True
-        return False
+    #def ready(self):
+    #    if self.status["running"] and not self.status["stopped"] and not self.status["reset"] and not self.status["waiting"] and self.static_mode and self.init_done:
+    #        return True
+    #    return False
     
     #
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
@@ -244,14 +224,12 @@ class pulseblaster(object):
     # This does not run until the initialisation is complete
     # This does not run if we have transitioned to buffered mode!
     #
+    @define_state
     def static_update(self,output):
         # if the init isn't done, skip this!
         if not self.init_done or not self.static_mode:
             return
         
-        #convert numbers to correct representation
-        #output.amp = int(output.amp*1024)/1024.0
-        #output.phase = int(output.phase*16384)/16384.0
               
         # is it a DO update or a DDS update?
         if isinstance(output,RF):
@@ -288,50 +266,17 @@ class pulseblaster(object):
                 self.do_widgets[channel].set_active(output.state)
         
         
-    
+    @define_state
     def program_static(self,output):
         # if the init isn't done, skip this!
         if not self.init_done or not self.static_mode:
             return
-        # Program hardware 
-        spinapi.lock.acquire()
-        spinapi.pb_select_board(self.pb_num)
         
-        freq = []
-        phase = []
-        amp = []
-        en = []
-        for i in range(0,self.num_RF):
-            # Select DDS:
-            spinapi.pb_select_dds(i)
-            # Program the frequency registers for DDS: 
-            freq.append(spinapi.program_freq_regs( self.dds_outputs[i].rf.freq*spinapi.MHz ))
-            # Program the phase registers for DDS:
-            phase.append(spinapi.program_phase_regs(self.dds_outputs[i].rf.phase))
-            # Program the amplitude registers for DDS:
-            amp.append(spinapi.program_amp_regs(self.dds_outputs[i].rf.amp))
-            # Get enable state for DDS
-            if self.dds_outputs[i].do.state:
-                en.append(spinapi.ANALOG_ON)
-            else:
-                en.append(spinapi.ANALOG_OFF)
-        
-        
-            
-        # send instructrions for the program to be executed:
-        spinapi.pb_start_programming(spinapi.PULSE_PROGRAM)
-
-        start = spinapi.pb_inst_dds2(freq[0], phase[0], amp[0], en[0], spinapi.NO_PHASE_RESET,
-                                     freq[1], phase[1], amp[1], en[1], spinapi.NO_PHASE_RESET, self.encode_flags(), spinapi.BRANCH, 0, 0.5*spinapi.us)
-                             
-        
-
-        spinapi.pb_stop_programming()
-        spinapi.lock.release()
-        
-        # Resume status check
-        #self.pause_status = False
-    
+        # put all the data from self.dds_outputs in a dict!
+        dds_outputs = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "en0":self.dds_outputs[0].do.state,
+                      "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}
+                      
+        self.queue_work('program_static',dds_outputs,self.encode_flags())
     #
     # This function takes the values of the DO controls, and builds a binary flag bit string suitable to send to the spinapi
     #    
@@ -355,14 +300,8 @@ class pulseblaster(object):
     # to kick the pulseblaster back into static mode.
     #
     def start(self):
-        #self.pause_status = True
-        #time.sleep(2)
-        spinapi.lock.acquire()
-        spinapi.pb_select_board(self.pb_num)
-        spinapi.pb_start()
-        spinapi.lock.release()
-        #self.pause_status = False
-    
+        self.queue_work('start2')
+        
     #
     # ** This method should be common to all hardware interfaces **
     #        
@@ -443,6 +382,7 @@ class pulseblaster(object):
     #########################
     # PyGTK Event functions #
     #########################
+    @define_state
     def on_value_change(self,widget):
         update_channel = None
         for i in range(0,self.num_RF):
@@ -454,7 +394,8 @@ class pulseblaster(object):
                 break
                       
         self.dds_outputs[update_channel].update_value(self.dds_widgets[update_channel][3].get_active(),self.dds_widgets[update_channel][0].get_value(),self.dds_widgets[update_channel][1].get_value(),self.dds_widgets[update_channel][2].get_value())
-            
+    
+    @define_state    
     def on_flag_toggled(self,widget):
         update_channel = None
         for i in range(0,self.num_DO):
@@ -462,4 +403,84 @@ class pulseblaster(object):
                 update_channel = i
                 break
         self.do_outputs[update_channel].update_value(self.do_widgets[update_channel].get_active())
+
+class PulseblasterWorker(Worker):
+
+    def init(self):
+        global spinapi; import spinapi
+    
+    def initialise_pulseblaster(self, pb_num):
+        self.pb_num = pb_num
+        #spinapi.lock.acquire()
+        # start pulseblaster
+        spinapi.pb_select_board(self.pb_num)
+        
+        # Clean up any mess from previous bad closes
+        spinapi.pb_init()
+        spinapi.pb_core_clock(75)
+        spinapi.pb_start()
+        spinapi.pb_stop()
+        spinapi.pb_close()
+        
+        # Now initialise properly!
+        spinapi.pb_init()
+        spinapi.pb_core_clock(75)     
+        spinapi.pb_start()
+        
+        #spinapi.lock.release()
+        
+    def close_pulseblaster(self):
+        #spinapi.lock.acquire()
+        #spinapi.pb_select_board(self.pb_num)
+        spinapi.pb_stop()
+        spinapi.pb_close()
+        #spinapi.lock.release()
+        
+    def program_static(self,dds_outputs,flags):
+        # Program hardware 
+        #spinapi.lock.acquire()
+        #spinapi.pb_select_board(self.pb_num)
+        
+        freq = []
+        phase = []
+        amp = []
+        en = []
+        for i in range(0,2):
+            # Select DDS:
+            spinapi.pb_select_dds(i)
+            # Program the frequency registers for DDS: 
+            freq.append(spinapi.program_freq_regs( dds_outputs["freq"+str(i)]*spinapi.MHz ))
+            # Program the phase registers for DDS:
+            phase.append(spinapi.program_phase_regs(dds_outputs["phase"+str(i)]))
+            # Program the amplitude registers for DDS:
+            amp.append(spinapi.program_amp_regs(dds_outputs["amp"+str(i)]))
+            # Get enable state for DDS
+            if dds_outputs["en"+str(i)]:
+                en.append(spinapi.ANALOG_ON)
+            else:
+                en.append(spinapi.ANALOG_OFF)
+        
+        
             
+        # send instructrions for the program to be executed:
+        spinapi.pb_start_programming(spinapi.PULSE_PROGRAM)
+
+        start = spinapi.pb_inst_dds2(freq[0], phase[0], amp[0], en[0], spinapi.NO_PHASE_RESET,
+                                     freq[1], phase[1], amp[1], en[1], spinapi.NO_PHASE_RESET, flags, spinapi.BRANCH, 0, 0.5*spinapi.us)
+                             
+        
+
+        spinapi.pb_stop_programming()
+        #spinapi.lock.release()
+        
+    def start2(self):
+        #spinapi.lock.acquire()
+        #spinapi.pb_select_board(self.pb_num)
+        spinapi.pb_start()
+        #spinapi.lock.release()
+        
+    def get_status(self):
+        #spinapi.lock.acquire()
+        #spinapi.pb_select_board(self.pb_num)
+        return spinapi.pb_read_status()
+        #spinapi.lock.release()

@@ -109,6 +109,7 @@ class novatechdds9m(Tab):
     def initialise_connection(self):
         self.queue_work('initialise_connection', self.settings["COM"], 115200)
     
+    @define_state
     def static_update(self,output):
         if not self.init_done or not self.static_mode:
             return        
