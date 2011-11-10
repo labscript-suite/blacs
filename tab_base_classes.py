@@ -127,7 +127,7 @@ class Tab(object):
         # (albeit doing nothing) that we don't need:
         if self.mainloop_thread.is_alive():
             self.from_worker.put((False,'quit',None))
-            self.event_queue.put(('_quit',None,None))
+            self.event_queue.put('_quit')
             self.logger.debug('attempting to join mainloop thread')
             self.mainloop_thread.join()
         currentpage = self.notebook.get_current_page()
@@ -235,7 +235,7 @@ class Tab(object):
                         logger.info('Worker reported exception during job')
                         now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
                         self.error += ('\nException in worker - %s:\n' % now +
-                                       '<span foreground="red" size="small" font_family="mono">%s</span>'%cgi.escape(message))
+                                       '<span foreground="red" font_family="mono">%s</span>'%cgi.escape(message))
                         while self.error.startswith('\n'):
                             self.error = self.error[1:]
                         with gtk.gdk.lock:
@@ -264,7 +264,7 @@ class Tab(object):
             logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
             self.error += ('\nFatal exception in main process - %s:\n '%now +
-                           '<span foreground="red" size="small" font_family="mono">%s</span>'%cgi.escape(message))
+                           '<span foreground="red" font_family="mono">%s</span>'%cgi.escape(message))
             while self.error.startswith('\n'):
                 self.error = self.error[1:]
             with gtk.gdk.lock:
