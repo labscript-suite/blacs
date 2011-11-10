@@ -253,9 +253,9 @@ class Tab(object):
         except:
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
-            logger.critical('An unhandled exception happened:\n %s'%message)
+            logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-            self.error += ('\nUnhandled exception in main process - %s:\n '%now +
+            self.error += ('\nFatal exception in main process - %s:\n '%now +
                            '<span foreground="red" size="small" font_family="mono">%s</span>'%message)
             while self.error.startswith('\n'):
                 self.error = self.error[1:]
