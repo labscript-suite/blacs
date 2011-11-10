@@ -11,8 +11,8 @@ import cgi
 def define_state(function):
     def f(self,*args,**kwargs):
         setattr(self,'_' + function.__name__,function)
-        self.event_queue.put('_' + function.__name__)
         self.event_args.append([args,kwargs])
+        self.event_queue.put('_' + function.__name__)
     return f
         
 class Tab(object):
@@ -69,6 +69,7 @@ class Tab(object):
     def gobject_timeout_add(self,*args,**kwargs):
         """A wrapper around gobject_timeout_add so that it can be queued in our state machine"""
         gobject.timeout_add(*args,**kwargs)
+        
             
     def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
         # Add the timeout to our set of registered timeouts. Timeouts
