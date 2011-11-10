@@ -14,7 +14,7 @@ def define_state(function):
     return f
         
 class Tab(object):
-    def __init__(self,WorkerClass,notebook,settings):
+    def __init__(self,WorkerClass,notebook,settings,workerargs={}):
         self.notebook = notebook
         self.settings = settings
         self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
@@ -23,7 +23,7 @@ class Tab(object):
         self.event_args = []
         self.to_worker = Queue()
         self.from_worker = Queue()
-        self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker])
+        self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker,workerargs])
         self.worker.daemon = True
         self.worker.start()
         self.not_responding_for = 0
@@ -209,7 +209,7 @@ class Tab(object):
                     self._work = None
                     # Confirm that the worker got the message:
                     logger.debug('Waiting for worker to acknowledge job request')
-                    success, message = self.from_worker.get()
+                    success, message, results = self.from_worker.get()
                     if not success:
                         if message == 'quit':
                             # The user has requested a restart:
@@ -274,7 +274,9 @@ class Worker(Process):
         pass
     
     def run(self):
-        self.name, self.from_parent, self.to_parent = self._args
+        self.name, self.from_parent, self.to_parent, extraargs = self._args
+        for argname in extraargs:
+            setattr(self,argname,extraargs[argname])
         self.logger = logging.getLogger('BLACS.%s.worker'%self.name)
         self.logger.debug('Starting')
         self.init()
@@ -296,7 +298,7 @@ class Worker(Process):
                 message = traceback.format_exc()
                 self.logger.error('Couldn\'t start job:\n %s'%message)
             # Report to the parent whether method lookup was successful or not:
-            self.to_parent.put((success,message))
+            self.to_parent.put((success,message,None))
             if success:
                 # Try to do the requested work:
                 self.logger.debug('Starting job %s'%funcname)
@@ -324,7 +326,7 @@ class Worker(Process):
 # the worker in response to GUI events.
 class MyTab(Tab):
     def __init__(self,notebook,settings):
-        Tab.__init__(self,MyWorker,notebook,settings) # Make sure to call this first in your __init__!
+        Tab.__init__(self,MyWorker,notebook,settings,{'x':7}) # Make sure to call this first in your __init__!
         foobutton = gtk.Button('foo, 10 seconds!')
         barbutton = gtk.Button('bar, 10 seconds, then error!')
         bazbutton = gtk.Button('baz, 0.5 seconds!')
@@ -394,7 +396,7 @@ class MyTab(Tab):
     @define_state
     def bar(self, button):
         self.logger.debug('entered bar')
-        self.queue_work('bar', 5,6,7,x='x')
+        self.queue_work('bar', 5,6,7,x=Queue())
         self.do_after('leave_bar', 1,2,3,bar='baz')
         
     def leave_bar(self,*args,**kwargs):
@@ -435,7 +437,7 @@ class MyWorker(Worker):
         # import module; self.module = module. Up to you, I prefer
         # the former.
         global serial; import serial
-        self.x = 5
+        self.logger.info('got x! %d' % self.x)
     
     # Here's a function that will be called when requested by the parent
     # process. There's nothing special about it really. Its return
