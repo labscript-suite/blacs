@@ -5,7 +5,7 @@ PulseBlaster(  'pulseblaster_1')
 NI_PCIe_6363(  'ni_pcie_6363_0',  pulseblaster_0, 'fast clock')
 NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock')#flag 6
 NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock')#flag 1
-NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock')#flag 7
+NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 7
 
 
 #DigitalOut(     'Fast_Clock',                           pulseblaster_0,         'flag 0')
@@ -54,7 +54,7 @@ AnalogOut(      'ASD',                                   ni_pcie_6363_0,        
 #AnalogOut(      '',                                     ni_pcie_6363_0,         'ao3')
 
 DigitalOut(     'Rb_Central_MOT_RF_Switch',              ni_pcie_6363_0,         'port0/line0')                                  #NT_0_0
-DigitalOut(     'Rb_Source_MOT_RF_Switch'                ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1
+DigitalOut(     'Rb_Source_MOT_RF_Switch',                ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1
 DigitalOut(     'Rb_Repump_RF_Switch',                   ni_pcie_6363_0,         'port0/line2')                                  #NT_0_2
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line3')
 DigitalOut(     'Novatech_2_0',                          ni_pcie_6363_0,         'port0/line4')                                  #NT_2_0

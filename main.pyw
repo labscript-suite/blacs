@@ -19,6 +19,7 @@ if __name__ == "__main__":
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
     import gtk
+    import gobject
     import numpy
     import h5py
 
@@ -111,6 +112,8 @@ if __name__ == "__main__":
                                   "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
                                   "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
                                   "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
+                                  "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com8"},
+                                  "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
                                   "andor_ixon":{"device_name":"andor_ixon"}
                                  }
                                  
@@ -219,8 +222,23 @@ if __name__ == "__main__":
                 
                 for k,v in self.tablist.items():
                     v.destroy()
-                
+                    v.event_queue.put('_quit')                    
+                gobject.timeout_add(100,self.finalise_quit)
+        
+        def finalise_quit(self):
+            #TODO: Force quit all processes after a certain time
+            logger.info('checking finalisation:' + str(len(self.tablist))+' items left to finish')
+            for k,v in self.tablist.items():
+                if v.destroy_complete:
+                    self.tablist.pop(k)
+            logger.info('checked...:' + str(len(self.tablist))+' items left to finish')        
+                    
+            if len(self.tablist) > 0:
+                return True
+            else:
+                logger.info('quitting')
                 gtk.main_quit()
+                return False
 
             
         #################

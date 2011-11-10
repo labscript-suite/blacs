@@ -48,8 +48,6 @@ class pulseblaster(Tab):
         self.toplevel = self.builder.get_object('toplevel')
         self.builder.get_object('title').set_text(self.settings["device_name"])
         
-        # Need to connect signals!
-        self.builder.connect_signals(self)
         
         self.dds_widgets = []
         self.rf_do_outputs = []
@@ -135,6 +133,10 @@ class pulseblaster(Tab):
         
         self.initialise_pulseblaster()
         self.set_defaults()  
+        
+        
+        # Need to connect signals!
+        self.builder.connect_signals(self)
                
         # We are done with the init!
         self.init_done = True 
