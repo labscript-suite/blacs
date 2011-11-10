@@ -13,13 +13,15 @@ import pylab
 import math
 import h5py
 
+from tab_base_classes import Tab, Worker, define_state
+
 from PyDAQmx import Task
 from PyDAQmx.DAQmxConstants import *
 from PyDAQmx.DAQmxTypes import *
 
 from hardware_programming import ni_pcie_6363 as ni_programming
 
-class ni_pcie_6363(object):
+class ni_pcie_6363(Tab):
 
     # settings should contain a dictionary of information from the connection table, relevant to this device.
     # aka, it could be parent: pb_0/flag_0 (pseudoclock)
@@ -32,7 +34,11 @@ class ni_pcie_6363(object):
     #
     #
     def __init__(self,notebook,settings):
+        Tab.__init__(self,NiPCIe6363Worker,notebook,settings)
         self.init_done = False
+        self.static_mode = False
+        self.destroy_complete = False
+        
         #capabilities
         # can I abstract this away? Do I need to?
         self.num_DO = 48
@@ -52,7 +58,7 @@ class ni_pcie_6363(object):
         ###############
         self.builder = gtk.Builder()
         self.builder.add_from_file('hardware_interfaces/NI_6363.glade')
-        self.tab = self.builder.get_object('toplevel')
+        self.toplevel = self.builder.get_object('toplevel')
         
         self.digital_outs = []
         self.digital_widgets = []
@@ -105,9 +111,10 @@ class ni_pcie_6363(object):
             self.analog_outs.append(AO(self,self.static_update,self.program_static,i,"AO"+str(i),name,[-10.,10.]))
             
         # Need to connect signals!
-        self.builder.connect_signals(self)
-        notebook.append_page(self.tab,gtk.Label(settings["device_name"]))
-        notebook.set_tab_reorderable(self.tab,True)
+        self.builder.connect_signals(self)        
+        self.toplevel = self.builder.get_object('toplevel')
+        self.toplevel.hide()
+        self.viewport.add(self.toplevel)
         
         # Set up AI/DI input manager. This subprocess will communicate with the main gtk thread via a queue or pipe (see subprocessing module)
         # Through the ni_pcie_6363 device, virtual devices will request data from a channel (or list of channels).
@@ -124,7 +131,7 @@ class ni_pcie_6363(object):
         self.write_queue = multiprocessing.Queue()
         self.read_queue = multiprocessing.Queue()
         self.result_queue = multiprocessing.Queue()
-        self.ai_worker = Worker(self.write_queue, self.read_queue, self.result_queue)
+        self.ai_worker = Worker2(self.write_queue, self.read_queue, self.result_queue)
         self.ai_worker.start()
         
         
@@ -132,30 +139,16 @@ class ni_pcie_6363(object):
         self.timeout = gtk.timeout_add(10,self.idle_function)
         
         
-        # Create task
-        self.ao_task = Task()
-        self.ao_read = int32()
-        self.ao_data = numpy.zeros((self.num_AO,), dtype=numpy.float64)
-        self.do_task = Task()
-        self.do_read = int32()
-        self.do_data = numpy.zeros(48,dtype=numpy.uint8)
-        self.buffered_do_start_task = None
+        self.initialise_device()
         
-        self.setup_static_channels()
-            
         
-        #DAQmx Start Code        
-        self.ao_task.StartTask()  
-        self.do_task.StartTask()  
-        
-        self.static_mode = True
-        self.init_done = True
     
     #
     # ** This method should be common to all hardware interfaces **
     #
     # This method cleans up the class before the program exits. In this case, we close the worker thread!
     #
+    @define_state
     def destroy(self):
         self.init_done = False
         
@@ -170,24 +163,24 @@ class ni_pcie_6363(object):
         while not self.result_queue.empty():
             self.result_queue.get_nowait()
         
-        self.ao_task.StopTask()
-        self.ao_task.ClearTask()
-        self.do_task.StopTask()
-        self.do_task.ClearTask()
+        self.queue_work('close_device')
+        self.do_after('leave_destroy')
+        
+    def leave_destroy(self,_results):
+        self.destroy_complete = True
     
-    def setup_static_channels(self):
-        #setup AO channels
-        for i in range(0,self.num_AO):
-            self.ao_task.CreateAOVoltageChan("ni_pcie_6363_0/ao"+str(i),"",-10,10,DAQmx_Val_Volts,None)
+
+     
+    @define_state
+    def initialise_device(self):
+        self.queue_work('initialise')
+        self.do_after('leave_initialise_device')
         
-        #setup DO ports
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line0:7","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line8:15","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line16:23","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line24:31","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port1/line0:7","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port2/line0:7","",DAQmx_Val_ChanForAllLines)
-        
+    def leave_initialise_device(self,_results):        
+        self.static_mode = True
+        self.init_done = True
+        self.toplevel.show()
+    
     #
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
     # ** This method is an internal method, called every x milliseconds **
@@ -331,25 +324,24 @@ class ni_pcie_6363(object):
     # Static update 
     # Should not program change during experimental run
     #
+    @define_state
     def program_static(self,output):
         if not self.init_done or not self.static_mode:
             return
-        # Program a static change
-        # write AO
-        for i in range(0,self.num_AO):
-            self.ao_data[i] = self.analog_outs[i].value
-        self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
-          
-        # write DO        
-        for i in range(0,self.num_DO):
-            if self.digital_outs[i].state == True:
-                self.do_data[i] = 1
-            else:
-                self.do_data[i] = 0
         
-        self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
+        # create dictionary
+        ao_values = {}
+        for i in range(self.num_AO):
+            ao_values[str(i)] = self.analog_outs[i].value
+            
+        do_values = {}
+        for i in range(self.num_DO):
+            do_values[str(i)] = self.digital_outs[i].state
+            
+        self.queue_work('program_static',ao_values,do_values)
+        
     
-    
+    @define_state
     def static_update(self,output):    
         if not self.init_done or not self.static_mode:
             return    
@@ -458,25 +450,89 @@ class ni_pcie_6363(object):
     ##########################
     # PyGTK Signal functions #
     ##########################
-    
+    @define_state
     def on_digital_toggled(self,widget):
         # find widget. Send callback
         for i in range(0,self.num_DO):
             if self.digital_widgets[i] == widget:
                 self.digital_outs[i].update_value(widget.get_active())
                 return
-    
+    @define_state
     def on_analog_change(self,widget):
         for i in range(0,self.num_AO):
             if self.analog_widgets[i] == widget:
                 self.analog_outs[i].update_value(widget.get_text())
-                
+
+if not __name__ == '__main__':
+    from PyDAQmx.DAQmxConstants import *
+    from PyDAQmx.DAQmxTypes import *
+    
+class NiPCIe6363Worker(Worker):
+    def init(self):
+        global Task; from PyDAQmx import Task
+        self.num_DO = 48
+        self.num_AO = 4
+        self.num_RF = 0
+        self.num_AI = 32        
+    
+    def initialise(self):
+        # Create task
+        self.ao_task = Task()
+        self.ao_read = int32()
+        self.ao_data = numpy.zeros((self.num_AO,), dtype=numpy.float64)
+        self.do_task = Task()
+        self.do_read = int32()
+        self.do_data = numpy.zeros(48,dtype=numpy.uint8)
+        self.buffered_do_start_task = None
+        
+        self.setup_static_channels()            
+        
+        #DAQmx Start Code        
+        self.ao_task.StartTask()  
+        self.do_task.StartTask()  
+
+    def setup_static_channels(self):
+        #setup AO channels
+        for i in range(0,self.num_AO): 
+            self.ao_task.CreateAOVoltageChan("ni_pcie_6363_0/ao"+str(i),"",-10,10,DAQmx_Val_Volts,None)
+        
+        #setup DO ports
+        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line0:7","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line8:15","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line16:23","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line24:31","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan("ni_pcie_6363_0/port1/line0:7","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan("ni_pcie_6363_0/port2/line0:7","",DAQmx_Val_ChanForAllLines)    
+        
+    def close_device(self):        
+        self.ao_task.StopTask()
+        self.ao_task.ClearTask()
+        self.do_task.StopTask()
+        self.do_task.ClearTask()
+        
+    def program_static(self,analog_outs,digital_outs):
+        # Program a static change
+        # write AO
+        for i in range(0,self.num_AO):# The 4 is from self.num_AO
+            self.ao_data[i] = analog_outs[str(i)]
+        self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
+          
+        # write DO        
+        for i in range(0,self.num_DO): #The 48 is from self.num_DO
+            if digital_outs[str(i)] == True:
+                self.do_data[i] = 1
+            else:
+                self.do_data[i] = 0
+        
+        self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
+                        
 #########################################
 #                                       #
 #       Worker class for AI input       #
 #                                       #
 #########################################
-class Worker(multiprocessing.Process):
+class Worker2(multiprocessing.Process):
+
 
     def __init__(self,read_queue,write_queue,result_queue):
         # base class initialization

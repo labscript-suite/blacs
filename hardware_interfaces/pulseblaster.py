@@ -151,7 +151,7 @@ class pulseblaster(Tab):
         self.queue_work('close_pulseblaster')
         self.do_after('leave_destroy')
         
-    def leave_destroy(self):
+    def leave_destroy(self,_results):
         self.destroy_complete = True
         
     
