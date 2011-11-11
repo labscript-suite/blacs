@@ -43,14 +43,13 @@ def setup_logging():
     else:
         # Prevent bug on windows where writing to stdout without a command
         # window causes a crash:
-        sys.stdout = sys.stderr = os.devnull
+        sys.stdout = sys.stderr = open(os.devnull)
     logger.setLevel(logging.DEBUG)
     return logger
     
 logger = setup_logging()
 if __name__ == "__main__":
     logger.info('\n\n===============starting===============\n')
-
     
 # Hardware Interface Imports
 from hardware_interfaces import *
