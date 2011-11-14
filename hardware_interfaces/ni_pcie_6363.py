@@ -36,7 +36,16 @@ class ni_pcie_6363(Tab):
     #
     #
     def __init__(self,notebook,settings):
-        Tab.__init__(self,NiPCIe6363Worker,notebook,settings)
+        self.settings = settings
+        # Queues that need to be passed to the worker process, which in turn passes them to the acquisition process: AI worker thread
+        self.write_queue = multiprocessing.Queue()
+        self.read_queue = multiprocessing.Queue()
+        self.result_queue = multiprocessing.Queue()
+        
+        acq_args = [self.settings['device_name'], self.write_queue, self.read_queue, self.result_queue]
+        
+        Tab.__init__(self,NiPCIe6363Worker,notebook,settings,workerargs={'acq_args':acq_args})
+        
         self.init_done = False
         self.static_mode = False
         self.destroy_complete = False
@@ -47,9 +56,7 @@ class ni_pcie_6363(Tab):
         self.num_AO = 4
         self.num_RF = 0
         self.num_AI = 32
-        
-        self.settings = settings
-        
+               
         # input storage
         self.ai_callback_list = []
         for i in range(0,self.num_AI):
@@ -118,26 +125,7 @@ class ni_pcie_6363(Tab):
         self.toplevel.hide()
         self.viewport.add(self.toplevel)
         
-        # Set up AI/DI input manager. This subprocess will communicate with the main gtk thread via a queue or pipe (see subprocessing module)
-        # Through the ni_pcie_6363 device, virtual devices will request data from a channel (or list of channels).
-        # The request will return a queue object. The virtual device will call idle_add(callback_function) which results 
-        #   in callback_function being called when nothing else is happening.
-        # The callback function will access the afore mentioned queue, read whatever data is on it, and handle it appropriately.
-        #
-        # The subprocess will handle multiple requests for the same channel easily. It will block transfer 
-        # to the queue (for speed reasons) during an experimental run. Data will be transfered to virtual devices at the end of the run.
-        
-        # need to handle DI/DO in some sort of clever way...
-        
-        # Start AI worker thread
-        self.write_queue = multiprocessing.Queue()
-        self.read_queue = multiprocessing.Queue()
-        self.result_queue = multiprocessing.Queue()
-        self.ai_worker = Worker2(args=[self.settings['device_name'], self.write_queue, self.read_queue, self.result_queue])
-        self.ai_worker.start()
-        
-        
-        # Add timeout callback which distributes newly acquired data to registered methods
+        # Start acquisition thread which distributes newly acquired data to registered methods
         self.get_data_thread = threading.Thread(target = self.get_acquisition_data)
         self.get_data_thread.daemon = True
         self.get_data_thread.start()
@@ -185,17 +173,9 @@ class ni_pcie_6363(Tab):
         self.init_done = True
         self.toplevel.show()
     
-    #
-    # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
-    # ** This method is an internal method, called every x milliseconds **
-    # 
-    #
-    # "idle_function()"
-    #
-    # This function is called during idle time, and sends out the analog input data to the specified callback functions, during idle time.
-    # It should only be used internally by this class!
-    #
     def get_acquisition_data(self):
+        # This function is called in a separate thread. It collects acquisition data 
+        # from the acquisition subprocess, and calls the callbacks that have requested data."""
         logger = logging.getLogger('BLACS.%s.get_data_thread'%self.settings['device_name'])   
         logger.info('Starting')
         # read subprocess queue. Send data to relevant callback functions
@@ -291,8 +271,6 @@ class ni_pcie_6363(Tab):
             # find now highest rate 
             new_rate,e = self.max_ai_rate()
        
-    
-    #
     # "max_ai_rate()": This function returns two parameters
     #
     # 1. "rate": this is the fastest aquisition rate of any AI channel
@@ -459,13 +437,19 @@ class ni_pcie_6363(Tab):
             if self.analog_widgets[i] == widget:
                 self.analog_outs[i].update_value(widget.get_text())
 
-if not __name__ == '__main__':
-    from PyDAQmx.DAQmxConstants import *
-    from PyDAQmx.DAQmxTypes import *
     
 class NiPCIe6363Worker(Worker):
     def init(self):
-        global Task; from PyDAQmx import Task
+        self.logger.info('*******in init***********')
+        self.acquisition_worker = Worker2(args=self.acq_args)
+        self.acquisition_worker.daemon = True
+        self.acquisition_worker.start()
+        self.logger.info('*****started acq worker!*******')
+        
+        exec 'from PyDAQmx import Task' in globals()
+        exec 'from PyDAQmx.DAQmxConstants import *' in globals()
+        exec 'from PyDAQmx.DAQmxTypes import *' in globals()
+        
         self.num_DO = 48
         self.num_AO = 4
         self.num_RF = 0
@@ -617,8 +601,6 @@ class Worker2(multiprocessing.Process):
             else:
                 self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
                 self.t0 = self.t0 + self.samples_per_channel/self.rate
-
-
         
     def setup_task(self):
         #DAQmx Configure Code
@@ -660,7 +642,7 @@ class Worker2(multiprocessing.Process):
             self.daqlock.notify()
     
     def stop_task(self):
-        with daqlock:
+        with self.daqlock:
             if self.task_running:
                 self.task_running = False
                 self.task.StopTask()
