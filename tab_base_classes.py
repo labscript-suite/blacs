@@ -500,7 +500,7 @@ class MyWorker(Worker):
             return Queue()
         return 'results!!!'
 
-if __name__ == '__main__'
+if __name__ == '__main__':
     import sys
     import logging.handlers
     # Setup logging:

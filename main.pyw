@@ -144,9 +144,9 @@ if __name__ == "__main__":
             canvas = FigureCanvas(fig)  # a gtk.DrawingArea
             self.canvas = canvas
             vbox.pack_start(canvas)
-            self.notebook.append_page(vbox,gtk.Label("graph!"))
+            #self.notebook.append_page(vbox,gtk.Label("graph!"))
             #vbox.show_all()
-            self.tablist["ni_pcie_6363_0"].request_analog_input(0,1000,self.update_plot)
+            #self.tablist["ni_pcie_6363_0"].request_analog_input(0,50000,self.update_plot)
             
             # Setup the sequence manager thread
             # This thread will listen on a specific port, and will add items it recieves to a queue

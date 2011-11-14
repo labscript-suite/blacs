@@ -639,7 +639,7 @@ class Worker2(multiprocessing.Process):
                     
             if self.buffered:
                 #set up start on digital trigger
-                pass
+                self.task.CfgDigEdgeStartTrig("/ni_pcie_6363_0/PFI0",DAQmx_Val_Rising)
             
             #DAQmx Start Code
             self.task.StartTask()
