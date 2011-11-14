@@ -145,7 +145,7 @@ if __name__ == "__main__":
             self.canvas = canvas
             vbox.pack_start(canvas)
             self.notebook.append_page(vbox,gtk.Label("graph!"))
-            vbox.show()
+            #vbox.show_all()
             self.tablist["ni_pcie_6363_0"].request_analog_input(0,1000,self.update_plot)
             
             # Setup the sequence manager thread
@@ -210,27 +210,34 @@ if __name__ == "__main__":
             if not self.exiting:
                 self.exiting = True
                 self.manager_running = False
-                self.window.hide()
+                #self.window.hide()
                 
                 for k,v in self.tablist.items():
                     v.destroy()
-                    v.event_queue.put('_quit')                    
-                gobject.timeout_add(100,self.finalise_quit)
+                                      
+                gobject.timeout_add(100,self.finalise_quit,time.time())
         
-        def finalise_quit(self):
+        def finalise_quit(self,initial_time):
             #TODO: Force quit all processes after a certain time
             logger.info('checking finalisation:' + str(len(self.tablist))+' items left to finish')
             for k,v in self.tablist.items():
                 if v.destroy_complete:
+                    v.close_tab()  
                     self.tablist.pop(k)
             logger.info('checked...:' + str(len(self.tablist))+' items left to finish')        
-                    
-            if len(self.tablist) > 0:
-                return True
-            else:
+            
+            if time.time()-initial_time > 2:
+                for k,v in self.tablist.items():
+                    v.close_tab()  
+                    self.tablist.pop(k)
+            
+            if len(self.tablist) == 0:
                 logger.info('quitting')
                 gtk.main_quit()
+                logger.info('gtk.main_quit done')
                 return False
+            else:
+                return True
 
             
         #################

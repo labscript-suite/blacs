@@ -56,6 +56,9 @@ class ni_pcie_6363(Tab):
         self.num_AO = 4
         self.num_RF = 0
         self.num_AI = 32
+        
+        self.max_ao_voltage = 10.0
+        self.min_ao_voltage = -10.0
                
         # input storage
         self.ai_callback_list = []
@@ -117,7 +120,7 @@ class ni_pcie_6363(Tab):
             self.builder.get_object("AO_label_a"+str(i+1)).set_text("AO"+str(i))            
             self.builder.get_object("AO_label_b"+str(i+1)).set_text(name)            
             
-            self.analog_outs.append(AO(self,self.static_update,self.program_static,i,"AO"+str(i),name,[-10.,10.]))
+            self.analog_outs.append(AO(self,self.static_update,self.program_static,i,"AO"+str(i),name,[self.min_ao_voltage,self.max_ao_voltage]))
             
         # Need to connect signals!
         self.builder.connect_signals(self)        
@@ -148,13 +151,7 @@ class ni_pcie_6363(Tab):
         time.sleep(0.1)
         self.write_queue.put(["shutdown"])
         time.sleep(0.3)
-        
-        # clear all items in the queues
-        while not self.read_queue.empty():
-            self.read_queue.get_nowait()
-        while not self.result_queue.empty():
-            self.result_queue.get_nowait()
-        
+                
         self.queue_work('close_device')
         self.do_after('leave_destroy')
         
@@ -165,7 +162,7 @@ class ni_pcie_6363(Tab):
      
     @define_state
     def initialise_device(self):
-        self.queue_work('initialise',self.settings["device_name"])
+        self.queue_work('initialise',self.settings["device_name"],[self.min_ao_voltage,self.max_ao_voltage])
         self.do_after('leave_initialise_device')
         
     def leave_initialise_device(self,_results):        
@@ -447,7 +444,7 @@ class NiPCIe6363Worker(Worker):
         self.num_RF = 0
         self.num_AI = 32        
     
-    def initialise(self, device_name):
+    def initialise(self, device_name, limits):
         # Create task
         self.ao_task = Task()
         self.ao_read = int32()
@@ -457,17 +454,17 @@ class NiPCIe6363Worker(Worker):
         self.do_data = numpy.zeros(48,dtype=numpy.uint8)
         self.device_name = device_name
         self.buffered_do_start_task = None
-        
+        self.limits = limits
         self.setup_static_channels()            
         
         #DAQmx Start Code        
         self.ao_task.StartTask()  
         self.do_task.StartTask()  
-
+        
     def setup_static_channels(self):
         #setup AO channels
         for i in range(0,self.num_AO): 
-            self.ao_task.CreateAOVoltageChan(self.device_name+"/ao"+str(i),"",-10,10,DAQmx_Val_Volts,None)
+            self.ao_task.CreateAOVoltageChan(self.device_name+"/ao"+str(i),"",self.limits[0],self.limits[1],DAQmx_Val_Volts,None)
         
         #setup DO ports
         self.do_task.CreateDOChan(self.device_name+"/port0/line0:7","",DAQmx_Val_ChanForAllLines)

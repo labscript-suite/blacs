@@ -26,7 +26,13 @@ class novatechdds9m(Tab):
         
         # Capabilities
         self.num_RF = 4
-				
+        self.freq_min = 0.0000001   # In MHz
+        self.freq_max = 170.0       # In MHz
+        self.amp_min = 0            # In Vpp
+        self.amp_max = 1023         # In Vpp
+        self.phase_min = 0          # In Degrees
+        self.phase_max = 360        # In Degrees
+		
         self.settings = settings
 		
         ###############
@@ -60,7 +66,7 @@ class novatechdds9m(Tab):
             self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + real_name)
 
             # Make RF objects
-            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[0.0000001,170.0,0,1023,0,360]))
+            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[self.freq_min,self.freq_max,self.amp_min,self.amp_max,self.phase_min,self.phase_max]))
            
         self.toplevel = self.builder.get_object('toplevel')
         self.toplevel.hide()

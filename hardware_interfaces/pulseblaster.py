@@ -36,6 +36,13 @@ class pulseblaster(Tab):
         self.num_DO = 4 #sometimes might be 12
         self.num_DO_widgets = 12
         
+        self.freq_min = 0.0000003   # In MHz
+        self.freq_max = 150.0       # In MHz
+        self.amp_min = 0.0          # In Vpp
+        self.amp_max = 1.0          # In Vpp
+        self.phase_min = 0          # In Degrees
+        self.phase_max = 360        # In Degrees
+        
         self.settings = settings
         self.device_name = settings["device_name"]        
         self.pb_num = int(settings["device_num"])
@@ -72,13 +79,14 @@ class pulseblaster(Tab):
             self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + real_name)
             
             # Make RF objects
-            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[0.0000003,100.0,0.0,1.0,0,360]))
+            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[self.freq_min,self.freq_max,self.amp_min,self.amp_max,self.phase_min,self.phase_max]))
             # Make DO control object for RF channels
             self.rf_do_outputs.append(DO(self,self.static_update,self.program_static,i,hardware_name + " active",real_name + " active"))
             # Make DDS object
             self.dds_outputs.append(DDS(self,self.rf_outputs[i],self.rf_do_outputs[i]))            
             # Set defaults
             self.rf_outputs[i].update_value(settings["f"+str(i)],settings["a"+str(i)],settings["p"+str(i)])  
+        
         
         # Make flag DO outputs
         self.do_widgets = []
@@ -88,6 +96,8 @@ class pulseblaster(Tab):
             if i < self.num_DO:
                 # save toggle widgets
                 self.do_widgets.append(self.builder.get_object("flag_"+str(i)))
+                
+                
                 
                 # set label text
                 temp = self.builder.get_object("flag_hardware_label_"+str(i))
@@ -200,7 +210,8 @@ class pulseblaster(Tab):
                 self.status_widgets[name+"_yes"].hide()
         
         if not self.status["running"]:
-            raise Exception('Pulseblaster is not running')
+            pass
+            #raise Exception('Pulseblaster is not running')
         
         
         
@@ -230,25 +241,32 @@ class pulseblaster(Tab):
         if not self.init_done or not self.static_mode:
             return
         
-              
+        channel = None      
         # is it a DO update or a DDS update?
         if isinstance(output,RF):
             search_array = self.dds_outputs
+            for i in range(0,len(search_array)):
+                if output == search_array[i].rf:
+                    channel = i
+                    # This is a hack until I sort out GTK signals for the DDS object which is a composite DO/RF output type
+                    output = search_array[i]
+                    break
         elif isinstance(output,DO):
             search_array = self.do_outputs
         
-        # search for the output that has been updated, so we can get the right widget to update
-        channel = None
-        for i in range(0,len(search_array)):
-            if output == search_array[i]:
-                channel = i
-                break
+            # search for the output that has been updated, so we can get the right widget to update
+        
+            for i in range(0,len(search_array)):
+                if output == search_array[i]:
+                    channel = i
+                    break
                 
         if channel is None:
             #return error
             return
+
         # Update GUI    
-        if isinstance(output,RF):                    
+        if isinstance(output,DDS):
             if self.dds_widgets[channel][0].get_value() != output.rf.freq:         
                 self.dds_widgets[channel][0].set_value(output.rf.freq)
             
@@ -300,9 +318,17 @@ class pulseblaster(Tab):
     # to kick the pulseblaster back into static mode.
     #
     @define_state
-    def start(self):
+    def start(self,*args):
         self.queue_work('start2')
-        
+    
+    @define_state
+    def stop(self,*args):
+        self.queue_work('stop2')
+    
+    @define_state    
+    def reset(self,*args):
+        self.queue_work('reset2')
+    
     #
     # ** This method should be common to all hardware interfaces **
     #        
@@ -501,10 +527,13 @@ class PulseblasterWorker(Worker):
         return pb_programming.program_from_h5_file(self.pb_num,h5file,initial_values)
     
     def start2(self):
-        #spinapi.lock.acquire()
-        #spinapi.pb_select_board(self.pb_num)
         spinapi.pb_start()
-        #spinapi.lock.release()
+    
+    def stop2(self):
+        spinapi.pb_stop()
+    
+    def reset2(self):
+        spinapi.pb_reset()
         
     def get_status(self):
         #spinapi.lock.acquire()

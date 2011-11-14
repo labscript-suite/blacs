@@ -38,9 +38,9 @@ DDS(             'Rb_Source_MOT',                        novatechdds9m_0,       
 StaticDDS(       'Rb_Repump',                            novatechdds9m_0,        'channel 2')
 StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,        'channel 3')
 
-#DDS(            'K_Main_MOT',                           novatechdds9m_1,        'channel 0')
+DDS(            'K_Main_MOT',                           novatechdds9m_1,        'channel 0')
 #DDS(            '',                                     novatechdds9m_1,        'channel 1')
-#StaticDDS(      'Rb_Probe',                             novatechdds9m_1,        'channel 2')
+StaticDDS(      'Rb_Probe',                             novatechdds9m_1,        'channel 2')
 StaticDDS(       'K_Lock',                               novatechdds9m_1,        'channel 3')
 
 #DDS(            '',                                     novatechdds9m_2,        'channel 0')
