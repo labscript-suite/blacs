@@ -32,7 +32,6 @@ class Tab(object):
         self.to_worker = Queue()
         self.from_worker = Queue()
         self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker,workerargs])
-        self.worker.daemon = True
         self.worker.start()
         self.not_responding_for = 0
         self.hide_not_responding_error_until = 0
