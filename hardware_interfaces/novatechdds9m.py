@@ -42,13 +42,14 @@ class novatechdds9m(Tab):
         
         self.rf_widgets = []
         self.rf_outputs = []
+        self.amp_toggles = []
         for i in range(0,self.num_RF):
-            w1 = self.builder.get_object("freq_chnl_"+str(i))
-            w2 = self.builder.get_object("amp_chnl_"+str(i))
-            w3 = self.builder.get_object("phase_chnl_"+str(i))
+            w1 = self.builder.get_object("frequency_adj_"+str(i))
+            w2 = self.builder.get_object("amplitude_adj_"+str(i))
+            w3 = self.builder.get_object("phase_adj_"+str(i))
                     
             self.rf_widgets.append([w1,w2,w3])
-
+            self.amp_toggles.append(self.builder.get_object("amp_switch_"+str(i)))
             hardware_name = "Channel "+str(i)
             channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],"channel "+str(i))
             if channel_name is not None:
@@ -59,7 +60,7 @@ class novatechdds9m(Tab):
             self.builder.get_object("channel_"+str(i)+"_label").set_text(hardware_name + real_name)
 
             # Make RF objects
-            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[0.0000001,170.0,0.0,1.0,0,360]))
+            self.rf_outputs.append(RF(self,self.static_update,self.program_static,i,hardware_name,real_name,[0.0000001,170.0,0,1023,0,360]))
            
         self.toplevel = self.builder.get_object('toplevel')
         self.toplevel.hide()
@@ -93,7 +94,7 @@ class novatechdds9m(Tab):
             settings = _results[i].split()
             f = float(int(settings[0],16))/10**7
             p = int(settings[1],16)*360/16384.0
-            a = int(settings[2],16)/1023.0
+            a = int(settings[2],16)
             self.rf_outputs[i].update_value(f,a,p)
             self.rf_widgets[i][0].set_value(f)
             self.rf_widgets[i][1].set_value(a)
@@ -114,7 +115,7 @@ class novatechdds9m(Tab):
         if not self.init_done or not self.static_mode:
             return        
         # convert numbers to correct representation
-        output.amp = int(output.amp*1023)/1023.0
+        
         output.phase = (int((output.phase/360)*16384)/16384.0)*360
         
                 
@@ -206,6 +207,9 @@ class novatechdds9m(Tab):
                 if widget == self.rf_widgets[i][j]:
                     update_channel = i
                     break
+            if widget == self.amp_toggles[i]:
+                update_channel = i
+                break
             if update_channel is not None:
                 break
         
@@ -213,8 +217,10 @@ class novatechdds9m(Tab):
             print 'something went wrong'
             print type(widget)
             return
-        
-        self.rf_outputs[update_channel].update_value(self.rf_widgets[update_channel][0].get_value(),self.rf_widgets[update_channel][1].get_value(),self.rf_widgets[update_channel][2].get_value())
+        if self.amp_toggles[i].get_active():    
+            self.rf_outputs[update_channel].update_value(self.rf_widgets[update_channel][0].get_value(),self.rf_widgets[update_channel][1].get_value(),self.rf_widgets[update_channel][2].get_value())
+        else:
+            self.queue_work('program_static',update_channel,self.rf_widgets[update_channel][0].get_value(),0,self.rf_widgets[update_channel][2].get_value())
         
 class NovatechDDS9mWorker(Worker):
     def init(self):
@@ -248,9 +254,9 @@ class NovatechDDS9mWorker(Worker):
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: '+'F%d %f\r\n'%(channel,freq))         
 
-        self.connection.write('V%d %u\r\n'%(channel,amp*1023))
+        self.connection.write('V%d %u\r\n'%(channel,amp))
         if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to execute command: '+'V%d %u\r\n'%(channel,amp*1023))          
+            raise Exception('Error: Failed to execute command: '+'V%d %u\r\n'%(channel,amp))          
 
         self.connection.write('P%d %u\r\n'%(channel,phase*16384/360))
         if self.connection.readline() != "OK\r\n":
