@@ -14,6 +14,7 @@ import time
 import pylab
 import math
 import h5py
+import excepthook
 
 from tab_base_classes import Tab, Worker, define_state
 
@@ -145,12 +146,11 @@ class ni_pcie_6363(Tab):
     #
     @define_state
     def destroy(self):
+
         self.init_done = False
         
-        gtk.timeout_remove(self.timeout)
-        time.sleep(0.1)
         self.write_queue.put(["shutdown"])
-        time.sleep(0.3)
+        self.result_queue.put([None,None,None,None,'shutdown'])
                 
         self.queue_work('close_device')
         self.do_after('leave_destroy')
@@ -178,9 +178,8 @@ class ni_pcie_6363(Tab):
         # read subprocess queue. Send data to relevant callback functions
         while True:
             logger.debug('Waiting for data')
-            try:
-                time, rate, samples, channels, data = self.result_queue.get()
-            except EOFError:
+            time, rate, samples, channels, data = self.result_queue.get()
+            if data == 'shutdown':
                 logger.info('Quitting')
                 break
             logger.debug('Got some data')
@@ -565,6 +564,7 @@ class Worker2(multiprocessing.Process):
             elif cmd[0] == "remove channel":
                 pass
             elif cmd[0] == "shutdown":
+                logger.info('Shutdown requested, stopping task')
                 if self.task_running:
                     self.stop_task()                  
                 break
