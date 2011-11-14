@@ -7,6 +7,8 @@ import gtk
 
 import Queue
 import multiprocessing
+import threading
+import logging
 import numpy
 import time
 import pylab
@@ -131,12 +133,14 @@ class ni_pcie_6363(Tab):
         self.write_queue = multiprocessing.Queue()
         self.read_queue = multiprocessing.Queue()
         self.result_queue = multiprocessing.Queue()
-        self.ai_worker = Worker2(self.write_queue, self.read_queue, self.result_queue)
+        self.ai_worker = Worker2(args=[self.settings['device_name'], self.write_queue, self.read_queue, self.result_queue])
         self.ai_worker.start()
         
         
         # Add timeout callback which distributes newly acquired data to registered methods
-        self.timeout = gtk.timeout_add(10,self.idle_function)
+        self.get_data_thread = threading.Thread(target = self.get_acquisition_data)
+        self.get_data_thread.daemon = True
+        self.get_data_thread.start()
         
         
         self.initialise_device()
@@ -191,31 +195,23 @@ class ni_pcie_6363(Tab):
     # This function is called during idle time, and sends out the analog input data to the specified callback functions, during idle time.
     # It should only be used internally by this class!
     #
-    def idle_function(self):
+    def get_acquisition_data(self):
+        logger = logging.getLogger('BLACS.%s.get_data_thread'%self.settings['device_name'])   
+        logger.info('Starting')
         # read subprocess queue. Send data to relevant callback functions
         while True:
-            try:
-                a = self.result_queue.get_nowait()
-                time = a[0]
-                rate = a[1]
-                samples = a[2]
-                channels = a[3]
-                data = a[4]
-                
-                div = 1/rate
-                times = numpy.arange(time,time+samples*div,div)
-                # will need to split up the array here. Will do this later
-                
-                xy = numpy.vstack((data,times))
-                
+            logger.debug('Waiting for data')
+            time, rate, samples, channels, data = self.result_queue.get()
+            logger.debug('Got some data')
+            div = 1/rate
+            times = numpy.arange(time,time+samples*div,div)
+            #TODO will need to split up the array here. (single channel is assumed -- will need to extend for multiple channels)
+            xy = numpy.vstack((data,times))
+            with gtk.gdk.lock:
+                logger.debug('Calling callbacks')
+                #TODO Will need to loop over the array to call every callback:
                 self.ai_callback_list[0][0][0](0,xy,rate)
-                
-            except Queue.Empty:
-                #print 'Queue is Empty'
-                break
-                
-        # This is VERY important. If the function doesn't return true, it won't be called again during idle time
-        return True
+
     
     #
     # ** This method should be common to all hardware interfaces **
@@ -532,19 +528,11 @@ class NiPCIe6363Worker(Worker):
 #                                       #
 #########################################
 class Worker2(multiprocessing.Process):
-
-
-    def __init__(self,read_queue,write_queue,result_queue):
-        # base class initialization
-        multiprocessing.Process.__init__(self)
- 
-        # Job management stuff
-        self.read_queue = read_queue
-        self.write_queue = write_queue
-        self.result_queue = result_queue
-        self.kill_received = False
-        self.task_running = False
+    def run(self):
+        self.name, self.read_queue, self.write_queue, self.result_queue = self._args
         
+        self.task_running = False
+        self.daqlock = threading.Condition()
         # Channel details
         self.channels = []
         self.rate = 1.
@@ -557,115 +545,127 @@ class Worker2(multiprocessing.Process):
         self.buffered_data_list = []
         
         self.task = None
-      
-    def run(self):
-        while not self.kill_received:
- 
-            # Is there any communication from the main process?
-            try:
-                cmd = self.read_queue.get_nowait()
-                
-                # Process the command
-                if cmd[0] == "add channel":
-                    # we should check to make sure the channel isn't already added!
-                    
-                    self.channels.append([cmd[1]])
-                    
-                    # update the rate
-                    if self.rate < float(cmd[2]):
-                        self.rate = float(cmd[2])
-                    
-                    if self.task_running:
-                        self.stop_task()
-                    self.setup_task()
-                elif cmd[0] == "remove channel":
-                    pass
-                elif cmd[0] == "shutdown":
-                    if self.task_running:
-                        self.stop_task()
-                    self.kill_received = True                    
-                    break
-                elif cmd[0] == "transition to buffered":
-                    self.transition_to_buffered(cmd[1],cmd[2])
-                elif cmd[0] == "transition to static":
-                    self.transition_to_static(cmd[1])
-                elif cmd == "":
-                    pass                    
-                
-            except Queue.Empty:
+        
+        
+        self.daqmx_read_thread = threading.Thread(target=self.daqmx_read)
+        self.daqmx_read_thread.daemon = True
+        self.daqmx_read_thread.start()
+        self.mainloop()
+        
+    def mainloop(self):
+        logger = logging.getLogger('BLACS.%s.acquisition.mainloop'%self.name)  
+        logger.info('Starting')
+        while True:
+            logger.debug('Waiting for instructions')
+            cmd = self.read_queue.get()
+            logger.debug('Got a command')
+            # Process the command
+            if cmd[0] == "add channel":
+                logger.debug('Adding a channel')
+                #TODO we should check to make sure the channel isn't already added!
+                self.channels.append([cmd[1]])
+                # update the rate
+                if self.rate < float(cmd[2]):
+                    self.rate = float(cmd[2])
+                if self.task_running:
+                    self.stop_task()
+                self.setup_task()
+            elif cmd[0] == "remove channel":
                 pass
- 
-            #DAQmx Read Code
-            if self.task_running and not self.kill_received:
+            elif cmd[0] == "shutdown":
+                if self.task_running:
+                    self.stop_task()                  
+                break
+            elif cmd[0] == "transition to buffered":
+                self.transition_to_buffered(cmd[1],cmd[2])
+            elif cmd[0] == "transition to static":
+                self.transition_to_static(cmd[1])
+            elif cmd == "":
+                pass         
+    
+    def daqmx_read(self):
+        logger = logging.getLogger('BLACS.%s.acquisition.daqmxread'%self.name)
+        logger.info('Starting')
+        while True:
+            with self.daqlock:
+                logger.debug('Got daqlock')
+                while not self.task_running:
+                    logger.debug('Task isn\'t running. Releasing daqlock and waiting to reacquire it.')
+                    self.daqlock.wait()
+                logger.debug('Reading data from analogue inputs')
                 if self.buffered:
                     chnl_list = self.buffered_channels
                 else:
                     chnl_list = self.channels
                 try:                    
                     error = self.task.ReadAnalogF64(self.samples_per_channel,10.0,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
+                    logger.debug('Reading complete')
                 except:
-                    print 'acquisition error'
-                    print error
-                    
-                            
-                # send the data to the queue
-                if self.buffered:
-                    # rearrange ai_data into correct form
-                    data = numpy.copy(self.ai_data)
-                    self.buffered_data_list.append(data)
-                    
-                    #if len(chnl_list) > 1:
-                    #    data.shape = (len(chnl_list),self.ai_read.value)              
-                    #    data = data.transpose()
-                    #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
-                else:
-                    self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
-                    self.t0 = self.t0 + self.samples_per_channel/self.rate
-        
-        
+                    logger.error('acquisition error: %s' %error)
+                    raise Exception(error)
+                        
+            # send the data to the queue
+            if self.buffered:
+                # rearrange ai_data into correct form
+                data = numpy.copy(self.ai_data)
+                self.buffered_data_list.append(data)
+                
+                #if len(chnl_list) > 1:
+                #    data.shape = (len(chnl_list),self.ai_read.value)              
+                #    data = data.transpose()
+                #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
+            else:
+                self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
+                self.t0 = self.t0 + self.samples_per_channel/self.rate
+
+
         
     def setup_task(self):
         #DAQmx Configure Code
-        if self.buffered:
-            chnl_list = self.buffered_channels
-            rate = self.buffered_rate
-        else:
-            chnl_list = self.channels
-            rate = self.rate
-            
-        if len(chnl_list) < 1:
-            return
-            
-        if rate < 1000:
-            self.samples_per_channel = int(rate)
-        else:
-            self.samples_per_channel = 1000
-        
-        self.task = Task()
-        self.ai_read = int32()
-        self.ai_data = numpy.zeros((self.samples_per_channel*len(chnl_list),), dtype=numpy.float64)   
-        
-        for chnl in chnl_list:
-            self.task.CreateAIVoltageChan(chnl[0],"",DAQmx_Val_RSE,-10.0,10.0,DAQmx_Val_Volts,None)
-            
-        self.task.CfgSampClkTiming("",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1000)
+        with self.daqlock:
+            if self.buffered:
+                chnl_list = self.buffered_channels
+                rate = self.buffered_rate
+            else:
+                chnl_list = self.channels
+                rate = self.rate
                 
-        if self.buffered:
-            #set up start on digital trigger
-            pass
-        
-        #DAQmx Start Code
-        self.task.StartTask()
-        # TODO: Need to do something about the time for buffered acquisition. Should be related to when it starts (approx)
-        # How do we detect that?
-        self.t0 = time.time() - time.timezone
-        self.task_running = True
+            if len(chnl_list) < 1:
+                return
+                
+            if rate < 1000:
+                self.samples_per_channel = int(rate)
+            else:
+                self.samples_per_channel = 1000
+            
+            self.task = Task()
+            self.ai_read = int32()
+            self.ai_data = numpy.zeros((self.samples_per_channel*len(chnl_list),), dtype=numpy.float64)   
+            
+            for chnl in chnl_list:
+                self.task.CreateAIVoltageChan(chnl[0],"",DAQmx_Val_RSE,-10.0,10.0,DAQmx_Val_Volts,None)
+                
+            self.task.CfgSampClkTiming("",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1000)
+                    
+            if self.buffered:
+                #set up start on digital trigger
+                pass
+            
+            #DAQmx Start Code
+            self.task.StartTask()
+            # TODO: Need to do something about the time for buffered acquisition. Should be related to when it starts (approx)
+            # How do we detect that?
+            self.t0 = time.time() - time.timezone
+            self.task_running = True
+            self.daqlock.notify()
     
     def stop_task(self):
-        if self.task_running:
-            self.task_running = False
-            self.task.StopTask()
-            self.task.ClearTask()
+        with daqlock:
+            if self.task_running:
+                self.task_running = False
+                self.task.StopTask()
+                self.task.ClearTask()
+            self.daqlock.notify()
         
     def transition_to_buffered(self,h5file,device_name):
         # stop current task
