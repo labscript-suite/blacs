@@ -21,7 +21,7 @@ from PyDAQmx import Task
 from PyDAQmx.DAQmxConstants import *
 from PyDAQmx.DAQmxTypes import *
 
-from hardware_programming import ni_pcie_6363 as ni_programming
+
 
 class ni_pcie_6363(Tab):
 
@@ -165,7 +165,7 @@ class ni_pcie_6363(Tab):
      
     @define_state
     def initialise_device(self):
-        self.queue_work('initialise')
+        self.queue_work('initialise',self.settings["device_name"])
         self.do_after('leave_initialise_device')
         
     def leave_initialise_device(self,_results):        
@@ -350,45 +350,34 @@ class ni_pcie_6363(Tab):
     #
     # Needs to handle seemless transition from static to experiment sequence
     #
-    def transition_to_buffered(self,h5file):        
+    def transition_to_buffered(self,h5file):
+        self.transitioned_to_buffered = False
+        # Queue transition in state machine
+        self.program_buffered(h5file) 
+
+    @define_state
+    def program_buffered(self,h5file):
         # disable static update
-        self.static_mode = False
-        
-        # Program hardware
-        #self.ao_task.StopTask()
-        #self.do_task.StopTask()
-        
+        self.static_mode = False               
         self.write_queue.put(["transition to buffered",h5file,self.settings["device_name"]])
         
+        self.queue_work('program_buffered',h5file)
+        self.do_after('leave_program_buffered')
         
+    
+    def leave_program_buffered(self,_results):
+        self.transitioned_to_buffered = True
         
-        self.ao_task, self.do_task = ni_programming.program_buffered_output(h5file,self.settings["device_name"],self.ao_task,self.do_task)
                         
-            
+    @define_state        
     def transition_to_static(self):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
         self.write_queue.put(["transition to static",self.settings["device_name"]])
         #reenable static updates
+        self.queue_work('transition_to_static')
+        
+        # This needs to be put somewhere else...When I fix up updating the GUI values
         self.static_mode = True
-        
-        self.ao_task.StopTask()
-        self.ao_task.ClearTask()
-        self.do_task.StopTask()
-        self.do_task.ClearTask()
-        
-        self.ao_task = Task()
-        self.do_task = Task()
-        
-        self.setup_static_channels()
-        
-        #update values on GUI
-        #setup AO channels
-        #for i in range(0,self.num_AO):
-        #    self.ao_task.CreateAOVoltageChan("ni_pcie_6363_0/ao"+str(i),"",-10,10,DAQmx_Val_Volts,None)
-        
-        self.ao_task.StartTask()
-        self.do_task.StartTask()
-        pass
     
     def setup_buffered_trigger(self):
         self.buffered_do_start_task = Task()
@@ -450,12 +439,13 @@ class NiPCIe6363Worker(Worker):
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         
+        global ni_programming; from hardware_programming import ni_pcie_6363 as ni_programming
         self.num_DO = 48
         self.num_AO = 4
         self.num_RF = 0
         self.num_AI = 32        
     
-    def initialise(self):
+    def initialise(self, device_name):
         # Create task
         self.ao_task = Task()
         self.ao_read = int32()
@@ -463,6 +453,7 @@ class NiPCIe6363Worker(Worker):
         self.do_task = Task()
         self.do_read = int32()
         self.do_data = numpy.zeros(48,dtype=numpy.uint8)
+        self.device_name = device_name
         self.buffered_do_start_task = None
         
         self.setup_static_channels()            
@@ -474,15 +465,15 @@ class NiPCIe6363Worker(Worker):
     def setup_static_channels(self):
         #setup AO channels
         for i in range(0,self.num_AO): 
-            self.ao_task.CreateAOVoltageChan("ni_pcie_6363_0/ao"+str(i),"",-10,10,DAQmx_Val_Volts,None)
+            self.ao_task.CreateAOVoltageChan(self.device_name+"/ao"+str(i),"",-10,10,DAQmx_Val_Volts,None)
         
         #setup DO ports
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line0:7","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line8:15","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line16:23","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port0/line24:31","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port1/line0:7","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan("ni_pcie_6363_0/port2/line0:7","",DAQmx_Val_ChanForAllLines)    
+        self.do_task.CreateDOChan(self.device_name+"/port0/line0:7","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.device_name+"/port0/line8:15","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.device_name+"/port0/line16:23","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.device_name+"/port0/line24:31","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.device_name+"/port1/line0:7","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.device_name+"/port2/line0:7","",DAQmx_Val_ChanForAllLines)    
         
     def close_device(self):        
         self.ao_task.StopTask()
@@ -505,7 +496,25 @@ class NiPCIe6363Worker(Worker):
                 self.do_data[i] = 0
         
         self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
-                        
+    
+    def program_buffered(self,h5file):        
+        self.ao_task, self.do_task = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
+    
+    def transition_to_static(self):
+        self.ao_task.StopTask()
+        self.ao_task.ClearTask()
+        self.do_task.StopTask()
+        self.do_task.ClearTask()
+        
+        self.ao_task = Task()
+        self.do_task = Task()
+        
+        self.setup_static_channels()
+        
+        #update values on GUI
+        self.ao_task.StartTask()
+        self.do_task.StartTask()
+    
 #########################################
 #                                       #
 #       Worker class for AI input       #

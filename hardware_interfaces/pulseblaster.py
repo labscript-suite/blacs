@@ -2,7 +2,7 @@ from hardware_interfaces.output_types.RF import *
 from hardware_interfaces.output_types.DO import *
 from hardware_interfaces.output_types.DDS import *
 
-from hardware_programming import pulseblaster as pb_programming
+
 
 import gtk
 import time
@@ -299,6 +299,7 @@ class pulseblaster(Tab):
     # This method starts the pulseblaster. It is currently only used at the end of an experimental sequence
     # to kick the pulseblaster back into static mode.
     #
+    @define_state
     def start(self):
         self.queue_work('start2')
         
@@ -309,20 +310,28 @@ class pulseblaster(Tab):
     #
     # Needs to handle seemless transition from static to experiment sequence
     #
-    def transition_to_buffered(self,h5file):        
+    def transition_to_buffered(self,h5file):       
+        self.transitioned_to_buffered = False
+       
+        # Queue transition in state machine
+        self.program_buffered(h5file)
+        
+        
+    @define_state
+    def program_buffered(self,h5file):
         # disable static update
-        self.static_mode = False
-        #self.pause_status = True
-        #time.sleep(2)
-        # Program hardware
+        self.static_mode = False 
         
         initial_values = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "ddsen0":self.dds_outputs[0].do.state,
                           "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "ddsen1":self.dds_outputs[1].do.state,
                           "flags":self.encode_flags()}
-        self.last_instruction = pb_programming.program_from_h5_file(self.pb_num,h5file,initial_values)
+        self.queue_work('program_buffered',h5file,initial_values)
+        self.do_after('leave_program_buffered')
         
-        #self.pause_status = False
-        # Return Ready status   
+    
+    def leave_program_buffered(self,_results):
+        self.last_instruction = _results
+        self.transitioned_to_buffered = True
         
     
     #
@@ -331,19 +340,15 @@ class pulseblaster(Tab):
     # return to unbuffered (static) mode
     #
     # Needs to handle seemless transition from experiment sequence to static mode
-    #    
+    #
+    @define_state    
     def transition_to_static(self):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is sending out updates.
-                
-        #reenable static updates
-        self.static_mode = True
-        
-                
         #update values on GUI to last instruction (this is a little inefficient!)
         a = self.last_instruction
         #DDS Channels
         self.dds_outputs[0].update_value(a[3],a[0],a[1],a[2])
-        self.dds_outputs[1].update_value(a[7],a[4],a[5],a[6])
+        self.dds_outputs[1].update_value(a[7],a[4],a[5],a[6])         
         
         # convert flags to a string
         # remove 0b at the start of string
@@ -358,6 +363,24 @@ class pulseblaster(Tab):
         # Update DO flags
         for i in range(0,self.num_DO):
             self.do_outputs[i].update_value(flags[i])
+        
+        # Make sure the PB is programmed before we call pb_start(), we can't be certain when the GTK event will happen!
+        # put all the data from self.dds_outputs in a dict!
+        dds_outputs = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "en0":self.dds_outputs[0].do.state,
+                      "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}
+                      
+        self.queue_work('program_static',dds_outputs,self.encode_flags())
+        
+        # Start the PB
+        self.start()
+        
+        #reenable static updates triggered by GTK events
+        self.static_mode = True
+        
+                
+        
+        
+        
         
     #
     # ** This method should be common to all hardware interfaces **
@@ -408,6 +431,7 @@ class PulseblasterWorker(Worker):
 
     def init(self):
         global spinapi; import spinapi
+        global pb_programming; from hardware_programming import pulseblaster as pb_programming
     
     def initialise_pulseblaster(self, pb_num):
         self.pb_num = pb_num
@@ -472,7 +496,10 @@ class PulseblasterWorker(Worker):
 
         spinapi.pb_stop_programming()
         #spinapi.lock.release()
-        
+    
+    def program_buffered(self,h5file,initial_values):
+        return pb_programming.program_from_h5_file(self.pb_num,h5file,initial_values)
+    
     def start2(self):
         #spinapi.lock.acquire()
         #spinapi.pb_select_board(self.pb_num)

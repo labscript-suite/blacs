@@ -3,7 +3,7 @@ import gobject
 import pygtk
 import gtk
 import serial
-from hardware_programming import novatech as novatech_programming
+
 from tab_base_classes import Tab, Worker, define_state
 
 class novatechdds9m(Tab):
@@ -87,7 +87,7 @@ class novatechdds9m(Tab):
     @define_state
     def set_defaults(self):
         self.queue_work('read_current_values')
-        self.do_after('leave_set_defaults')
+        self.do_after('leave_set_defaults')       
     
     def leave_set_defaults(self,_results):
         for i in range(0,self.num_RF):
@@ -103,7 +103,8 @@ class novatechdds9m(Tab):
         
         # Complete the init method!
         self.toplevel.show()
-        self.init_done = True
+        self.init_done = True 
+        self.static_mode = True  
     
     
     @define_state
@@ -169,31 +170,34 @@ class novatechdds9m(Tab):
     
     def transition_to_buffered(self,h5file):        
         # disable static update
-        self.static_mode = False
-        return
-       
+        self.transitioned_to_buffered = False
+        # Queue transition in state machine
+        self.program_buffered(h5file)
+        
+    @define_state
+    def program_buffered(self,h5file):
+        self.static_mode = False 
+        
         initial_values = {"freq0":self.rf_outputs[0].freq, "amp0":self.rf_outputs[0].amp, "phase0":self.rf_outputs[0].phase,
                           "freq1":self.rf_outputs[1].freq, "amp1":self.rf_outputs[1].amp, "phase1":self.rf_outputs[1].phase,
                           "freq2":self.rf_outputs[2].freq, "amp2":self.rf_outputs[2].amp, "phase2":self.rf_outputs[2].phase,
                           "freq3":self.rf_outputs[3].freq, "amp3":self.rf_outputs[3].amp, "phase3":self.rf_outputs[3].phase}
-        novatech_programming.program_from_h5_file(self.connection,self.settings['device_name'],h5file,initial_values)
+                          
+        self.queue_work('program_buffered',self.settings['device_name'],h5file,initial_values)
+        self.do_after('leave_program_buffered')        
         
-        
+    
+    def leave_program_buffered(self,_results):
+        self.transitioned_to_buffered = True    
+    
+    @define_state    
     def transition_to_static(self):
-        # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is sending out updates.
-        self.static_mode = True       
-        return
-       
-        
-                
+        # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is sending out updates.         
+                       
         #turn buffered mode off, output values in buffer to ensure it outputs what it says in que
-        self.connection.write('m o\r\n')
-        self.connection.readline()
-        self.connection.write('I a\r\n')
-        self.connection.readline()
-        self.connection.write('I p\r\n')
-        self.connection.readline()
+        self.queue_work('transition_to_static')
         #update the panel to reflect the current state of the novatech
+        # static_mode=True is set in the set_defaults state
         self.set_defaults()
 
     @define_state
@@ -225,6 +229,7 @@ class novatechdds9m(Tab):
 class NovatechDDS9mWorker(Worker):
     def init(self):
         global serial; import serial
+        global novatech_programming; from hardware_programming import novatech as novatech_programming
         self.connection = None
     
     def initialise_connection(self,port,baud_rate):
@@ -234,9 +239,9 @@ class NovatechDDS9mWorker(Worker):
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: "e d"')
         
-        self.connection.write('i a\r\n')
+        self.connection.write('I a\r\n')
         if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to execute command: "i a"')
+            raise Exception('Error: Failed to execute command: "I a"')
         
         self.connection.write('m 0\r\n')
         if self.connection.readline() != "OK\r\n":
@@ -261,6 +266,21 @@ class NovatechDDS9mWorker(Worker):
         self.connection.write('P%d %u\r\n'%(channel,phase*16384/360))
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: '+'P%d %u\r\n'%(channel,phase*16384/360))              
+    
+    def program_buffered(self,device_name,h5file,initial_values):    
+        novatech_programming.program_from_h5_file(self.connection,device_name,h5file,initial_values)
+    
+    def transition_to_static(self):        
+        self.connection.write('m 0\r\n')
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to execute command: "m 0"')
+        self.connection.write('I a\r\n')
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to execute command: "I a"')
+        self.connection.write('I p\r\n')
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to execute command: "I p"')
+        
     
     def close_connection(self):
         self.connection.close()

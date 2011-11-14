@@ -43,11 +43,12 @@ def setup_logging():
     else:
         # Prevent bug on windows where writing to stdout without a command
         # window causes a crash:
-        sys.stdout = sys.stderr = open(os.devnull)
+        sys.stdout = sys.stderr = open(os.devnull,'w')
     logger.setLevel(logging.DEBUG)
     return logger
     
 logger = setup_logging()
+excepthook.set_logger(logger)
 if __name__ == "__main__":
     logger.info('\n\n===============starting===============\n')
     
@@ -82,7 +83,7 @@ if __name__ == "__main__":
             self.notebook = self.builder.get_object("notebook1")
             self.queue = self.builder.get_object("remote_liststore")
             self.listwidget = self.builder.get_object("treeview1")
-            self.statusbar = self.builder.get_object("statusbar")
+            self.status_bar = self.builder.get_object("status_label")
             
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
@@ -90,13 +91,7 @@ if __name__ == "__main__":
             # Need to connect signals!
             self.builder.connect_signals(self)
             
-            # Create State Machine
-            self.state_machine = StateMachine(self.statusbar,"Main GUI")
-            
-            ######################################
-            # TODO: Load From Connection Table   #
-            ######################################
-            
+            # Load Connection Table
             # Get H5 file        
             h5_file = "connectiontables\\"+socket.gethostname()+".h5"
             
@@ -119,18 +114,16 @@ if __name__ == "__main__":
             for k,v in self.settings_dict.items():
                 # add common keys to settings:
                 v["connection_table"] = self.connection_table
-                v["state_machine"] = self.state_machine
+                #v["state_machine"] = self.state_machine
             
             self.tablist = {}
             for k,v in attached_devices.items():
                 self.tablist[k] = globals()[v](self.notebook,self.settings_dict[k])
-                    
+            
+            #TO DO:            
             # Open BLACS Config File
             # Load Virtual Devices
             
-            ############
-            # END TODO #
-            ############
             
             #self.shutter_tab = globals()["shutter"]([self.tab.get_child("DO",1),self.tab.get_child("DO",5),self.tab.get_child("DO",27),self.tab.get_child("DO",13)])
             #self.notebook.append_page(self.shutter_tab.tab,gtk.Label("shutter_0"))
@@ -152,7 +145,7 @@ if __name__ == "__main__":
             self.canvas = canvas
             vbox.pack_start(canvas)
             self.notebook.append_page(vbox,gtk.Label("graph!"))
-            
+            vbox.show()
             self.tablist["ni_pcie_6363_0"].request_analog_input(0,1000,self.update_plot)
             
             # Setup the sequence manager thread
@@ -260,6 +253,9 @@ if __name__ == "__main__":
         def manage(self):
             # While the program is running!
             while self.manager_running:
+                with gtk.gdk.lock:
+                    self.status_bar.set_text("Idle")
+                
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
                     time.sleep(1)
@@ -273,29 +269,55 @@ if __name__ == "__main__":
                     #print 'sleeping'
                     time.sleep(1)
                     continue
+                
                 with gtk.gdk.lock:
+                    self.status_bar.set_text("Reading file path from the queue:")    
                     path = "".join(self.queue.get(iter,0))
                     self.queue.remove(iter)
                 
                 print 'Queue Manager: got a path:',path
                 
                 # Transition devices to buffered mode
+                transition_list = {}
                 with gtk.gdk.lock:
-                    #print "transitioning to buffered"
+                    self.status_bar.set_text("Transitioning to Buffered")
                     #self.tab.setup_buffered_trigger()
                     for k,v in self.tablist.items():
                         v.transition_to_buffered(path)
-                    #print "Devices programmed"
-                    self.tablist["pulseblaster_0"].start()
-                    
-                    #force status update
-                    self.tablist["pulseblaster_0"].status_monitor()
+                        transition_list[k] = v
+                                        
+                while len(transition_list) > 0:
+                    for k,v in transition_list.items():
+                        if v.transitioned_to_buffered:
+                            transition_list.pop(k)
+                
+                with gtk.gdk.lock:
+                    self.status_bar.set_text("Preparing to start sequence...")
+                
+                #print "Devices programmed"
+                self.tablist["pulseblaster_0"].start()
+                #self.tablist["pulseblaster_1"].start()
+                
+                with gtk.gdk.lock:
+                    self.status_bar.set_text("Running...")
+                
+                #force status update
+                self.tablist["pulseblaster_0"].status_monitor()
+                
+                # This is a nit of a hack, but will become irrelevant once we have a proper method of determining the experiment execution state
+                # Eg, monitoring a digital flag!
+                time.sleep(5)
                 
                 while self.tablist["pulseblaster_0"].status["waiting"] is not True:
                     if not self.manager_running:
                         break
                     #print 'waiting'
                     time.sleep(0.05)
+                
+                with gtk.gdk.lock:
+                    self.status_bar.set_text("Sequence done, saving data...")
+                
+                transition_list = {}    
                 with gtk.gdk.lock:
                     with h5py.File(path,'a') as hdf5_file:
                         try:
@@ -307,42 +329,16 @@ if __name__ == "__main__":
                     
                     for k,v in self.tablist.items():
                         v.transition_to_static()
-                        
-                    self.tablist["pulseblaster_0"].start()
-                #print 'started'
-
-    class StateMachine(object):
-        def __init__(self, hbox, thread_name):
-            # Add widget to "status bar"
-            self.label = gtk.Label(thread_name)
-            self.label.set_has_tooltip(True)
-            self.label.set_tooltip_text(thread_name)
-            self.statusbar = hbox
-            hbox.pack_start(self.label,expand = False, padding = 10)
-            
-            self.lock = threading.Condition(threading.Lock())
-            self.name = thread_name
-            
-        def enter(self,state):
-            while not self.lock.acquire(False):
-                print "State Machine ("+self.name+"): Could not acquire the state machine lock. This shouldn't ever happen. Either a part of the application has not released the lock, multiple threads are using the same state machine or methods are running concurently within the same thread" 
-            self.label.set_label(state)
-            
-            # Force the redraw and resize of the status bar!        
-            #while gtk.events_pending():            
-            #    gtk.main_iteration(False)
-            
-            #self.statusbar.show()
-            #self.statusbar.draw(gtk.gdk.Rectangle())
-            
-        def exit(self):
-            self.label.set_label("Idle")
-            self.lock.release()
+                        transition_list[k] = v
                 
+                while len(transition_list) > 0:
+                    for k,v in transition_list.items():
+                        if v.static_mode:
+                            transition_list.pop(k)    
+                                   
+                with gtk.gdk.lock:
+                    self.status_bar.set_text("Data saved!") 
 
-
-        
-            
     class RequestHandler(BaseHTTPRequestHandler):
 
         def do_POST(self):
