@@ -181,7 +181,11 @@ class ni_pcie_6363(Tab):
         # read subprocess queue. Send data to relevant callback functions
         while True:
             logger.debug('Waiting for data')
-            time, rate, samples, channels, data = self.result_queue.get()
+            try:
+                time, rate, samples, channels, data = self.result_queue.get()
+            except EOFError:
+                logger.info('Quitting')
+                break
             logger.debug('Got some data')
             div = 1/rate
             times = numpy.arange(time,time+samples*div,div)
@@ -429,11 +433,9 @@ class ni_pcie_6363(Tab):
     
 class NiPCIe6363Worker(Worker):
     def init(self):
-        self.logger.info('*******in init***********')
         self.acquisition_worker = Worker2(args=self.acq_args)
         self.acquisition_worker.daemon = True
         self.acquisition_worker.start()
-        self.logger.info('*****started acq worker!*******')
         
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()

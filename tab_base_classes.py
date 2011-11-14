@@ -118,8 +118,9 @@ class Tab(object):
             working.show()
         self.time_of_last_state_change = time.time()
         self.statusbar.push(self.context_id, state)
-                
-    def restart(self,*args):
+    
+    def close_tab(self,*args):
+        self.logger.info('close_tab called')
         self.worker.terminate()
         gobject.source_remove(self.timeout)
         # The mainloop is blocking waiting for something out of the
@@ -137,6 +138,10 @@ class Tab(object):
             self.mainloop_thread.join()
         currentpage = self.notebook.get_current_page()
         self.notebook.remove_page(currentpage)
+        return currentpage
+        
+    def restart(self,*args):
+        currentpage = self.close_tab()
         self.logger.info('***RESTART***')
         # Note: the following function call will break if the user hasn't
         # overridden the __init__ function to take these arguments. So
