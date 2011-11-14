@@ -501,8 +501,6 @@ class MyWorker(Worker):
         return 'results!!!'
 
 
-if __name__ == '__main__':
-    # Run the demo code
     import sys
     import logging.handlers
     # Setup logging:
@@ -518,10 +516,12 @@ if __name__ == '__main__':
         terminalhandler.setLevel(logging.INFO)
         logger.addHandler(terminalhandler)
     else:
-        sys.stdout = sys.stderr = os.devnull
+        sys.stdout = sys.stderr = open(os.devnull)
     logger.setLevel(logging.DEBUG)
+    excepthook.set_logger(logger)
     logger.info('\n\n===============starting===============\n')
 
+if __name__ == '__main__':
     # Run the demo!:
     gtk.gdk.threads_init() 
     window = gtk.Window() 
