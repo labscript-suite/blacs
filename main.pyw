@@ -345,15 +345,16 @@ if __name__ == "__main__":
                             v.abort_buffered()
                     continue
                 
+                
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Preparing to start sequence...")
+                    self.status_bar.set_text("Preparing to start sequence...(program time: "+str(end_time - start_time)+"s")
                 
                 #print "Devices programmed"
                 self.tablist["pulseblaster_0"].start()
                 #self.tablist["pulseblaster_1"].start()
                 
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Running...")
+                    self.status_bar.set_text("Running...(program time: "+str(end_time - start_time)+"s")
                 
                 #force status update
                 self.tablist["pulseblaster_0"].status_monitor()
