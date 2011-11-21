@@ -1,4 +1,4 @@
-
+l
 import sys
 import logging, logging.handlers
 import excepthook
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
-    handler = logging.handlers.RotatingFileHandler(r'C:\\pythonlib\BLACS.log', maxBytes=1024**2, backupCount=0)
+    handler = logging.handlers.RotatingFileHandler(r'C:\\pythonlib\BLACS.log', maxBytes=1024**2, backupCount=1)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
     handler.setFormatter(formatter)
     handler.setLevel(logging.DEBUG)
@@ -444,7 +444,7 @@ if __name__ == "__main__":
 
     port = 42517
 #if __name__ == "__main__":
-    gtk.threads_init()
+    gtk.gdk.threads_init()
     app = BLACS()
     # Make it not look so terrible (if icons and themes are installed):
     gtk.settings_get_default().set_string_property('gtk-icon-theme-name','gnome-human','')

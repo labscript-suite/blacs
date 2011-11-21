@@ -1,4 +1,5 @@
 import h5py
+import excepthook
 
 class ConnectionTable(object):    
     def __init__(self, h5file):
