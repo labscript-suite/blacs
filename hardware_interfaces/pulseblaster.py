@@ -359,12 +359,15 @@ class pulseblaster(Tab):
         self.last_instruction = _results
         self.transitioned_to_buffered = True
     
-    @define_state    
+       
     def abort_buffered(self):
-        dds_outputs = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "en0":self.dds_outputs[0].do.state,
-                      "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}
+        self.stop()     
+        self.abort_buffered2()
         
-        self.stop()              
+    @define_state
+    def abort_buffered2(self):
+        dds_outputs = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "en0":self.dds_outputs[0].do.state,
+                      "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}         
         self.queue_work('program_static',dds_outputs,self.encode_flags())
         self.do_after('leave_abort_buffered')
         

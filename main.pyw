@@ -341,8 +341,8 @@ if __name__ == "__main__":
                             
                     # Abort the run for other devices
                     for k,v in devices_in_use.items():
-                        if k not in transition_list:
-                            v.abort_buffered()
+                        #if k not in transition_list:
+                        v.abort_buffered()
                     continue
                 
                 
