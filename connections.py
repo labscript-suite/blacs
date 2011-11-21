@@ -4,7 +4,7 @@ import excepthook
 class ConnectionTable(object):    
     def __init__(self, h5file):
         self.toplevel_children = {}
-        
+        print h5file
         with h5py.File(h5file,'r') as hdf5_file:
             try:
                 table = hdf5_file['connection table'][:]

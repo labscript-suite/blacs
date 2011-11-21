@@ -94,7 +94,7 @@ if __name__ == "__main__":
             
             # Load Connection Table
             # Get H5 file        
-            h5_file = "connectiontables\\"+socket.gethostname()+".h5"
+            h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
             
             # Create Connection Table
             self.connection_table = ConnectionTable(h5_file)
