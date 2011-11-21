@@ -1,4 +1,4 @@
-l
+
 import sys
 import logging, logging.handlers
 import excepthook
