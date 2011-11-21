@@ -22,7 +22,7 @@ def define_state(function):
     
         
 class Tab(object):
-    def __init__(self,WorkerClass,notebook,settings,workerargs={}):
+    def __init__(self,WorkerClass,notebook,settings,workerargs={},restart=False):
         self.notebook = notebook
         self.settings = settings
         self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
@@ -146,7 +146,7 @@ class Tab(object):
         # Note: the following function call will break if the user hasn't
         # overridden the __init__ function to take these arguments. So
         # make sure you do that!
-        self.__init__(self.notebook, self.settings)
+        self.__init__(self.notebook, self.settings,restart=True)
         self.notebook.reorder_child(self._toplevel,currentpage)
         self.notebook.set_current_page(currentpage)
     
@@ -350,7 +350,7 @@ class Worker(Process):
 # and a Worker class, and get the Tab to request work to be done by
 # the worker in response to GUI events.
 class MyTab(Tab):
-    def __init__(self,notebook,settings):
+    def __init__(self,notebook,settings,restart=False): # restart will be true if __init__ was called due to a restart
         Tab.__init__(self,MyWorker,notebook,settings,{'x':7}) # Make sure to call this first in your __init__!
         foobutton = gtk.Button('foo, 10 seconds!')
         barbutton = gtk.Button('bar, 10 seconds, then error!')

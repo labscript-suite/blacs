@@ -36,7 +36,7 @@ class ni_pcie_6363(Tab):
     #   com_port:
     #
     #
-    def __init__(self,notebook,settings):
+    def __init__(self,notebook,settings,restart=False):
         self.settings = settings
         # Queues that need to be passed to the worker process, which in turn passes them to the acquisition process: AI worker thread
         self.write_queue = multiprocessing.Queue()

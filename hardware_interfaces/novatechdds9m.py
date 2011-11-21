@@ -18,7 +18,7 @@ class novatechdds9m(Tab):
     #   com_port:
     #
     #
-    def __init__(self,notebook,settings):
+    def __init__(self,notebook,settings,restart=False):
         Tab.__init__(self,NovatechDDS9mWorker,notebook,settings)
         self.init_done = False
         self.static_mode = True

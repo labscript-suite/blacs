@@ -22,7 +22,7 @@ class pulseblaster(Tab):
     #   com_port:
     #
     #
-    def __init__(self,notebook,settings):
+    def __init__(self,notebook,settings,restart=False):
         # is the init method finished...no!
         self.init_done = False
         self.static_mode = False
