@@ -3,19 +3,19 @@ from labscript import *
 PulseBlaster(  'pulseblaster_0')
 PulseBlaster(  'pulseblaster_1')
 NI_PCIe_6363(  'ni_pcie_6363_0',  pulseblaster_0, 'fast clock')
-NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock')#flag 6
+NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock')#flag 1
 NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock')#flag 1
-NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 7
+NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 1
 
 
 #DigitalOut(     'Fast_Clock',                           pulseblaster_0,         'flag 0')
-#DigitalOut(     '',                                     pulseblaster_0,         'flag 1')                                       #NT_1_T
+#DigitalOut(     'Slow_Clock',                           pulseblaster_0,         'flag 1')                                       #NT_1,2,3
 DigitalOut(     'Novatech_1_1',                          pulseblaster_0,         'flag 2')                                       #NT_1_1
 DigitalOut(     'Novatech_1_2',                          pulseblaster_0,         'flag 3')                                       #NT_1_2
 DigitalOut(     'K_MOT',                                 pulseblaster_0,         'flag 4')                                       #NT_1_0
 #DigitalOut(     'Wait',                                 pulseblaster_0,         'flag 5')
-DigitalOut(     'Novatech_0_T',                          pulseblaster_0,         'flag 6')                                       #NT_0_T
-DigitalOut(     'Novatech_2_T',                          pulseblaster_0,         'flag 7')                                       #NT_2_T
+#DigitalOut(     '',                                     pulseblaster_0,         'flag 6')                                       
+#DigitalOut(     '',                                     pulseblaster_0,         'flag 7')                                       
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 8')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 9')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 10')
