@@ -355,6 +355,7 @@ class ni_pcie_6363(Tab):
         # Queue transition in state machine
         self.program_buffered(h5file) 
 
+    
     @define_state
     def program_buffered(self,h5file):
         # disable static update
@@ -366,16 +367,24 @@ class ni_pcie_6363(Tab):
         
     
     def leave_program_buffered(self,_results):
-        self.transitioned_to_buffered = True
+        if _results != None:
+            self.transitioned_to_buffered = True
         
-                        
+    @define_state
+    def abort_buffered(self):        
+        self.write_queue.put(["transition to static",self.settings["device_name"]])
+        self.queue_work('abort_buffered')
+        self.static_mode = True
+        
     @define_state        
     def transition_to_static(self):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
         self.write_queue.put(["transition to static",self.settings["device_name"]])
         #reenable static updates
         self.queue_work('transition_to_static')
+        self.do_after('leave_transition_to_static')
         
+    def leave_transition_to_static(self,_results):    
         # This needs to be put somewhere else...When I fix up updating the GUI values
         self.static_mode = True
     
@@ -497,6 +506,22 @@ class NiPCIe6363Worker(Worker):
     
     def program_buffered(self,h5file):        
         self.ao_task, self.do_task = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
+        
+        return True
+    
+    def abort_buffered(self):
+        # This is almost Identical to transition_to_static, but doesn't call StopTask since this thorws an error if the task hasn't actually finished!
+        self.ao_task.ClearTask()
+        self.do_task.ClearTask()
+        
+        self.ao_task = Task()
+        self.do_task = Task()
+        
+        self.setup_static_channels()
+        
+        #update values on GUI
+        self.ao_task.StartTask()
+        self.do_task.StartTask()
     
     def transition_to_static(self):
         self.ao_task.StopTask()
@@ -589,12 +614,17 @@ class Worker2(multiprocessing.Process):
                     chnl_list = self.buffered_channels
                 else:
                     chnl_list = self.channels
-                try:                    
-                    error = self.task.ReadAnalogF64(self.samples_per_channel,10.0,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
+                try:
+                    error = "Task did not return an error, but it should have"
+                    error = self.task.ReadAnalogF64(self.samples_per_channel,-1,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
                     logger.debug('Reading complete')
-                except:
-                    logger.error('acquisition error: %s' %error)
-                    raise Exception(error)
+                    if error < 0:
+                        raise Exception(error)
+                    if error > 0:
+                        logger.warning(error)
+                except Exception as e:
+                    logger.error('acquisition error: %s' %str(e))
+                    raise e
                         
             # send the data to the queue
             if self.buffered:

@@ -358,7 +358,22 @@ class pulseblaster(Tab):
     def leave_program_buffered(self,_results):
         self.last_instruction = _results
         self.transitioned_to_buffered = True
+    
+    @define_state    
+    def abort_buffered(self):
+        dds_outputs = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "en0":self.dds_outputs[0].do.state,
+                      "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}
         
+        self.stop()              
+        self.queue_work('program_static',dds_outputs,self.encode_flags())
+        self.do_after('leave_abort_buffered')
+        
+    def leave_abort_buffered(self,_results):    
+        # Start the PB        
+        self.start()
+        
+        #reenable static updates triggered by GTK events
+        self.static_mode = True
     
     #
     # ** This method should be common to all hardware interfaces **
@@ -396,7 +411,9 @@ class pulseblaster(Tab):
                       "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}
                       
         self.queue_work('program_static',dds_outputs,self.encode_flags())
-        
+        self.do_after('leave_transition_to_static')
+    
+    def leave_transition_to_static(self,_results):
         # Start the PB
         self.start()
         

@@ -84,6 +84,7 @@ if __name__ == "__main__":
             self.queue = self.builder.get_object("remote_liststore")
             self.listwidget = self.builder.get_object("treeview1")
             self.status_bar = self.builder.get_object("status_label")
+            self.queue_pause_button = self.builder.get_object("Queue_Pause")
             
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
@@ -207,6 +208,7 @@ if __name__ == "__main__":
             self.destroy()
         
         def destroy(self):
+            logger.info('destroy called')
             if not self.exiting:
                 self.exiting = True
                 self.manager_running = False
@@ -258,13 +260,21 @@ if __name__ == "__main__":
         # Return to start
         
         def manage(self):
+            logger = logging.getLogger('BLACS.queue_manager')   
             # While the program is running!
-            while self.manager_running:
-                with gtk.gdk.lock:
-                    self.status_bar.set_text("Idle")
+            logger.info('starting')
+            
+            timeout_limit = 60 #seconds
+            
+            with gtk.gdk.lock:
+                self.status_bar.set_text("Idle")
                 
+            while self.manager_running:                
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
+                    with gtk.gdk.lock:
+                        if self.status_bar.get_text() == "Idle":
+                            self.status_bar.set_text("Queue Paused") 
                     time.sleep(1)
                     continue
                 
@@ -273,7 +283,8 @@ if __name__ == "__main__":
                     iter = self.queue.get_iter_first()
                 # If no files, sleep for 1s,
                 if iter is None:
-                    #print 'sleeping'
+                    with gtk.gdk.lock:
+                        self.status_bar.set_text("Idle")
                     time.sleep(1)
                     continue
                 
@@ -285,18 +296,54 @@ if __name__ == "__main__":
                 print 'Queue Manager: got a path:',path
                 
                 # Transition devices to buffered mode
-                transition_list = {}
+                transition_list = {}                
+                start_time = time.time()
+                error = {}
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Transitioning to Buffered")
                     #self.tab.setup_buffered_trigger()
                     for k,v in self.tablist.items():
-                        v.transition_to_buffered(path)
-                        transition_list[k] = v
-                                        
+                        # do we need to transition this device?
+                        with h5py.File(path,'r') as hdf5_file:
+                            group = hdf5_file['devices/'].get(k)
+                            if group != None:
+                                v.transition_to_buffered(path)
+                                transition_list[k] = v
+                
+                devices_in_use = transition_list.copy()
+                
                 while len(transition_list) > 0:
                     for k,v in transition_list.items():
                         if v.transitioned_to_buffered:
                             transition_list.pop(k)
+                        
+                        if v.error != '':
+                            error[k] = v.error
+                            transition_list.pop(k)
+                            
+                    end_time = time.time()
+                    if end_time - start_time > timeout_limit:
+                        break
+                        
+                
+                # Handle if we broke out of loop due to timeout
+                if end_time - start_time > timeout_limit or len(error) > 0:
+                    # It took too long, pause the queue, re add the path to the top of the queue, and set a status message!
+                    self.manager_paused = True
+                    self.queue_pause_button.set_state(True)
+                    self.queue.prepend([path])
+                    
+                    with gtk.gdk.lock:
+                        if end_time - start_time > timeout_limit:
+                            self.status_bar.set_text("Device programming timed out. Queue Paused...")
+                        else:
+                            self.status_bar.set_text("One or more devices is in an error state. Queue Paused...")
+                            
+                    # Abort the run for other devices
+                    for k,v in devices_in_use.items():
+                        if k not in transition_list:
+                            v.abort_buffered()
+                    continue
                 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...")
@@ -324,7 +371,7 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
                 
-                transition_list = {}    
+                
                 with gtk.gdk.lock:
                     with h5py.File(path,'a') as hdf5_file:
                         try:
@@ -334,18 +381,20 @@ if __name__ == "__main__":
                             print str(e)
                             print 'failed creating data group'
                     
-                    for k,v in self.tablist.items():
+                    for k,v in devices_in_use.items():
                         v.transition_to_static()
-                        transition_list[k] = v
+                        
                 
-                while len(transition_list) > 0:
-                    for k,v in transition_list.items():
+                while len(devices_in_use) > 0:
+                    for k,v in devices_in_use.items():
+                        logging.debug("the following tab has not transitioned to static: "+k)
                         if v.static_mode:
-                            transition_list.pop(k)    
-                                   
+                            devices_in_use.pop(k)    
+                                                       
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Data saved!") 
-
+                    self.status_bar.set_text("Idle")
+            logger.info('Stopping')
+            
     class RequestHandler(BaseHTTPRequestHandler):
 
         def do_POST(self):
@@ -368,17 +417,17 @@ if __name__ == "__main__":
                 new_conn = ConnectionTable(h5_filepath)
                 
             except:
-                return "H5 file not accessible to Control PC"
+                return "H5 file not accessible to Control PC\n"
                 
             if app.connection_table.compare_to(new_conn):  
                 with gtk.gdk.lock:  
                     app.queue.append([h5_filepath])
-                message = "Experiment added successfully"
+                message = "Experiment added successfully\n"
                 if app.manager_paused:
-                    message += "\nWarning: Queue is currently paused"
+                    message += "Warning: Queue is currently paused\n"
                     
                 if not app.manager_running:
-                    message += "\nError: Queue is not running"
+                    message = "Error: Queue is not running\n"
                 return message
             else:
                 message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
@@ -388,7 +437,7 @@ if __name__ == "__main__":
                            "    Renamed a channel at the top of your script\n"
                            "    Submitted an old file, and the experiment has since been rewired\n"
                            "\n"
-                           "Please verify your experiment script matches the current experiment configuration, and try again")
+                           "Please verify your experiment script matches the current experiment configuration, and try again\n")
                 return message
 
 

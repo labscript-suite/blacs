@@ -191,10 +191,12 @@ class novatechdds9m(Tab):
                           
         self.queue_work('program_buffered',self.settings['device_name'],h5file,initial_values)
         self.do_after('leave_program_buffered')        
-        
     
     def leave_program_buffered(self,_results):
         self.transitioned_to_buffered = True    
+    
+    def abort_buffered(self):
+        self.transition_to_static()
     
     @define_state    
     def transition_to_static(self):
@@ -286,8 +288,7 @@ class NovatechDDS9mWorker(Worker):
         self.connection.write('I p\r\n')
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: "I p"')
-        
-    
+            
     def close_connection(self):
         self.connection.close()
                 
