@@ -201,7 +201,7 @@ if __name__ == "__main__":
                                             gtk.STOCK_SAVE,gtk.RESPONSE_OK))
             chooser.set_default_response(gtk.RESPONSE_OK)
 
-            chooser.set_do_overwrite_confirmation(True)
+            #chooser.set_do_overwrite_confirmation(True)
             chooser.set_current_folder_uri(r'Z:\Experiments\Front Panels')
             chooser.set_current_name('a_meaningful_name.h5')
             response = chooser.run()
@@ -211,68 +211,148 @@ if __name__ == "__main__":
             else:
                 chooser.destroy()
                 return
+                        
+            self.save_front_panel_to_h5(current_file,states)    
 
-                
+        def save_front_panel_to_h5(self,current_file,states,silent = {}):        
             # Save the front panel!
-            with h5py.File(current_file,'w') as hdf5_file:
-                data_group = hdf5_file['/'].create_group('front_panel')
+
+
+            # Does the file exist?            
+            #   Yes: Check connection table inside matches current connection table. Does it match?
+            #        Yes: Does the file have a front panel already saved in it?
+            #               Yes: Can we overwrite?
+            #                  Yes: Delete front_panel group, save new front panel
+            #                  No:  Create error dialog!
+            #               No: Save front panel in here
+            #   
+            #        No: Return
+            #   No: Create new file, place inside the connection table and front panel
                 
-                # Iterate over each device class.
-                # Here k is the device class
-                #      v is the dictionary containing an entry for each device
-                for k,v in states.items():
-                    logger.debug("saving front panel for class:" +k) 
-                    device_data = None
-                    ds = None
-                    my_dtype = []
-                    i = 0
-                    
-                    #The first entry in each row of the numpy array should be a string! Let's find the biggest string for this device and add it
-                    max_string_length = 0
-                    
-                    # Here j is the device name
-                    #      w is the dictionary of front panel values
-                    for j,w in v.items():
-                        if len(j) > max_string_length:
-                            max_string_length = len(j)
-                    
-                    # Here j is the device name
-                    #      w is the dictionary of front panel values
-                    for j,w in v.items():
-                        logger.debug("saving front panel for device:" +j) 
-                        if device_data == None:
+            if os.path.isfile(current_file):
+                save_conn_table = False
+                try:
+                    new_conn = ConnectionTable(current_file)
+                except:
+                    # no connection table is present, so also save the connection table!
+                    save_conn_table = True
+                
+                # if save_conn_table is True, we don't bother checking to see if the connection tables match, because save_conn_table is only true when the connection table doesn't exist in the current file
+                # As a result, if save_conn_table is True, we ignore connection table checking, and save the connection table in the h5file.
+                if save_conn_table or self.connection_table.compare_to(new_conn):
+                    with h5py.File(current_file,'r+') as hdf5_file:
+                        if hdf5_file['/'].get('front_panel') != None:
+                            # Create a dialog to ask whether we can overwrite!
+                            overwrite = False
+                            if not silent:                                
+                                message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_YES_NO, "Do you wish to replace the existing front panel configuration in this file?")                             
+                                resp = message.run()
+                                
+                                if resp == gtk.RESPONSE_YES:
+                                    overwrite = True                              
+                                message.destroy()
+                            else:
+                                overwrite = silent["overwrite"]
                             
-                            # add the dtype for the string
-                            my_dtype.append(('name','a'+str(max_string_length)))
-                            
-                            # Add the dtypes for the generic dictionary entries
-                            # Here l property name (eg freq0, DO12, etc)
-                            #      x value of the property
-                            for l,x in w.items():
-                                my_dtype.append((l,type(x)))
-                            logger.debug("Generated dtypes dtypes:"+str(my_dtype))
-                            
-                            # Create the numpy array
-                            device_data = numpy.empty(len(v),dtype=my_dtype)
-                            logger.debug("Length of variable 'v':"+str(len(v)))
-                            logger.debug("Shape of data array:"+str(device_data.shape)) 
-                            
-                        logger.debug("inserting data to the array")
+                            if overwrite:
+                                # Delete Front panel group, save new front panel
+                                del hdf5_file['/front_panel']
+                                self.store_front_panel_in_h5(hdf5_file,states,save_conn_table)
+                            else:
+                                if not silent:
+                                    message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_CANCEL, "Front Panel not saved.") 
+                                    message.run()  
+                                    message.destroy()
+                                else:
+                                    logger.info("Front Panel not saved as it already existed in the h5 file '"+current_file+"'")
+                                return
+                        else: 
+                            # Save Front Panel in here
+                            self.store_front_panel_in_h5(hdf5_file,states,save_conn_table)
+                else:
+                    # Create Error dialog (invalid connection table)
+                    if not silent:
+                        message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_CANCEL, "The Front Panel was not saved as the file selected contains a connection table which is not a subset of the current connection table.") 
+                        message.run()  
+                        message.destroy()   
+                    else:
+                        logger.info("Front Panel not saved as the connection table in the h5 file '"+current_file+"' didn't match the current connection table.")
+                    return
+            else:
+                with h5py.File(current_file,'w') as hdf5_file:
+                    # save connection table, save front panel                    
+                    self.store_front_panel_in_h5(hdf5_file,states,save_conn_table=True)
+            
+        def save_conn_table_to_h5_file(self,hdf5_file):
+            h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
+            with h5py.File(h5_file,'r') as conn_table:
+                conn_data = numpy.array(conn_table['/connection table'][:])
+                hdf5_file['/'].create_dataset('connection table',data=conn_data)
+
+           
+        def store_front_panel_in_h5(self, hdf5_file,states,save_conn_table = False):
+            if save_conn_table:
+                self.save_conn_table_to_h5_file(hdf5_file)
+            
+            #with h5py.File(current_file,'a') as hdf5_file:
+            data_group = hdf5_file['/'].create_group('front_panel')
+            
+            # Iterate over each device class.
+            # Here k is the device class
+            #      v is the dictionary containing an entry for each device
+            for k,v in states.items():
+                logger.debug("saving front panel for class:" +k) 
+                device_data = None
+                ds = None
+                my_dtype = []
+                i = 0
+                
+                #The first entry in each row of the numpy array should be a string! Let's find the biggest string for this device and add it
+                max_string_length = 0
+                
+                # Here j is the device name
+                #      w is the dictionary of front panel values
+                for j,w in v.items():
+                    if len(j) > max_string_length:
+                        max_string_length = len(j)
+                
+                # Here j is the device name
+                #      w is the dictionary of front panel values
+                for j,w in v.items():
+                    logger.debug("saving front panel for device:" +j) 
+                    if device_data == None:
                         
-                        # Get the data into a list for the i'th row.
-                        data_list = []
-                        data_list.append(j)
+                        # add the dtype for the string
+                        my_dtype.append(('name','a'+str(max_string_length)))
                         
+                        # Add the dtypes for the generic dictionary entries
                         # Here l property name (eg freq0, DO12, etc)
                         #      x value of the property
                         for l,x in w.items():
-                            data_list.append(x)
-                        device_data[i] = tuple(data_list)
-                        i += 1
+                            my_dtype.append((l,type(x)))
+                        logger.debug("Generated dtypes dtypes:"+str(my_dtype))
+                        
+                        # Create the numpy array
+                        device_data = numpy.empty(len(v),dtype=my_dtype)
+                        logger.debug("Length of variable 'v':"+str(len(v)))
+                        logger.debug("Shape of data array:"+str(device_data.shape)) 
+                        
+                    logger.debug("inserting data to the array")
                     
-                    # Create the dataset! 
-                    logger.debug("attempting to create dataset...")   
-                    ds = data_group.create_dataset(k,data=device_data)
+                    # Get the data into a list for the i'th row.
+                    data_list = []
+                    data_list.append(j)
+                    
+                    # Here l property name (eg freq0, DO12, etc)
+                    #      x value of the property
+                    for l,x in w.items():
+                        data_list.append(x)
+                    device_data[i] = tuple(data_list)
+                    i += 1
+                
+                # Create the dataset! 
+                logger.debug("attempting to create dataset...")   
+                ds = data_group.create_dataset(k,data=device_data)
             
         def on_edit_connection_table(self,widget):
             pass
