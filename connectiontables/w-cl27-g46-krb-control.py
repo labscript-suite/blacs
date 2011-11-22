@@ -118,4 +118,4 @@ AnalogIn(       'ai28',                                     ni_pcie_6363_0,     
 AnalogIn(       'ai29',                                     ni_pcie_6363_0,         'ai29')
 AnalogIn(       'ai30',                                     ni_pcie_6363_0,         'ai30')
 AnalogIn(       'ai31',                                     ni_pcie_6363_0,         'ai31')
-stop(0)
+stop(1)

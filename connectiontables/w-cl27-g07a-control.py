@@ -64,4 +64,4 @@ DigitalOut('Imaging_enable',  ni_pcie_6363_0,  'port0/line8') # temporary assign
 # DigitalOut( 'Zeeman_enable',  ni_pcie_6363_0,  'port0/line9')  forseen assignment
 # DigitalOut('Imaging_enable',  ni_pcie_6363_0,  'port0/line10') forseen assignment
 
-stop(0)
+stop(1)

@@ -15,4 +15,4 @@ DDS(          'dds2', novatechdds9m_0,   'channel 1')
 DDS(          'dds3',  pulseblaster_0,       'dds 0')
 DDS(          'dds4',  pulseblaster_0,       'dds 1')
 
-stop(0)
+stop(1)
