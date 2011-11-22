@@ -100,7 +100,7 @@ if __name__ == "__main__":
             self.connection_table = ConnectionTable(h5_file)
             
             # Instantiate Devices from Connection Table, Place in Array        
-            attached_devices = self.connection_table.find_devices(device_list)
+            self.attached_devices = self.connection_table.find_devices(device_list)
             
             self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
                                   "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 #v["state_machine"] = self.state_machine
             
             self.tablist = {}
-            for k,v in attached_devices.items():
+            for k,v in self.attached_devices.items():
                 self.tablist[k] = globals()[v](self.notebook,self.settings_dict[k])
             
             #TO DO:            
@@ -185,21 +185,102 @@ if __name__ == "__main__":
             self.canvas.draw_idle()
             pass
         
-        def on_pause_queue(self,widget):
-            self.manager_paused = widget.get_active()
-        
-        def on_delete_queue_element(self,widget):
-            #selection = self.listwidget.get_selection()
-            #selection.selected_foreach(self.delete_item)
-            selection = self.listwidget.get_selection()
-            model, selection = selection.get_selected_rows()
+        def on_open(self,widget):
+            pass
+            
+        def on_save_front_panel(self,widget):
+            states = {}
+            for k,v in self.tablist.items():
+                if self.attached_devices[k] not in states:
+                    states[self.attached_devices[k]] = {}
+                states[self.attached_devices[k]][k] = v.get_front_panel_state()
+            
+            # Open save As dialog
+            chooser = gtk.FileChooserDialog(title='Save Front Panel',action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                            buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
+                                            gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+            chooser.set_default_response(gtk.RESPONSE_OK)
 
-            for path in selection:
-                iter = model.get_iter(path)
-                model.remove(iter)
+            chooser.set_do_overwrite_confirmation(True)
+            chooser.set_current_folder_uri(r'Z:\Experiments\Front Panels')
+            chooser.set_current_name('a_meaningful_name.h5')
+            response = chooser.run()
+            if response == gtk.RESPONSE_OK:
+                current_file = chooser.get_filename()
+                chooser.destroy()
+            else:
+                chooser.destroy()
+                return
+
+                
+            # Save the front panel!
+            with h5py.File(current_file,'w') as hdf5_file:
+                data_group = hdf5_file['/'].create_group('front_panel')
+                
+                # Iterate over each device class.
+                # Here k is the device class
+                #      v is the dictionary containing an entry for each device
+                for k,v in states.items():
+                    logger.debug("saving front panel for class:" +k) 
+                    device_data = None
+                    ds = None
+                    my_dtype = []
+                    i = 0
+                    
+                    #The first entry in each row of the numpy array should be a string! Let's find the biggest string for this device and add it
+                    max_string_length = 0
+                    
+                    # Here j is the device name
+                    #      w is the dictionary of front panel values
+                    for j,w in v.items():
+                        if len(j) > max_string_length:
+                            max_string_length = len(j)
+                    
+                    # Here j is the device name
+                    #      w is the dictionary of front panel values
+                    for j,w in v.items():
+                        logger.debug("saving front panel for device:" +j) 
+                        if device_data == None:
+                            
+                            # add the dtype for the string
+                            my_dtype.append(('name','a'+str(max_string_length)))
+                            
+                            # Add the dtypes for the generic dictionary entries
+                            # Here l property name (eg freq0, DO12, etc)
+                            #      x value of the property
+                            for l,x in w.items():
+                                my_dtype.append((l,type(x)))
+                            logger.debug("Generated dtypes dtypes:"+str(my_dtype))
+                            
+                            # Create the numpy array
+                            device_data = numpy.empty(len(v),dtype=my_dtype)
+                            logger.debug("Length of variable 'v':"+str(len(v)))
+                            logger.debug("Shape of data array:"+str(device_data.shape)) 
+                            
+                        logger.debug("inserting data to the array")
+                        
+                        # Get the data into a list for the i'th row.
+                        data_list = []
+                        data_list.append(j)
+                        
+                        # Here l property name (eg freq0, DO12, etc)
+                        #      x value of the property
+                        for l,x in w.items():
+                            data_list.append(x)
+                        device_data[i] = tuple(data_list)
+                        i += 1
+                    
+                    # Create the dataset! 
+                    logger.debug("attempting to create dataset...")   
+                    ds = data_group.create_dataset(k,data=device_data)
+            
+        def on_edit_connection_table(self,widget):
+            pass
+            
+        def on_about(self,widget):
+            pass
+            
         
-        def delete_item(self,treemodel,path,iter):
-            self.queue.remove(iter)
         
         def on_window_destroy(self,widget):
             self.destroy()
@@ -240,8 +321,25 @@ if __name__ == "__main__":
                 return False
             else:
                 return True
+        
+        
+        def on_pause_queue(self,widget):
+            self.manager_paused = widget.get_active()
+        
+        def on_delete_queue_element(self,widget):
+            #selection = self.listwidget.get_selection()
+            #selection.selected_foreach(self.delete_item)
+            selection = self.listwidget.get_selection()
+            model, selection = selection.get_selected_rows()
 
-            
+            for path in selection:
+                iter = model.get_iter(path)
+                model.remove(iter)
+        
+        def delete_item(self,treemodel,path,iter):
+            self.queue.remove(iter)
+        
+        
         #################
         # Queue Manager #
         #################        

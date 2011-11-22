@@ -213,7 +213,10 @@ class pulseblaster(Tab):
             pass
             #raise Exception('Pulseblaster is not running')
         
-        
+    def get_front_panel_state(self):
+        return {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "en0":self.dds_outputs[0].do.state,
+                "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state,
+                "flags":int(self.encode_flags(),2)}
         
     
     #
@@ -346,6 +349,15 @@ class pulseblaster(Tab):
     @define_state
     def program_buffered(self,h5file):
         # disable static update
+        if not self.status["running"]:
+            now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+            self.error += ('\nWarning - %s:\n' % now +
+                           '<span foreground="red" font_family="mono">%s</span>'%cgi.escape("Pulseblaster is not running, queue is now paused.\nTo run your experiment, please start the pulseblaster and unpause the queue."))
+            while self.error.startswith('\n'):
+                self.error = self.error[1:]            
+                self.errorlabel.set_markup(self.error)
+                self.notresponding.show()
+        
         self.static_mode = False 
         
         initial_values = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "ddsen0":self.dds_outputs[0].do.state,

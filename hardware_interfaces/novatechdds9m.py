@@ -117,6 +117,12 @@ class novatechdds9m(Tab):
     def initialise_connection(self):
         self.queue_work('initialise_connection', self.settings["COM"], 115200)
     
+    def get_front_panel_state(self):
+        return {"freq0":self.rf_outputs[0].freq, "amp0":self.rf_outputs[0].amp, "phase0":self.rf_outputs[0].phase,
+                "freq1":self.rf_outputs[1].freq, "amp1":self.rf_outputs[1].amp, "phase1":self.rf_outputs[1].phase,
+                "freq2":self.rf_outputs[2].freq, "amp2":self.rf_outputs[2].amp, "phase2":self.rf_outputs[2].phase,
+                "freq3":self.rf_outputs[3].freq, "amp3":self.rf_outputs[3].amp, "phase3":self.rf_outputs[3].phase}
+    
     @define_state
     def static_update(self,output):
         if not self.init_done or not self.static_mode:

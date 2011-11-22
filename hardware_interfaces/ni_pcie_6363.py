@@ -192,6 +192,17 @@ class ni_pcie_6363(Tab):
                 #TODO Will need to loop over the array to call every callback:
                 self.ai_callback_list[0][0][0](0,xy,rate)
 
+                
+    def get_front_panel_state(self):
+        dict = {}
+
+        for i in range(self.num_DO):
+            dict["DO"+str(i)] = self.digital_outs[i].state
+            
+        for i in range(self.num_AO):
+            dict["AO"+str(i)] = self.analog_outs[i].value
+            
+        return dict
     
     #
     # ** This method should be common to all hardware interfaces **
