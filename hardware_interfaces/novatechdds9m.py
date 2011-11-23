@@ -3,7 +3,7 @@ import gobject
 import pygtk
 import gtk
 import serial
-
+import numpy as np
 from tab_base_classes import Tab, Worker, define_state
 
 class novatechdds9m(Tab):
@@ -195,7 +195,7 @@ class novatechdds9m(Tab):
                           "freq2":self.rf_outputs[2].freq, "amp2":self.rf_outputs[2].amp, "phase2":self.rf_outputs[2].phase,
                           "freq3":self.rf_outputs[3].freq, "amp3":self.rf_outputs[3].amp, "phase3":self.rf_outputs[3].phase}
                           
-        self.queue_work('program_buffered',self.settings['device_name'],h5file,initial_values)
+        self.queue_work('program_buffered',self.settings['device_name'],h5file,initial_values,False)
         self.do_after('leave_program_buffered')        
     
     def leave_program_buffered(self,_results):
@@ -245,11 +245,13 @@ class NovatechDDS9mWorker(Worker):
         global serial; import serial
         global novatech_programming; from hardware_programming import novatech as novatech_programming
         self.connection = None
-    
+        self.old_table = None
     def initialise_connection(self,port,baud_rate):
         self.connection = serial.Serial(port, baudrate = baud_rate, timeout=0.1)                
+        self.connection.readlines()
         
         self.connection.write('e d\r\n')
+        
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: "e d"')
         
@@ -264,6 +266,7 @@ class NovatechDDS9mWorker(Worker):
         return True
         
     def read_current_values(self):
+        self.connection.readlines()
         self.connection.write('QUE\r\n')
         return self.connection.readlines()
     
@@ -281,8 +284,8 @@ class NovatechDDS9mWorker(Worker):
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: '+'P%d %u\r\n'%(channel,phase*16384/360))              
     
-    def program_buffered(self,device_name,h5file,initial_values):    
-        novatech_programming.program_from_h5_file(self.connection,device_name,h5file,initial_values)
+    def program_buffered(self,device_name,h5file,initial_values,fresh):    
+        self.old_table=novatech_programming.program_from_h5_file(self.connection,device_name,h5file,initial_values,self.old_table,fresh)
     
     def transition_to_static(self):        
         self.connection.write('m 0\r\n')
@@ -291,10 +294,31 @@ class NovatechDDS9mWorker(Worker):
         self.connection.write('I a\r\n')
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: "I a"')
-        self.connection.write('I p\r\n')
+        #self.connection.write('I p\r\n')
+        #if self.connection.readline() != "OK\r\n":
+        #    raise Exception('Error: Failed to execute command: "I p"')
+        last_row0=self.old_table[0,:,-1]
+        last_row1=self.old_table[1,:,-1]
+        self.connection.write('F0 %f\r\n'%(last_row0[0]/10.0**7))
         if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to execute command: "I p"')
-            
+            raise Exception('Error: Failed to set F0')
+        self.connection.write('V0 %u\r\n'%(last_row0[2]))
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to set V0')
+        self.connection.write('P0 %u\r\n'%(last_row0[1]))
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to set P0')
+        self.connection.write('F1 %f\r\n'%(last_row1[0]/10.0**7))
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to set F1')
+        self.connection.write('V1 %u\r\n'%(last_row1[2]))
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to set V1')
+        self.connection.write('P1 %u\r\n'%(last_row1[1]))
+        if self.connection.readline() != "OK\r\n":
+            raise Exception('Error: Failed to set P1')
+
+        
     def close_connection(self):
         self.connection.close()
                 
