@@ -42,7 +42,8 @@ class novatechdds9m(Tab):
         self.builder.add_from_file('hardware_interfaces/novatechdds9m.glade')
         
         self.builder.get_object('title').set_text(self.settings["device_name"]+" - Port: "+self.settings["COM"])
-        
+        self.smart_enabled = self.builder.get_object('button_smart_enabled')
+        self.smart_disabled = self.builder.get_object('box_smart_disabled')
         # Need to connect signals!
         self.builder.connect_signals(self)
         
@@ -240,6 +241,12 @@ class novatechdds9m(Tab):
         else:
             self.queue_work('program_static',update_channel,self.rf_widgets[update_channel][0].get_value(),0,self.rf_widgets[update_channel][2].get_value())
         
+    @define_state
+    def clear_old_table(self,button):
+        self.smart_enabled.hide()
+        self.smart_disabled.show()
+        self.queue_work('clear_old_table')
+        
 class NovatechDDS9mWorker(Worker):
     def init(self):
         global serial; import serial
@@ -321,4 +328,6 @@ class NovatechDDS9mWorker(Worker):
         
     def close_connection(self):
         self.connection.close()
-                
+    
+    def clear_old_table(self):
+        self.old_table = None            
