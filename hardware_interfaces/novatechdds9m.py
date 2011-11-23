@@ -206,7 +206,8 @@ class novatechdds9m(Tab):
     
     def leave_program_buffered(self,_results):
         self.transitioned_to_buffered = True  
-        self.checkbutton_fresh.show()  
+        self.checkbutton_fresh.show() 
+        self.checkbutton.set_active(False) 
     
     def abort_buffered(self):
         self.transition_to_static()
