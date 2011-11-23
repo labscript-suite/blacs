@@ -24,6 +24,8 @@ class novatechdds9m(Tab):
         self.static_mode = True
         self.destroy_complete = False
         
+        self.fresh = False # whether to force a full reprogramming of table mode
+        
         # Capabilities
         self.num_RF = 4
         self.freq_min = 0.0000001   # In MHz
@@ -42,8 +44,10 @@ class novatechdds9m(Tab):
         self.builder.add_from_file('hardware_interfaces/novatechdds9m.glade')
         
         self.builder.get_object('title').set_text(self.settings["device_name"]+" - Port: "+self.settings["COM"])
-        self.smart_enabled = self.builder.get_object('button_smart_enabled')
-        self.smart_disabled = self.builder.get_object('box_smart_disabled')
+        self.checkbutton_fresh = self.builder.get_object('force_fresh_program')
+        self.smart_disabled = self.builder.get_object('hbox_fresh_program')
+        self.smart_enabled = self.builder.get_object('hbox_smart_in_use')
+        
         # Need to connect signals!
         self.builder.connect_signals(self)
         
@@ -97,15 +101,16 @@ class novatechdds9m(Tab):
         self.do_after('leave_set_defaults')       
     
     def leave_set_defaults(self,_results):
-        for i in range(0,self.num_RF):
-            settings = _results[i].split()
-            f = float(int(settings[0],16))/10**7
-            p = int(settings[1],16)*360/16384.0
-            a = int(settings[2],16)
-            self.rf_outputs[i].update_value(f,a,p)
-            self.rf_widgets[i][0].set_value(f)
-            self.rf_widgets[i][1].set_value(a)
-            self.rf_widgets[i][2].set_value(p)
+        if _results:
+            for i in range(0,self.num_RF):
+                settings = _results[i].split()
+                f = float(int(settings[0],16))/10**7
+                p = int(settings[1],16)*360/16384.0
+                a = int(settings[2],16)
+                self.rf_outputs[i].update_value(f,a,p)
+                self.rf_widgets[i][0].set_value(f)
+                self.rf_widgets[i][1].set_value(a)
+                self.rf_widgets[i][2].set_value(p)
         
         
         # Complete the init method!
@@ -196,11 +201,12 @@ class novatechdds9m(Tab):
                           "freq2":self.rf_outputs[2].freq, "amp2":self.rf_outputs[2].amp, "phase2":self.rf_outputs[2].phase,
                           "freq3":self.rf_outputs[3].freq, "amp3":self.rf_outputs[3].amp, "phase3":self.rf_outputs[3].phase}
                           
-        self.queue_work('program_buffered',self.settings['device_name'],h5file,initial_values,False)
+        self.queue_work('program_buffered',self.settings['device_name'],h5file,initial_values,self.fresh)
         self.do_after('leave_program_buffered')        
     
     def leave_program_buffered(self,_results):
-        self.transitioned_to_buffered = True    
+        self.transitioned_to_buffered = True  
+        self.checkbutton_fresh.show()  
     
     def abort_buffered(self):
         self.transition_to_static()
@@ -242,10 +248,15 @@ class novatechdds9m(Tab):
             self.queue_work('program_static',update_channel,self.rf_widgets[update_channel][0].get_value(),0,self.rf_widgets[update_channel][2].get_value())
         
     @define_state
-    def clear_old_table(self,button):
-        self.smart_enabled.hide()
-        self.smart_disabled.show()
-        self.queue_work('clear_old_table')
+    def toggle_fresh(self,button):
+        if button.get_active():
+            self.smart_enabled.hide()
+            self.smart_disabled.show()
+            self.fresh = True
+        else:
+            self.smart_enabled.show()
+            self.smart_disabled.hide()
+            self.fresh = False
         
 class NovatechDDS9mWorker(Worker):
     def init(self):
@@ -328,6 +339,4 @@ class NovatechDDS9mWorker(Worker):
         
     def close_connection(self):
         self.connection.close()
-    
-    def clear_old_table(self):
-        self.old_table = None            
+
