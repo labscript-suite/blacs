@@ -15,7 +15,6 @@ if __name__ == "__main__":
     import socket
     import urllib
 
-
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
     import gtk
@@ -23,10 +22,8 @@ if __name__ == "__main__":
     import numpy
     import h5py
 
-
     # Connection Table Code
     from connections import ConnectionTable
-
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -156,7 +153,6 @@ if __name__ == "__main__":
             # We will add an idle callback function which check the queue for entries, and starts an 
             # experimental run if appropriate
             
-            
             self.window.show()
             
             # Start Queue Manager
@@ -168,26 +164,18 @@ if __name__ == "__main__":
             
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
-            #print line
-            #print rate
             #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
             t = time.time()
-            #print 'a'
             a = numpy.zeros(len(self.plot_data))
             a[0:len(self.plot_data)-len(data[0,:])] = self.plot_data[len(data[0,:]):]
             a[len(self.plot_data)-len(data[0,:]):] = data[0,:]
-            #print str(time.time()-t)
             self.plot_data = a
-            #print str(time.time()-t)
             line.set_ydata(self.plot_data)
-            #print str(time.time()-t)
             #self.ax.draw_artist(line)
             # just redraw the axes rectangle
             #self.canvas.blit(self.ax.bbox)
-            #print line.data
             #self.ax.plot(data[1,:],data[0,:])
             self.canvas.draw_idle()
-            pass
         
         def on_open(self,widget):
             chooser = gtk.FileChooserDialog(title='Open',action=gtk.FILE_CHOOSER_ACTION_OPEN,
@@ -392,7 +380,7 @@ if __name__ == "__main__":
         def on_about(self,widget):
             pass
             
-        def on_menuitem_reset_activate(self,menuitem):
+        def on_reset_menuitem_activate(self,menuitem):
             pass
         
         def on_window_destroy(self,widget):
@@ -406,10 +394,9 @@ if __name__ == "__main__":
             if not self.exiting:
                 self.exiting = True
                 self.manager_running = False
-                #self.window.hide()
                 
-                for k,v in self.tablist.items():
-                    v.destroy()
+                for tab in self.tablist.values():
+                    tab.destroy()
                                       
                 gobject.timeout_add(100,self.finalise_quit,time.time())
         
@@ -423,9 +410,9 @@ if __name__ == "__main__":
             logger.info('checked...:' + str(len(self.tablist))+' items left to finish')        
             
             if time.time()-initial_time > 2:
-                for k,v in self.tablist.items():
-                    v.close_tab()  
-                    self.tablist.pop(k)
+                for name, tab in self.tablist.items():
+                    tab.close_tab()  
+                    del self.tablist[name]
             
             if len(self.tablist) == 0:
                 logger.info('quitting')
@@ -434,7 +421,6 @@ if __name__ == "__main__":
                 return False
             else:
                 return True
-        
         
         def on_pause_queue(self,widget):
             self.manager_paused = widget.get_active()
@@ -483,8 +469,9 @@ if __name__ == "__main__":
             while self.manager_running:                
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
-                    with gtk.gdk.lock:
-                        if self.status_bar.get_text() == "Idle":
+                    if self.status_bar.get_text() == "Idle":
+                        logger.info('Paused')
+                        with gtk.gdk.lock:
                             self.status_bar.set_text("Queue Paused") 
                     time.sleep(1)
                     continue
@@ -498,120 +485,111 @@ if __name__ == "__main__":
                         self.status_bar.set_text("Idle")
                     time.sleep(1)
                     continue
-                
+                    
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Reading file path from the queue:")    
                     path = "".join(self.queue.get(iter,0))
                     self.queue.remove(iter)
                 
-                print 'Queue Manager: got a path:',path
+                logger.info('Got a file: %s' % path)
                 
                 # Transition devices to buffered mode
                 transition_list = {}                
                 start_time = time.time()
-                error = {}
+                error_condition = False
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Transitioning to Buffered")
                     #self.tab.setup_buffered_trigger()
-                    for k,v in self.tablist.items():
+                    for name,tab in self.tablist.items():
                         # do we need to transition this device?
                         with h5py.File(path,'r') as hdf5_file:
-                            group = hdf5_file['devices/'].get(k)
-                            if group != None:
-                                v.transition_to_buffered(path)
-                                transition_list[k] = v
+                            if name in hdf5_file['devices/']:
+                                tab.transition_to_buffered(path)
+                                transition_list[name] = tab
                 
                 devices_in_use = transition_list.copy()
                 
-                while len(transition_list) > 0:
-                    for k,v in transition_list.items():
-                        if v.transitioned_to_buffered:
-                            transition_list.pop(k)
-                        
-                        if v.error != '':
-                            error[k] = v.error
-                            transition_list.pop(k)
+                while transition_list:
+                    for name,tab in transition_list.items():
+                        if tab.transitioned_to_buffered:
+                            del transition_list[name]
+                            logger.debug('%s finished transitioning to buffered mode' % name)
+                        if tab.error:
+                            logger.error('%s has an error condition, aborting run' % name)
+                            error_condition = True
                             break
                     end_time = time.time()
                     if end_time - start_time > timeout_limit:
+                        logger.error('Transitioning to buffered mode timed out')
                         break
-                    if error:
+                    if error_condition:
                         break
                     time.sleep(0.1)
-                        
                 
                 # Handle if we broke out of loop due to timeout
-                if end_time - start_time > timeout_limit or len(error) > 0:
+                if end_time - start_time > timeout_limit or error_condition:
                     # It took too long, pause the queue, re add the path to the top of the queue, and set a status message!
                     self.manager_paused = True
-                    self.queue_pause_button.set_state(True)
                     self.queue.prepend([path])
-                    
                     with gtk.gdk.lock:
+                        self.queue_pause_button.set_state(True)
                         if end_time - start_time > timeout_limit:
                             self.status_bar.set_text("Device programming timed out. Queue Paused...")
                         else:
                             self.status_bar.set_text("One or more devices is in an error state. Queue Paused...")
                             
                     # Abort the run for other devices
-                    for k,v in devices_in_use.items():
-                        #if k not in transition_list:
-                        v.abort_buffered()
+                    for tab in devices_in_use.values():
+                        tab.abort_buffered()
                     continue
                 
                 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(end_time - start_time)+"s")
                 
-                #print "Devices programmed"
+                logger.debug('About to start the PulseBlaster')
                 self.tablist["pulseblaster_0"].start()
                 #self.tablist["pulseblaster_1"].start()
+                logger.info('Experiment run has started!')
                 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Running...(program time: "+str(end_time - start_time)+"s")
                 
                 #force status update
-                self.tablist["pulseblaster_0"].status_monitor()
+                self.tablist["pulseblaster_0"].status_monitor() # Is this actually needed?
                 
-                # This is a nit of a hack, but will become irrelevant once we have a proper method of determining the experiment execution state
+                # This is a bit of a hack, but will become irrelevant once we have a proper method of determining the experiment execution state
                 # Eg, monitoring a digital flag!
-                time.sleep(5)
+                time.sleep(5) # What's this for? Can it be deleted?
                 
-                while self.tablist["pulseblaster_0"].status["waiting"] is not True:
+                while not self.tablist["pulseblaster_0"].status["waiting"]:
                     if not self.manager_running:
                         break
-                    #print 'waiting'
                     time.sleep(0.05)
-                
+                    
+                logger.info('Run complete')
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
                 
-                
                 with gtk.gdk.lock:
                     with h5py.File(path,'a') as hdf5_file:
-                        try:
-                            data_group = hdf5_file['/'].create_group('data')
-                        except Exception as e:
-                            raise
-                            print str(e)
-                            print 'failed creating data group'
+                        data_group = hdf5_file['/'].create_group('data')
                     
-                    for k,v in devices_in_use.items():
-                        v.transition_to_static()
-                        
+                    for device in devices_in_use:
+                        devices_in_use[device].transition_to_static()
                 
-                while len(devices_in_use) > 0:
-                    for k,v in devices_in_use.items():
-                        logging.debug("the following tab has not transitioned to static: "+k)
-                        if v.static_mode:
-                            devices_in_use.pop(k)    
-                                                       
+                while devices_in_use:
+                    for name,tab in devices_in_use.items():
+                        logging.debug("%s tab has not transitioned to static"%name)
+                        if tab.static_mode:
+                            del devices_in_use[name]
+                    time.sleep(0.1)
+                logger.info('All devices are back in static mode.')                                       
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Idle")
             logger.info('Stopping')
             
     class RequestHandler(BaseHTTPRequestHandler):
-
         def do_POST(self):
             self.send_response(200)
             self.end_headers()
@@ -621,12 +599,11 @@ if __name__ == "__main__":
             h5_filepath =  postvars['filepath'][0]
             with gtk.gdk.lock:
                 message = process_request(h5_filepath)
-            print 'Request handler: ', message
+            logger.info('Request handler:\n%s ' % message)
             self.wfile.write(message)
             self.wfile.close()
             
     def process_request(h5_filepath):
-        #print 'Request Handler: got a filepath:', h5_filepath
         # check connection table
         try:
             new_conn = ConnectionTable(h5_filepath)

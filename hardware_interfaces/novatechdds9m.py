@@ -101,9 +101,6 @@ class novatechdds9m(Tab):
         self.do_after('leave_set_defaults')       
     
     def leave_set_defaults(self,_results):
-        print '*************'
-        print _results
-        print '*************'
         if _results:
             for i in range(0,self.num_RF):
                 settings = _results[i].split()
@@ -244,8 +241,7 @@ class novatechdds9m(Tab):
                 break
         
         if update_channel is None:
-            print 'something went wrong'
-            print type(widget)
+            self.logger.error('Something went wrong: widget is %s' % str(type(widget)))
             return
         if self.amp_toggles[i].get_active():    
             self.rf_outputs[update_channel].update_value(self.rf_widgets[update_channel][0].get_value(),self.rf_widgets[update_channel][1].get_value(),self.rf_widgets[update_channel][2].get_value())

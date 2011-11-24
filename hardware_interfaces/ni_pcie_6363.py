@@ -18,12 +18,6 @@ import excepthook
 
 from tab_base_classes import Tab, Worker, define_state
 
-from PyDAQmx import Task
-from PyDAQmx.DAQmxConstants import *
-from PyDAQmx.DAQmxTypes import *
-
-
-
 class ni_pcie_6363(Tab):
 
     # settings should contain a dictionary of information from the connection table, relevant to this device.
@@ -98,7 +92,6 @@ class ni_pcie_6363(Tab):
             else:
                 name = "-"
             
-            
             temp2.set_text(name)
             
             # Create DO object
@@ -133,7 +126,6 @@ class ni_pcie_6363(Tab):
         self.get_data_thread = threading.Thread(target = self.get_acquisition_data)
         self.get_data_thread.daemon = True
         self.get_data_thread.start()
-        
         
         self.initialise_device()
         
@@ -573,7 +565,6 @@ class Worker2(multiprocessing.Process):
         
         self.task = None
         
-        
         self.daqmx_read_thread = threading.Thread(target=self.daqmx_read)
         self.daqmx_read_thread.daemon = True
         self.daqmx_read_thread.start()
@@ -714,7 +705,7 @@ class Worker2(multiprocessing.Process):
                 h5_chnls = hdf5_file['/devices/'+device_name].attrs['analog_in_channels']
                 self.buffered_rate = float(hdf5_file['/devices/'+device_name].attrs['acquisition_rate'])
             except:
-                print "couldn't get the channel list from h5 file. Skipping..."
+                self.logger.error("couldn't get the channel list from h5 file. Skipping...")
         
         
         # combine static channels with h5 channels
@@ -744,40 +735,27 @@ class Worker2(multiprocessing.Process):
     def transition_to_static(self,device_name):
         # Stop acquisition (this should really be done on a digital edge, but that is for later! Maybe use a Counter)
         self.stop_task()        
-        'transitioning to static, task stopped'
+        self.logger.info('transitioning to static, task stopped')
         # save the data acquired to the h5 file
         with h5py.File(self.h5_file,'a') as hdf5_file:
-            try:
-                data_group = hdf5_file['/data']
-                ni_group = data_group.create_group(device_name)
-                
-                i = 0
-                t = time.time()
-                self.buffered_data = numpy.zeros((len(self.buffered_data_list)*1000,len(self.buffered_channels)))
-                print 'starting! t=0'
-                for data in self.buffered_data_list:
-                    data.shape = (len(self.buffered_channels),self.ai_read.value)              
-                    data = data.transpose()
-                    #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
-                    print data.shape
-                    print self.buffered_data[i*1000:(i*1000)+1000].shape
-                    self.buffered_data[i*1000:(i*1000)+1000,:] = data
-                    
-                    if i % 100 == 0:
-                        print str(i/100) + " time: "+str(time.time()-t)
-                    i += 1
-                print 'data appended'
-                print " time: "+str(time.time()-t)
-                if len(self.buffered_channels) == 1:
-                    ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):])
-                else:
-                    ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):,:])
-                print 'data written'
-                print " time: "+str(time.time()-t)
-            except Exception as e:
-                raise
-                print str(e)
-                print 'failed at writing data'
+            data_group = hdf5_file['/data']
+            ni_group = data_group.create_group(device_name)
+            i = 0
+            start_time = time.time()
+            self.buffered_data = numpy.zeros((len(self.buffered_data_list)*1000,len(self.buffered_channels)))
+            for data in self.buffered_data_list:
+                data.shape = (len(self.buffered_channels),self.ai_read.value)              
+                data = data.transpose()
+                #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
+                self.buffered_data[i*1000:(i*1000)+1000,:] = data
+                if i % 100 == 0:
+                    self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time) )
+                i += 1
+            if len(self.buffered_channels) == 1:
+                ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):])
+            else:
+                ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):,:])
+            self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
         
         self.buffered_data = None
         self.buffered_data_list = []
