@@ -66,6 +66,7 @@ class Tab(object):
         
         self.notebook.append_page(self._toplevel, tablabel)
         self.notebook.set_tab_reorderable(self._toplevel, True)
+        self.notebook.set_tab_detachable(self._toplevel, True)
         self._toplevel.show()
         self.error = ''
         self.set_state('idle')

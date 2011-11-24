@@ -75,6 +75,9 @@ if __name__ == "__main__":
             self.builder.connect_signals(self)
             self.window = self.builder.get_object("window")
             self.notebook = self.builder.get_object("notebook1")
+            self.notebook2 = self.builder.get_object("notebook2")
+            self.notebook3 = self.builder.get_object("notebook3")
+            self.notebook4 = self.builder.get_object("notebook4")
             self.queue = self.builder.get_object("remote_liststore")
             self.listwidget = self.builder.get_object("treeview1")
             self.status_bar = self.builder.get_object("status_label")
@@ -82,6 +85,12 @@ if __name__ == "__main__":
             self.now_running = self.builder.get_object('label_now_running')
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
+            
+            # Set group ID's of notebooks to be the same
+            self.notebook.set_group_id(1323)
+            self.notebook2.set_group_id(1323)
+            self.notebook3.set_group_id(1323)
+            self.notebook4.set_group_id(1323)
             
             # Need to connect signals!
             self.builder.connect_signals(self)
