@@ -21,7 +21,7 @@ if __name__ == "__main__":
     import gobject
     import numpy
     import h5py
-
+    
     # Connection Table Code
     from connections import ConnectionTable
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
             
             # Need to connect signals!
             self.builder.connect_signals(self)
-            
+
             # Load Connection Table
             # Get H5 file        
             h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
@@ -430,17 +430,11 @@ if __name__ == "__main__":
                 self.builder.get_object('hbox_paused').hide()
                 
         def on_delete_queue_element(self,widget):
-            #selection = self.listwidget.get_selection()
-            #selection.selected_foreach(self.delete_item)
             selection = self.listwidget.get_selection()
             model, selection = selection.get_selected_rows()
-
             for path in selection:
                 iter = model.get_iter(path)
                 model.remove(iter)
-        
-        def delete_item(self,treemodel,path,iter):
-            self.queue.remove(iter)
         
         def is_in_queue(self,path):
             item = self.queue.get_iter_first()
