@@ -96,6 +96,8 @@ if __name__ == "__main__":
             # Get H5 file        
             h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
             
+            self.clean_h5_file(h5_file, "new2.h5")
+            
             # Create Connection Table
             self.connection_table = ConnectionTable(h5_file)
             
@@ -105,7 +107,7 @@ if __name__ == "__main__":
             self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
                                   "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
                                   "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
-                                  "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com1"},
+                                  "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
                                   "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
                                   "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com8"},
                                   "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
@@ -368,7 +370,22 @@ if __name__ == "__main__":
                 # Create the dataset! 
                 logger.debug("attempting to create dataset...")   
                 ds = data_group.create_dataset(k,data=device_data)
-            
+        
+        def clean_h5_file(self,h5file,new_h5_file):
+            try:
+                with h5py.File(h5file,'r') as old_file:
+                    with h5py.File(new_h5_file,'w') as new_file:
+                        new_file['/'].copy(old_file['/devices'],"devices")
+                        new_file['/'].copy(old_file['/calibrations'],"calibrations")
+                        new_file['/'].copy(old_file['/script'],"script")
+                        new_file['/'].copy(old_file['/globals'],"globals")
+                        new_file['/'].copy(old_file['/connection table'],"connection table")
+            except Exception as e:
+                logger.error('Clean H5 File Error: %s' %str(e))
+                return False
+                
+            return True
+        
         def on_edit_connection_table(self,widget):
             pass
             
