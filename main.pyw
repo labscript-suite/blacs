@@ -188,7 +188,20 @@ if __name__ == "__main__":
             pass
         
         def on_open(self,widget):
-            pass
+            chooser = gtk.FileChooserDialog(title='Open',action=gtk.FILE_CHOOSER_ACTION_OPEN,
+                                buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
+                                           gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+            chooser.set_default_response(gtk.RESPONSE_OK)
+            chooser.set_current_folder(r'Z:\\Experiments')
+            response = chooser.run()
+            if response == gtk.RESPONSE_OK:
+                filename = chooser.get_filename()
+                result = process_request(filename)
+            else:
+                chooser.destroy()
+                return
+            chooser.destroy()
+            
             
         def on_save_front_panel(self,widget):
             states = {}
@@ -501,10 +514,13 @@ if __name__ == "__main__":
                         if v.error != '':
                             error[k] = v.error
                             transition_list.pop(k)
-                            
+                            break
                     end_time = time.time()
                     if end_time - start_time > timeout_limit:
                         break
+                    if error:
+                        break
+                    time.sleep(0.1)
                         
                 
                 # Handle if we broke out of loop due to timeout
@@ -586,41 +602,39 @@ if __name__ == "__main__":
             length = int(self.headers.getheader('content-length'))
             postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
             h5_filepath =  postvars['filepath'][0]
-           
-            message = self.process_request(h5_filepath)
+            with gtk.gdk.lock:
+                message = process_request(h5_filepath)
             print 'Request handler: ', message
             self.wfile.write(message)
             self.wfile.close()
             
-        def process_request(self,h5_filepath):
-            #print 'Request Handler: got a filepath:', h5_filepath
-            # check connection table
-            try:
-                new_conn = ConnectionTable(h5_filepath)
+    def process_request(h5_filepath):
+        #print 'Request Handler: got a filepath:', h5_filepath
+        # check connection table
+        try:
+            new_conn = ConnectionTable(h5_filepath)
+        except:
+            return "H5 file not accessible to Control PC\n"
+            
+        if app.connection_table.compare_to(new_conn):  
+            app.queue.append([h5_filepath])
+            message = "Experiment added successfully\n"
+            if app.manager_paused:
+                message += "Warning: Queue is currently paused\n"
                 
-            except:
-                return "H5 file not accessible to Control PC\n"
-                
-            if app.connection_table.compare_to(new_conn):  
-                with gtk.gdk.lock:  
-                    app.queue.append([h5_filepath])
-                message = "Experiment added successfully\n"
-                if app.manager_paused:
-                    message += "Warning: Queue is currently paused\n"
-                    
-                if not app.manager_running:
-                    message = "Error: Queue is not running\n"
-                return message
-            else:
-                message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
-                           "You may have:\n"
-                           "    Submitted your file to the wrong control PC\n"
-                           "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
-                           "    Renamed a channel at the top of your script\n"
-                           "    Submitted an old file, and the experiment has since been rewired\n"
-                           "\n"
-                           "Please verify your experiment script matches the current experiment configuration, and try again\n")
-                return message
+            if not app.manager_running:
+                message = "Error: Queue is not running\n"
+            return message
+        else:
+            message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
+                       "You may have:\n"
+                       "    Submitted your file to the wrong control PC\n"
+                       "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
+                       "    Renamed a channel at the top of your script\n"
+                       "    Submitted an old file, and the experiment has since been rewired\n"
+                       "\n"
+                       "Please verify your experiment script matches the current experiment configuration, and try again\n")
+            return message
 
 
     port = 42517
