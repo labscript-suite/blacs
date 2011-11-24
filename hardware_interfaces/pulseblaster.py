@@ -163,7 +163,7 @@ class pulseblaster(Tab):
         
     def leave_destroy(self,_results):
         self.destroy_complete = True
-        
+        self.close_tab()
     
     #
     # ** This method should be common to all hardware interfaces **

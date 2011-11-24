@@ -80,11 +80,6 @@ class novatechdds9m(Tab):
         # Once complete, the toplevel object is shown.
         self.initialise_connection()
         self.set_defaults()        
-        #notebook.append_page(self.tab,gtk.Label(self.settings["device_name"]))  
-        #notebook.set_tab_reorderable(self.tab,True)
-        
-        # These will queue up the GTK event callbacks. We want these to queue up after the initialise and set defaults
-        
 	
     @define_state
     def destroy(self):
@@ -93,7 +88,7 @@ class novatechdds9m(Tab):
     
     def leave_destroy(self,_results):
         self.destroy_complete = True
-        
+        self.close_tab()
 	
     @define_state
     def set_defaults(self):
@@ -111,7 +106,6 @@ class novatechdds9m(Tab):
                 self.rf_widgets[i][0].set_value(f)
                 self.rf_widgets[i][1].set_value(a)
                 self.rf_widgets[i][2].set_value(p)
-        
         
         # Complete the init method!
         self.toplevel.show()
@@ -136,7 +130,6 @@ class novatechdds9m(Tab):
         # convert numbers to correct representation
         
         output.phase = (int((output.phase/360)*16384)/16384.0)*360
-        
                 
         #find channel
         channel = None
@@ -163,21 +156,16 @@ class novatechdds9m(Tab):
     def program_static(self,output):    
         if not self.init_done or not self.static_mode:
             return
-            
         #find channel
         channel = None
         for i in range(0,self.num_RF):
             if output == self.rf_outputs[i]:
                 channel = i
                 break
-    
         if channel is None:
             #return error
             return     
-        
         self.queue_work('program_static',channel,output.freq,output.amp,output.phase)
-        
-        
         
     def get_child(self,type,channel):
         if type == "RF":

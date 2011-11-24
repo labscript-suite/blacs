@@ -129,9 +129,7 @@ class ni_pcie_6363(Tab):
         
         self.initialise_device()
         
-        
     
-    #
     # ** This method should be common to all hardware interfaces **
     #
     # This method cleans up the class before the program exits. In this case, we close the worker thread!
@@ -149,8 +147,7 @@ class ni_pcie_6363(Tab):
         
     def leave_destroy(self,_results):
         self.destroy_complete = True
-    
-
+        self.close_tab()
      
     @define_state
     def initialise_device(self):

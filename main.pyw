@@ -53,20 +53,17 @@ if __name__ == "__main__":
 from hardware_interfaces import *
 for device in device_list:    
     exec("from hardware_interfaces."+device+" import "+device)
-    
 
 if __name__ == "__main__":
     # Virtual Devices Import
     #needs to be dynamic import
     from virtual_devices.shutter import *
 
-
     # Temporary imports to demonstrate plotting
     from matplotlib.figure import Figure
     from matplotlib.axes import Axes
     from matplotlib.lines import Line2D
     from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
-
 
 
     class BLACS(object):       
@@ -124,7 +121,6 @@ if __name__ == "__main__":
             # Open BLACS Config File
             # Load Virtual Devices
             
-            
             #self.shutter_tab = globals()["shutter"]([self.tab.get_child("DO",1),self.tab.get_child("DO",5),self.tab.get_child("DO",27),self.tab.get_child("DO",13)])
             #self.notebook.append_page(self.shutter_tab.tab,gtk.Label("shutter_0"))
             #
@@ -147,11 +143,6 @@ if __name__ == "__main__":
             #self.notebook.append_page(vbox,gtk.Label("graph!"))
             #vbox.show_all()
             #self.tablist["ni_pcie_6363_0"].request_analog_input(0,50000,self.update_plot)
-            
-            # Setup the sequence manager thread
-            # This thread will listen on a specific port, and will add items it recieves to a queue
-            # We will add an idle callback function which check the queue for entries, and starts an 
-            # experimental run if appropriate
             
             self.window.show()
             
@@ -388,39 +379,38 @@ if __name__ == "__main__":
         
         def on_delete_event(self,a,b):
             self.destroy()
+            return True
         
         def destroy(self):
             logger.info('destroy called')
             if not self.exiting:
                 self.exiting = True
                 self.manager_running = False
-                
                 for tab in self.tablist.values():
                     tab.destroy()
-                                      
                 gobject.timeout_add(100,self.finalise_quit,time.time())
         
         def finalise_quit(self,initial_time):
-            #TODO: Force quit all processes after a certain time
-            logger.info('checking finalisation:' + str(len(self.tablist))+' items left to finish')
-            for k,v in self.tablist.items():
-                if v.destroy_complete:
-                    v.close_tab()  
-                    self.tablist.pop(k)
-            logger.info('checked...:' + str(len(self.tablist))+' items left to finish')        
-            
-            if time.time()-initial_time > 2:
-                for name, tab in self.tablist.items():
-                    tab.close_tab()  
+            # Kill any tabs which didn't close themselves:
+            for name, tab in self.tablist.items():
+                if tab.destroy_complete:
                     del self.tablist[name]
-            
-            if len(self.tablist) == 0:
+            if self.tablist:
+                if time.time() - initial_time > 2:
+                    for name, tab in self.tablist.items():
+                        try:
+                            tab.close_tab() 
+                        except Exception as e:
+                            logger.error('Couldn\'t close tab:\n%s'%str(e))
+                        del self.tablist[name]
+            if self.tablist:
+                return True
+            else:
                 logger.info('quitting')
+                self.window.hide()
                 gtk.main_quit()
                 logger.info('gtk.main_quit done')
                 return False
-            else:
-                return True
         
         def on_pause_queue(self,widget):
             self.manager_paused = widget.get_active()
@@ -632,17 +622,14 @@ if __name__ == "__main__":
 
 
     port = 42517
-#if __name__ == "__main__":
     gtk.gdk.threads_init()
     app = BLACS()
     # Make it not look so terrible (if icons and themes are installed):
     gtk.settings_get_default().set_string_property('gtk-icon-theme-name','gnome-human','')
-    #gtk.settings_get_default().set_string_property('gtk-theme-name','Clearlooks','')
     gtk.settings_get_default().set_string_property('gtk-font-name','ubuntu 10','')
-    #gtk.settings_get_default().set_long_property('gtk-button-images',False,'')
     gtk.settings_get_default().props.gtk_button_images = True
     serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
-    serverthread.daemon = True # process will end if only daemon threads are left
+    serverthread.daemon = True
     serverthread.start()
     with gtk.gdk.lock:
         gtk.main()
