@@ -101,6 +101,9 @@ class novatechdds9m(Tab):
         self.do_after('leave_set_defaults')       
     
     def leave_set_defaults(self,_results):
+        print '*************'
+        print _results
+        print '*************'
         if _results:
             for i in range(0,self.num_RF):
                 settings = _results[i].split()
@@ -207,7 +210,8 @@ class novatechdds9m(Tab):
     def leave_program_buffered(self,_results):
         self.transitioned_to_buffered = True  
         self.checkbutton_fresh.show() 
-        self.checkbutton.set_active(False) 
+        self.checkbutton_fresh.set_active(False) 
+        self.checkbutton_fresh.toggled()
     
     def abort_buffered(self):
         self.transition_to_static()
@@ -287,7 +291,10 @@ class NovatechDDS9mWorker(Worker):
     def read_current_values(self):
         self.connection.readlines()
         self.connection.write('QUE\r\n')
-        return self.connection.readlines()
+        response = self.connection.readlines()
+        if len(response) != 5:
+            raise Exception('Failed to execute QUE')
+        return response
     
     def program_static(self,channel,freq,amp,phase):
         # program hardware                   
