@@ -79,7 +79,7 @@ if __name__ == "__main__":
             self.listwidget = self.builder.get_object("treeview1")
             self.status_bar = self.builder.get_object("status_label")
             self.queue_pause_button = self.builder.get_object("Queue_Pause")
-            
+            self.now_running = self.builder.get_object('label_now_running')
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
             
@@ -89,8 +89,6 @@ if __name__ == "__main__":
             # Load Connection Table
             # Get H5 file        
             h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
-            
-            self.clean_h5_file(h5_file, "new2.h5")
             
             # Create Connection Table
             self.connection_table = ConnectionTable(h5_file)
@@ -149,6 +147,7 @@ if __name__ == "__main__":
             # Start Queue Manager
             self.manager_running = True
             self.manager_paused = False
+            self.manager_repeat = False
             self.manager = threading.Thread(target = self.manage)
             self.manager.daemon=True
             self.manager.start()
@@ -182,6 +181,11 @@ if __name__ == "__main__":
                 chooser.destroy()
                 return
             chooser.destroy()
+            if not 'added successfully' in result:
+                message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_OK, result) 
+                message.run()  
+                message.destroy()
+            logger.info('Open file:\n%s ' % result)
             
             
         def on_save_front_panel(self,widget):
@@ -360,6 +364,7 @@ if __name__ == "__main__":
                         new_file['/'].copy(old_file['/globals'],"globals")
                         new_file['/'].copy(old_file['/connection table'],"connection table")
             except Exception as e:
+                raise
                 logger.error('Clean H5 File Error: %s' %str(e))
                 return False
                 
@@ -412,9 +417,18 @@ if __name__ == "__main__":
                 logger.info('gtk.main_quit done')
                 return False
         
+        def on_repeat_toggled(self,widget):
+            self.manager.repeat = widget.get_active()
+            
         def on_pause_queue(self,widget):
             self.manager_paused = widget.get_active()
-        
+            if widget.get_active():
+                self.builder.get_object('hbox_running').hide()
+                self.builder.get_object('hbox_paused').show()
+            else:
+                self.builder.get_object('hbox_running').show()
+                self.builder.get_object('hbox_paused').hide()
+                
         def on_delete_queue_element(self,widget):
             #selection = self.listwidget.get_selection()
             #selection.selected_foreach(self.delete_item)
@@ -428,7 +442,16 @@ if __name__ == "__main__":
         def delete_item(self,treemodel,path,iter):
             self.queue.remove(iter)
         
-        
+        def is_in_queue(self,path):
+            item = self.queue.get_iter_first()
+            while item:
+                print self.queue.get(item,0)[0]
+                if path ==  self.queue.get(item,0)[0]:
+                    return True
+                else:
+                    item = self.queue.iter_next(item)
+            
+            
         #################
         # Queue Manager #
         #################        
@@ -480,7 +503,8 @@ if __name__ == "__main__":
                     self.status_bar.set_text("Reading file path from the queue:")    
                     path = "".join(self.queue.get(iter,0))
                     self.queue.remove(iter)
-                
+                    self.now_running.set_markup('Now running: <b>%s</b>'%os.path.basename(path))
+                    self.now_running.show()
                 logger.info('Got a file: %s' % path)
                 
                 # Transition devices to buffered mode
@@ -531,6 +555,8 @@ if __name__ == "__main__":
                     # Abort the run for other devices
                     for tab in devices_in_use.values():
                         tab.abort_buffered()
+                    with gtk.gdk.lock:
+                        self.now_running.hide()
                     continue
                 
                 
@@ -577,6 +603,10 @@ if __name__ == "__main__":
                 logger.info('All devices are back in static mode.')                                       
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Idle")
+                    if self.manager.repeat:
+                        # Resubmit job to the bottom of the queue:
+                        process_request(path)
+                    self.now_running.hide()
             logger.info('Stopping')
             
     class RequestHandler(BaseHTTPRequestHandler):
@@ -592,6 +622,13 @@ if __name__ == "__main__":
             logger.info('Request handler:\n%s ' % message)
             self.wfile.write(message)
             self.wfile.close()
+
+    def new_rep_name(h5_filepath):
+        basename = os.path.basename(h5_filepath).split('.h5')[0]
+        if '_rep' in basename:
+            reps = int(basename.split('_rep')[1])
+            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
+        return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
             
     def process_request(h5_filepath):
         # check connection table
@@ -600,12 +637,29 @@ if __name__ == "__main__":
         except:
             return "H5 file not accessible to Control PC\n"
             
-        if app.connection_table.compare_to(new_conn):  
-            app.queue.append([h5_filepath])
-            message = "Experiment added successfully\n"
+        if app.connection_table.compare_to(new_conn):
+            # Has this run file been run already?
+            with h5py.File(h5_filepath) as h5_file:
+                if 'data' in h5_file['/']:
+                    rerun = True
+                else:
+                    rerun = False
+            if rerun or app.is_in_queue(h5_filepath):
+                logger.debug('Run file has already been run! Creating a fresh copy to rerun')
+                new_h5_filepath = new_rep_name(h5_filepath)
+                # Keep counting up until we get a filename that isn't in the filesystem:
+                while os.path.exists(new_h5_filepath):
+                    new_h5_filepath = new_rep_name(new_h5_filepath)
+                success = app.clean_h5_file(h5_filepath, new_h5_filepath)
+                if not success:
+                   return 'Cannot create a re run of this experiment. Is it a valid run file?'
+                app.queue.append([new_h5_filepath])
+                message = "Experiment added successfully: experiment to be re-run\n"
+            else:
+                app.queue.append([h5_filepath])
+                message = "Experiment added successfully\n"
             if app.manager_paused:
                 message += "Warning: Queue is currently paused\n"
-                
             if not app.manager_running:
                 message = "Error: Queue is not running\n"
             return message
