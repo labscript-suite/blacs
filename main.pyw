@@ -132,7 +132,7 @@ if __name__ == "__main__":
                     
                     
                     for row in notebook_settings:
-                        tab_positions[row[0]] = {"notebook":row[1],"page":row[2]}
+                        tab_positions[row[0]] = {"notebook":row[1],"page":row[2],"visible":row[3]}
                     
                     for k,v in self.panes.items():
                         v.set_position(notebook_settings.attrs[k])
@@ -162,7 +162,13 @@ if __name__ == "__main__":
                     if notebook_num in self.notebook:                                        
                         self.notebook[notebook_num].reorder_child(self.tablist[k]._toplevel,tab_positions[k]["page"])
                     
-                
+            # now that they are in the correct order, set the correct one visible
+            for k,v in tab_positions.items():
+                # if the notebook still exists and we are on the entry that is visible
+                if v["visible"] and v["notebook"] in self.notebook:
+                    self.notebook[v["notebook"]].set_current_page(v["page"])
+                    
+            
             #TO DO:            
             # Open BLACS Config File
             # Load Virtual Devices
@@ -253,13 +259,15 @@ if __name__ == "__main__":
                 # By default we assume it is in notebook1. This way, if a tab gets lost somewhere, and isn't found to be a child of any notebook we know about, 
                 # it will revert back to notebook 1 when the file is loaded!
                 notebook_name = "1" 
+                
                 for l,m in self.notebook.items():
                     if m == notebook:
-                        notebook_name = l
+                        notebook_name = l                       
                 
                 page = notebook.page_num(v._toplevel)
+                visible = True if notebook.get_current_page() == page else False
                 # find the page it is in
-                tab_positions[k] = {"notebook":notebook_name,"page":page}
+                tab_positions[k] = {"notebook":notebook_name,"page":page, "visible":visible}
             
             # save window data
             window_data = {}
@@ -451,9 +459,9 @@ if __name__ == "__main__":
                     max_string_length = len(k)
             
             i = 0
-            tab_data = numpy.empty(len(tab_positions),dtype=[('tab_name','a'+str(max_string_length)),('notebook','a2'),('page',type(1))])
+            tab_data = numpy.empty(len(tab_positions),dtype=[('tab_name','a'+str(max_string_length)),('notebook','a2'),('page',type(1)),('visible',type(False))])
             for k,v in tab_positions.items():
-                tab_data[i] = (k,v["notebook"],v["page"])
+                tab_data[i] = (k,v["notebook"],v["page"],v["visible"])
                 i += 1
             ds = data_group.create_dataset("_notebook_data",data=tab_data)
             ds.attrs["window_width"] = window_data["window"]["width"]
