@@ -117,7 +117,8 @@ class pulseblaster(Tab):
             
             # inactive widgets
             else:
-                self.builder.get_object("flag_"+str(i)).set_sensitive(False)
+                #self.builder.get_object("flag_"+str(i)).set_sensitive(False)
+                self.builder.get_object("flag_"+str(i)).hide()
                 # set label text
                 temp = self.builder.get_object("flag_hardware_label_"+str(i))
                 temp.set_text("Flag "+str(i))

@@ -151,6 +151,7 @@ if __name__ == "__main__":
             #vbox.show_all()
             #self.tablist["ni_pcie_6363_0"].request_analog_input(0,50000,self.update_plot)
             
+            self.window.maximize()
             self.window.show()
             
             # Start Queue Manager

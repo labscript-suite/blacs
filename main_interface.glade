@@ -36,8 +36,10 @@
   </object>
   <object class="GtkWindow" id="window">
     <property name="can_focus">False</property>
-    <property name="default_width">1200</property>
-    <property name="default_height">750</property>
+    <property name="title" translatable="yes">B.E.C Lab Apparatus Control System</property>
+    <property name="window_position">center</property>
+    <property name="default_width">1800</property>
+    <property name="default_height">900</property>
     <signal name="delete-event" handler="on_delete_event" swapped="no"/>
     <child>
       <object class="GtkVBox" id="vbox1">
@@ -625,10 +627,14 @@
               <object class="GtkVPaned" id="vpaned1">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="position">405</property>
+                <property name="position_set">True</property>
                 <child>
                   <object class="GtkHPaned" id="hpaned2">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="position">710</property>
+                    <property name="position_set">True</property>
                     <child>
                       <object class="GtkNotebook" id="notebook1">
                         <property name="visible">True</property>
@@ -695,6 +701,8 @@
                   <object class="GtkHPaned" id="hpaned3">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="position">710</property>
+                    <property name="position_set">True</property>
                     <child>
                       <object class="GtkNotebook" id="notebook2">
                         <property name="visible">True</property>
