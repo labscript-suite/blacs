@@ -442,9 +442,12 @@ if __name__ == "__main__":
         def on_delete_queue_element(self,widget):
             selection = self.listwidget.get_selection()
             model, selection = selection.get_selected_rows()
-            for path in selection:
+            while selection:
+                path = selection[0]
                 iter = model.get_iter(path)
                 model.remove(iter)
+                selection = self.listwidget.get_selection()
+                model, selection = selection.get_selected_rows()
         
         def is_in_queue(self,path):
             item = self.queue.get_iter_first()
