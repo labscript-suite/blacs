@@ -135,6 +135,7 @@ class Tab(object):
         if self.mainloop_thread.is_alive():
             self.from_worker.put((False,'quit',None))
             self.event_queue.put('_quit')
+        self.notebook = self._toplevel.get_parent()
         currentpage = self.notebook.get_current_page()
         self.notebook.remove_page(currentpage)
         return currentpage
