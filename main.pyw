@@ -197,7 +197,7 @@ if __name__ == "__main__":
             # Start Queue Manager
             self.manager_running = True
             self.manager_paused = False
-            self.manager.repeat = False
+            self.manager_repeat = False
             self.manager = threading.Thread(target = self.manage)
             self.manager.daemon=True
             self.manager.start()
@@ -532,7 +532,7 @@ if __name__ == "__main__":
                 return False
         
         def on_repeat_toggled(self,widget):
-            self.manager.repeat = widget.get_active()
+            self.manager_repeat = widget.get_active()
             
         def on_pause_queue(self,widget):
             self.manager_paused = widget.get_active()
@@ -761,7 +761,7 @@ if __name__ == "__main__":
                 logger.info('All devices are back in static mode.')                                       
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Idle")
-                    if self.manager.repeat:
+                    if self.manager_repeat:
                         # Resubmit job to the bottom of the queue:
                         process_request(path)
                     self.now_running.hide()
