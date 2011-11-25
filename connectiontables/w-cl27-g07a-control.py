@@ -52,6 +52,10 @@ DigitalOut('Imaging_enable',  ni_pcie_6363_0,  'port0/line6')   # proposed RF ch
 DigitalOut(    'MOT_enable',  ni_pcie_6363_0,  'port0/line7')
 DigitalOut( 'Repump_enable',  ni_pcie_6363_0,  'port0/line8')
 
+# IMAGING SYSTEM
+Camera(    'neo',     pulseblaster_0, 'flag 2')
+DigitalOut('imaging', pulseblaster_0, 'flag 3')
+
 # PULSEBLASTER 0 DDS
 # DDS(               'Zeeman',  pulseblaster_0,       'dds 0')   forseen assignment
 # DDS(              'Imaging',  pulseblaster_0,       'dds 1')   forseen assignment

@@ -197,7 +197,7 @@ if __name__ == "__main__":
             # Start Queue Manager
             self.manager_running = True
             self.manager_paused = False
-            self.manager_repeat = False
+            self.manager.repeat = False
             self.manager = threading.Thread(target = self.manage)
             self.manager.daemon=True
             self.manager.start()
