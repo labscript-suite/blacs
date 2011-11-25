@@ -553,6 +553,54 @@ if __name__ == "__main__":
                 selection = self.listwidget.get_selection()
                 model, selection = selection.get_selected_rows()
         
+        def move_up(self,button):
+            selection = self.listwidget.get_selection()
+            model, selection = selection.get_selected_rows()
+            selection = [path[0] for path in selection]
+            n = self.queue.iter_n_children(None)
+            order = range(n)
+            for index in sorted(selection):
+                if 0 < index < n - 1 and (order[index - 1] not in selection):
+                    order[index], order[index - 1] =  order[index - 1], order[index]
+            self.queue.reorder(order)
+               
+        def move_down(self,button):
+            selection = self.listwidget.get_selection()
+            model, selection = selection.get_selected_rows()
+            selection = [path[0] for path in selection]
+            n = self.queue.iter_n_children(None)
+            order = range(n)
+            for index in reversed(sorted(selection)):
+                if 0 < index < n - 1 and (order[index + 1] not in selection):
+                    order[index], order[index + 1] =  order[index + 1], order[index]
+            self.queue.reorder(order)
+            
+        def move_top(self,button):
+            selection = self.listwidget.get_selection()
+            model, selection = selection.get_selected_rows()
+            selection = [path[0] for path in selection]
+            n = self.queue.iter_n_children(None)
+            order = range(n)
+            for index in sorted(selection):
+                while 0 < index < n - 1 and (order[index - 1] not in selection):
+                    # swap!
+                    order[index], order[index - 1] =  order[index - 1], order[index]
+                    index -= 1
+            self.queue.reorder(order)
+            
+        def move_bottom(self,button):
+            selection = self.listwidget.get_selection()
+            model, selection = selection.get_selected_rows()
+            selection = [path[0] for path in selection]
+            n = self.queue.iter_n_children(None)
+            order = range(n)
+            for index in reversed(sorted(selection)):
+                while 0 < index < n - 1 and (order[index + 1] not in selection):
+                    # swap!
+                    order[index], order[index + 1] =  order[index + 1], order[index]
+                    index += 1
+            self.queue.reorder(order)
+        
         def is_in_queue(self,path):
             item = self.queue.get_iter_first()
             while item:
@@ -561,7 +609,6 @@ if __name__ == "__main__":
                     return True
                 else:
                     item = self.queue.iter_next(item)
-            
             
         #################
         # Queue Manager #
