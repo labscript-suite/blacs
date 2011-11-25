@@ -560,7 +560,7 @@ if __name__ == "__main__":
             n = self.queue.iter_n_children(None)
             order = range(n)
             for index in sorted(selection):
-                if 0 < index < n - 1 and (order[index - 1] not in selection):
+                if 0 < index < n  and (order[index - 1] not in selection):
                     order[index], order[index - 1] =  order[index - 1], order[index]
             self.queue.reorder(order)
                
@@ -571,7 +571,7 @@ if __name__ == "__main__":
             n = self.queue.iter_n_children(None)
             order = range(n)
             for index in reversed(sorted(selection)):
-                if 0 < index < n - 1 and (order[index + 1] not in selection):
+                if 0 <= index < n - 1 and (order[index + 1] not in selection):
                     order[index], order[index + 1] =  order[index + 1], order[index]
             self.queue.reorder(order)
             
@@ -582,7 +582,7 @@ if __name__ == "__main__":
             n = self.queue.iter_n_children(None)
             order = range(n)
             for index in sorted(selection):
-                while 0 < index < n - 1 and (order[index - 1] not in selection):
+                while 0 < index < n and (order[index - 1] not in selection):
                     # swap!
                     order[index], order[index - 1] =  order[index - 1], order[index]
                     index -= 1
@@ -595,7 +595,7 @@ if __name__ == "__main__":
             n = self.queue.iter_n_children(None)
             order = range(n)
             for index in reversed(sorted(selection)):
-                while 0 < index < n - 1 and (order[index + 1] not in selection):
+                while 0 <= index < n - 1 and (order[index + 1] not in selection):
                     # swap!
                     order[index], order[index + 1] =  order[index + 1], order[index]
                     index += 1
