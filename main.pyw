@@ -632,7 +632,7 @@ if __name__ == "__main__":
             # While the program is running!
             logger.info('starting')
             
-            timeout_limit = 60 #seconds
+            timeout_limit = 130 #seconds
             
             with gtk.gdk.lock:
                 self.status_bar.set_text("Idle")
