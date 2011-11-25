@@ -74,10 +74,18 @@ if __name__ == "__main__":
             self.builder.add_from_file('main_interface.glade')
             self.builder.connect_signals(self)
             self.window = self.builder.get_object("window")
-            self.notebook = self.builder.get_object("notebook1")
-            self.notebook2 = self.builder.get_object("notebook2")
-            self.notebook3 = self.builder.get_object("notebook3")
-            self.notebook4 = self.builder.get_object("notebook4")
+            self.notebook = {}
+            self.notebook["1"] = self.builder.get_object("notebook1")
+            self.notebook["2"] = self.builder.get_object("notebook2")
+            self.notebook["3"] = self.builder.get_object("notebook3")
+            self.notebook["4"] = self.builder.get_object("notebook4")
+            
+            self.panes = {}
+            self.panes["hpaned1"] = self.builder.get_object("hpaned1")
+            self.panes["hpaned2"] = self.builder.get_object("hpaned2")
+            self.panes["hpaned3"] = self.builder.get_object("hpaned3")
+            self.panes["vpaned1"] = self.builder.get_object("vpaned1")
+            
             self.queue = self.builder.get_object("remote_liststore")
             self.listwidget = self.builder.get_object("treeview1")
             self.status_bar = self.builder.get_object("status_label")
@@ -87,10 +95,8 @@ if __name__ == "__main__":
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
             
             # Set group ID's of notebooks to be the same
-            self.notebook.set_group_id(1323)
-            self.notebook2.set_group_id(1323)
-            self.notebook3.set_group_id(1323)
-            self.notebook4.set_group_id(1323)
+            for k,v in self.notebook.items():
+                v.set_group_id(1323)
             
             # Need to connect signals!
             self.builder.connect_signals(self)
@@ -114,7 +120,26 @@ if __name__ == "__main__":
                                   "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
                                   "andor_ixon":{"device_name":"andor_ixon"}
                                  }
-                                 
+            
+            # read out position settings
+            tab_positions = {}
+            try:
+                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r+') as hdf5_file:
+                    notebook_settings = hdf5_file['/front_panel/_notebook_data']
+                    
+                    self.window.move(notebook_settings.attrs["window_xpos"],notebook_settings.attrs["window_ypos"])
+                    self.window.resize(notebook_settings.attrs["window_width"],notebook_settings.attrs["window_height"])
+                    
+                    
+                    for row in notebook_settings:
+                        tab_positions[row[0]] = {"notebook":row[1],"page":row[2]}
+                    
+                    for k,v in self.panes.items():
+                        v.set_position(notebook_settings.attrs[k])
+                        
+            except Exception as e:
+                logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
+            
             for k,v in self.settings_dict.items():
                 # add common keys to settings:
                 v["connection_table"] = self.connection_table
@@ -122,8 +147,22 @@ if __name__ == "__main__":
             
             self.tablist = {}
             for k,v in self.attached_devices.items():
-                self.tablist[k] = globals()[v](self.notebook,self.settings_dict[k])
+                notebook_num = "1"
+                if k in tab_positions:
+                    notebook_num = tab_positions[k]["notebook"]
+                    if notebook_num not in self.notebook:        
+                        notebook_num = "1"
+                        
+                self.tablist[k] = globals()[v](self.notebook[notebook_num],self.settings_dict[k])
             
+            # Now that all the pages are created, reorder them!
+            for k,v in self.attached_devices.items():
+                if k in tab_positions:
+                    notebook_num = tab_positions[k]["notebook"]
+                    if notebook_num in self.notebook:                                        
+                        self.notebook[notebook_num].reorder_child(self.tablist[k]._toplevel,tab_positions[k]["page"])
+                    
+                
             #TO DO:            
             # Open BLACS Config File
             # Load Virtual Devices
@@ -152,6 +191,7 @@ if __name__ == "__main__":
             #self.tablist["ni_pcie_6363_0"].request_analog_input(0,50000,self.update_plot)
             
             self.window.maximize()
+            
             self.window.show()
             
             # Start Queue Manager
@@ -161,7 +201,8 @@ if __name__ == "__main__":
             self.manager = threading.Thread(target = self.manage)
             self.manager.daemon=True
             self.manager.start()
-            
+        
+               
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
             #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
@@ -198,13 +239,46 @@ if __name__ == "__main__":
             logger.info('Open file:\n%s ' % result)
             
             
-        def on_save_front_panel(self,widget):
+            
+        def get_save_data(self):    
             states = {}
+            tab_positions = {}
             for k,v in self.tablist.items():
                 if self.attached_devices[k] not in states:
                     states[self.attached_devices[k]] = {}
                 states[self.attached_devices[k]][k] = v.get_front_panel_state()
             
+                # Find the notebook it is in
+                notebook = v._toplevel.get_parent()
+                # By default we assume it is in notebook1. This way, if a tab gets lost somewhere, and isn't found to be a child of any notebook we know about, 
+                # it will revert back to notebook 1 when the file is loaded!
+                notebook_name = "1" 
+                for l,m in self.notebook.items():
+                    if m == notebook:
+                        notebook_name = l
+                
+                page = notebook.page_num(v._toplevel)
+                # find the page it is in
+                tab_positions[k] = {"notebook":notebook_name,"page":page}
+            
+            # save window data
+            window_data = {}
+            
+            # Size of window
+            #self.window.unmaximize()
+            win_size = self.window.get_size()
+            win_pos = self.window.get_position()
+            #self.window.maximize()
+            window_data["window"] = {"width":win_size[0],"height":win_size[1],"xpos":win_pos[0],"ypos":win_pos[1]}
+            # Main Hpane
+            for k,v in self.panes.items():
+                window_data[k] = v.get_position()
+            
+            return states,tab_positions,window_data
+            
+        def on_save_front_panel(self,widget):
+            data = self.get_save_data()
+        
             # Open save As dialog
             chooser = gtk.FileChooserDialog(title='Save Front Panel',action=gtk.FILE_CHOOSER_ACTION_SAVE,
                                             buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
@@ -221,10 +295,10 @@ if __name__ == "__main__":
             else:
                 chooser.destroy()
                 return
-                        
-            self.save_front_panel_to_h5(current_file,states)    
+                    
+            self.save_front_panel_to_h5(current_file,data[0],data[1],data[2])    
 
-        def save_front_panel_to_h5(self,current_file,states,silent = {}):        
+        def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,silent = {}):        
             # Save the front panel!
 
 
@@ -267,7 +341,7 @@ if __name__ == "__main__":
                             if overwrite:
                                 # Delete Front panel group, save new front panel
                                 del hdf5_file['/front_panel']
-                                self.store_front_panel_in_h5(hdf5_file,states,save_conn_table)
+                                self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table)
                             else:
                                 if not silent:
                                     message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_CANCEL, "Front Panel not saved.") 
@@ -278,7 +352,7 @@ if __name__ == "__main__":
                                 return
                         else: 
                             # Save Front Panel in here
-                            self.store_front_panel_in_h5(hdf5_file,states,save_conn_table)
+                            self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table)
                 else:
                     # Create Error dialog (invalid connection table)
                     if not silent:
@@ -291,7 +365,7 @@ if __name__ == "__main__":
             else:
                 with h5py.File(current_file,'w') as hdf5_file:
                     # save connection table, save front panel                    
-                    self.store_front_panel_in_h5(hdf5_file,states,save_conn_table=True)
+                    self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table=True)
             
         def save_conn_table_to_h5_file(self,hdf5_file):
             h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
@@ -300,7 +374,7 @@ if __name__ == "__main__":
                 hdf5_file['/'].create_dataset('connection table',data=conn_data)
 
            
-        def store_front_panel_in_h5(self, hdf5_file,states,save_conn_table = False):
+        def store_front_panel_in_h5(self, hdf5_file,states,tab_positions,window_data,save_conn_table = False):
             if save_conn_table:
                 self.save_conn_table_to_h5_file(hdf5_file)
             
@@ -363,6 +437,32 @@ if __name__ == "__main__":
                 # Create the dataset! 
                 logger.debug("attempting to create dataset...")   
                 ds = data_group.create_dataset(k,data=device_data)
+                
+            # Save tab positions
+            logger.info(tab_positions)
+            
+            #The first entry in each row of the numpy array should be a string! Let's find the biggest string for this device and add it
+            max_string_length = 0
+            
+            # Here j is the device name
+            #      w is the dictionary of front panel values
+            for k,v in tab_positions.items():
+                if len(k) > max_string_length:
+                    max_string_length = len(k)
+            
+            i = 0
+            tab_data = numpy.empty(len(tab_positions),dtype=[('tab_name','a'+str(max_string_length)),('notebook','a2'),('page',type(1))])
+            for k,v in tab_positions.items():
+                tab_data[i] = (k,v["notebook"],v["page"])
+                i += 1
+            ds = data_group.create_dataset("_notebook_data",data=tab_data)
+            ds.attrs["window_width"] = window_data["window"]["width"]
+            ds.attrs["window_height"] = window_data["window"]["height"]
+            ds.attrs["window_xpos"] = window_data["window"]["xpos"]
+            ds.attrs["window_ypos"] = window_data["window"]["ypos"]
+            for k,v in window_data.items():
+                if k != "window":
+                    ds.attrs[k] = v
         
         def clean_h5_file(self,h5file,new_h5_file):
             try:
@@ -403,6 +503,10 @@ if __name__ == "__main__":
                 self.manager_running = False
                 for tab in self.tablist.values():
                     tab.destroy()
+                
+                # Save front panel
+                data = self.get_save_data()
+                self.save_front_panel_to_h5(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),data[0],data[1],data[2],{"overwrite":True})
                 gobject.timeout_add(100,self.finalise_quit,time.time())
         
         def finalise_quit(self,initial_time):
