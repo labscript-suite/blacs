@@ -1,10 +1,12 @@
 import h5py
+import logging
 import excepthook
 
 class ConnectionTable(object):    
     def __init__(self, h5file):
+        self.logger = logging.getLogger('BLACS.ConnectionTable') 
         self.toplevel_children = {}
-        print h5file
+        self.logger.debug('Parsing connection table from %s'%h5file)
         with h5py.File(h5file,'r') as hdf5_file:
             try:
                 table = hdf5_file['connection table'][:]
@@ -14,7 +16,7 @@ class ConnectionTable(object):
                         self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],table)
                 
             except:
-                print 'Unable to load connection table from '+h5file
+                self.logger.error('Unable to get connection table  %s'%h5file)
                 raise
         
     def compare_to(self,other_table):
@@ -24,11 +26,13 @@ class ConnectionTable(object):
         # Check if top level children in other table are a subset of self.        
         for key,value in other_table.toplevel_children.items():
             if not key in self.toplevel_children:
-                print 'missing: '+key
+                self.logger.error('missing: %s'%str(key))
                 return False
             
             # for each top level child in other, check if children of that object are also children of the child in self.
             if not self.toplevel_children[key].compare_to(value):
+                #TODO more info on what doesn't match? Print a diff and return it as part of the message?
+                self.logger.error('Connection table mismatch')
                 return False
                 
         return True

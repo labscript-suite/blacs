@@ -130,7 +130,6 @@ if __name__ == "__main__":
                     self.window.move(notebook_settings.attrs["window_xpos"],notebook_settings.attrs["window_ypos"])
                     self.window.resize(notebook_settings.attrs["window_width"],notebook_settings.attrs["window_height"])
                     
-                    
                     for row in notebook_settings:
                         tab_positions[row[0]] = {"notebook":row[1],"page":row[2],"visible":row[3]}
                     
@@ -167,7 +166,6 @@ if __name__ == "__main__":
                 # if the notebook still exists and we are on the entry that is visible
                 if v["visible"] and v["notebook"] in self.notebook:
                     self.notebook[v["notebook"]].set_current_page(v["page"])
-                    
             
             #TO DO:            
             # Open BLACS Config File
@@ -207,7 +205,6 @@ if __name__ == "__main__":
             self.manager = threading.Thread(target = self.manage)
             self.manager.daemon=True
             self.manager.start()
-        
                
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
@@ -243,8 +240,6 @@ if __name__ == "__main__":
                 message.run()  
                 message.destroy()
             logger.info('Open file:\n%s ' % result)
-            
-            
             
         def get_save_data(self):    
             states = {}
@@ -612,7 +607,6 @@ if __name__ == "__main__":
         def is_in_queue(self,path):
             item = self.queue.get_iter_first()
             while item:
-                print self.queue.get(item,0)[0]
                 if path ==  self.queue.get(item,0)[0]:
                     return True
                 else:
@@ -789,7 +783,7 @@ if __name__ == "__main__":
             h5_filepath =  postvars['filepath'][0]
             with gtk.gdk.lock:
                 message = process_request(h5_filepath)
-            logger.info('Request handler:\n%s ' % message)
+            logger.info('Request handler: %s ' % message.strip())
             self.wfile.write(message)
             self.wfile.close()
 
@@ -806,7 +800,6 @@ if __name__ == "__main__":
             new_conn = ConnectionTable(h5_filepath)
         except:
             return "H5 file not accessible to Control PC\n"
-            
         if app.connection_table.compare_to(new_conn):
             # Has this run file been run already?
             with h5py.File(h5_filepath) as h5_file:
