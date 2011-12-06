@@ -53,7 +53,7 @@ DigitalOut(    'MOT_enable',  ni_pcie_6363_0,  'port0/line7')
 DigitalOut( 'Repump_enable',  ni_pcie_6363_0,  'port0/line8')
 
 # IMAGING SYSTEM
-Camera(    'neo',     pulseblaster_0, 'flag 2')
+DigitalOut('camera',  pulseblaster_0, 'flag 2')
 DigitalOut('imaging', pulseblaster_0, 'flag 3')
 
 # PULSEBLASTER 0 DDS
