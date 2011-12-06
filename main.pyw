@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
-    handler = logging.handlers.RotatingFileHandler(r'C:\\pythonlib\BLACS.log', maxBytes=1024**50)
+    handler = logging.handlers.RotatingFileHandler(r'C:\\pythonlib\BLACS.log', maxBytes=1024*1024*50)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
     handler.setFormatter(formatter)
     handler.setLevel(logging.DEBUG)
