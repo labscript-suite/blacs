@@ -642,10 +642,10 @@ if __name__ == "__main__":
             while self.manager_running:                
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
-                    if self.status_bar.get_text() == "Idle":
-                        logger.info('Paused')
-                        with gtk.gdk.lock:
-                            self.status_bar.set_text("Queue Paused") 
+                    with gtk.gdk.lock:
+                        if self.status_bar.get_text() == "Idle":
+                            logger.info('Paused')
+                        self.status_bar.set_text("Queue Paused") 
                     time.sleep(1)
                     continue
                 
@@ -655,7 +655,8 @@ if __name__ == "__main__":
                 # If no files, sleep for 1s,
                 if iter is None:
                     with gtk.gdk.lock:
-                        self.status_bar.set_text("Idle")
+                        if self.status_bar.get_text() != "Idle":
+                            self.status_bar.set_text("Idle")
                     time.sleep(1)
                     continue
                     
