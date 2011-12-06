@@ -844,6 +844,7 @@ if __name__ == "__main__":
     app = BLACS()
     # Make it not look so terrible (if icons and themes are installed):
     gtk.settings_get_default().set_string_property('gtk-icon-theme-name','gnome-human','')
+    gtk.settings_get_default().set_string_property('gtk-theme-name','Clearlooks','')
     gtk.settings_get_default().set_string_property('gtk-font-name','ubuntu 10','')
     gtk.settings_get_default().props.gtk_button_images = True
     serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
