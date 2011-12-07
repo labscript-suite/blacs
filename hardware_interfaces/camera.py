@@ -6,6 +6,7 @@ from tab_base_classes import Tab, Worker, define_state
 class camera(Tab):
     def __init__(self,notebook,settings,restart=False):
         self.destroy_complete = False
+        self.transitioned_to_buffered = False
         Tab.__init__(self,CameraWorker,notebook,settings)
         self.settings = settings
         self.builder = gtk.Builder()

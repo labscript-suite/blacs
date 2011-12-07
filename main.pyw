@@ -118,7 +118,7 @@ if __name__ == "__main__":
                                   "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
                                   "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com8"},
                                   "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
-                                  "andor_ixon":{"device_name":"andor_ixon"}
+                                  "camera":{"device_name":"camera"}
                                  }
             
             # read out position settings
