@@ -14,11 +14,15 @@ class camera(Tab):
         self.builder.get_object('title').set_text(self.settings["device_name"])
         self.camera_responding = self.builder.get_object('responding')
         self.camera_notresponding = self.builder.get_object('notresponding')
-        
+        self.host = self.builder.get_object('host')
+        self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
         self.initialise_camera()
         self.builder.connect_signals(self)
     
+    def get_front_panel_state(self):
+        return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
+        
     @define_state
     def destroy(self):        
         self.destroy_complete = True
@@ -26,9 +30,7 @@ class camera(Tab):
     
     @define_state
     def initialise_camera(self,button=None):
-        host = 1
-        port = 1
-        self.queue_work('initialise_camera', host, port)
+        self.queue_work('initialise_camera', self.host.get_text(), self.port.get_text())
         self.do_after('after_initialise_camera')
         
     def after_initialise_camera(self,_results):
@@ -42,7 +44,7 @@ class camera(Tab):
     @define_state
     def transition_to_buffered(self,h5file):       
         self.transitioned_to_buffered = False
-        self.queue_work('starting_experiment',h5file,host,port)
+        self.queue_work('starting_experiment',h5file,self.host.get_text(),self.port.get_text())
         self.do_after('leave_transition_to_buffered')
     
     def leave_transition_to_buffered(self,_results):
