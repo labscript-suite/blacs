@@ -21,7 +21,9 @@ class camera(Tab):
         self.builder.connect_signals(self)
     
     def get_front_panel_state(self):
-        return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
+        #return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
+        #TODO save and load this
+        return None
         
     @define_state
     def destroy(self):        
@@ -70,15 +72,41 @@ class CameraWorker(Worker):
         global socket; import socket
     
     def initialise_camera(self, host, port):
-        print host,port
-        return True
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((host, int(port)))
+        s.send('hello\r\n')
+        response = s.recv(1024)
+        s.close()
+        if 'hello' in response:
+            return True
+        else:
+            raise Exception('invalid response from server: ' + response)
             
     def starting_experiment(self,h5file,host,port):
-        pass
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((host, int(port)))
+        s.send('%s\r\n'%h5file)
+        response = s.recv(1024)
+        if not 'ok' in response:
+            s.close()
+            raise Exception(response)
+        response = s.recv(1024)
+        if not 'done' in response:
+            s.close()
+            raise Exception(response)
         
     def finished_experiment(self,host,port):
-        pass
-        
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((host, int(port)))
+        s.send('done\r\n')
+        response = s.recv(1024)
+        if not 'ok' in response:
+            s.close()
+            raise Exception(response)
+        response = s.recv(1024)
+        if not 'done' in response:
+            s.close()
+            raise Exception(response)
     
         
         
