@@ -7,6 +7,7 @@ class camera(Tab):
     def __init__(self,notebook,settings,restart=False):
         self.destroy_complete = False
         self.transitioned_to_buffered = False
+        self.static_mode = True
         Tab.__init__(self,CameraWorker,notebook,settings)
         self.settings = settings
         self.builder = gtk.Builder()
@@ -52,6 +53,7 @@ class camera(Tab):
     
     def leave_transition_to_buffered(self,_results):
         self.transitioned_to_buffered = True
+        self.static_mode = False
        
     def abort_buffered(self):
         pass
@@ -60,12 +62,12 @@ class camera(Tab):
     def transition_to_static(self):
         # This must be called after all other tabs have done their stuff
         # already, we need to work out hoe to do that.
-        self.queue_work('finished_experiment',host,port)
+        self.queue_work('finished_experiment',self.host.get_text(),self.port.get_text())
         self.do_after('leave_transition_to_static')
     
     def leave_transition_to_static(self,_results):
         self.transitioned_to_buffered = False
-    
+        self.static_mode = True
 
 class CameraWorker(Worker):
 
@@ -85,6 +87,7 @@ class CameraWorker(Worker):
             
     def starting_experiment(self,h5file,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(10)
         s.connect((host, int(port)))
         s.send('%s\r\n'%h5file)
         response = s.recv(1024)
@@ -98,6 +101,7 @@ class CameraWorker(Worker):
         
     def finished_experiment(self,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(10)
         s.connect((host, int(port)))
         s.send('done\r\n')
         response = s.recv(1024)
