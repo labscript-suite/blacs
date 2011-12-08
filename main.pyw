@@ -714,10 +714,8 @@ if __name__ == "__main__":
 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(end_time - start_time)+"s")
-                    # Save front panel data to h5 file!
-                    with h5py.File(path,'r+') as hdf5_file:
-                        states,tab_positions,window_data = self.get_save_data()
-                        self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
+                    # Get front panel data, but don't save it to the h5 file until the experiment ends:
+                    states,tab_positions,window_data = self.get_save_data()
                 
                 logger.debug('About to start the PulseBlaster')
                 self.tablist["pulseblaster_0"].start()
@@ -742,7 +740,9 @@ if __name__ == "__main__":
                 logger.info('Run complete')
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
-                
+                with h5py.File(path,'r+') as hdf5_file:
+                    self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
+                        
                 with h5py.File(path,'a') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
                     
