@@ -663,7 +663,11 @@ if __name__ == "__main__":
                         # do we need to transition this device?
                         with h5py.File(path,'r') as hdf5_file:
                             if name in hdf5_file['devices/']:
-                                tab.transition_to_buffered(path)
+                                # leave camera 'til everything else is
+                                # done, workaround for the fact that the
+                                # camera system does writes to the h5 file:
+                                if name != 'camera':
+                                    tab.transition_to_buffered(path)
                                 transition_list[name] = tab
                 
                 devices_in_use = transition_list.copy()
@@ -683,6 +687,10 @@ if __name__ == "__main__":
                         break
                     if error_condition:
                         break
+                    # Transition the camera to buffered mode only once everything else is done:
+                    if transition_list.keys() == ['camera']:
+                        with gtk.gdk.lock:
+                            transition_list['camera'].transition_to_buffered()
                     time.sleep(0.1)
                 
                 # Handle if we broke out of loop due to timeout
