@@ -162,6 +162,8 @@ class Tab(object):
         self.notresponding.hide()  
         self.error = '' 
         self.tab_label_widgets['error'].hide()
+        if self.state == 'idle':
+            self.tab_label_widgets['ready'].show()
             
     def check_time(self):
         if self.state in ['idle','fatal error']:
