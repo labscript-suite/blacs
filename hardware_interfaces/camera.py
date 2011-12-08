@@ -25,7 +25,7 @@ class camera(Tab):
     def get_front_panel_state(self):
         #return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
         #TODO save and load this
-        return None
+        return {}
         
     @define_state
     def destroy(self):        

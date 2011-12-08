@@ -124,7 +124,7 @@ if __name__ == "__main__":
             # read out position settings
             tab_positions = {}
             try:
-                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r+') as hdf5_file:
+                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
                     notebook_settings = hdf5_file['/front_panel/_notebook_data']
                     
                     self.window.move(notebook_settings.attrs["window_xpos"],notebook_settings.attrs["window_ypos"])
@@ -241,31 +241,35 @@ if __name__ == "__main__":
                 message.destroy()
             logger.info('Open file:\n%s ' % result)
             
-        def get_save_data(self):    
+        def get_save_data(self):   
+            # So states is a dict with an item for each device
+            # *class*. These items have the key being the class name, and
+            # the value being another dictionary. This other dictionary
+            # has keys being the specific names of each device of that
+            # class, and values being each device tab's settings dict.
             states = {}
             tab_positions = {}
-            for k,v in self.tablist.items():
-                if self.attached_devices[k] not in states:
-                    states[self.attached_devices[k]] = {}
-                front_panel_states = v.get_front_panel_state()
-                if front_panel_states:
-                    # Skip if get_front_panel_state() returns none
-                    states[self.attached_devices[k]][k] = front_panel_states
+            for devicename,tab in self.tablist.items():
+                deviceclass_name = self.attached_devices[devicename]
+                if deviceclass_name not in states:
+                    states[deviceclass_name] = {}
+                front_panel_states = tab.get_front_panel_state()
+                states[deviceclass_name][devicename] = front_panel_states
             
                 # Find the notebook it is in
-                notebook = v._toplevel.get_parent()
+                current_notebook = tab._toplevel.get_parent()
                 # By default we assume it is in notebook1. This way, if a tab gets lost somewhere, and isn't found to be a child of any notebook we know about, 
                 # it will revert back to notebook 1 when the file is loaded!
-                notebook_name = "1" 
+                current_notebook_name = "1" 
                 
-                for l,m in self.notebook.items():
-                    if m == notebook:
-                        notebook_name = l                       
+                for notebook_name,notebook in self.notebook.items():
+                    if notebook == current_notebook:
+                        current_notebook_name = notebook_name                       
                 
-                page = notebook.page_num(v._toplevel)
-                visible = True if notebook.get_current_page() == page else False
+                page = current_notebook.page_num(tab._toplevel)
+                visible = True if current_notebook.get_current_page() == page else False
                 # find the page it is in
-                tab_positions[k] = {"notebook":notebook_name,"page":page, "visible":visible}
+                tab_positions[devicename] = {"notebook":current_notebook_name,"page":page, "visible":visible}
             
             # save window data
             window_data = {}
@@ -306,7 +310,6 @@ if __name__ == "__main__":
 
         def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,silent = {}):        
             # Save the front panel!
-
 
             # Does the file exist?            
             #   Yes: Check connection table inside matches current connection table. Does it match?
@@ -387,88 +390,62 @@ if __name__ == "__main__":
             #with h5py.File(current_file,'a') as hdf5_file:
             data_group = hdf5_file['/'].create_group('front_panel')
             
-            # Iterate over each device class.
-            # Here k is the device class
-            #      v is the dictionary containing an entry for each device
-            for k,v in states.items():
-                logger.debug("saving front panel for class:" +k) 
+            # Iterate over each device class:
+            for deviceclass, deviceclass_states in states.items():
+                logger.debug("saving front panel for class:" + deviceclass) 
                 device_data = None
-                ds = None
-                my_dtype = []
+                dataset = None
+                dtypes = [('name','a256')]
+                
                 i = 0
-                
-                #The first entry in each row of the numpy array should be a string! Let's find the biggest string for this device and add it
-                max_string_length = 0
-                
-                # Here j is the device name
-                #      w is the dictionary of front panel values
-                for j,w in v.items():
-                    if len(j) > max_string_length:
-                        max_string_length = len(j)
-                
-                # Here j is the device name
-                #      w is the dictionary of front panel values
-                for j,w in v.items():
-                    logger.debug("saving front panel for device:" +j) 
-                    if device_data == None:
-                        
-                        # add the dtype for the string
-                        my_dtype.append(('name','a'+str(max_string_length)))
-                        
-                        # Add the dtypes for the generic dictionary entries
-                        # Here l property name (eg freq0, DO12, etc)
-                        #      x value of the property
-                        for l,x in w.items():
-                            my_dtype.append((l,type(x)))
-                        logger.debug("Generated dtypes dtypes:"+str(my_dtype))
+                # Iterate over each device within a class
+                for devicename, device_state in deviceclass_states.items():
+                    logger.debug("saving front panel for device:" + devicename) 
+                    if device_data is None:
+                        # Add the dtypes for the device's state property
+                        # name (eg freq0, DO12, etc) and value of the
+                        # property:
+                        for property_name, property_value in device_state.items():
+                            dtype = type(property_value)
+                            if dtype is str:
+                                # Have to specify string length:
+                                dtype = 'a256'
+                            dtypes.append((property_name,dtype))
+                        logger.debug("Generated dtypes dtypes:"+str(dtypes))
                         
                         # Create the numpy array
-                        device_data = numpy.empty(len(v),dtype=my_dtype)
-                        logger.debug("Length of variable 'v':"+str(len(v)))
-                        logger.debug("Shape of data array:"+str(device_data.shape)) 
+                        device_data = numpy.empty(len(deviceclass_states),dtype=dtypes)
+                        logger.debug("Length of dict 'deviceclass_states': "+str(len(deviceclass_states)))
+                        logger.debug("Shape of data array: "+str(device_data.shape)) 
                         
                     logger.debug("inserting data to the array")
                     
                     # Get the data into a list for the i'th row.
-                    data_list = []
-                    data_list.append(j)
-                    
-                    # Here l property name (eg freq0, DO12, etc)
-                    #      x value of the property
-                    for l,x in w.items():
-                        data_list.append(x)
+                    data_list = [devicename]
+                    for property_name, value in device_state.items():
+                        data_list.append(property_value)
                     device_data[i] = tuple(data_list)
                     i += 1
                 
                 # Create the dataset! 
                 logger.debug("attempting to create dataset...")   
-                ds = data_group.create_dataset(k,data=device_data)
+                dataset = data_group.create_dataset(deviceclass,data=device_data)
                 
             # Save tab positions
             #logger.info(tab_positions)
-            
-            #The first entry in each row of the numpy array should be a string! Let's find the biggest string for this device and add it
-            max_string_length = 0
-            
-            # Here j is the device name
-            #      w is the dictionary of front panel values
-            for k,v in tab_positions.items():
-                if len(k) > max_string_length:
-                    max_string_length = len(k)
-            
             i = 0
-            tab_data = numpy.empty(len(tab_positions),dtype=[('tab_name','a'+str(max_string_length)),('notebook','a2'),('page',type(1)),('visible',type(False))])
+            tab_data = numpy.empty(len(tab_positions),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool)])
             for k,v in tab_positions.items():
                 tab_data[i] = (k,v["notebook"],v["page"],v["visible"])
                 i += 1
-            ds = data_group.create_dataset("_notebook_data",data=tab_data)
-            ds.attrs["window_width"] = window_data["window"]["width"]
-            ds.attrs["window_height"] = window_data["window"]["height"]
-            ds.attrs["window_xpos"] = window_data["window"]["xpos"]
-            ds.attrs["window_ypos"] = window_data["window"]["ypos"]
+            dataset = data_group.create_dataset("_notebook_data",data=tab_data)
+            dataset.attrs["window_width"] = window_data["window"]["width"]
+            dataset.attrs["window_height"] = window_data["window"]["height"]
+            dataset.attrs["window_xpos"] = window_data["window"]["xpos"]
+            dataset.attrs["window_ypos"] = window_data["window"]["ypos"]
             for k,v in window_data.items():
                 if k != "window":
-                    ds.attrs[k] = v
+                    dataset.attrs[k] = v
         
         def clean_h5_file(self,h5file,new_h5_file):
             try:
