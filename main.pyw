@@ -690,7 +690,7 @@ if __name__ == "__main__":
                     # Transition the camera to buffered mode only once everything else is done:
                     if transition_list.keys() == ['camera']:
                         with gtk.gdk.lock:
-                            transition_list['camera'].transition_to_buffered()
+                            transition_list['camera'].transition_to_buffered(path)
                     time.sleep(0.1)
                 
                 # Handle if we broke out of loop due to timeout
