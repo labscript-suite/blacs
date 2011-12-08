@@ -41,7 +41,6 @@ class camera(Tab):
                         return
                 self.logger.warning('No entry for this device in saved front panel states')
         except:
-            raise
             self.logger.warning('Couldn\'t restore front panel state')
             
     @define_state

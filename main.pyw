@@ -489,7 +489,11 @@ if __name__ == "__main__":
                 
                 # Save front panel
                 data = self.get_save_data()
-                self.save_front_panel_to_h5(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),data[0],data[1],data[2],{"overwrite":True})
+                settingspath = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
+                with h5py.File(settingspath,'r+') as h5file:
+                    if 'connection table' in h5file:
+                        del h5file['connection table']
+                self.save_front_panel_to_h5(settingspath,data[0],data[1],data[2],{"overwrite":True})
                 gobject.timeout_add(100,self.finalise_quit,time.time())
         
         def finalise_quit(self,initial_time):
@@ -699,8 +703,7 @@ if __name__ == "__main__":
                     with gtk.gdk.lock:
                         self.now_running.hide()
                     continue
-                
-                
+
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(end_time - start_time)+"s")
                     # Save front panel data to h5 file!
