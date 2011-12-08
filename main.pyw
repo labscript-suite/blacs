@@ -704,9 +704,9 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(end_time - start_time)+"s")
                     # Save front panel data to h5 file!
-                    #with h5py.File(path,'r+') as hdf5_file:
-                        #states,tab_positions,window_data = self.get_save_data()
-                        #self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
+                    with h5py.File(path,'r+') as hdf5_file:
+                        states,tab_positions,window_data = self.get_save_data()
+                        self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
                 
                 logger.debug('About to start the PulseBlaster')
                 self.tablist["pulseblaster_0"].start()
