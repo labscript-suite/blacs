@@ -1,3 +1,5 @@
+import os
+import socket
 import gtk
 import h5py
 
@@ -19,14 +21,29 @@ class camera(Tab):
         self.host = self.builder.get_object('host')
         self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
+        self.restore_front_panel_state()
         self.initialise_camera()
         self.builder.connect_signals(self)
     
     def get_front_panel_state(self):
-        #return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
-        #TODO save and load this
-        return {}
-        
+        return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
+    
+    def restore_front_panel_state(self):
+        try:
+            with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
+                dataset = hdf5_file['front_panel/camera']
+                for row in dataset:
+                   name,host,port = row
+                   if name == self.settings["device_name"]:
+                        self.host.set_text(host)
+                        self.port.set_text(port)
+                        print host, port, 'SDFDSFSDLFHSKFHSDFKHSDKJHLFDLHJ'
+                        return
+                self.logger.warning('No entry for this device in saved front panel states')
+        except:
+            raise
+            self.logger.warning('Couldn\'t restore front panel state')
+            
     @define_state
     def destroy(self):        
         self.destroy_complete = True
@@ -71,8 +88,8 @@ class camera(Tab):
 
 class CameraWorker(Worker):
 
-    def init(self):
-        global socket; import socket
+#    def init(self):
+#        global socket; import socket
     
     def initialise_camera(self, host, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -422,7 +422,7 @@ if __name__ == "__main__":
                     
                     # Get the data into a list for the i'th row.
                     data_list = [devicename]
-                    for property_name, value in device_state.items():
+                    for property_name, property_value in device_state.items():
                         data_list.append(property_value)
                     device_data[i] = tuple(data_list)
                     i += 1
