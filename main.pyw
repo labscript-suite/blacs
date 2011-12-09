@@ -112,6 +112,7 @@ if __name__ == "__main__":
             self.attached_devices = self.connection_table.find_devices(device_list)
             
             self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
+                                  "ni_pci_6733_0":{"device_name":"ni_pci_6733_0"},
                                   "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
                                   "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","f1":"20.0","a1":"0.35","p1":"0"},
                                   "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
