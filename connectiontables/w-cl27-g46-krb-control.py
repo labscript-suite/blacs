@@ -3,6 +3,7 @@ from labscript import *
 PulseBlaster(  'pulseblaster_0')
 PulseBlaster(  'pulseblaster_1')
 NI_PCIe_6363(  'ni_pcie_6363_0',  pulseblaster_0, 'fast clock')
+NI_PCI_6733(    'ni_pci_6733_0',  pulseblaster_0, 'fast clock')
 NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock')#flag 1
 NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock')#flag 1
 NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 1

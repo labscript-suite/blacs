@@ -18,7 +18,7 @@ import excepthook
 
 from tab_base_classes import Tab, Worker, define_state
 
-class ni_pcie_6733(Tab):
+class ni_pci_6733(Tab):
 
     # settings should contain a dictionary of information from the connection table, relevant to this device.
     # aka, it could be parent: pb_0/flag_0 (pseudoclock)
@@ -32,7 +32,7 @@ class ni_pcie_6733(Tab):
     #
     def __init__(self,notebook,settings,restart=False):
         self.settings = settings
-        Tab.__init__(self,NiPCIe6363Worker,notebook,settings)
+        Tab.__init__(self,NiPCI6733Worker,notebook,settings)
         
         self.init_done = False
         self.static_mode = False
@@ -290,14 +290,14 @@ class ni_pcie_6733(Tab):
                 self.analog_outs[i].update_value(widget.get_text())
 
     
-class NiPCIe6733Worker(Worker):
+class NiPCI6733Worker(Worker):
     def init(self):
         
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         
-        global ni_programming; from hardware_programming import ni_pcie_6733 as ni_programming
+        global ni_programming; from hardware_programming import ni_pci_6733 as ni_programming
         self.num_DO = 0
         self.num_AO = 8
         self.num_RF = 0

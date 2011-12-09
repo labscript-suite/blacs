@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
+  <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkAdjustment" id="adjustment1">
     <property name="lower">-10</property>
     <property name="upper">10</property>
@@ -25,9 +26,35 @@
     <property name="step_increment">0.10000000000000001</property>
     <property name="page_increment">1</property>
   </object>
+  <object class="GtkAdjustment" id="adjustment5">
+    <property name="lower">-10</property>
+    <property name="upper">10</property>
+    <property name="step_increment">0.10000000000000001</property>
+    <property name="page_increment">1</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment6">
+    <property name="lower">-10</property>
+    <property name="upper">10</property>
+    <property name="step_increment">0.10000000000000001</property>
+    <property name="page_increment">1</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment7">
+    <property name="lower">-10</property>
+    <property name="upper">10</property>
+    <property name="step_increment">0.10000000000000001</property>
+    <property name="page_increment">1</property>
+  </object>
+  <object class="GtkAdjustment" id="adjustment8">
+    <property name="lower">-10</property>
+    <property name="upper">10</property>
+    <property name="step_increment">0.10000000000000001</property>
+    <property name="page_increment">1</property>
+  </object>
   <object class="GtkScrolledWindow" id="toplevel">
     <property name="visible">True</property>
     <property name="can_focus">True</property>
+    <property name="hscrollbar_policy">automatic</property>
+    <property name="vscrollbar_policy">automatic</property>
     <child>
       <object class="GtkViewport" id="viewport1">
         <property name="visible">True</property>
@@ -40,6 +67,8 @@
               <object class="GtkScrolledWindow" id="scrolledwindow2">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="hscrollbar_policy">automatic</property>
+                <property name="vscrollbar_policy">automatic</property>
                 <child>
                   <object class="GtkToolPalette" id="toolpalette2">
                     <property name="visible">True</property>
@@ -99,6 +128,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment1</property>
                                             <property name="digits">4</property>
                                             <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -190,6 +221,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment2</property>
                                             <property name="digits">4</property>
                                             <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -284,6 +317,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment3</property>
                                             <property name="digits">4</property>
                                             <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -378,6 +413,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment4</property>
                                             <property name="digits">4</property>
                                             <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -472,8 +509,11 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="adjustment">adjustment4</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">adjustment5</property>
                                             <property name="digits">4</property>
+                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -565,8 +605,11 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="adjustment">adjustment4</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">adjustment6</property>
                                             <property name="digits">4</property>
+                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -658,8 +701,11 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="adjustment">adjustment4</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">adjustment7</property>
                                             <property name="digits">4</property>
+                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -751,8 +797,11 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="adjustment">adjustment4</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
+                                            <property name="adjustment">adjustment8</property>
                                             <property name="digits">4</property>
+                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
