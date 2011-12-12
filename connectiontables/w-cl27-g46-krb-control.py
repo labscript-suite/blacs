@@ -3,7 +3,7 @@ from labscript import *
 PulseBlaster(  'pulseblaster_0')
 PulseBlaster(  'pulseblaster_1')
 NI_PCIe_6363(  'ni_pcie_6363_0',  pulseblaster_0, 'fast clock')
-NI_PCI_6733(    'ni_pci_6733_0',  pulseblaster_0, 'fast clock')
+NI_PCI_6733(    'ni_pci_6733_0',  pulseblaster_0, 'slow clock')
 NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock')#flag 1
 NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock')#flag 1
 NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 1
@@ -50,9 +50,9 @@ StaticDDS(       'K_Lock',                               novatechdds9m_1,       
 #DoubledStaticDDS('',                                     novatechdds9m_2,        'channel 3')
 
 AnalogOut(      'ASD',                                   ni_pcie_6363_0,         'ao0')
-#AnalogOut(      '',                                     ni_pcie_6363_0,         'ao1')
-#AnalogOut(      '',                                     ni_pcie_6363_0,         'ao2')
-#AnalogOut(      '',                                     ni_pcie_6363_0,         'ao3')
+#AnalogOut(      'ao1',                                     ni_pcie_6363_0,         'ao1')
+AnalogOut(      'ao2',                                     ni_pcie_6363_0,         'ao2')
+#AnalogOut(      'ao3',                                     ni_pcie_6363_0,         'ao3')
 
 DigitalOut(     'Rb_Central_MOT_RF_Switch',              ni_pcie_6363_0,         'port0/line0')                                  #NT_0_0
 DigitalOut(     'Rb_Source_MOT_RF_Switch',                ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1
@@ -70,7 +70,7 @@ Shutter(     'Shutter_0_1',                              ni_pcie_6363_0,        
 Shutter(     'Shutter_0_2',                              ni_pcie_6363_0,         'port0/line13', delay=(5e-3,5e-3))              #Sh_0_2
 Shutter(     'Shutter_0_3',                              ni_pcie_6363_0,         'port0/line14', delay=(5e-3,5e-3))              #Sh_0_3
 Shutter(     'Shutter_0_4',                              ni_pcie_6363_0,         'port0/line15', delay=(5e-3,5e-3))              #Sh_0_4
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line16')
+DigitalOut(     'do16test',                                     ni_pcie_6363_0,         'port0/line16')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line17')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line18')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line19')
@@ -119,4 +119,6 @@ AnalogIn(       'ai28',                                     ni_pcie_6363_0,     
 AnalogIn(       'ai29',                                     ni_pcie_6363_0,         'ai29')
 AnalogIn(       'ai30',                                     ni_pcie_6363_0,         'ai30')
 AnalogIn(       'ai31',                                     ni_pcie_6363_0,         'ai31')
+
+AnalogOut('ao06733', ni_pci_6733_0, 'ao0')
 stop(1)

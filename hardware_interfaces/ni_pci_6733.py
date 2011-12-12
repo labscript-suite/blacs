@@ -124,12 +124,7 @@ class ni_pci_6733(Tab):
     #
     @define_state
     def destroy(self):
-
         self.init_done = False
-        
-        self.write_queue.put(["shutdown"])
-        self.result_queue.put([None,None,None,None,'shutdown'])
-                
         self.queue_work('close_device')
         self.do_after('leave_destroy')
         
@@ -293,7 +288,7 @@ class ni_pci_6733(Tab):
 class NiPCI6733Worker(Worker):
     def init(self):
         
-        exec 'from PyDAQmx import Task' in globals()
+        exec 'from PyDAQmx import Task, DAQmxConnectTerms, DAQmxDisconnectTerms' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         
@@ -332,7 +327,7 @@ class NiPCI6733Worker(Worker):
         self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
           
     def program_buffered(self,h5file):        
-        self.ao_task = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
+        self.ao_task = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task)
         return True
     
     def abort_buffered(self):
