@@ -668,7 +668,7 @@ class Worker2(multiprocessing.Process):
                     
             if self.buffered:
                 #set up start on digital trigger
-                self.task.CfgDigEdgeStartTrig("/ni_pcie_6363_0/PFI0",DAQmx_Val_Rising)
+                self.task.CfgDigEdgeStartTrig(self.clock_terminal,DAQmx_Val_Rising)
             
             #DAQmx Start Code
             self.task.StartTask()
@@ -699,11 +699,12 @@ class Worker2(multiprocessing.Process):
         h5_chnls = ""
         with h5py.File(h5file,'r') as hdf5_file:
             try:
-                h5_chnls = hdf5_file['/devices/'+device_name].attrs['analog_in_channels']
-                self.buffered_rate = float(hdf5_file['/devices/'+device_name].attrs['acquisition_rate'])
+                group =  hdf5_file['/devices/'+device_name]
+                self.clock_terminal = group.attrs['clock_terminal']
+                h5_chnls = group.attrs['analog_in_channels']
+                self.buffered_rate = float(group.attrs['acquisition_rate'])
             except:
                 self.logger.error("couldn't get the channel list from h5 file. Skipping...")
-        
         
         # combine static channels with h5 channels
         h5_chnls = h5_chnls.split(', ')
@@ -737,21 +738,17 @@ class Worker2(multiprocessing.Process):
         with h5py.File(self.h5_file,'a') as hdf5_file:
             data_group = hdf5_file['/data']
             ni_group = data_group.create_group(device_name)
-            i = 0
+            dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
             start_time = time.time()
-            self.buffered_data = numpy.zeros((len(self.buffered_data_list)*1000,len(self.buffered_channels)))
-            for data in self.buffered_data_list:
+            self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
+            for i, data in enumerate(self.buffered_data_list):
                 data.shape = (len(self.buffered_channels),self.ai_read.value)              
                 data = data.transpose()
-                #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
-                self.buffered_data[i*1000:(i*1000)+1000,:] = data
+                for j, (chan, dtype) in enumerate(dtypes):
+                    self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
                 if i % 100 == 0:
                     self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time) )
-                i += 1
-            if len(self.buffered_channels) == 1:
-                ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):])
-            else:
-                ds =  ni_group.create_dataset('analog_data', data=self.buffered_data[-(self.buffered_data.shape[0]-1):,:])
+            ni_group.create_dataset('analog_data', data=self.buffered_data)
             self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
         
         self.buffered_data = None
@@ -764,3 +761,30 @@ class Worker2(multiprocessing.Process):
         self.buffered = False
         self.setup_task()
         
+    def extract_measurements(self, device_name):
+        with h5py.File(self.h5_file,'a') as hdf5_file:
+            try:
+                acquisitions = hdf5_file['/devices/'+device_name+'ACQUISITIONS']
+            except:
+                # No acquisitions!
+                return
+            measurements = hdf5_file['/data/'+device_name].create_group('measurements')
+            raw_data = hdf5_file['/data/'+device_name+'analog_data']
+            for connection,label,start_time,end_time,scale_factor,units in acquisitions:
+                start_index = numpy.floor(self.buffered_rate*start_time)
+                end_index = numpy.ceil(self.buffered_rate*end_time)
+                times = numpy.linspace(start_time,end_time,
+                                       (end_time - start_time)*self.buffered_rate,
+                                       endpoint=False)
+                values = raw_data[connection][start_index:end_index]
+            dtypes = [('t', numpy.float32),('values', numpy.float32)]
+            data = numpy.empty(len(data),dtype=dtypes)
+            data['t'] = times
+            data['values'] = values
+            measurements.create_group(label, data=data)
+            
+            
+            
+            
+            
+            
