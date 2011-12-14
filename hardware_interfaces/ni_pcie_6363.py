@@ -608,8 +608,6 @@ class Worker2(multiprocessing.Process):
                 while not self.task_running:
                     logger.debug('Task isn\'t running. Releasing daqlock and waiting to reacquire it.')
                     self.daqlock.wait()
-                # Let the notifying function have the lock back until it releases it and returns to the mainloop:
-                self.daqlock.notify()
                 logger.debug('Reading data from analogue inputs')
                 if self.buffered:
                     chnl_list = self.buffered_channels
@@ -645,6 +643,7 @@ class Worker2(multiprocessing.Process):
         self.logger.debug('setup_task')
         #DAQmx Configure Code
         with self.daqlock:
+            self.logger.debug('setup_task got daqlock')
             if self.buffered:
                 chnl_list = self.buffered_channels
                 rate = self.buffered_rate
@@ -659,8 +658,10 @@ class Worker2(multiprocessing.Process):
                 self.samples_per_channel = int(rate)
             else:
                 self.samples_per_channel = 1000
-            
-            self.task = Task()
+            try:
+                self.task = Task()
+            except Exception as e:
+                self.logger.error(str(e))
             self.ai_read = int32()
             self.ai_data = numpy.zeros((self.samples_per_channel*len(chnl_list),), dtype=numpy.float64)   
             
@@ -680,15 +681,18 @@ class Worker2(multiprocessing.Process):
             self.t0 = time.time() - time.timezone
             self.task_running = True
             self.daqlock.notify()
-    
+        self.logger.debug('finished setup_task')
+        
     def stop_task(self):
         self.logger.debug('stop_task')
         with self.daqlock:
+            self.logger.debug('stop_task got daqlock')
             if self.task_running:
                 self.task_running = False
                 self.task.StopTask()
                 self.task.ClearTask()
             self.daqlock.notify()
+        self.logger.debug('finished stop_task')
         
     def transition_to_buffered(self,h5file,device_name):
         self.logger.debug('transition_to_buffered')
