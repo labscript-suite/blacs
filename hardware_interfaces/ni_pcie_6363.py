@@ -546,7 +546,7 @@ class NiPCIe6363Worker(Worker):
 class Worker2(multiprocessing.Process):
     def run(self):
         self.name, self.read_queue, self.write_queue, self.result_queue = self._args
-        
+        self.logger = logging.getLogger('BLACS.%s.acquisition'%self.name)
         self.task_running = False
         self.daqlock = threading.Condition()
         # Channel details
@@ -573,7 +573,7 @@ class Worker2(multiprocessing.Process):
         while True:
             logger.debug('Waiting for instructions')
             cmd = self.read_queue.get()
-            logger.debug('Got a command')
+            logger.debug('Got a command: %s' % cmd[0])
             # Process the command
             if cmd[0] == "add channel":
                 logger.debug('Adding a channel')
@@ -608,6 +608,8 @@ class Worker2(multiprocessing.Process):
                 while not self.task_running:
                     logger.debug('Task isn\'t running. Releasing daqlock and waiting to reacquire it.')
                     self.daqlock.wait()
+                # Let the notifying function have the lock back until it releases it and returns to the mainloop:
+                self.daqlock.notify()
                 logger.debug('Reading data from analogue inputs')
                 if self.buffered:
                     chnl_list = self.buffered_channels
@@ -640,6 +642,7 @@ class Worker2(multiprocessing.Process):
                 self.t0 = self.t0 + self.samples_per_channel/self.rate
         
     def setup_task(self):
+        self.logger.debug('setup_task')
         #DAQmx Configure Code
         with self.daqlock:
             if self.buffered:
@@ -679,6 +682,7 @@ class Worker2(multiprocessing.Process):
             self.daqlock.notify()
     
     def stop_task(self):
+        self.logger.debug('stop_task')
         with self.daqlock:
             if self.task_running:
                 self.task_running = False
@@ -687,6 +691,7 @@ class Worker2(multiprocessing.Process):
             self.daqlock.notify()
         
     def transition_to_buffered(self,h5file,device_name):
+        self.logger.debug('transition_to_buffered')
         # stop current task
         self.stop_task()
         
@@ -731,6 +736,7 @@ class Worker2(multiprocessing.Process):
         self.setup_task()     
     
     def transition_to_static(self,device_name):
+        self.logger.debug('transition_to_static')
         # Stop acquisition (this should really be done on a digital edge, but that is for later! Maybe use a Counter)
         self.stop_task()        
         self.logger.info('transitioning to static, task stopped')
@@ -760,8 +766,10 @@ class Worker2(multiprocessing.Process):
         # return to previous acquisition mode
         self.buffered = False
         self.setup_task()
+        self.extract_measurements(device_name)
         
     def extract_measurements(self, device_name):
+        self.logger.debug('extract_measurements')
         with h5py.File(self.h5_file,'a') as hdf5_file:
             try:
                 acquisitions = hdf5_file['/devices/'+device_name+'ACQUISITIONS']
@@ -777,11 +785,11 @@ class Worker2(multiprocessing.Process):
                                        (end_time - start_time)*self.buffered_rate,
                                        endpoint=False)
                 values = raw_data[connection][start_index:end_index]
-            dtypes = [('t', numpy.float32),('values', numpy.float32)]
-            data = numpy.empty(len(data),dtype=dtypes)
-            data['t'] = times
-            data['values'] = values
-            measurements.create_group(label, data=data)
+                dtypes = [('t', numpy.float32),('values', numpy.float32)]
+                data = numpy.empty(len(data),dtype=dtypes)
+                data['t'] = times
+                data['values'] = values
+                measurements.create_group(label, data=data)
             
             
             

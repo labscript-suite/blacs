@@ -2,8 +2,9 @@ from labscript import *
 
 # MAIN DEVICE DEFINITIONS
 PulseBlaster(   'pulseblaster_0')
-NI_PCIe_6363(   'ni_pcie_6363_0',  pulseblaster_0, 'fast clock')
-NovaTechDDS9M( 'novatechdds9m_9', pulseblaster_0, 'slow clock')
+NI_PCIe_6363(   'ni_pcie_6363_0',  pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0')
+NI_PCI_6733(     'ni_pci_6733_0',  pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0')
+NovaTechDDS9M( 'novatechdds9m_9',  pulseblaster_0, 'slow clock')
 
 # MAG-NEAT-O CONTROL
 AnalogOut(    'Bx',  ni_pcie_6363_0,         'ao0')
