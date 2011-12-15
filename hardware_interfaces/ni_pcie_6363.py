@@ -795,7 +795,7 @@ class Worker2(multiprocessing.Process):
                     self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
                 if i % 100 == 0:
                     self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
-            ni_group.create_dataset('analog_data', self.buffered_data)
+            ni_group.create_dataset('analog_data', data = self.buffered_data)
             self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
         
         self.buffered_data = None
