@@ -138,8 +138,7 @@ class ni_pcie_6363(Tab):
     def destroy(self):
 
         self.init_done = False
-        
-        self.write_queue.put(["shutdown"])
+
         self.result_queue.put([None,None,None,None,'shutdown'])
                 
         self.queue_work('close_device')
@@ -207,17 +206,17 @@ class ni_pcie_6363(Tab):
     #
     # This function returns True, if the task was successfully started, or False if it was not.
     #
-    def request_analog_input(self,channel,rate,callback):
-        if channel >= 0 and channel < self.num_AI:
-            self.ai_callback_list[channel].append([callback,rate])
-        
-            # communicate with subprocess. Request data from channel be included in the queue. Up aquisition rate if necessary
-            
-            self.write_queue.put(["add channel","ni_pcie_6363_0/ai"+str(channel),str(rate)])
-            
-            return True
-        else:
-            return False
+#    def request_analog_input(self,channel,rate,callback):
+#        if channel >= 0 and channel < self.num_AI:
+#            self.ai_callback_list[channel].append([callback,rate])
+#        
+#            # communicate with subprocess. Request data from channel be included in the queue. Up aquisition rate if necessary
+#            
+#            self.write_queue.put(["add channel","ni_pcie_6363_0/ai"+str(channel),str(rate)])
+#            
+#            return True
+#        else:
+#            return False
     #
     # ** This method should be common to all hardware interfaces **
     #
@@ -360,8 +359,6 @@ class ni_pcie_6363(Tab):
     def program_buffered(self,h5file):
         # disable static update
         self.static_mode = False               
-        self.write_queue.put(["transition to buffered",h5file,self.settings["device_name"]])
-        
         self.queue_work('program_buffered',h5file)
         self.do_after('leave_program_buffered')
         
@@ -372,14 +369,12 @@ class ni_pcie_6363(Tab):
         
     @define_state
     def abort_buffered(self):        
-        self.write_queue.put(["transition to static",self.settings["device_name"]])
         self.queue_work('abort_buffered')
         self.static_mode = True
         
     @define_state        
     def transition_to_static(self):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
-        self.write_queue.put(["transition to static",self.settings["device_name"]])
         #reenable static updates
         self.queue_work('transition_to_static')
         self.do_after('leave_transition_to_static')
@@ -388,20 +383,20 @@ class ni_pcie_6363(Tab):
         # This needs to be put somewhere else...When I fix up updating the GUI values
         self.static_mode = True
     
-    def setup_buffered_trigger(self):
-        self.buffered_do_start_task = Task()
-        self.buffered_do_start_task.CreateDOChan("ni_pcie_6363_0/port2/line0","",DAQmx_Val_ChanPerLine)
-        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([1],dtype=pylab.uint8),None,None)
-    
-    def start_buffered(self):
-        
-        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([0],dtype=pylab.uint8),None,None)
-        self.buffered_do_start_task.StartTask()
-        time.sleep(0.1)
-        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([1],dtype=pylab.uint8),None,None)
-        
-        self.buffered_do_start_task.StopTask()
-        self.buffered_do_start_task.ClearTask()
+#    def setup_buffered_trigger(self):
+#        self.buffered_do_start_task = Task()
+#        self.buffered_do_start_task.CreateDOChan("ni_pcie_6363_0/port2/line0","",DAQmx_Val_ChanPerLine)
+#        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([1],dtype=pylab.uint8),None,None)
+#    
+#    def start_buffered(self):
+#        
+#        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([0],dtype=pylab.uint8),None,None)
+#        self.buffered_do_start_task.StartTask()
+#        time.sleep(0.1)
+#        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([1],dtype=pylab.uint8),None,None)
+#        
+#        self.buffered_do_start_task.StopTask()
+#        self.buffered_do_start_task.ClearTask()
         
     #
     # ** This method should be common to all hardware interfaces **
@@ -439,6 +434,7 @@ class ni_pcie_6363(Tab):
 class NiPCIe6363Worker(Worker):
     def init(self):
         self.acquisition_worker = Worker2(args=self.acq_args)
+        ignore, self.to_child, self.from_child, ignore = self.acq_args
         self.acquisition_worker.daemon = True
         self.acquisition_worker.start()
         
@@ -487,7 +483,11 @@ class NiPCIe6363Worker(Worker):
         self.ao_task.ClearTask()
         self.do_task.StopTask()
         self.do_task.ClearTask()
-        
+        self.to_child.put(["shutdown"])
+        result, message = self.from_child.get()
+        if result == 'error':
+            raise Exception(message)
+            
     def program_static(self,analog_outs,digital_outs):
         # Program a static change
         # write AO
@@ -506,7 +506,10 @@ class NiPCIe6363Worker(Worker):
     
     def program_buffered(self,h5file):        
         self.ao_task, self.do_task = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
-        
+        self.to_child.put(["transition to buffered",h5file,self.device_name])
+        result = self.from_child.get()
+        if result == 'error':
+            raise Exception(message)
         return True
     
     def abort_buffered(self):
@@ -522,7 +525,11 @@ class NiPCIe6363Worker(Worker):
         #update values on GUI
         self.ao_task.StartTask()
         self.do_task.StartTask()
-    
+        self.to_child.put(["transition to static",self.device_name])
+        result,message = self.from_child.get()
+        if result == 'error':
+            raise Exception(message)
+        
     def transition_to_static(self):
         self.ao_task.StopTask()
         self.ao_task.ClearTask()
@@ -537,7 +544,11 @@ class NiPCIe6363Worker(Worker):
         #update values on GUI
         self.ao_task.StartTask()
         self.do_task.StartTask()
-    
+        self.to_child.put(["transition to static",self.device_name])
+        result = self.from_child.get()
+        if result == 'error':
+            raise Exception(message)
+        
 #########################################
 #                                       #
 #       Worker class for AI input       #
@@ -545,7 +556,7 @@ class NiPCIe6363Worker(Worker):
 #########################################
 class Worker2(multiprocessing.Process):
     def run(self):
-        self.name, self.read_queue, self.write_queue, self.result_queue = self._args
+        self.name, self.from_parent, self.to_parent, self.result_queue = self._args
         self.logger = logging.getLogger('BLACS.%s.acquisition'%self.name)
         self.task_running = False
         self.daqlock = threading.Condition()
@@ -572,33 +583,41 @@ class Worker2(multiprocessing.Process):
         logger.info('Starting')
         while True:
             logger.debug('Waiting for instructions')
-            cmd = self.read_queue.get()
+            cmd = self.from_parent.get()
             logger.debug('Got a command: %s' % cmd[0])
             # Process the command
-            if cmd[0] == "add channel":
-                logger.debug('Adding a channel')
-                #TODO we should check to make sure the channel isn't already added!
-                self.channels.append([cmd[1]])
-                # update the rate
-                if self.rate < float(cmd[2]):
-                    self.rate = float(cmd[2])
-                if self.task_running:
-                    self.stop_task()
-                self.setup_task()
-            elif cmd[0] == "remove channel":
-                pass
-            elif cmd[0] == "shutdown":
-                logger.info('Shutdown requested, stopping task')
-                if self.task_running:
-                    self.stop_task()                  
-                break
-            elif cmd[0] == "transition to buffered":
-                self.transition_to_buffered(cmd[1],cmd[2])
-            elif cmd[0] == "transition to static":
-                self.transition_to_static(cmd[1])
-            elif cmd == "":
-                pass         
-    
+            try:
+                if cmd[0] == "add channel":
+                    logger.debug('Adding a channel')
+                    #TODO we should check to make sure the channel isn't already added!
+                    self.channels.append([cmd[1]])
+                    # update the rate
+                    if self.rate < float(cmd[2]):
+                        self.rate = float(cmd[2])
+                    if self.task_running:
+                        self.stop_task()
+                    self.setup_task()
+                elif cmd[0] == "remove channel":
+                    pass
+                elif cmd[0] == "shutdown":
+                    logger.info('Shutdown requested, stopping task')
+                    if self.task_running:
+                        self.stop_task()                  
+                    break
+                elif cmd[0] == "transition to buffered":
+                    self.transition_to_buffered(cmd[1],cmd[2])
+                elif cmd[0] == "transition to static":
+                    self.transition_to_static(cmd[1])
+                elif cmd == "":
+                    pass
+                self.to_parent.put(['done',None])
+            except:
+                message = traceback.format_exc()
+                logger.error('An exception happened:\n %s'%message)
+                self.to_parent.put(['error', message])
+        self.to_parent.put(['done',None])
+        
+        
     def daqmx_read(self):
         logger = logging.getLogger('BLACS.%s.acquisition.daqmxread'%self.name)
         logger.info('Starting')
