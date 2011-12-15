@@ -786,7 +786,7 @@ class Worker2(multiprocessing.Process):
             ni_group = data_group.create_group(device_name)
 
             dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
-            raise Exception(dtypes)
+
             start_time = time.time()
             self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
             for i, data in enumerate(self.buffered_data_list):
