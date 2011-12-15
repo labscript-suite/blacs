@@ -507,7 +507,7 @@ class NiPCIe6363Worker(Worker):
     def program_buffered(self,h5file):        
         self.ao_task, self.do_task = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
         self.to_child.put(["transition to buffered",h5file,self.device_name])
-        result = self.from_child.get()
+        result, message = self.from_child.get()
         if result == 'error':
             raise Exception(message)
         return True
@@ -545,7 +545,7 @@ class NiPCIe6363Worker(Worker):
         self.ao_task.StartTask()
         self.do_task.StartTask()
         self.to_child.put(["transition to static",self.device_name])
-        result = self.from_child.get()
+        result,message = self.from_child.get()
         if result == 'error':
             raise Exception(message)
         
@@ -556,6 +556,11 @@ class NiPCIe6363Worker(Worker):
 #########################################
 class Worker2(multiprocessing.Process):
     def run(self):
+        exec 'import traceback' in globals()
+        exec 'from PyDAQmx import Task' in globals()
+        exec 'from PyDAQmx.DAQmxConstants import *' in globals()
+        exec 'from PyDAQmx.DAQmxTypes import *' in globals()
+        
         self.name, self.from_parent, self.to_parent, self.result_queue = self._args
         self.logger = logging.getLogger('BLACS.%s.acquisition'%self.name)
         self.task_running = False
@@ -621,43 +626,55 @@ class Worker2(multiprocessing.Process):
     def daqmx_read(self):
         logger = logging.getLogger('BLACS.%s.acquisition.daqmxread'%self.name)
         logger.info('Starting')
-        while True:
-            with self.daqlock:
-                logger.debug('Got daqlock')
-                while not self.task_running:
-                    logger.debug('Task isn\'t running. Releasing daqlock and waiting to reacquire it.')
-                    self.daqlock.wait()
-                logger.debug('Reading data from analogue inputs')
+        #first_read = True
+        try:
+            while True:
+                with self.daqlock:
+                    logger.debug('Got daqlock')
+                    while not self.task_running:
+                        logger.debug('Task isn\'t running. Releasing daqlock and waiting to reacquire it.')
+                        self.daqlock.wait()
+                        #first_read = True
+                    logger.debug('Reading data from analogue inputs')
+                    if self.buffered:
+                        chnl_list = self.buffered_channels
+                    else:
+                        chnl_list = self.channels
+                    try:
+                        error = "Task did not return an error, but it should have"
+                        error = self.task.ReadAnalogF64(self.samples_per_channel,-1,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
+                        logger.debug('Reading complete')
+                        if error < 0:
+                            raise Exception(error)
+                        if error > 0:
+                            logger.warning(error)
+                    except Exception as e:
+                        logger.error('acquisition error: %s' %str(e))
+                        raise e
+                #if first_read:
+                    # For some reason, the first read always results in old data. 
+                    # I can't work out how to clear the buffer prior to starting the task. 
+                    # So we will discard that data and move on:
+                #    first_read = False
+                #    continue
+                # send the data to the queue
                 if self.buffered:
-                    chnl_list = self.buffered_channels
+                    # rearrange ai_data into correct form
+                    data = numpy.copy(self.ai_data)
+                    self.buffered_data_list.append(data)
+                    
+                    #if len(chnl_list) > 1:
+                    #    data.shape = (len(chnl_list),self.ai_read.value)              
+                    #    data = data.transpose()
+                    #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
                 else:
-                    chnl_list = self.channels
-                try:
-                    error = "Task did not return an error, but it should have"
-                    error = self.task.ReadAnalogF64(self.samples_per_channel,-1,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
-                    logger.debug('Reading complete')
-                    if error < 0:
-                        raise Exception(error)
-                    if error > 0:
-                        logger.warning(error)
-                except Exception as e:
-                    logger.error('acquisition error: %s' %str(e))
-                    raise e
-                        
-            # send the data to the queue
-            if self.buffered:
-                # rearrange ai_data into correct form
-                data = numpy.copy(self.ai_data)
-                self.buffered_data_list.append(data)
-                
-                #if len(chnl_list) > 1:
-                #    data.shape = (len(chnl_list),self.ai_read.value)              
-                #    data = data.transpose()
-                #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
-            else:
-                self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
-                self.t0 = self.t0 + self.samples_per_channel/self.rate
-        
+                    self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
+                    self.t0 = self.t0 + self.samples_per_channel/self.rate
+        except:
+            message = traceback.format_exc()
+            logger.error('An exception happened:\n %s'%message)
+            self.to_parent.put(['error', message])
+            
     def setup_task(self):
         self.logger.debug('setup_task')
         #DAQmx Configure Code
@@ -685,7 +702,7 @@ class Worker2(multiprocessing.Process):
             self.ai_data = numpy.zeros((self.samples_per_channel*len(chnl_list),), dtype=numpy.float64)   
             
             for chnl in chnl_list:
-                self.task.CreateAIVoltageChan(chnl[0],"",DAQmx_Val_RSE,-10.0,10.0,DAQmx_Val_Volts,None)
+                self.task.CreateAIVoltageChan(chnl,"",DAQmx_Val_RSE,-10.0,10.0,DAQmx_Val_Volts,None)
                 
             self.task.CfgSampClkTiming("",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,1000)
                     
@@ -709,6 +726,7 @@ class Worker2(multiprocessing.Process):
             if self.task_running:
                 self.task_running = False
                 self.task.StopTask()
+                
                 self.task.ClearTask()
             self.daqlock.notify()
         self.logger.debug('finished stop_task')
@@ -718,31 +736,26 @@ class Worker2(multiprocessing.Process):
         # stop current task
         self.stop_task()
         
-        self.buffered_channels = []
         self.buffered_data_list = []
         
         # Save h5file path (for storing data later!)
         self.h5_file = h5file
         # read channels, acquisition rate, etc from H5 file
-        h5_chnls = ""
+        h5_chnls = []
         with h5py.File(h5file,'r') as hdf5_file:
             try:
                 group =  hdf5_file['/devices/'+device_name]
                 self.clock_terminal = group.attrs['clock_terminal']
-                h5_chnls = group.attrs['analog_in_channels']
+                h5_chnls = group.attrs['analog_in_channels'].split(', ')
                 self.buffered_rate = float(group.attrs['acquisition_rate'])
             except:
                 self.logger.error("couldn't get the channel list from h5 file. Skipping...")
         
-        # combine static channels with h5 channels
-        h5_chnls = h5_chnls.split(', ')
-        for i in range(len(h5_chnls)):
-            if not h5_chnls[i] == '':
-                self.buffered_channels.append([h5_chnls[i]])
-        
-        for i in range(len(self.channels)):
-            if not self.channels[i] in self.buffered_channels:
-                self.buffered_channels.append(self.channels[i])
+        # combine static channels with h5 channels (using a set to avoid duplicates)
+        self.buffered_channels = set(h5_chnls)
+        self.buffered_channels.update(self.channels)
+        # Now make it a sorted list:
+        self.buffered_channels = sorted(list(self.buffered_channels))
         
         # setup task (rate should be from h5 file)
         # Possibly should detect and lower rate if too high, as h5 file doesn't know about other acquisition channels?
@@ -765,19 +778,24 @@ class Worker2(multiprocessing.Process):
         self.logger.info('transitioning to static, task stopped')
         # save the data acquired to the h5 file
         with h5py.File(self.h5_file,'a') as hdf5_file:
-            data_group = hdf5_file['/data']
+            try:
+                data_group = hdf5_file['data']
+            except KeyError:
+                # If the data group doesn't exist, then the run must've been aborted. Nothing to do here:
+                return
             ni_group = data_group.create_group(device_name)
+
             dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
+            raise Exception(dtypes)
             start_time = time.time()
             self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
             for i, data in enumerate(self.buffered_data_list):
                 data.shape = (len(self.buffered_channels),self.ai_read.value)              
-                data = data.transpose()
                 for j, (chan, dtype) in enumerate(dtypes):
                     self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
                 if i % 100 == 0:
-                    self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time) )
-            ni_group.create_dataset('analog_data', data=self.buffered_data)
+                    self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
+            ni_group.create_dataset('analog_data', self.buffered_data)
             self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
         
         self.buffered_data = None
@@ -795,12 +813,17 @@ class Worker2(multiprocessing.Process):
         self.logger.debug('extract_measurements')
         with h5py.File(self.h5_file,'a') as hdf5_file:
             try:
-                acquisitions = hdf5_file['/devices/'+device_name+'ACQUISITIONS']
+                acquisitions = hdf5_file['/devices/'+device_name+'/ACQUISITIONS']
             except:
+                raise
                 # No acquisitions!
                 return
-            measurements = hdf5_file['/data/'+device_name].create_group('measurements')
-            raw_data = hdf5_file['/data/'+device_name+'analog_data']
+            try:
+                measurements = hdf5_file['/data/traces']
+            except:
+                # Group doesn't exist yet, create it:
+                measurements = hdf5_file.create_group('/data/traces')
+            raw_data = hdf5_file['/data/'+device_name+'/analog_data']
             for connection,label,start_time,end_time,scale_factor,units in acquisitions:
                 start_index = numpy.floor(self.buffered_rate*start_time)
                 end_index = numpy.ceil(self.buffered_rate*end_time)
@@ -809,10 +832,10 @@ class Worker2(multiprocessing.Process):
                                        endpoint=False)
                 values = raw_data[connection][start_index:end_index]
                 dtypes = [('t', numpy.float32),('values', numpy.float32)]
-                data = numpy.empty(len(data),dtype=dtypes)
+                data = numpy.empty(len(values),dtype=dtypes)
                 data['t'] = times
                 data['values'] = values
-                measurements.create_group(label, data=data)
+                measurements.create_dataset(label, data=data)
             
             
             

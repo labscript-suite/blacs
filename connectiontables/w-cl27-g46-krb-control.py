@@ -12,8 +12,8 @@ NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 1
 #DigitalOut(     'Fast_Clock',                           pulseblaster_0,         'flag 0')
 #DigitalOut(     'Slow_Clock',                           pulseblaster_0,         'flag 1')                                       #NT_1,2,3
 DigitalOut(     'Novatech_1_1',                          pulseblaster_0,         'flag 2')                                       #NT_1_1
-DigitalOut(     'Novatech_1_2',                          pulseblaster_0,         'flag 3')                                       #NT_1_2
-DigitalOut(     'K_MOT',                                 pulseblaster_0,         'flag 4')                                       #NT_1_0
+DigitalOut(     'Rb_Imaging_RF_Switch',                  pulseblaster_0,         'flag 3')                                       #NT_1_2
+DigitalOut(     'Rb_Optical_Pumping_RF_Switch',          pulseblaster_0,         'flag 4')                                       #NT_1_0
 #DigitalOut(     'Wait',                                 pulseblaster_0,         'flag 5')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 6')                                       
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 7')                                       
@@ -39,14 +39,15 @@ DDS(             'Rb_Source_MOT',                        novatechdds9m_0,       
 StaticDDS(       'Rb_Repump',                            novatechdds9m_0,        'channel 2')
 StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,        'channel 3')
 
-DDS(            'K_Main_MOT',                           novatechdds9m_1,        'channel 0')
+DDS(            'Rb_Optical_Pumping',                    novatechdds9m_1,        'channel 0')
 #DDS(            '',                                     novatechdds9m_1,        'channel 1')
-StaticDDS(      'Rb_Probe',                             novatechdds9m_1,        'channel 2')
-StaticDDS(       'K_Lock',                               novatechdds9m_1,        'channel 3')
+StaticDDS(      'Rb_Imaging',                            novatechdds9m_1,        'channel 2')
+#StaticDDS(       '',                                     novatechdds9m_1,        'channel 3')
 
-#DDS(            '',                                     novatechdds9m_2,        'channel 0')
+DDS(            'K_Main_MOT',                   novatechdds9m_2,        'channel 0')
+DDS(            'K_Repump',                             novatechdds9m_2,        'channel 1')
 #DoubledDDS(     'K_Repump',                             novatechdds9m_2,        'channel 1')
-#StaticDDS(      '',                                     novatechdds9m_2,        'channel 2')
+StaticDDS(      'K_Lock',                           novatechdds9m_2,        'channel 2')
 #DoubledStaticDDS('',                                     novatechdds9m_2,        'channel 3')
 
 AnalogOut(      'ASD',                                   ni_pcie_6363_0,         'ao0')
@@ -58,9 +59,9 @@ DigitalOut(     'Rb_Central_MOT_RF_Switch',              ni_pcie_6363_0,        
 DigitalOut(     'Rb_Source_MOT_RF_Switch',                ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1
 DigitalOut(     'Rb_Repump_RF_Switch',                   ni_pcie_6363_0,         'port0/line2')                                  #NT_0_2
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line3')
-DigitalOut(     'Novatech_2_0',                          ni_pcie_6363_0,         'port0/line4')                                  #NT_2_0
+DigitalOut(     'K_MOT',                                 ni_pcie_6363_0,         'port0/line4')                                  #NT_2_0
 DigitalOut(     'K_Repump_RF_Switch',                    ni_pcie_6363_0,         'port0/line5')                                  #NT_2_1
-DigitalOut(     'Novatech_2_2',                          ni_pcie_6363_0,         'port0/line6')                                  #NT_2_2
+DigitalOut(     'K_Lock_RF_Switch',                  ni_pcie_6363_0,         'port0/line6')                                  #NT_2_2
 DigitalOut(     'Novatech_2_3',                          ni_pcie_6363_0,         'port0/line7')                                  #NT_2_3
 Shutter(        'Rb_Source_MOT_Shutter',                 ni_pcie_6363_0,         'port0/line8', delay=(5e-3,5e-3))               #Sh_1_1
 Shutter(        'Rb_Probe_Shutter',                      ni_pcie_6363_0,         'port0/line9', delay=(5e-3,5e-3))               #Sh_1_2

@@ -747,15 +747,15 @@ if __name__ == "__main__":
                 with h5py.File(path,'a') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
                     
-                    # only transition one device to static at a time,
-                    # since writing data to the h5 file can potentially
-                    # happen at this stage:
-                    for devicename, tab in devices_in_use.items():
-                        with gtk.gdk.lock:
-                            tab.transition_to_static()
-                        while not tab.static_mode:
-                            logging.debug("%s tab has not transitioned to static"%devicename)
-                            time.sleep(0.1)
+                # only transition one device to static at a time,
+                # since writing data to the h5 file can potentially
+                # happen at this stage:
+                for devicename, tab in devices_in_use.items():
+                    with gtk.gdk.lock:
+                        tab.transition_to_static()
+                    while not tab.static_mode:
+                        logging.debug("%s tab has not transitioned to static"%devicename)
+                        time.sleep(0.1)
                             
                 logger.info('All devices are back in static mode.')                                       
                 with gtk.gdk.lock:
