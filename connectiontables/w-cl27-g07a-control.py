@@ -45,11 +45,11 @@ AnalogIn( 'MOT_fluoro',  ni_pcie_6363_0,         'ai9')
 
 # SUPERNOVA
 DDS(                 'MOPA',  novatechdds9m_9,   'channel 0')
-DDS(              'Imaging',  novatechdds9m_9,   'channel 1')   # proposed RF channel
+DDS(               'Zeeman',  novatechdds9m_9,   'channel 1')   # proposed RF channel
 StaticDDS(            'MOT',  novatechdds9m_9,   'channel 2')
 StaticDDS(         'Repump',  novatechdds9m_9,   'channel 3')
 DigitalOut(   'MOPA_enable',  ni_pcie_6363_0,  'port0/line5')
-DigitalOut('Imaging_enable',  ni_pcie_6363_0,  'port0/line6')   # proposed RF channel
+DigitalOut( 'Zeeman_enable',  ni_pcie_6363_0,  'port0/line6')   # proposed RF channel
 DigitalOut(    'MOT_enable',  ni_pcie_6363_0,  'port0/line7')
 DigitalOut( 'Repump_enable',  ni_pcie_6363_0,  'port0/line8')
 
