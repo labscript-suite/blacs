@@ -788,15 +788,16 @@ class Worker2(multiprocessing.Process):
             dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
 
             start_time = time.time()
-            self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
-            for i, data in enumerate(self.buffered_data_list):
-                data.shape = (len(self.buffered_channels),self.ai_read.value)              
-                for j, (chan, dtype) in enumerate(dtypes):
-                    self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
-                if i % 100 == 0:
-                    self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
-            ni_group.create_dataset('analog_data', data = self.buffered_data)
-            self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
+            if self.buffered_data_list:
+                self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
+                for i, data in enumerate(self.buffered_data_list):
+                    data.shape = (len(self.buffered_channels),self.ai_read.value)              
+                    for j, (chan, dtype) in enumerate(dtypes):
+                        self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
+                    if i % 100 == 0:
+                        self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
+                ni_group.create_dataset('analog_data', data = self.buffered_data)
+                self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
         
         self.buffered_data = None
         self.buffered_data_list = []
@@ -815,7 +816,6 @@ class Worker2(multiprocessing.Process):
             try:
                 acquisitions = hdf5_file['/devices/'+device_name+'/ACQUISITIONS']
             except:
-                raise
                 # No acquisitions!
                 return
             try:
