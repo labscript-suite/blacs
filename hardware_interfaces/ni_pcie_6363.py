@@ -375,13 +375,26 @@ class ni_pcie_6363(Tab):
     @define_state        
     def transition_to_static(self):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
-        #reenable static updates
         self.queue_work('transition_to_static')
         self.do_after('leave_transition_to_static')
         
     def leave_transition_to_static(self,_results):    
-        # This needs to be put somewhere else...When I fix up updating the GUI values
+        final_values = _results[0]
+        
         self.static_mode = True
+        
+        #update the GUI
+        for channel,value = final_values.items():
+            if channel = "digital":
+                for i in range(32): # 32 is number of buffered channels
+                    self.digital_outs[i].update_value(((value & (1 << i)) >> i))
+            else:    
+                chan_num = int((channel.split('/'))[-1].strip('ao'))
+                self.analog_outs[chan_num].update_value(value)
+            
+            
+        
+        
     
 #    def setup_buffered_trigger(self):
 #        self.buffered_do_start_task = Task()
@@ -459,7 +472,8 @@ class NiPCIe6363Worker(Worker):
         self.device_name = device_name
         self.buffered_do_start_task = None
         self.limits = limits
-        self.setup_static_channels()            
+        self.setup_static_channels()  
+        self.final_values = {}        
         
         #DAQmx Start Code        
         self.ao_task.StartTask()  
@@ -505,7 +519,7 @@ class NiPCIe6363Worker(Worker):
         self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
     
     def program_buffered(self,h5file):        
-        self.ao_task, self.do_task = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
+        self.ao_task, self.do_task, self.final_values = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
         self.to_child.put(["transition to buffered",h5file,self.device_name])
         result, message = self.from_child.get()
         if result == 'error':
@@ -519,6 +533,8 @@ class NiPCIe6363Worker(Worker):
         
         self.ao_task = Task()
         self.do_task = Task()
+        
+        self.final_values = {}     
         
         self.setup_static_channels()
         
@@ -548,6 +564,8 @@ class NiPCIe6363Worker(Worker):
         result,message = self.from_child.get()
         if result == 'error':
             raise Exception(message)
+        
+        return self.final_values
         
 #########################################
 #                                       #
