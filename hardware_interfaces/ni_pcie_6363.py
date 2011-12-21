@@ -379,13 +379,13 @@ class ni_pcie_6363(Tab):
         self.do_after('leave_transition_to_static')
         
     def leave_transition_to_static(self,_results):    
-        final_values = _results[0]
+        final_values = _results
         
         self.static_mode = True
         
         #update the GUI
-        for channel,value = final_values.items():
-            if channel = "digital":
+        for channel,value in final_values.items():
+            if channel == "digital":
                 for i in range(32): # 32 is number of buffered channels
                     self.digital_outs[i].update_value(((value & (1 << i)) >> i))
             else:    
