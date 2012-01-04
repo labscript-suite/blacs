@@ -3,7 +3,7 @@ import sys
 import logging, logging.handlers
 import excepthook
 import os
-
+import urllib2
 #
 # Note, Throughout this file we put things we don't want imported in the Worker Processes, inside a "if __name__ == "__main__":"
 # Otherwise we import a bunch of stuff we don't need into the child processes! This is due to the way processes are spawned on windows. 
@@ -457,6 +457,7 @@ if __name__ == "__main__":
                         new_file['/'].copy(old_file['/script'],"script")
                         new_file['/'].copy(old_file['/globals'],"globals")
                         new_file['/'].copy(old_file['/connection table'],"connection table")
+                        new_file['/'].copy(old_file['/analysis'],"analysis")
             except Exception as e:
                 raise
                 logger.error('Clean H5 File Error: %s' %str(e))
@@ -757,7 +758,21 @@ if __name__ == "__main__":
                         logging.debug("%s tab has not transitioned to static"%devicename)
                         time.sleep(0.1)
                             
-                logger.info('All devices are back in static mode.')                                       
+                logger.info('All devices are back in static mode.')  
+
+                with gtk.gdk.lock:
+                    self.status_bar.set_text("Submitting to analysis server")
+
+                port = 42519
+                server = 'localhost'
+                # Workaround to force python not to use IPv6 for the request:
+                address  = socket.gethostbyname(server)
+                #print 'Submitting run file %s.\n'%os.path.basename(run_file)
+                params = urllib.urlencode({'filepath': os.path.abspath(path)})
+                response = urllib2.urlopen('http://%s:%d'%(address,port), params, 2).read()
+                #if not 'added successfully' in response:
+                    #raise Exception(response)
+
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Idle")
                     if self.manager_repeat:
