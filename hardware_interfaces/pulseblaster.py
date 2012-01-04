@@ -126,7 +126,7 @@ class pulseblaster(Tab):
                 temp2.set_text("")
    
         # Status Monitor timeout check
-        self.statemachine_timeout_add(2000, self.status_monitor)
+        self.statemachine_timeout_add(500, self.status_monitor)
         
         # Set up status monitor
         self.status = {"stopped":False,"reset":False,"running":False, "waiting":False}

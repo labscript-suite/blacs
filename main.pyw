@@ -731,7 +731,7 @@ if __name__ == "__main__":
                 
                 # This is a bit of a hack, but will become irrelevant once we have a proper method of determining the experiment execution state
                 # Eg, monitoring a digital flag!
-                time.sleep(5) # What's this for? Can it be deleted?
+                time.sleep(.05) # What's this for? Can it be deleted?
                 
                 while not self.tablist["pulseblaster_0"].status["waiting"]:
                     if not self.manager_running:

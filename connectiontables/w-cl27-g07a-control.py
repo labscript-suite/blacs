@@ -28,7 +28,7 @@ Shutter(    'MOT_shutter',  ni_pcie_6363_0, 'port0/line0', delay=(0,0))
 Shutter( 'Zeeman_shutter',  ni_pcie_6363_0, 'port0/line1', delay=(0,0))
 Shutter('Imaging_shutter',  ni_pcie_6363_0, 'port0/line2', delay=(0,0))
 Shutter( 'Repump_shutter',  ni_pcie_6363_0, 'port0/line3', delay=(0,0))
-Shutter(     'OP_shutter',  ni_pcie_6363_0, 'port0/line4', delay=(0,0))
+Shutter(     'OP_shutter',  ni_pcie_6363_0, 'port0/line8', delay=(0,0))
 
 # CAMERA
 DigitalOut('Camera_trigger',ni_pcie_6363_0,  'port0/line14')
@@ -48,10 +48,10 @@ DDS(                 'MOPA',  novatechdds9m_9,   'channel 0')
 DDS(               'Zeeman',  novatechdds9m_9,   'channel 1')   # proposed RF channel
 StaticDDS(            'MOT',  novatechdds9m_9,   'channel 2')
 StaticDDS(         'Repump',  novatechdds9m_9,   'channel 3')
-DigitalOut(   'MOPA_enable',  ni_pcie_6363_0,  'port0/line5')
-DigitalOut( 'Zeeman_enable',  ni_pcie_6363_0,  'port0/line6')   # proposed RF channel
-DigitalOut(    'MOT_enable',  ni_pcie_6363_0,  'port0/line7')
-DigitalOut( 'Repump_enable',  ni_pcie_6363_0,  'port0/line8')
+DigitalOut(   'MOPA_enable',  ni_pcie_6363_0,  'port0/line4')
+DigitalOut( 'Zeeman_enable',  ni_pcie_6363_0,  'port0/line5')   # proposed RF channel
+DigitalOut(    'MOT_enable',  ni_pcie_6363_0,  'port0/line6')
+DigitalOut( 'Repump_enable',  ni_pcie_6363_0,  'port0/line7')
 
 # IMAGING SYSTEM
 Camera('camera',  pulseblaster_0, 'flag 2', 0.1, 'top')
@@ -62,5 +62,8 @@ DigitalOut('imaging', pulseblaster_0, 'flag 3')
 # DDS(              'Imaging',  pulseblaster_0,       'dds 1')   forseen assignment
 # DigitalOut( 'Zeeman_enable',  ni_pcie_6363_0,  'port0/line9')  forseen assignment
 # DigitalOut('Imaging_enable',  ni_pcie_6363_0,  'port0/line10') forseen assignment
+
+# Triggering
+DigitalOut('CRO_trigger', ni_pcie_6363_0, 'port0/line15')
 
 stop(1)
