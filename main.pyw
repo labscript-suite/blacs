@@ -91,6 +91,11 @@ if __name__ == "__main__":
             self.status_bar = self.builder.get_object("status_label")
             self.queue_pause_button = self.builder.get_object("Queue_Pause")
             self.now_running = self.builder.get_object('label_now_running')
+            self.analysis_host = self.builder.get_object('analysis_server_host')
+            self.server_is_responding = self.builder.get_object('server_is_responding')
+            self.server_is_not_responding = self.builder.get_object('server_is_not_responding')
+            self.toggle_analysis = self.builder.get_object('analysis_toggle')
+            
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
             
@@ -122,7 +127,7 @@ if __name__ == "__main__":
                                   "camera":{"device_name":"camera"}
                                  }
             
-            # read out position settings
+            # read out position settings:
             tab_positions = {}
             try:
                 with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
@@ -140,6 +145,15 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
             
+            # read out analysis server settings:
+            try:
+                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
+                    dataset = hdf5_file["/front_panel/analysis_server"]
+                    self.toggle_analysis.set_active(dataset.attrs['send_for_analysis'])
+                    self.analysis_host.set_text(dataset.attrs['server']) 
+            except:
+                pass 
+                
             for k,v in self.settings_dict.items():
                 # add common keys to settings:
                 v["connection_table"] = self.connection_table
@@ -206,7 +220,11 @@ if __name__ == "__main__":
             self.manager = threading.Thread(target = self.manage)
             self.manager.daemon=True
             self.manager.start()
-               
+            
+            if self.toggle_analysis.get_active():
+                with gtk.gdk.lock:
+                    self.on_check_connectivity_clicked(None)
+                
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
             #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
@@ -447,7 +465,13 @@ if __name__ == "__main__":
             for k,v in window_data.items():
                 if k != "window":
                     dataset.attrs[k] = v
-        
+            
+            # Save analysis server settings:
+            dataset = data_group.create_group("analysis_server")
+            dataset.attrs['send_for_analysis'] = self.toggle_analysis.get_active()
+            dataset.attrs['server'] = self.analysis_host.get_text()
+            
+            
         def clean_h5_file(self,h5file,new_h5_file):
             try:
                 with h5py.File(h5file,'r') as old_file:
@@ -481,6 +505,29 @@ if __name__ == "__main__":
             self.destroy()
             return True
         
+        def on_check_connectivity_clicked(self,widget):
+            success = False
+            try:
+                response = self.send_for_analysis('hello')            
+                if response == 'hello':
+                    success = True
+                else:
+                    response = 'Server returned invalid response:\n%s'%response
+            except Exception as e:
+                response = str(e)
+            if success:
+                self.server_is_responding.show()
+                self.server_is_not_responding.hide()
+                self.toggle_analysis.set_sensitive(True)
+            else:
+                self.server_is_responding.hide()
+                self.server_is_not_responding.show()
+                self.toggle_analysis.set_sensitive(False)
+                message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
+                                            'Problem connecting to analysis server:\n' + response) 
+                message.run()  
+                message.destroy()
+                
         def destroy(self):
             logger.info('destroy called')
             if not self.exiting:
@@ -760,19 +807,32 @@ if __name__ == "__main__":
                             
                 logger.info('All devices are back in static mode.')  
 
-                with gtk.gdk.lock:
-                    self.status_bar.set_text("Submitting to analysis server")
-
-                port = 42519
-                server = 'localhost'
-                # Workaround to force python not to use IPv6 for the request:
-                address  = socket.gethostbyname(server)
-                #print 'Submitting run file %s.\n'%os.path.basename(run_file)
-                params = urllib.urlencode({'filepath': os.path.abspath(path)})
-                response = urllib2.urlopen('http://%s:%d'%(address,port), params, 2).read()
-                #if not 'added successfully' in response:
-                    #raise Exception(response)
-
+                if self.toggle_analysis.get_active() and self.toggle_analysis.get_sensitive():
+                    with gtk.gdk.lock:
+                        self.status_bar.set_text("Submitting to analysis server")
+                    success = False
+                    try:
+                        response = self.send_for_analysis(path)            
+                        if response == 'added successfully':
+                            success = True
+                        else:
+                            response = 'Server returned invalid response:\n%s'%response
+                    except Exception as e:
+                        response = str(e)
+                    with gtk.gdk.lock:
+                        if success:
+                            self.server_is_responding.show()
+                            self.server_is_not_responding.hide()
+                            self.toggle_analysis.set_sensitive(True)
+                        else:
+                            self.server_is_responding.hide()
+                            self.server_is_not_responding.show()
+                            self.toggle_analysis.set_sensitive(False)
+                            message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
+                                                        'Problem connecting to analysis server:\n' + response) 
+                            message.run()  
+                            message.destroy()
+                        
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Idle")
                     if self.manager_repeat:
@@ -780,7 +840,17 @@ if __name__ == "__main__":
                         process_request(path)
                     self.now_running.hide()
             logger.info('Stopping')
-            
+    
+        def send_for_analysis(self, path):
+            port = 42519
+            server = self.analysis_host.get_text()
+            # Workaround to force python not to use IPv6 for the request:
+            address  = socket.gethostbyname(server)
+            #print 'Submitting run file %s.\n'%os.path.basename(run_file)
+            params = urllib.urlencode({'filepath': path})
+            response = urllib2.urlopen('http://%s:%d'%(address,port), params, 2).read()
+            return response
+                       
     class RequestHandler(BaseHTTPRequestHandler):
         def do_POST(self):
             self.send_response(200)
