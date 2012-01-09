@@ -721,7 +721,8 @@ if __name__ == "__main__":
                                 transition_list[name] = tab
                 
                 devices_in_use = transition_list.copy()
-                
+                timed_out = False
+                error_condition = False
                 while transition_list:
                     try:
                         # Wait for a device to transtition_to_buffered:
@@ -731,16 +732,14 @@ if __name__ == "__main__":
                     except:
                         # It's been 2 seconds without a device finishing
                         # transitioning to buffered. Is there an error?
-                        error_condition = False
                         for name,tab in transition_list.items():
                             if tab.error:
-                                logger.error('%s has an error condition, aborting run' % name)
                                 error_condition = True
+                                logger.error('%s has an error condition, aborting run' % name)
                                 break
                         if error_condition:
                             break
                         # Has programming timed out?
-                        timed_out = False
                         if time.time() - start_time > timeout_limit:
                             logger.error('Transitioning to buffered mode timed out')
                             timed_out = True
@@ -771,22 +770,20 @@ if __name__ == "__main__":
                     continue
 
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Preparing to start sequence...(program time: "+str(end_time - start_time)+"s")
+                    self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
                     # Get front panel data, but don't save it to the h5 file until the experiment ends:
                     states,tab_positions,window_data = self.get_save_data()
                 
-                logger.debug('About to start the PulseBlaster')
-                self.tablist["pulseblaster_0"].start()
-                #self.tablist["pulseblaster_1"].start()
-                logger.info('Experiment run has started!')
+
                 
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Running...(program time: "+str(end_time - start_time)+"s")
+                    self.status_bar.set_text("Running...(program time: "+str(time.time() - start_time)+"s")
                 
                 # A Queue for event-based notification of when the experiment has finished.
-                notify_queue_end_run = Queue.Queue()    
+                notify_queue_end_run = Queue.Queue()   
                 
                 # Tell the Pulseblaster to start the run and to let us know when the it's finished:
+                logger.debug('About to start the PulseBlaster')
                 self.tablist["pulseblaster_0"].start_run(notify_queue_end_run)
                 
                 # Science!
@@ -812,7 +809,7 @@ if __name__ == "__main__":
                 for devicename, tab in devices_in_use.items():
                     with gtk.gdk.lock:
                         tab.transition_to_static(notify_queue_static)
-                    notify_queue_static.get(timeout=2)
+                    notify_queue_static.get()
                             
                 logger.info('All devices are back in static mode.')  
 

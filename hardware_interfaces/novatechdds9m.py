@@ -36,8 +36,8 @@ class novatechdds9m(Tab):
         self.phase_max = 360        # In Degrees
 		
         self.settings = settings
-		self.device_name = settings['device_name']
-		
+        self.device_name = settings['device_name']
+
         ###############
         # PyGTK stuff #
         ###############

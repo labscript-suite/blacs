@@ -195,16 +195,18 @@ class pulseblaster(Tab):
     @define_state
     def status_monitor(self,notify_queue=None):
         self.queue_work('get_status')
-        self.do_after('status_monitor_leave')
+        self.do_after('status_monitor_leave',notify_queue)
         
-    def status_monitor_leave(self,_results,notify_queue=None):
+    def status_monitor_leave(self,notify_queue,_results):
         # When called with a queue, this function writes to the queue when the pulseblaster is waiting. This indicates the end of an experimental run.
         self.status = _results
+        print self.status
+        print self.timeout_ids
         if notify_queue is not None and self.status["waiting"]:
             # Experiment is over. Tell the queue manager about it, then set the status checking timeout back to every 2 seconds with no queue.
             notify_queue.put('done')
             self.timeouts.remove(self.status_monitor)
-            self.statemachine_timeout_add(2000,status_monitor)
+            self.statemachine_timeout_add(2000,self.status_monitor)
         # Update widgets
         a = ["stopped","reset","running","waiting"]
         for name in a:
@@ -350,8 +352,9 @@ class pulseblaster(Tab):
         # disable static update
         if not self.status["running"]:
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-            self.error += ('\nWarning - %s:\n' % now +
-                           '<span foreground="red" font_family="mono">%s</span>'%cgi.escape("Pulseblaster is not running, queue is now paused.\nTo run your experiment, please start the pulseblaster and unpause the queue."))
+            raise Exception('\nWarning - %s:\n' % now +
+                           "Pulseblaster is not running, queue is now paused.\n" +
+                           "To run your experiment, please start the pulseblaster and unpause the queue.")
             while self.error.startswith('\n'):
                 self.error = self.error[1:]            
                 self.errorlabel.set_markup(self.error)
@@ -389,7 +392,8 @@ class pulseblaster(Tab):
         #reenable static updates triggered by GTK events
         self.static_mode = True
     
-    def start_run(notify_queue):
+    @define_state
+    def start_run(self, notify_queue):
         self.timeouts.remove(self.status_monitor)
         self.start()
         self.statemachine_timeout_add(50,self.status_monitor,notify_queue)
@@ -400,7 +404,7 @@ class pulseblaster(Tab):
     #
     # Needs to handle seamless transition from experiment sequence to static mode
     #
-    def transition_to_static(notify_queue):
+    def transition_to_static(self,notify_queue):
         # These all get queued up in the state machine, they all have @define_state:
         self.transition_to_static2()
         self.start()
@@ -435,7 +439,6 @@ class pulseblaster(Tab):
                       "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}
                       
         self.queue_work('program_static',dds_outputs,self.encode_flags())
-        self.do_after('leave_transition_to_static')
     
     def transition_to_static_complete(self,notify_queue):
         #reenable static updates triggered by GTK events

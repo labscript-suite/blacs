@@ -32,6 +32,7 @@ class ni_pcie_6363(Tab):
     #
     def __init__(self,notebook,settings,restart=False):
         self.settings = settings
+        self.device_name = self.settings['device_name']
         # Queues that need to be passed to the worker process, which in turn passes them to the acquisition process: AI worker thread
         self.write_queue = multiprocessing.Queue()
         self.read_queue = multiprocessing.Queue()

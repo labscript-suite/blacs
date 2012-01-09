@@ -8,6 +8,17 @@ import cgi
 import gtk, gobject
 import excepthook
 
+class Counter(object):
+    """A class with a single method that 
+    returns a different integer each time it's called."""
+    def __init__(self):
+        self.i = 0
+    def get(self):
+        self.i += 1
+        return self.i
+        
+# Make this function available globally:       
+get_unique_id = Counter().get
 
 def define_state(function):
     unescaped_name = function.__name__
@@ -42,6 +53,7 @@ class Tab(object):
         self._work = None
         self._finalisation = None
         self.timeouts = set()
+        self.timeout_ids = {}
         
         builder = gtk.Builder()
         builder.add_from_file('tab_frame.glade')
@@ -86,7 +98,7 @@ class Tab(object):
         def execute_timeout():
             # queue up the state function, but only if it hasn't been
             # removed from self.timeouts:
-            if statefunction in self.timeouts:
+            if statefunction in self.timeouts and self.timeout_ids[statefunction] == unique_id:
                 statefunction(*args, **kwargs)
                 # queue up another call to this function (execute_timeout)
                 # after the delay time:
@@ -96,7 +108,12 @@ class Tab(object):
             return False
         # queue the first run:
         self.gobject_timeout_add(delay,execute_timeout)        
-    
+        # Store a unique ID for this timeout so that we don't confuse 
+        # other timeouts for this one when checking to see that this
+        # timeout hasn't been removed:
+        unique_id = get_unique_id()
+        self.timeout_ids[statefunction] = unique_id
+        
     def set_state(self,state):
         ready = self.tab_label_widgets['ready']
         working = self.tab_label_widgets['working']
