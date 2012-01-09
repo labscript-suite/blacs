@@ -671,8 +671,9 @@ if __name__ == "__main__":
             
             with gtk.gdk.lock:
                 self.status_bar.set_text("Idle")
-            
+            outfile = open('timing.txt','w')
             while self.manager_running:  
+                t0 = time.time()
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
                     with gtk.gdk.lock:
@@ -700,7 +701,8 @@ if __name__ == "__main__":
                     self.now_running.set_markup('Now running: <b>%s</b>'%os.path.basename(path))
                     self.now_running.show()
                 logger.info('Got a file: %s' % path)
-                
+                outfile.write('\ngetting a file:    ' + str(time.time() - t0))
+                t0 = time.time()
                 # Transition devices to buffered mode
                 transition_list = {}     
                 # A Queue for event-based notification when the tabs have
@@ -768,17 +770,18 @@ if __name__ == "__main__":
                     with gtk.gdk.lock:
                         self.now_running.hide()
                     continue
-
+                outfile.write('\nTransition to buffered:    ' + str(time.time() - t0))
+                t0 = time.time()
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
                     # Get front panel data, but don't save it to the h5 file until the experiment ends:
                     states,tab_positions,window_data = self.get_save_data()
                 
-
-                
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Running...(program time: "+str(time.time() - start_time)+"s")
-                
+                    
+                outfile.write('\nGetting front panel state:    ' + str(time.time() - t0))
+                t0 = time.time()
                 # A Queue for event-based notification of when the experiment has finished.
                 notify_queue_end_run = Queue.Queue()   
                 
@@ -792,6 +795,9 @@ if __name__ == "__main__":
                 notify_queue_end_run.get()
                 logger.info('Run complete')
                 
+                outfile.write('\nrun:    ' + str(time.time() - t0))
+                t0 = time.time()
+                
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
                 with h5py.File(path,'r+') as hdf5_file:
@@ -799,6 +805,9 @@ if __name__ == "__main__":
                         
                 with h5py.File(path,'a') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
+                
+                outfile.write('\nSaving front panel state:    ' + str(time.time() - t0))
+                t0 = time.time()
                 
                 # A Queue for event-based notification of when the devices have transitioned to static mode:
                 notify_queue_static = Queue.Queue()    
@@ -812,7 +821,8 @@ if __name__ == "__main__":
                     notify_queue_static.get()
                             
                 logger.info('All devices are back in static mode.')  
-
+                outfile.write('\nTransition to static:    ' + str(time.time() - t0))
+                t0 = time.time()
                 if self.toggle_analysis.get_active() and self.toggle_analysis.get_sensitive():
                     with gtk.gdk.lock:
                         self.status_bar.set_text("Submitting to analysis server")
@@ -845,6 +855,9 @@ if __name__ == "__main__":
                         # Resubmit job to the bottom of the queue:
                         process_request(path)
                     self.now_running.hide()
+                outfile.write('\nFinalisation stuff:' + str(time.time() - t0))
+                outfile.flush()
+                t0 = time.time()
             logger.info('Stopping')
     
         def send_for_analysis(self, path):
