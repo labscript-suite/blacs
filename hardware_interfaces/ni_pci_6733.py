@@ -32,6 +32,8 @@ class ni_pci_6733(Tab):
     #
     def __init__(self,notebook,settings,restart=False):
         self.settings = settings
+        self.device_name = settings['device_name']
+        
         Tab.__init__(self,NiPCI6733Worker,notebook,settings)
         
         self.init_done = False
@@ -212,37 +214,35 @@ class ni_pci_6733(Tab):
     #
     # Needs to handle seemless transition from static to experiment sequence
     #
-    def transition_to_buffered(self,h5file):
-        self.transitioned_to_buffered = False
-        # Queue transition in state machine
-        self.program_buffered(h5file) 
-    
     @define_state
-    def program_buffered(self,h5file):
+    def transition_to_buffered(self,h5file,notify_queue):
         # disable static update
         self.static_mode = False               
         self.queue_work('program_buffered',h5file)
-        self.do_after('leave_program_buffered')
+        self.do_after('leave_program_buffered',notify_queue)
     
-    def leave_program_buffered(self,_results):
-        if _results != None:
-            self.transitioned_to_buffered = True
+    def leave_program_buffered(self,notify_queue,_results):
+        # Tell the queue manager that we're done:
+        notify_queue.put(self.device_name)
         
     @define_state
     def abort_buffered(self):        
         self.queue_work('abort_buffered')
-        self.static_mode = True
+        self.do_after('leave_transition_to_static',notify_queue=None)
         
     @define_state        
-    def transition_to_static(self):
+    def transition_to_static(self,notify_queue):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
         #reenable static updates
         self.queue_work('transition_to_static')
-        self.do_after('leave_transition_to_static')
+        self.do_after('leave_transition_to_static',notify_queue)
         
-    def leave_transition_to_static(self,_results):    
+    def leave_transition_to_static(self,notify_queue,_results):    
         # This needs to be put somewhere else...When I fix up updating the GUI values
         self.static_mode = True
+        # Tell the queue manager that we're done:
+        if notify_queue is not None:
+            notify_queue.put(self.device_name)
     
 #    def setup_buffered_trigger(self):
 #        self.buffered_do_start_task = Task()

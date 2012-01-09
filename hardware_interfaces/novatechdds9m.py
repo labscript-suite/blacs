@@ -36,6 +36,7 @@ class novatechdds9m(Tab):
         self.phase_max = 360        # In Degrees
 		
         self.settings = settings
+		self.device_name = settings['device_name']
 		
         ###############
         # PyGTK stuff #
@@ -174,14 +175,8 @@ class novatechdds9m(Tab):
         
         return None
     
-    def transition_to_buffered(self,h5file):        
-        # disable static update
-        self.transitioned_to_buffered = False
-        # Queue transition in state machine
-        self.program_buffered(h5file)
-        
     @define_state
-    def program_buffered(self,h5file):
+    def transition_to_buffered(self,h5file,notify_queue):
         self.static_mode = False 
         
         initial_values = {"freq0":self.rf_outputs[0].freq, "amp0":self.rf_outputs[0].amp, "phase0":self.rf_outputs[0].phase,
@@ -190,19 +185,20 @@ class novatechdds9m(Tab):
                           "freq3":self.rf_outputs[3].freq, "amp3":self.rf_outputs[3].amp, "phase3":self.rf_outputs[3].phase}
                           
         self.queue_work('program_buffered',self.settings['device_name'],h5file,initial_values,self.fresh)
-        self.do_after('leave_program_buffered')        
+        self.do_after('leave_program_buffered',notify_queue)        
     
-    def leave_program_buffered(self,_results):
-        self.transitioned_to_buffered = True  
+    def leave_program_buffered(self,notify_queue,_results):
         self.checkbutton_fresh.show() 
         self.checkbutton_fresh.set_active(False) 
         self.checkbutton_fresh.toggled()
+        # Tell the queue manager that we're done:
+        notify_queue.put(self.device_name)
     
     def abort_buffered(self):
-        self.transition_to_static()
+        self.transition_to_static(notify_queue=None)
     
     @define_state    
-    def transition_to_static(self):
+    def transition_to_static(self,notify_queue):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is sending out updates.         
                        
         #turn buffered mode off, output values in buffer to ensure it outputs what it says in que
@@ -210,7 +206,14 @@ class novatechdds9m(Tab):
         #update the panel to reflect the current state of the novatech
         # static_mode=True is set in the set_defaults state
         self.set_defaults()
-
+        self.transition_to_static_complete(notify_queue)
+        
+    @define_state
+    def transition_to_static_complete(self, notify_queue):
+        # Tell the queue manager that we're done:
+        if notify_queue is not None:
+            notify_queue.put(self.device_name)
+    
     @define_state
     def on_value_change(self,widget):
         if not self.init_done:

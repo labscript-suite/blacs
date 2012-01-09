@@ -1,9 +1,8 @@
-
 import sys
 import logging, logging.handlers
 import excepthook
 import os
-import urllib2
+
 #
 # Note, Throughout this file we put things we don't want imported in the Worker Processes, inside a "if __name__ == "__main__":"
 # Otherwise we import a bunch of stuff we don't need into the child processes! This is due to the way processes are spawned on windows. 
@@ -14,7 +13,8 @@ if __name__ == "__main__":
     import time
     import socket
     import urllib
-
+    import urllib2
+    import Queue
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
     import gtk
@@ -671,8 +671,8 @@ if __name__ == "__main__":
             
             with gtk.gdk.lock:
                 self.status_bar.set_text("Idle")
-                
-            while self.manager_running:                
+            
+            while self.manager_running:  
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
                     with gtk.gdk.lock:
@@ -702,12 +702,13 @@ if __name__ == "__main__":
                 logger.info('Got a file: %s' % path)
                 
                 # Transition devices to buffered mode
-                transition_list = {}                
+                transition_list = {}     
+                # A Queue for event-based notification when the tabs have
+                # completed transitioning to buffered:
+                notify_queue_buffered = Queue.Queue()           
                 start_time = time.time()
-                error_condition = False
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Transitioning to Buffered")
-                    #self.tab.setup_buffered_trigger()
                     for name,tab in self.tablist.items():
                         # do we need to transition this device?
                         with h5py.File(path,'r') as hdf5_file:
@@ -716,45 +717,53 @@ if __name__ == "__main__":
                                 # done, workaround for the fact that the
                                 # camera system does writes to the h5 file:
                                 if name != 'camera':
-                                    tab.transition_to_buffered(path)
+                                    tab.transition_to_buffered(path,notify_queue_buffered)
                                 transition_list[name] = tab
                 
                 devices_in_use = transition_list.copy()
                 
                 while transition_list:
-                    for name,tab in transition_list.items():
-                        if tab.transitioned_to_buffered:
-                            del transition_list[name]
-                            logger.debug('%s finished transitioning to buffered mode' % name)
-                        if tab.error:
-                            logger.error('%s has an error condition, aborting run' % name)
-                            error_condition = True
+                    try:
+                        # Wait for a device to transtition_to_buffered:
+                        name = notify_queue_buffered.get(timeout=2)
+                        logger.debug('%s finished transitioning to buffered mode' % name)
+                        del transition_list[name]                   
+                    except:
+                        # It's been 2 seconds without a device finishing
+                        # transitioning to buffered. Is there an error?
+                        error_condition = False
+                        for name,tab in transition_list.items():
+                            if tab.error:
+                                logger.error('%s has an error condition, aborting run' % name)
+                                error_condition = True
+                                break
+                        if error_condition:
                             break
-                    end_time = time.time()
-                    if end_time - start_time > timeout_limit:
-                        logger.error('Transitioning to buffered mode timed out')
-                        break
-                    if error_condition:
-                        break
-                    # Transition the camera to buffered mode only once everything else is done:
+                        # Has programming timed out?
+                        timed_out = False
+                        if time.time() - start_time > timeout_limit:
+                            logger.error('Transitioning to buffered mode timed out')
+                            timed_out = True
+                            break
+
+                    # If only the camera remains, transition it to buffered now:
                     if transition_list.keys() == ['camera']:
                         with gtk.gdk.lock:
-                            transition_list['camera'].transition_to_buffered(path)
-                    time.sleep(0.1)
+                            transition_list['camera'].transition_to_buffered(path,notify_queue_buffered)
                 
-                # Handle if we broke out of loop due to timeout
-                if end_time - start_time > timeout_limit or error_condition:
-                    # It took too long, pause the queue, re add the path to the top of the queue, and set a status message!
+                # Handle if we broke out of loop due to timeout or error:
+                if timed_out or error_condition:
+                    # Pause the queue, re add the path to the top of the queue, and set a status message!
                     self.manager_paused = True
                     self.queue.prepend([path])
                     with gtk.gdk.lock:
                         self.queue_pause_button.set_state(True)
-                        if end_time - start_time > timeout_limit:
+                        if timed_out:
                             self.status_bar.set_text("Device programming timed out. Queue Paused...")
                         else:
                             self.status_bar.set_text("One or more devices is in an error state. Queue Paused...")
                             
-                    # Abort the run for other devices
+                    # Abort the run for all devices in use:
                     for tab in devices_in_use.values():
                         tab.abort_buffered()
                     with gtk.gdk.lock:
@@ -774,19 +783,18 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Running...(program time: "+str(end_time - start_time)+"s")
                 
-                #force status update
-                self.tablist["pulseblaster_0"].status_monitor() # Is this actually needed?
+                # A Queue for event-based notification of when the experiment has finished.
+                notify_queue_end_run = Queue.Queue()    
                 
-                # This is a bit of a hack, but will become irrelevant once we have a proper method of determining the experiment execution state
-                # Eg, monitoring a digital flag!
-                time.sleep(.05) # What's this for? Can it be deleted?
+                # Tell the Pulseblaster to start the run and to let us know when the it's finished:
+                self.tablist["pulseblaster_0"].start_run(notify_queue_end_run)
                 
-                while not self.tablist["pulseblaster_0"].status["waiting"]:
-                    if not self.manager_running:
-                        break
-                    time.sleep(0.05)
-                    
+                # Science!
+                
+                # Wait for notification of the end of run:
+                notify_queue_end_run.get()
                 logger.info('Run complete')
+                
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
                 with h5py.File(path,'r+') as hdf5_file:
@@ -794,16 +802,17 @@ if __name__ == "__main__":
                         
                 with h5py.File(path,'a') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
+                
+                # A Queue for event-based notification of when the devices have transitioned to static mode:
+                notify_queue_static = Queue.Queue()    
                     
                 # only transition one device to static at a time,
                 # since writing data to the h5 file can potentially
                 # happen at this stage:
                 for devicename, tab in devices_in_use.items():
                     with gtk.gdk.lock:
-                        tab.transition_to_static()
-                    while not tab.static_mode:
-                        logging.debug("%s tab has not transitioned to static"%devicename)
-                        time.sleep(0.1)
+                        tab.transition_to_static(notify_queue_static)
+                    notify_queue_static.get(timeout=2)
                             
                 logger.info('All devices are back in static mode.')  
 

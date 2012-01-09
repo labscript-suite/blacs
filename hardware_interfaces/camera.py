@@ -8,10 +8,10 @@ from tab_base_classes import Tab, Worker, define_state
 class camera(Tab):
     def __init__(self,notebook,settings,restart=False):
         self.destroy_complete = False
-        self.transitioned_to_buffered = False
         self.static_mode = True
         Tab.__init__(self,CameraWorker,notebook,settings)
         self.settings = settings
+        self.device_name = self.settings["device_name"]
         self.builder = gtk.Builder()
         self.builder.add_from_file('hardware_interfaces/camera.glade')
         self.toplevel = self.builder.get_object('toplevel')
@@ -34,10 +34,9 @@ class camera(Tab):
                 dataset = hdf5_file['front_panel/camera']
                 for row in dataset:
                    name,host,port = row
-                   if name == self.settings["device_name"]:
+                   if name == self.device_name:
                         self.host.set_text(host)
                         self.port.set_text(port)
-                        print host, port, 'SDFDSFSDLFHSKFHSDFKHSDKJHLFDLHJ'
                         return
                 self.logger.warning('No entry for this device in saved front panel states')
         except:
@@ -62,29 +61,30 @@ class camera(Tab):
             self.camera_notresponding.show()
     
     @define_state
-    def transition_to_buffered(self,h5file):       
-        self.transitioned_to_buffered = False
+    def transition_to_buffered(self,h5file,notify_queue):       
         self.queue_work('starting_experiment',h5file,self.host.get_text(),self.port.get_text())
-        self.do_after('leave_transition_to_buffered')
+        self.do_after('leave_transition_to_buffered', notify_queue)
     
-    def leave_transition_to_buffered(self,_results):
-        self.transitioned_to_buffered = True
+    def leave_transition_to_buffered(self,notify_queue,_results):
         self.static_mode = False
-       
+        # Notify the queue manager thread that we've finished transitioning to buffered:
+        notify_queue.put(self.device_name)
+        
     def abort_buffered(self):
+        # Nothing to do here:
         pass
         
     @define_state    
-    def transition_to_static(self):
-        # This must be called after all other tabs have done their stuff
-        # already, we need to work out hoe to do that.
+    def transition_to_static(self,notify_queue):
         self.queue_work('finished_experiment',self.host.get_text(),self.port.get_text())
-        self.do_after('leave_transition_to_static')
+        self.do_after('leave_transition_to_static',notify_queue)
     
-    def leave_transition_to_static(self,_results):
-        self.transitioned_to_buffered = False
+    def leave_transition_to_static(self,notify_queue,_results):
         self.static_mode = True
-
+        # Tell the queue manager that we're done:
+        notify_queue.put(self.device_name)
+        
+        
 class CameraWorker(Worker):
 
 #    def init(self):

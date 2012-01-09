@@ -349,36 +349,30 @@ class ni_pcie_6363(Tab):
     #
     # Needs to handle seemless transition from static to experiment sequence
     #
-    def transition_to_buffered(self,h5file):
-        self.transitioned_to_buffered = False
-        # Queue transition in state machine
-        self.program_buffered(h5file) 
-
-    
     @define_state
-    def program_buffered(self,h5file):
+    def transition_to_buffered(self,h5file,notify_queue):
         # disable static update
         self.static_mode = False               
         self.queue_work('program_buffered',h5file)
-        self.do_after('leave_program_buffered')
-        
+        self.do_after('leave_program_buffered',notify_queue)
     
-    def leave_program_buffered(self,_results):
-        if _results != None:
-            self.transitioned_to_buffered = True
+    def leave_program_buffered(self,notify_queue,_results):
+        # Tell the queue manager that we're done:
+        notify_queue.put(self.device_name)
         
     @define_state
     def abort_buffered(self):        
         self.queue_work('abort_buffered')
-        self.static_mode = True
+        self.do_after('leave_transition_to_static',notify_queue=None)
         
     @define_state        
-    def transition_to_static(self):
+    def transition_to_static(self,notify_queue):
         # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
+        #reenable static updates
         self.queue_work('transition_to_static')
-        self.do_after('leave_transition_to_static')
+        self.do_after('leave_transition_to_static',notify_queue)
         
-    def leave_transition_to_static(self,_results):    
+    def leave_transition_to_static(self,notify_queue,_results):    
         final_values = _results
         
         self.static_mode = True
@@ -392,7 +386,9 @@ class ni_pcie_6363(Tab):
                 chan_num = int((channel.split('/'))[-1].strip('ao'))
                 self.analog_outs[chan_num].update_value(value)
             
-            
+        # Tell the queue manager that we're done:
+        if notify_queue is not None:
+            notify_queue.put(self.device_name)
         
         
     
