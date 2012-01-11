@@ -709,6 +709,8 @@ if __name__ == "__main__":
                 # completed transitioning to buffered:
                 notify_queue_buffered = Queue.Queue()           
                 start_time = time.time()
+                timed_out = False
+                error_condition = False
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Transitioning to Buffered")
                     for name,tab in self.tablist.items():
@@ -719,17 +721,25 @@ if __name__ == "__main__":
                                 # done, workaround for the fact that the
                                 # camera system does writes to the h5 file:
                                 if name != 'camera':
+                                    if tab.error:
+                                        logger.error('%s has an error condition, aborting run' % name)
+                                        error_condition = True
+                                        break
                                     tab.transition_to_buffered(path,notify_queue_buffered)
                                 transition_list[name] = tab
                 
                 devices_in_use = transition_list.copy()
-                timed_out = False
-                error_condition = False
-                while transition_list:
+
+                while transition_list and not error_condition:
                     try:
                         # Wait for a device to transtition_to_buffered:
                         name = notify_queue_buffered.get(timeout=2)
                         logger.debug('%s finished transitioning to buffered mode' % name)
+                        # The tab says it's done, but does it have an error condition?
+                        if transition_list[name].error:
+                            logger.error('%s has an error condition, aborting run' % name)
+                            error_condition = True
+                            break
                         del transition_list[name]                   
                     except:
                         # It's been 2 seconds without a device finishing
@@ -737,7 +747,6 @@ if __name__ == "__main__":
                         for name,tab in transition_list.items():
                             if tab.error:
                                 error_condition = True
-                                logger.error('%s has an error condition, aborting run' % name)
                                 break
                         if error_condition:
                             break
@@ -786,6 +795,7 @@ if __name__ == "__main__":
                 notify_queue_end_run = Queue.Queue()   
                 
                 # Tell the Pulseblaster to start the run and to let us know when the it's finished:
+                
                 logger.debug('About to start the PulseBlaster')
                 self.tablist["pulseblaster_0"].start_run(notify_queue_end_run)
                 

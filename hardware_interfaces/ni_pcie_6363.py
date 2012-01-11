@@ -362,7 +362,7 @@ class ni_pcie_6363(Tab):
         notify_queue.put(self.device_name)
         
     @define_state
-    def abort_buffered(self):        
+    def abort_buffered(self):      
         self.queue_work('abort_buffered')
         self.do_after('leave_transition_to_static',notify_queue=None)
         
@@ -375,18 +375,19 @@ class ni_pcie_6363(Tab):
         
     def leave_transition_to_static(self,notify_queue,_results):    
         final_values = _results
-        
         self.static_mode = True
-        
-        #update the GUI
-        for channel,value in final_values.items():
-            if channel == "digital":
-                for i in range(32): # 32 is number of buffered channels
-                    self.digital_outs[i].update_value(((value & (1 << i)) >> i))
-            else:    
-                chan_num = int((channel.split('/'))[-1].strip('ao'))
-                self.analog_outs[chan_num].update_value(value)
-            
+        # final_values is None if the run was aborted or 
+        # there was an error in the worker process. Skip this if so:
+        if final_values:
+            #update the GUI
+            for channel,value in final_values.items():
+                if channel == "digital":
+                    for i in range(32): # 32 is number of buffered channels
+                        self.digital_outs[i].update_value(((value & (1 << i)) >> i))
+                else:    
+                    chan_num = int((channel.split('/'))[-1].strip('ao'))
+                    self.analog_outs[chan_num].update_value(value)
+                
         # Tell the queue manager that we're done:
         if notify_queue is not None:
             notify_queue.put(self.device_name)
@@ -649,7 +650,6 @@ class Worker2(multiprocessing.Process):
                     while not self.task_running:
                         logger.debug('Task isn\'t running. Releasing daqlock and waiting to reacquire it.')
                         self.daqlock.wait()
-                        #first_read = True
                     logger.debug('Reading data from analogue inputs')
                     if self.buffered:
                         chnl_list = self.buffered_channels
@@ -657,7 +657,7 @@ class Worker2(multiprocessing.Process):
                         chnl_list = self.channels
                     try:
                         error = "Task did not return an error, but it should have"
-                        error = self.task.ReadAnalogF64(self.samples_per_channel,-1,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
+                        error = self.task.ReadAnalogF64(self.samples_per_channel,0.5,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
                         logger.debug('Reading complete')
                         if error < 0:
                             raise Exception(error)
@@ -666,12 +666,6 @@ class Worker2(multiprocessing.Process):
                     except Exception as e:
                         logger.error('acquisition error: %s' %str(e))
                         raise e
-                #if first_read:
-                    # For some reason, the first read always results in old data. 
-                    # I can't work out how to clear the buffer prior to starting the task. 
-                    # So we will discard that data and move on:
-                #    first_read = False
-                #    continue
                 # send the data to the queue
                 if self.buffered:
                     # rearrange ai_data into correct form
@@ -741,7 +735,6 @@ class Worker2(multiprocessing.Process):
             if self.task_running:
                 self.task_running = False
                 self.task.StopTask()
-                
                 self.task.ClearTask()
             self.daqlock.notify()
         self.logger.debug('finished stop_task')

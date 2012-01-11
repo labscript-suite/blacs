@@ -8,14 +8,14 @@ class AO(gobject.GObject):
         self.channel = channel
         self.hardware_name = hardware_name
         self.real_name = real_name
+        self.update_gui_callbacks = []
         self.add_callback(hardware_callback)
+        self.program_hardware = programming_callback
         self.__max_value = float(limits[1])
         self.__min_value = float(limits[0])
-        self.connect("program", programming_callback)
-        self.programming_callback = programming_callback
         
     def add_callback(self,func):
-        self.connect("update_gui",func)
+        self.update_gui_callbacks.append(func)
 	
     def update_value(self,value,update_gui = True, program_hardware = True):
         value = float(value)
@@ -27,14 +27,8 @@ class AO(gobject.GObject):
             self.value = value
         
         if update_gui:
-            self.emit("update_gui")
+            for func in self.update_gui_callbacks:
+                func(self)
             
         if program_hardware:
-            self.emit("program")
-		
-gobject.type_register(AO)
-gobject.signal_new("update_gui", AO, gobject.SIGNAL_RUN_FIRST,
-                   gobject.TYPE_NONE, ())
-                   
-gobject.signal_new("program", AO, gobject.SIGNAL_RUN_FIRST,
-                   gobject.TYPE_NONE, ())                   
+            self.program_hardware(self)

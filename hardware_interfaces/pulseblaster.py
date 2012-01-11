@@ -350,18 +350,7 @@ class pulseblaster(Tab):
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
         # disable static update
-        if not self.status["running"]:
-            now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-            raise Exception('\nWarning - %s:\n' % now +
-                           "Pulseblaster is not running, queue is now paused.\n" +
-                           "To run your experiment, please start the pulseblaster and unpause the queue.")
-            while self.error.startswith('\n'):
-                self.error = self.error[1:]            
-                self.errorlabel.set_markup(self.error)
-                self.notresponding.show()
-        
         self.static_mode = False 
-        
         initial_values = {"freq0":self.dds_outputs[0].rf.freq, "amp0":self.dds_outputs[0].rf.amp, "phase0":self.dds_outputs[0].rf.phase, "ddsen0":self.dds_outputs[0].do.state,
                           "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "ddsen1":self.dds_outputs[1].do.state,
                           "flags":self.encode_flags()}
@@ -372,7 +361,6 @@ class pulseblaster(Tab):
         self.last_instruction = _results
         # Notify the queue manager thread that we've finished transitioning to buffered:
         notify_queue.put(self.device_name)
-       
        
     def abort_buffered(self):
         # All these get queued up in the state machine, they all have @define_state:
@@ -405,7 +393,7 @@ class pulseblaster(Tab):
     # Needs to handle seamless transition from experiment sequence to static mode
     #
     def transition_to_static(self,notify_queue):
-        # These all get queued up in the state machine, they all have @define_state:
+        # All these get queued up in the state machine
         self.transition_to_static2()
         self.start()
         self.transition_to_static_complete(notify_queue)
@@ -439,7 +427,8 @@ class pulseblaster(Tab):
                       "freq1":self.dds_outputs[1].rf.freq, "amp1":self.dds_outputs[1].rf.amp, "phase1":self.dds_outputs[1].rf.phase, "en1":self.dds_outputs[1].do.state}
                       
         self.queue_work('program_static',dds_outputs,self.encode_flags())
-    
+        
+    @define_state
     def transition_to_static_complete(self,notify_queue):
         #reenable static updates triggered by GTK events
         self.static_mode = True
@@ -551,19 +540,26 @@ class PulseblasterWorker(Worker):
             
         # send instructrions for the program to be executed:
         spinapi.pb_start_programming(spinapi.PULSE_PROGRAM)
-
+        
         start = spinapi.pb_inst_dds2(freq[0], phase[0], amp[0], en[0], spinapi.NO_PHASE_RESET,
-                                     freq[1], phase[1], amp[1], en[1], spinapi.NO_PHASE_RESET, flags, spinapi.BRANCH, 0, 0.5*spinapi.us)
+                                     freq[1], phase[1], amp[1], en[1], spinapi.NO_PHASE_RESET, flags, spinapi.BRANCH, 0, 10*spinapi.ms)
                              
         spinapi.pb_stop_programming()
         #spinapi.lock.release()
     
     def program_buffered(self,h5file,initial_values):
+        stat = self.get_status()
+        if stat['waiting'] or not stat["running"]:
+            raise Exception("Warning: Pulseblaster is either not running, or is waiting. " +
+                            "To run your experiment, please start the pulseblaster and try again.")
         return pb_programming.program_from_h5_file(self.pb_num,h5file,initial_values)
     
     def start2(self):
+        stat = spinapi.pb_read_status()
+        if not stat['waiting']:
+            raise Exception(stat)
         spinapi.pb_start()
-    
+        
     def stop2(self):
         spinapi.pb_stop()
     

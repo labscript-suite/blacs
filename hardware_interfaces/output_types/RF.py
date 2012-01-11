@@ -10,18 +10,18 @@ class RF(gobject.GObject):
         self.channel = channel
         self.hardware_name = hardware_name
         self.real_name = real_name
-        self.add_callback(hardware_callback)
         self.__max_freq = float(limits[1])
         self.__min_freq = float(limits[0])
         self.__max_amp = float(limits[3])
         self.__min_amp = float(limits[2])
         self.__max_phase = float(limits[5])
         self.__min_phase = float(limits[4])
-        self.connect("program", programming_callback)
-        self.programming_callback = programming_callback
+        self.update_gui_callbacks = []
+        self.add_callback(hardware_callback)
+        self.program_hardware = programming_callback
         
     def add_callback(self,func):
-        self.connect("update_gui",func)
+        self.update_gui_callbacks.append(func)
 	
     def update_value(self,freq,amp,phase,update_gui = True, program_hardware = True):
         freq = float(freq)
@@ -54,13 +54,9 @@ class RF(gobject.GObject):
                 self.phase = phase
         
         if update_gui:
-            self.emit("update_gui")
+            for func in self.update_gui_callbacks:
+                func(self)
             
         if program_hardware:
-            self.emit("program")
-		
-gobject.type_register(RF)
-gobject.signal_new("update_gui", RF, gobject.SIGNAL_RUN_FIRST,
-                   gobject.TYPE_NONE, ())
-gobject.signal_new("program", RF, gobject.SIGNAL_RUN_FIRST,
-                   gobject.TYPE_NONE, ())                   
+            self.program_hardware(self)
+                  
