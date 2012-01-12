@@ -25,6 +25,7 @@ class pulseblaster(Tab):
         self.settings = settings
         self.device_name = settings['device_name']        
         self.pb_num = int(settings['device_num'])
+        self.fresh = False
         self.static_mode = True
         self.destroy_complete = False
         
@@ -34,6 +35,9 @@ class pulseblaster(Tab):
         self.builder.connect_signals(self)
         
         self.toplevel = self.builder.get_object('toplevel')
+        self.checkbutton_fresh = self.builder.get_object('force_fresh_program')
+        self.smart_disabled = self.builder.get_object('hbox_fresh_program')
+        self.smart_enabled = self.builder.get_object('hbox_smart_in_use')
         self.builder.get_object('title').set_text(self.settings['device_name'])
 
         self.dds_outputs = []
@@ -199,10 +203,14 @@ class pulseblaster(Tab):
     def transition_to_buffered(self,h5file,notify_queue):
         self.static_mode = False 
         initial_values = self.get_front_panel_state()
-        self.queue_work('program_buffered',h5file,initial_values)
+        self.queue_work('program_buffered',h5file,initial_values,self.fresh)
         self.do_after('leave_program_buffered',notify_queue)
     
     def leave_program_buffered(self,notify_queue,_results):
+        # Enable smart programming:
+        self.checkbutton_fresh.show() 
+        self.checkbutton_fresh.set_active(False) 
+        self.checkbutton_fresh.toggled()
         # These are the final values that the pulseblaster will be in
         # at the end of the run. Store them so that we can use them
         # in transition_to_static:
@@ -241,6 +249,19 @@ class pulseblaster(Tab):
         # Notify the queue manager thread that we've finished transitioning to static:
         notify_queue.put(self.device_name)
 
+    @define_state
+    def toggle_fresh(self, button):
+        # When the user clicks the checkbutton to enable and disable
+        # smart programming:
+        if button.get_active():
+            self.smart_enabled.hide()
+            self.smart_disabled.show()
+            self.fresh = True
+        else:
+            self.smart_enabled.show()
+            self.smart_disabled.hide()
+            self.fresh = False
+            
     # ** This method should be common to all hardware interfaces **
     # Returns the DO/RF/AO/DDS object associated with a given channel.
     # This is called before instantiating virtual devices, so that they can
@@ -296,7 +317,7 @@ class PulseblasterWorker(Worker):
         # without a reprogramming of the first two lines:
         self.smart_cache['ready_to_go'] = False
         
-    def program_buffered(self,h5file,initial_values):
+    def program_buffered(self,h5file,initial_values,fresh):
         return pb_programming.program_from_h5_file(self.pb_num,h5file,initial_values)
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/pulseblaster_%d'%self.pb_num]
@@ -315,13 +336,13 @@ class PulseblasterWorker(Worker):
                 
                 pb_select_dds(i)
                 # Only reprogram each thing if there's been a change:
-                if amps != self.smart_cache['amps']:   
+                if fresh or amps != self.smart_cache['amps']:   
                     self.smart_cache['amps'] = amps
                     program_amp_regs(*amps)
-                if freqs != self.smart_cache['freqs']:
+                if fresh or freqs != self.smart_cache['freqs']:
                     self.smart_cache['freqs'] = freqs
                     program_freq_regs(*freqs)
-                if phases != self.smart_cache['phases']:      
+                if fresh or phases != self.smart_cache['phases']:      
                     self.smart_cache['phases'] = phases
                     program_phase_regs(*phases)
                 
