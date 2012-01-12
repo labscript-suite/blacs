@@ -341,7 +341,7 @@ class ni_pcie_6363(Tab):
         elif isinstance(output,AO):
             if self.analog_widgets[channel].get_text() != str(output.value):
                 self.analog_widgets[channel].set_text(str(output.value))
-            
+
 
     #
     # ** This method should be common to all hardware interfaces **

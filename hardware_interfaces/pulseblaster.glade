@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
-  <!-- interface-naming-policy project-wide -->
   <object class="GtkAdjustment" id="amplitude_adj_0">
     <property name="upper">1</property>
     <property name="step_increment">0.01</property>
@@ -37,8 +36,6 @@
   <object class="GtkScrolledWindow" id="toplevel">
     <property name="visible">True</property>
     <property name="can_focus">True</property>
-    <property name="hscrollbar_policy">automatic</property>
-    <property name="vscrollbar_policy">automatic</property>
     <child>
       <object class="GtkViewport" id="viewport1">
         <property name="visible">True</property>
@@ -106,7 +103,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -135,11 +131,8 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_0</property>
                     <property name="digits">7</property>
-                    <signal name="output" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -191,11 +184,8 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_0</property>
                     <property name="digits">11</property>
-                    <signal name="output" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -247,12 +237,9 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_0</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
-                    <signal name="output" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -319,7 +306,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -349,11 +335,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_1</property>
                     <property name="digits">7</property>
-                    <signal name="output" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -406,11 +389,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_1</property>
                     <property name="digits">11</property>
-                    <signal name="output" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -463,12 +443,9 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_1</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
-                    <signal name="output" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -535,7 +512,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_0">
                         <property name="visible">True</property>
@@ -580,7 +556,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_1">
                         <property name="visible">True</property>
@@ -625,7 +600,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_2">
                         <property name="visible">True</property>
@@ -670,7 +644,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_3">
                         <property name="visible">True</property>
@@ -715,7 +688,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_4">
                         <property name="visible">True</property>
@@ -760,7 +732,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_5">
                         <property name="visible">True</property>
@@ -805,7 +776,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_6">
                         <property name="visible">True</property>
@@ -850,7 +820,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_7">
                         <property name="visible">True</property>
@@ -895,7 +864,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_8">
                         <property name="visible">True</property>
@@ -940,7 +908,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_9">
                         <property name="visible">True</property>
@@ -985,7 +952,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_10">
                         <property name="visible">True</property>
@@ -1030,7 +996,6 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
-                    <signal name="toggled" handler="on_flag_toggled" swapped="no"/>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_11">
                         <property name="visible">True</property>
