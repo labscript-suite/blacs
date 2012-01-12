@@ -261,7 +261,8 @@ class pulseblaster(Tab):
 class PulseblasterWorker(Worker):
     def init(self):
         exec 'from spinapi import *' in globals()
-        
+        self.smart_cache = {'amps':None,'freqs':None,'phases':None,'pulse_program':None,'ready_to_go':False}
+    
     def initialise_pulseblaster(self, pb_num):
         self.pb_num = pb_num
         pb_select_board(self.pb_num)
@@ -291,6 +292,10 @@ class PulseblasterWorker(Worker):
         # line one, then brach back to zero, completing the static update:
         pb_start()
         
+        # The pulse program now has a branch in line one, and so can't proceed to the pulse program
+        # without a reprogramming of the first two lines:
+        self.smart_cache['ready_to_go'] = False
+        
     def program_buffered(self,h5file,initial_values):
         return pb_programming.program_from_h5_file(self.pb_num,h5file,initial_values)
         with h5py.File(h5file,'r') as hdf5_file:
@@ -300,7 +305,6 @@ class PulseblasterWorker(Worker):
             freqregs = []
             phaseregs = []
             for i in range(2):
-                pb_select_dds(i)
                 amps = group['DDS%d/AMP_REGS'%i][:]
                 freqs = group['DDS%d/FREQ_REGS'%i][:]
                 phases = group['DDS%d/PHASE_REGS'%i][:]
@@ -309,9 +313,17 @@ class PulseblasterWorker(Worker):
                 freqs[0] = initial_values['freq%d'%i] # had better be in MHz!
                 phases[0] = initial_values['phase%d'%i]
                 
-                program_amp_regs(*amps)
-                program_freq_regs(*freqs)
-                program_phase_regs(*phases)
+                pb_select_dds(i)
+                # Only reprogram each thing if there's been a change:
+                if amps != self.smart_cache['amps']:   
+                    self.smart_cache['amps'] = amps
+                    program_amp_regs(*amps)
+                if freqs != self.smart_cache['freqs']:
+                    self.smart_cache['freqs'] = freqs
+                    program_freq_regs(*freqs)
+                if phases != self.smart_cache['phases']:      
+                    self.smart_cache['phases'] = phases
+                    program_phase_regs(*phases)
                 
                 ampregs.append(amps)
                 freqregs.append(freqs)
@@ -329,15 +341,22 @@ class PulseblasterWorker(Worker):
             finalphase0 = phase0[phasereg0]
             finalphase1 = phase1[phasereg1]
             
-            pb_start_programming(PULSE_PROGRAM)
-            # Line zero is a wait on the final state of the program:
-            pb_inst_dds2(freqreg0,phasereg0,ampreg0,en0,0,freqreg1,phasereg1,ampreg1,en1,0,flags,WAIT,0,1*ms)
-            # Line one is a continue with the current front panel values:
-            pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 1*ms)
-            # Now the rest of the program:
-            for args in pulse_program:
-                spinapi.pb_inst_dds2(*args)
-            spinapi.pb_stop_programming()
+            if self.smart_cache['initial_values'] != initial_values or \
+            self.smart_cache['pulse_program'] != pulse_program or \
+            not self.smart_programming['ready_to_go']:
+            
+                self.smart_cache['initial_values'] = initial_values
+                pb_start_programming(PULSE_PROGRAM)
+                # Line zero is a wait on the final state of the program:
+                pb_inst_dds2(freqreg0,phasereg0,ampreg0,en0,0,freqreg1,phasereg1,ampreg1,en1,0,flags,WAIT,0,1*ms)
+                # Line one is a continue with the current front panel values:
+                pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 1*ms)
+                # Now the rest of the program:
+                if self.smart_cache['pulse_program'] != pulse_program:
+                    self.smart_cache['pulse_program'] = pulse_program
+                    for args in pulse_program:
+                        spinapi.pb_inst_dds2(*args)
+                spinapi.pb_stop_programming()
             
             # Now we build a dictionary of the final state to send back to the GUI:
             return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,
