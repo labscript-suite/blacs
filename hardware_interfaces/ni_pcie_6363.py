@@ -383,10 +383,11 @@ class ni_pcie_6363(Tab):
             for channel,value in final_values.items():
                 if channel == "digital":
                     for i in range(32): # 32 is number of buffered channels
-                        self.digital_outs[i].update_value(((value & (1 << i)) >> i))
+                        #self.digital_outs[i].update_value(((value & (1 << i)) >> i))
+                        pass
                 else:    
                     chan_num = int((channel.split('/'))[-1].strip('ao'))
-                    self.analog_outs[chan_num].update_value(value)
+                    #self.analog_outs[chan_num].update_value(value)
                 
         # Tell the queue manager that we're done:
         if notify_queue is not None:
@@ -657,7 +658,7 @@ class Worker2(multiprocessing.Process):
                         chnl_list = self.channels
                     try:
                         error = "Task did not return an error, but it should have"
-                        error = self.task.ReadAnalogF64(self.samples_per_channel,0.5,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
+                        error = self.task.ReadAnalogF64(self.samples_per_channel,5,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
                         logger.debug('Reading complete')
                         if error < 0:
                             raise Exception(error)

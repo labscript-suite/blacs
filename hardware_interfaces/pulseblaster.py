@@ -25,7 +25,7 @@ class pulseblaster(Tab):
         self.settings = settings
         self.device_name = settings['device_name']        
         self.pb_num = int(settings['device_num'])
-        self.fresh = False
+        self.fresh = True
         self.static_mode = True
         self.destroy_complete = False
         
@@ -185,17 +185,20 @@ class pulseblaster(Tab):
             self.queue_work('program_static',self.get_front_panel_state())
         
     @define_state
-    def start(self):
+    def start(self,widget=None):
         self.queue_work('pb_start')
-    
+        self.status_monitor()
+        
     @define_state
-    def stop(self):
+    def stop(self,widget=None):
         self.queue_work('pb_stop')
-    
+        self.status_monitor()
+        
     @define_state    
-    def reset(self):
+    def reset(self,widget=None):
         self.queue_work('pb_reset')
-    
+        self.status_monitor()
+        
     # ** This method should be common to all hardware interfaces **
     # Program experimental sequence
     # Needs to handle seamless transition from static to experiment sequence
@@ -228,7 +231,7 @@ class pulseblaster(Tab):
         the run is over"""
         self.timeouts.remove(self.status_monitor)
         self.start()
-        self.statemachine_timeout_add(50,self.status_monitor,notify_queue)
+        self.statemachine_timeout_add(1,self.status_monitor,notify_queue)
         
     # ** This method should be common to all hardware interfaces **
     # Return to unbuffered (static) mode
@@ -238,12 +241,12 @@ class pulseblaster(Tab):
         # Once again, the pulseblaster is always ready! However we need
         # to update the gui to reflect the current hardware values:
         for i, flag in enumerate(self.flags):
-            flag.set_value(self.final_values['flag%d'%i],program=False)
+            flag.set_state(self.final_values['flags'][i],program=False)
         for i, dds in enumerate(self.dds_outputs):
             dds.freq.set_value(self.final_values['freq%d'%i],program=False)
             dds.amp.set_value(self.final_values['amp%d'%i],program=False)
             dds.phase.set_value(self.final_values['phase%d'%i],program=False)
-            dds.gate.set_value(self.final_values['en%d'%i],program=False)
+            dds.gate.set_state(self.final_values['en%d'%i],program=False)
         # Reenable static updates triggered by GTK events
         self.static_mode = True
         # Notify the queue manager thread that we've finished transitioning to static:
@@ -282,6 +285,7 @@ class pulseblaster(Tab):
 class PulseblasterWorker(Worker):
     def init(self):
         exec 'from spinapi import *' in globals()
+        
         self.pb_start = pb_start
         self.pb_stop = pb_stop
         self.pb_reset = pb_reset
@@ -323,7 +327,6 @@ class PulseblasterWorker(Worker):
         self.smart_cache['ready_to_go'] = False
         
     def program_buffered(self,h5file,initial_values,fresh):
-        return pb_programming.program_from_h5_file(self.pb_num,h5file,initial_values)
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/pulseblaster_%d'%self.pb_num]
             # Program the DDS registers:
@@ -341,13 +344,13 @@ class PulseblasterWorker(Worker):
                 
                 pb_select_dds(i)
                 # Only reprogram each thing if there's been a change:
-                if fresh or amps != self.smart_cache['amps']:   
+                if fresh or (amps != self.smart_cache['amps']).all():   
                     self.smart_cache['amps'] = amps
                     program_amp_regs(*amps)
-                if fresh or freqs != self.smart_cache['freqs']:
+                if fresh or (freqs != self.smart_cache['freqs']).all():
                     self.smart_cache['freqs'] = freqs
                     program_freq_regs(*freqs)
-                if fresh or phases != self.smart_cache['phases']:      
+                if fresh or (phases != self.smart_cache['phases']).all():      
                     self.smart_cache['phases'] = phases
                     program_phase_regs(*phases)
                 
@@ -360,17 +363,18 @@ class PulseblasterWorker(Worker):
             
             #Let's get the final state of the pulseblaster. z's are the args we don't need:
             freqreg0,phasereg0,ampreg0,en0,z,freqreg1,phasereg1,ampreg1,en1,z,flags,z,z,z = pulse_program[-1]
-            finalfreq0 = freqs0[freqreg0]
-            finalfreq1 = freqs1[freqreg1]
-            finalamp0 = amps0[ampreg0]
-            finalamp1 = amps1[ampreg1]
-            finalphase0 = phase0[phasereg0]
-            finalphase1 = phase1[phasereg1]
+            finalfreq0 = freqregs[0][freqreg0]
+            finalfreq1 = freqregs[1][freqreg1]
+            finalamp0 = ampregs[0][ampreg0]
+            finalamp1 = ampregs[1][ampreg1]
+            finalphase0 = phaseregs[0][phasereg0]
+            finalphase1 = phaseregs[1][phasereg1]
             
-            if self.smart_cache['initial_values'] != initial_values or \
-            self.smart_cache['pulse_program'] != pulse_program or \
-            not self.smart_programming['ready_to_go']:
+            if fresh or self.smart_cache['initial_values'] != initial_values or \
+            (self.smart_cache['pulse_program'] != pulse_program).all() or \
+            not self.smart_cache['ready_to_go']:
             
+                self.smart_cache['ready_to_go'] = True
                 self.smart_cache['initial_values'] = initial_values
                 pb_start_programming(PULSE_PROGRAM)
                 # Line zero is a wait on the final state of the program:
@@ -378,11 +382,11 @@ class PulseblasterWorker(Worker):
                 # Line one is a continue with the current front panel values:
                 pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 1*ms)
                 # Now the rest of the program:
-                if self.smart_cache['pulse_program'] != pulse_program:
+                if fresh or (self.smart_cache['pulse_program'] != pulse_program).all():
                     self.smart_cache['pulse_program'] = pulse_program
                     for args in pulse_program:
-                        spinapi.pb_inst_dds2(*args)
-                spinapi.pb_stop_programming()
+                        pb_inst_dds2(*args)
+                pb_stop_programming()
             
             # Now we build a dictionary of the final state to send back to the GUI:
             return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,

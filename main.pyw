@@ -672,9 +672,9 @@ if __name__ == "__main__":
             
             with gtk.gdk.lock:
                 self.status_bar.set_text("Idle")
-            outfile = open('timing.txt','w')
-            while self.manager_running:  
-                t0 = time.time()
+            outfile = open(r'Z:\Temp\timing.txt','w')
+            while self.manager_running:
+                total_start_time = t0 = time.time()
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
                     with gtk.gdk.lock:
@@ -829,6 +829,7 @@ if __name__ == "__main__":
                 for devicename, tab in devices_in_use.items():
                     with gtk.gdk.lock:
                         tab.transition_to_static(notify_queue_static)
+                for devicename, tab in devices_in_use.items():        
                     notify_queue_static.get()
                             
                 logger.info('All devices are back in static mode.')  
@@ -868,7 +869,7 @@ if __name__ == "__main__":
                     self.now_running.hide()
                 outfile.write('\nFinalisation stuff:' + str(time.time() - t0))
                 outfile.flush()
-                t0 = time.time()
+                outfile.write('\nTotal for run:' + str(time.time() - total_start_time))
             logger.info('Stopping')
     
         def send_for_analysis(self, path):
