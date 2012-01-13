@@ -55,13 +55,13 @@ class pulseblaster(Tab):
             name = ' - ' + connection_table_row.name if device else ''
             
             # Set the label to reflect the connected device's name:
-            label.set_text(hardware_name + real_name)
+            label.set_text(channel + name)
             
             # Make output objects:
-            freq = AO(name, channel, freq_spinbutton, self.static_update, self.freq_min, self.freq_max, self.freq_step)
-            amp = AO(name, channel, amp_spinbutton, self.static_update, self.amp_min, self.amp_max, self.amp_step)
-            phase = AO(name, channel, phase_spinbutton, self.static_update,self.phase_min, self.phase_max, self.phase_step)
-            gate = DO(name, channel, gate_togglebutton, self.static_update)
+            freq = AO(name, channel, freq_spinbutton, self.program_static, self.freq_min, self.freq_max, self.freq_step)
+            amp = AO(name, channel, amp_spinbutton, self.program_static, self.amp_min, self.amp_max, self.amp_step)
+            phase = AO(name, channel, phase_spinbutton, self.program_static,self.phase_min, self.phase_max, self.phase_step)
+            gate = DO(name, channel, gate_togglebutton, self.program_static)
             rf = RF(amp, freq, phase)
             dds = DDS(rf, gate)
             
@@ -69,7 +69,7 @@ class pulseblaster(Tab):
             freq.set_value(settings['f%d'%i],program=False)
             amp.set_value(settings['a%d'%i],program=False)
             phase.set_value(settings['p%d'%i],program=False)
-            gate.set_value(settings['e%d'%i],program=False)
+            gate.set_state(settings['e%d'%i],program=False)
         
             # Store for later access:
             self.dds_outputs.append(dds)
@@ -85,17 +85,17 @@ class pulseblaster(Tab):
                 
                 # Find out the name of the connected device (if there is a device connected)
                 device = self.settings['connection_table'].find_child(self.settings['device_name'],'flag %d'%i)
-                name = device.name if channel_name else '-'
+                name = device.name if device else '-'
                 
                 # Set the label to reflect the connected device's name:
                 channel_label.set_text('Flag %d'%i)
                 name_label.set_text(name)
                 
                 # Make output object:
-                flag = DO(name, channel, flag_togglebutton, self.static_update)
+                flag = DO(name, channel, flag_togglebutton, self.program_static)
             
                 # Set default value:
-                flag.set_value(settings['flags'][i],program=False)
+                flag.set_state(settings['flags'][i],program=False)
                 
                 # Store for later:
                 self.flags.append(flag)
@@ -129,7 +129,7 @@ class pulseblaster(Tab):
 
     @define_state
     def initialise_pulseblaster(self):
-        self.queue_work('initialise_pulseblaster')
+        self.queue_work('initialise_pulseblaster',self.pb_num)
         
     # This method should be common to all hardware interfaces.
     @define_state
@@ -282,6 +282,11 @@ class pulseblaster(Tab):
 class PulseblasterWorker(Worker):
     def init(self):
         exec 'from spinapi import *' in globals()
+        self.pb_start = pb_start
+        self.pb_stop = pb_stop
+        self.pb_reset = pb_reset
+        self.pb_close = pb_close
+        self.pb_read_status = pb_read_status
         self.smart_cache = {'amps':None,'freqs':None,'phases':None,'pulse_program':None,'ready_to_go':False}
     
     def initialise_pulseblaster(self, pb_num):
@@ -297,7 +302,7 @@ class PulseblasterWorker(Worker):
             pb_select_dds(i)
             # Program the frequency, amplitude and phase into their
             # zeroth registers:
-            program_amp_regs(dds_outputs['amp%d'%i])
+            program_amp_regs(values['amp%d'%i])
             program_freq_regs(values['freq%d'%i]) # method expects MHz
             program_phase_regs(values['phase%d'%i])
 

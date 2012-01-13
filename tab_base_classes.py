@@ -153,8 +153,10 @@ class Tab(object):
             self.from_worker.put((False,'quit',None))
             self.event_queue.put('_quit')
         self.notebook = self._toplevel.get_parent()
-        currentpage = self.notebook.get_current_page()
-        self.notebook.remove_page(currentpage)
+        currentpage = None
+        if self.notebook:
+            currentpage = self.notebook.get_current_page()
+            self.notebook.remove_page(currentpage)       
         return currentpage
         
     def restart(self,*args):
@@ -253,6 +255,7 @@ class Tab(object):
                             logger.debug('Received quit signal')
                             break
                         logger.info('Worker reported failure to start job')
+                        raise Exception(message)
                     # Wait for and get the results of the work:
                     logger.debug('Worker reported job started, waiting for completion')
                     success,message,results = self.from_worker.get()

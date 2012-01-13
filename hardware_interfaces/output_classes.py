@@ -1,13 +1,13 @@
 class AO(object):
-    def __init__(self, name,  channel, widget, static_update_function, min, max, step, page):
+    def __init__(self, name,  channel, widget, static_update_function, min, max, step):
         self.widget = widget
         self.handler_id = self.widget.connect('value-changed',static_update_function)
-        self.set_limits(min,max,page,step)
+        self.set_limits(min,max,step)
         self.name = name
         self.channel = channel
         
-    def set_limits(self,min, max, page, steps):
-        self.widget.set_increments(step,page)
+    def set_limits(self,min, max, step):
+        self.widget.set_increments(step,10*step)
         self.widget.set_range(min,max)
 
     @property
@@ -15,12 +15,14 @@ class AO(object):
         return self.widget.get_value()
         
     def set_value(self, value, program=True):
+        # conversion to float means a string can be passed in too:
+        value = float(value)
         if not program:
-            self.widget.block(self.hadler_id)
+            self.widget.handler_block(self.handler_id)
         if value != self.value:
             self.widget.set_value(value)
-        if not_program:
-            self.widget.unblock(self.handler_id)
+        if not program:
+            self.widget.handler_unblock(self.handler_id)
             
             
 class DO(object):
@@ -32,20 +34,20 @@ class DO(object):
         
     @property   
     def state(self):
-        return self.widget.get_state()
+        return bool(self.widget.get_state())
         
     def set_state(self,state,program=True):
         # conversion to integer, then bool means we can safely pass in
         # either a string '1' or '0', True or False or 1 or 0
         state = bool(int(state))
         if not program:
-            self.widget.block(self.hadler_id)
-        if value != widget.get_value():
+            self.widget.handler_block(self.handler_id)
+        if state != self.state:
             self.widget.set_state(state)
-        if not_program:
-            self.widget.unblock(self.handler_id)
+        if not program:
+            self.widget.handler_unblock(self.handler_id)
    
-   
+
 class RF(object):
     def __init__(self, amp, freq, phase):
         self.amp = amp

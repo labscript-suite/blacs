@@ -523,6 +523,7 @@ if __name__ == "__main__":
                 self.server_is_responding.hide()
                 self.server_is_not_responding.show()
                 self.toggle_analysis.set_sensitive(False)
+                self.toggle_analysis.set_state(False)
                 message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
                                             'Problem connecting to analysis server:\n' + response) 
                 message.run()  
