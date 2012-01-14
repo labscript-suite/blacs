@@ -1,6 +1,4 @@
 import gtk
-import h5py
-
 from output_classes import AO, DO, RF, DDS
 from tab_base_classes import Tab, Worker, define_state
 
@@ -100,7 +98,7 @@ class pulseblaster(Tab):
                 # Store for later:
                 self.flags.append(flag)
             else:
-                # This pulseblaster doesn't this flag - hide the button:
+                # This pulseblaster doesn't have this flag - hide the button:
                 self.builder.get_object('flag_%d'%i).hide()
 
         # Status monitor timout
@@ -119,6 +117,7 @@ class pulseblaster(Tab):
                                'waiting_yes':self.builder.get_object('waiting_yes'),
                                'waiting_no':self.builder.get_object('waiting_no')}
         
+        # Insert our GUI into the viewport provided by BLACS:
         self.viewport.add(self.toplevel)
         
         # Initialise the Pulseblaster:
@@ -131,7 +130,6 @@ class pulseblaster(Tab):
     def initialise_pulseblaster(self):
         self.queue_work('initialise_pulseblaster',self.pb_num)
         
-    # This method should be common to all hardware interfaces.
     @define_state
     def destroy(self):        
         self.queue_work('pb_close')
@@ -199,9 +197,6 @@ class pulseblaster(Tab):
         self.queue_work('pb_reset')
         self.status_monitor()
         
-    # ** This method should be common to all hardware interfaces **
-    # Program experimental sequence
-    # Needs to handle seamless transition from static to experiment sequence
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
         self.static_mode = False 
@@ -218,7 +213,8 @@ class pulseblaster(Tab):
         # at the end of the run. Store them so that we can use them
         # in transition_to_static:
         self.final_values = _results
-        # Notify the queue manager thread that we've finished transitioning to buffered:
+        # Notify the queue manager thread that we've finished
+        # transitioning to buffered:
         notify_queue.put(self.device_name)
        
     def abort_buffered(self):
@@ -233,9 +229,6 @@ class pulseblaster(Tab):
         self.start()
         self.statemachine_timeout_add(1,self.status_monitor,notify_queue)
         
-    # ** This method should be common to all hardware interfaces **
-    # Return to unbuffered (static) mode
-    # Needs to handle seamless transition from experiment sequence to static mode
     @define_state
     def transition_to_static(self,notify_queue):
         # Once again, the pulseblaster is always ready! However we need
@@ -265,27 +258,20 @@ class pulseblaster(Tab):
             self.smart_disabled.hide()
             self.fresh = False
             
-    # ** This method should be common to all hardware interfaces **
-    # Returns the DO/RF/AO/DDS object associated with a given channel.
-    # This is called before instantiating virtual devices, so that they can
-    # be given a reference to channels they use 
     def get_child(self,type,channel):
-        if type == 'RF':
-            if channel >= 0 and channel < self.num_DDS:
-                return self.dds_outputs[channel]
-        elif type == 'DO':
-            if channel >= 0 and channel < self.num_DO:
+        """Allows virtual devices to obtain this tab's output objects"""
+        if type == 'DO':
+            if channel in range(self.num_DO):
                 return self.flags[channel]
         elif type == 'DDS':
-            if channel >= 0 and channel < self.num_DDS:
-                return self.flags[channel]
+            if channel in range(self.num_DDS):
+                return self.dds_outputs[channel]
         return None
     
-
 class PulseblasterWorker(Worker):
     def init(self):
         exec 'from spinapi import *' in globals()
-        
+        global h5py; import h5py
         self.pb_start = pb_start
         self.pb_stop = pb_stop
         self.pb_reset = pb_reset
