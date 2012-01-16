@@ -33,16 +33,6 @@ class AO(object):
             self.calibration = None
             self.comboboxmodel.append([default_units])
             
-        # Initialise right click menu
-        self.menu = gtk.Menu()
-        menu_item = gtk.MenuItem("Set Limits")
-        menu_item.connect("activate",self.set_limits)
-        menu_item.show()
-        self.menu.append(menu_item)
-        menu_item = gtk.MenuItem("Lock Widget")
-        menu_item.connect("activate",self.lock)
-        menu_item.show()
-        self.menu.append(menu_item)
         
         self.add_widget(widget,combobox)
         
@@ -58,8 +48,8 @@ class AO(object):
         self.comboboxes.append(combobox)
         self.comboboxhandlerids.append(combobox.connect('changed',self.on_selection_changed))
         
-        # setup the right click menu
-        widget.connect("button-release-event",self.show_menu)
+        # Add signal to populate the right click context menu with our own things!
+        widget.connect("populate-popup", self.populate_context_menu)
      
     def on_selection_changed(self,combobox):
         for box, id in zip(self.comboboxes,self.comboboxhandlerids):
@@ -128,10 +118,16 @@ class AO(object):
     def lock(self, menu_item):
         pass
         
-    def show_menu(self,widget,event):
+    def populate_context_menu(self,widget,menu):
         # is it a right click?
-        if event.button == 3:
-            self.menu.popup(None,None,None,event.button,event.time)
+        menu_item = gtk.MenuItem("Set Limits")
+        menu_item.connect("activate",self.set_limits)
+        menu_item.show()
+        menu.append(menu_item)
+        menu_item = gtk.MenuItem("Lock Widget")
+        menu_item.connect("activate",self.lock)
+        menu_item.show()
+        menu.append(menu_item)
             
                 
             
