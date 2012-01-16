@@ -65,9 +65,9 @@ class novatechdds9m(Tab):
             self.dds_outputs.append(dds)
          
             # Store outputs keyed by widget, so that we can look them up in gtk callbacks:
-            self.outputs_by_widget[freq_spinbutton] = i, 'freq', freq
-            self.outputs_by_widget[amp_spinbutton] = i, 'amp', amp
-            self.outputs_by_widget[phase_spinbutton] = i, 'phase', phase
+            self.outputs_by_widget[freq_spinbutton.get_adjustment()] = i, 'freq', freq
+            self.outputs_by_widget[amp_spinbutton.get_adjustment()] = i, 'amp', amp
+            self.outputs_by_widget[phase_spinbutton.get_adjustment()] = i, 'phase', phase
             self.outputs_by_widget[gate_checkbutton] = i, 'gate', gate
             
         # Insert our GUI into the viewport provided by BLACS:    
@@ -85,7 +85,8 @@ class novatechdds9m(Tab):
         # Update the GUI to reflect the current hardware values:
         # The novatech doesn't have anything to say about the checkboxes;
         # turn them on:
-        _results['en0'] = _results['en1'] = True
+        for i in range(4):
+            _results['en%d'%i] = True
         self.set_front_panel_state(_results)
                     
     @define_state
@@ -118,7 +119,7 @@ class novatechdds9m(Tab):
             # The novatech only programs one output at a time. There
             # is no current code which programs many outputs in quick
             # succession, so there is no speed penalty for this:
-            channel, type, output = self.output_by_widget[widget]
+            channel, type, output = self.outputs_by_widget[widget]
             # is an amplitude change:
             if type == 'gate':
                 value = output.state*self.dds_outputs[channel].amp.value
