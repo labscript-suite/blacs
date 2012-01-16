@@ -133,10 +133,14 @@ class novatechdds9m(Tab):
     def set_front_panel_state(self, values):
         """Updates the gui without reprogramming the hardware"""
         for i, dds in enumerate(self.dds_outputs):
-            dds.freq.set_value(values['freq%d'%i],program=False)
-            dds.amp.set_value(values['amp%d'%i],program=False)
-            dds.phase.set_value(values['phase%d'%i],program=False)
-            dds.gate.set_state(values['en%d'%i],program=False)
+            if 'freq%d'%i in values:
+                dds.freq.set_value(values['freq%d'%i],program=False)
+            if 'amp%d'%i in values:
+                dds.amp.set_value(values['amp%d'%i],program=False)
+            if 'phase%d'%i in values:    
+                dds.phase.set_value(values['phase%d'%i],program=False)
+            if 'en%d'%i in values:
+                dds.gate.set_state(values['en%d'%i],program=False)
         
     @define_state
     def program_static(self,widget):
@@ -146,7 +150,8 @@ class novatechdds9m(Tab):
             # is no current code which programs many outputs in quick
             # succession, so there is no speed penalty for this:
             channel, type, output = self.outputs_by_widget[widget]
-            # is an amplitude change:
+            # If its the user clicking a checkbutton, then really what
+            # we're doing is an amplitude change:
             if type == 'gate':
                 value = output.state*self.dds_outputs[channel].amp.value
                 type = 'amp'
@@ -178,12 +183,19 @@ class novatechdds9m(Tab):
     
     @define_state    
     def transition_to_static(self,notify_queue):
-        self.queue_work('transition_to_static')
+        if notify_queue is None:
+            abort = True
+        else: abort = False
+        self.queue_work('transition_to_static',abort=abort)
         # Update the gui to reflect the current hardware values:
-        # The final results don't say anything about the checkboxes;
-        # turn them on:
-        self.final_values['en0'] = self.final_values['en1'] = True
-        self.set_front_panel_state(self.final_values)
+        if abort:
+            self.set_front_panel_state(self.initial_values)
+        else:
+            # The final results don't say anything about the checkboxes;
+            # turn them on:
+            for i in range(4):
+                self.final_values['en%d'%i] = True
+            self.set_front_panel_state(self.final_values)
         self.static_mode=True
         # Tell the queue manager that we're done:
         if notify_queue:
@@ -212,7 +224,7 @@ class NovatechDDS9mWorker(Worker):
     def init(self):
         global serial; import serial
         global h5py; import h5py
-        self.old_table = None
+        self.smart_cache = {'STATIC_DATA': None, 'TABLE_DATA': ''}
         
     def initialise_novatech(self,port,baud_rate):
         self.connection = serial.Serial(port, baudrate = baud_rate, timeout=0.1)
@@ -266,41 +278,117 @@ class NovatechDDS9mWorker(Worker):
                 raise Exception('Error: Failed to execute command: '+'P%d %u\r\n'%(channel,value*16384/360))
         else:
             raise TypeError(type)
-
+        # Now that a static update has been done, we'd better invalidate the saved STATIC_DATA:
+        self.smart_cache['STATIC_DATA'] = None
+       
     def program_buffered(self,device_name,h5file,initial_values,fresh):
-        self.old_table=novatech_programming.program_from_h5_file(self.connection,device_name,h5file,initial_values,self.old_table,fresh)
-
-    def transition_to_static(self):
+        # Store the initial values in case we have to abort and restore them:
+        self.initial_values = initial_values
+        # Store the final values to for use during transition_to_static:
+        self.final_values = {}
+        with h5py.File(h5file) as hdf5_file:
+            group = hdf5_file['/devices/'+device_name]
+            # If there are values to set the unbuffered outputs to, set them now:
+            if 'STATIC_DATA' in group:
+                data = group['STATIC_DATA'][0]
+                if fresh or data != self.smart_cache['STATIC_DATA']:
+                    self.logger.debug('Static data has changed, reprogramming.')
+                    self.smart_cache['SMART_DATA'] = data
+                    connection.write('F2 %f\r\n'%(data['freq2']/10.0**7))
+                    connection.readline()
+                    connection.write('V2 %u\r\n'%(data['amp2']))
+                    connection.readline()
+                    connection.write('P2 %u\r\n'%(data['phase2']))
+                    connection.readline()
+                    connection.write('F3 %f\r\n'%data['freq3']/10.0**7))
+                    connection.readline()
+                    connection.write('V3 %u\r\n'%(data['amp3']))
+                    connection.readline()
+                    connection.write('P3 %u\r\n'%data['phase3']))
+                    connection.readline()
+                    
+                    # Save these values into final_values so the GUI can
+                    # be updated at the end of the run to reflect them:
+                    self.final_values['freq2'] = data['freq2']/10.0**7
+                    self.final_values['freq3'] = data['freq3']/10.0**7
+                    self.final_values['amp2'] = data['amp2']
+                    self.final_values['amp3'] = data['amp3']
+                    self.final_values['phase2'] = data['phase2']*360/16384.0
+                    self.final_values['phase3'] = data['phase3']*360/16384.0
+                    
+            # Now program the buffered outputs:
+            if 'TABLE_DATA' in group:
+                data = group['TABLE_DATA'][:]
+                for i, line in enumerate(data):
+                    oldtable = self.smart_cache['TABLE_DATA']
+                    if fresh or i >= len(oldtable) or data != oldtable[i]:
+                        for ddsno in range(2):
+                            connection.write('t%d %04x %08x,%04x,%04x,ff\r\n '%(ddsno, i,line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]))
+                            connection.readline()
+                # Store the table for future smart programming comparisons:
+                try:
+                    self.smart_cache['TABLE_DATA'][:len(data)] = data
+                    self.logger.debug('Stored new table as subset of old table')
+                except: # new table is longer than old table
+                    self.smart_cache['TABLE_DATA'] = data
+                    self.logger.debug('New table is longer than old table and has replaced it.')
+                    
+                # Get the final values of table mode so that the GUI can
+                # reflect them after the run:
+                self.final_values['freq0'] = data[-1]['freq0']/10.0**7
+                self.final_values['freq1'] = data[-1]['freq1']/10.0**7
+                self.final_values['amp0'] = data[-1]['amp0']
+                self.final_values['amp1'] = data[-1]['amp1']
+                self.final_values['phase0'] = data[-1]['phase0']*360/16384.0
+                self.final_values['phase1'] = data[-1]['phase1']*360/16384.0
+                
+            # Transition to table mode:
+            connection.write('m t\r\n')
+            connection.readline()
+            # Transition to hardware updates:
+            connection.write('I e\r\n')
+            connection.readline()
+            # We are now waiting for a rising edge to trigger the output
+            # of the second table pair (first of the experiment)
+            return self.final_values
+            
+    def transition_to_static(self,abort = False):
         self.connection.write('m 0\r\n')
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: "m 0"')
         self.connection.write('I a\r\n')
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: "I a"')
-        #self.connection.write('I p\r\n')
-        #if self.connection.readline() != "OK\r\n":
-        #    raise Exception('Error: Failed to execute command: "I p"')
-        last_row0=self.old_table[0,:,-1]
-        last_row1=self.old_table[1,:,-1]
-        self.connection.write('F0 %f\r\n'%(last_row0[0]/10.0**7))
-        if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to set F0')
-        self.connection.write('V0 %u\r\n'%(last_row0[2]))
-        if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to set V0')
-        self.connection.write('P0 %u\r\n'%(last_row0[1]))
-        if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to set P0')
-        self.connection.write('F1 %f\r\n'%(last_row1[0]/10.0**7))
-        if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to set F1')
-        self.connection.write('V1 %u\r\n'%(last_row1[2]))
-        if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to set V1')
-        self.connection.write('P1 %u\r\n'%(last_row1[1]))
-        if self.connection.readline() != "OK\r\n":
-            raise Exception('Error: Failed to set P1')
-        
+        if abort:
+            # If we're aborting the run, then we need to reset DDSs 2 and 3 to their initial values.
+            # 0 and 1 will already be in their initial values. We also need to invalidate the smart
+            # programming cache for them.
+            values = self.initial_values
+            DDSs = [2,3]
+            self.smart_cache['STATIC_DATA'] = None
+        else:
+            # If we're not aborting the run, then we need to set DDSs 0 and 1 to their final values.
+            # 2 and 3 will already be in their final values.
+            values = self.final_values
+            DDSs = [0,1]
+            
+        for dds in DDSs:
+            if 'freq%d'%i in values:
+                 command = 'F%d %f\r\n' %(dds, values['freq%d'%i])
+                 self.connection.write(command)
+                 if self.connection.readline() != "OK\r\n":
+                     raise Exception('Error: Failed to execute %s'%command)
+            if 'amp%d'%i in values:
+                 gate_factor = values['en%d'%i] if 'en%d'%i in values else 1
+                 command = 'V%d %d\r\n' %(dds, values['amp%d'%i]*gate_factor)
+                 self.connection.write(command)
+                 if self.connection.readline() != "OK\r\n":
+                     raise Exception('Error: Failed to execute %s'%command)
+            if 'phase%d'%i in values:
+                 command = 'P%d %d\r\n' %(dds, values['phase%d'%i]*16384/360)
+                 self.connection.write(command)
+                 if self.connection.readline() != "OK\r\n":
+                     raise Exception('Error: Failed to execute %s'%command)
+                     
     def close_connection(self):
         self.connection.close()
-
