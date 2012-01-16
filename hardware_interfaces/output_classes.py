@@ -131,10 +131,8 @@ class AO(object):
     def show_menu(self,widget,event):
         # is it a right click?
         if event.button == 3:
-            self.menu.popup(None,None,self.find_widget_pos,event.button,event.time,event)
+            self.menu.popup(None,None,None,event.button,event.time)
             
-    def find_widget_pos(self,menu,event):
-        return event.x,event.y,False
                 
             
 class DO(object):
