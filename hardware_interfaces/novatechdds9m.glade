@@ -2,6 +2,30 @@
 <interface>
   <requires lib="gtk+" version="2.24"/>
   <!-- interface-naming-policy toplevel-contextual -->
+  <object class="GtkListStore" id="amp_0_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="amp_1_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="amp_2_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="amp_3_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkAdjustment" id="amplitude_adj_0">
     <property name="upper">1023</property>
     <property name="step_increment">1</property>
@@ -25,6 +49,30 @@
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
     <signal name="value-changed" handler="on_value_change" swapped="no"/>
+  </object>
+  <object class="GtkListStore" id="freq_0_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="freq_1_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="freq_2_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="freq_3_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
   </object>
   <object class="GtkAdjustment" id="frequency_adj_0">
     <property name="upper">170</property>
@@ -53,6 +101,30 @@
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
     <signal name="value-changed" handler="on_value_change" swapped="no"/>
+  </object>
+  <object class="GtkListStore" id="phase_0_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="phase_1_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="phase_2_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="phase_3_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
   </object>
   <object class="GtkAdjustment" id="phase_adj_0">
     <property name="upper">359.98000000000002</property>
@@ -289,14 +361,20 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="freq_unit_chnl_0">
+                  <object class="GtkComboBox" id="freq_unit_chnl_0">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">MHz</property>
+                    <property name="model">freq_0_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext1"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
                     <property name="position">2</property>
                   </packing>
                 </child>
@@ -343,6 +421,24 @@
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkComboBox" id="amp_unit_chnl_0">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="model">amp_0_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext9"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">6</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkCheckButton" id="amp_switch_0">
                     <property name="label" translatable="yes">On</property>
                     <property name="visible">True</property>
@@ -357,7 +453,7 @@
                     <property name="expand">False</property>
                     <property name="fill">False</property>
                     <property name="padding">5</property>
-                    <property name="position">6</property>
+                    <property name="position">7</property>
                   </packing>
                 </child>
                 <child>
@@ -369,7 +465,7 @@
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="padding">5</property>
-                    <property name="position">7</property>
+                    <property name="position">8</property>
                   </packing>
                 </child>
                 <child>
@@ -382,7 +478,7 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">8</property>
+                    <property name="position">9</property>
                   </packing>
                 </child>
                 <child>
@@ -401,19 +497,25 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">9</property>
+                    <property name="position">10</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="phase_unit_chnl_0">
+                  <object class="GtkComboBox" id="phase_unit_chnl_0">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Degrees</property>
+                    <property name="model">phase_0_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext5"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">10</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">11</property>
                   </packing>
                 </child>
               </object>
@@ -488,14 +590,20 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="freq_unit_chnl_1">
+                  <object class="GtkComboBox" id="freq_unit_chnl_1">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">MHz</property>
+                    <property name="model">freq_1_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext2"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
                     <property name="position">2</property>
                   </packing>
                 </child>
@@ -543,6 +651,24 @@
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkComboBox" id="amp_unit_chnl_1">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="model">amp_1_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext10"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">6</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkCheckButton" id="amp_switch_1">
                     <property name="label" translatable="yes">On</property>
                     <property name="visible">True</property>
@@ -557,7 +683,7 @@
                     <property name="expand">False</property>
                     <property name="fill">False</property>
                     <property name="padding">5</property>
-                    <property name="position">6</property>
+                    <property name="position">7</property>
                   </packing>
                 </child>
                 <child>
@@ -569,7 +695,7 @@
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="padding">5</property>
-                    <property name="position">7</property>
+                    <property name="position">8</property>
                   </packing>
                 </child>
                 <child>
@@ -582,7 +708,7 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">8</property>
+                    <property name="position">9</property>
                   </packing>
                 </child>
                 <child>
@@ -602,19 +728,25 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">9</property>
+                    <property name="position">10</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="phase_unit_chnl_1">
+                  <object class="GtkComboBox" id="phase_unit_chnl_1">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Degrees</property>
+                    <property name="model">phase_1_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext6"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">10</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">11</property>
                   </packing>
                 </child>
               </object>
@@ -689,14 +821,20 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="freq_unit_chnl_2">
+                  <object class="GtkComboBox" id="freq_unit_chnl_2">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">MHz</property>
+                    <property name="model">freq_2_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext3"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
                     <property name="position">2</property>
                   </packing>
                 </child>
@@ -744,6 +882,24 @@
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkComboBox" id="amp_unit_chnl_2">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="model">amp_2_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext11"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">6</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkCheckButton" id="amp_switch_2">
                     <property name="label" translatable="yes">On</property>
                     <property name="visible">True</property>
@@ -758,7 +914,7 @@
                     <property name="expand">False</property>
                     <property name="fill">False</property>
                     <property name="padding">5</property>
-                    <property name="position">6</property>
+                    <property name="position">7</property>
                   </packing>
                 </child>
                 <child>
@@ -770,7 +926,7 @@
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="padding">5</property>
-                    <property name="position">7</property>
+                    <property name="position">8</property>
                   </packing>
                 </child>
                 <child>
@@ -783,7 +939,7 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">8</property>
+                    <property name="position">9</property>
                   </packing>
                 </child>
                 <child>
@@ -803,19 +959,25 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">9</property>
+                    <property name="position">10</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="phase_unit_chnl_2">
+                  <object class="GtkComboBox" id="phase_unit_chnl_2">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Degrees</property>
+                    <property name="model">phase_2_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext7"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">10</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">11</property>
                   </packing>
                 </child>
               </object>
@@ -890,14 +1052,20 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="freq_unit_chnl_3">
+                  <object class="GtkComboBox" id="freq_unit_chnl_3">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">MHz</property>
+                    <property name="model">freq_3_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext4"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
                     <property name="position">2</property>
                   </packing>
                 </child>
@@ -945,6 +1113,24 @@
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkComboBox" id="amp_unit_chnl_3">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="model">amp_3_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext12"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">6</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkCheckButton" id="amp_switch_3">
                     <property name="label" translatable="yes">On</property>
                     <property name="visible">True</property>
@@ -959,7 +1145,7 @@
                     <property name="expand">False</property>
                     <property name="fill">False</property>
                     <property name="padding">5</property>
-                    <property name="position">6</property>
+                    <property name="position">7</property>
                   </packing>
                 </child>
                 <child>
@@ -971,7 +1157,7 @@
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="padding">5</property>
-                    <property name="position">7</property>
+                    <property name="position">8</property>
                   </packing>
                 </child>
                 <child>
@@ -984,7 +1170,7 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">8</property>
+                    <property name="position">9</property>
                   </packing>
                 </child>
                 <child>
@@ -1004,19 +1190,25 @@
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
-                    <property name="position">9</property>
+                    <property name="position">10</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="phase_unit_chnl_3">
+                  <object class="GtkComboBox" id="phase_unit_chnl_3">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">Degrees</property>
+                    <property name="model">phase_3_unit_liststore</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext8"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">10</property>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">11</property>
                   </packing>
                 </child>
               </object>
