@@ -7,11 +7,9 @@ class AO(object):
         self.handler_id = self.adjustment.connect('value-changed',static_update_function)
         self.name = name
         self.channel = channel
-        self.add_widget(widget,combobox)
+        self.comboboxmodel = combobox.get_model()
         self.comboboxes = []
         self.comboboxhandlerids = []
-        
-        self.comboboxmodel = combobox.get_model()
         self.current_units = default_units
         self.hardware_unit = default_units
         
@@ -35,15 +33,19 @@ class AO(object):
             self.comboboxmodel.append([default_units])
             
         
+        self.add_widget(widget,combobox)
         
-    def add_widget(widget, combobox):
+    def add_widget(self,widget, combobox):
         widget.set_adjustment(self.adjustment)
         # Set the model to match the other comboboxes
         combobox.set_model(self.comboboxmodel)
         # set the active item to match the active item of one of the comboboxes
-        combobox.set_active(self.comboboxes[0].get_active())
+        if self.comboboxes:
+            combobox.set_active(self.comboboxes[0].get_active())
+        else:
+            combobox.set_active(0)
         self.comboboxes.append(combobox)
-        self.comboboxhandlerids.append(combobox.connect('selection-changed',self.on_selection_changed)
+        self.comboboxhandlerids.append(combobox.connect('changed',self.on_selection_changed))
      
     def on_selection_changed(self,combobox):
         for box, id in zip(self.comboboxes,self.comboboxhandlerids):
@@ -53,7 +55,7 @@ class AO(object):
                 box.handler_unblock(id)
                 
         # Update the parameters of the Adjustment to match the new calibration!
-        new_units = self.comboboxmodel.get(combobox.get_active_iter(),0)
+        new_units = self.comboboxmodel.get(combobox.get_active_iter(),0)[0]
         parameter_list = [self.adjustment.get_value(),self.adjustment.get_lower(),self.adjustment.get_upper(),self.adjustment.get_step_increment(),
                             self.adjustment.get_page_increment()]
         

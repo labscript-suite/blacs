@@ -1,4 +1,5 @@
 from labscript import *
+from calibrations import *
 
 # MAIN DEVICE DEFINITIONS
 PulseBlaster(   'pulseblaster_0')
@@ -58,7 +59,7 @@ Camera('camera',  pulseblaster_0, 'flag 2', 0.1, 'top')
 DigitalOut('imaging', pulseblaster_0, 'flag 3')
 
 # PULSEBLASTER 0 DDS
-# DDS(               'Zeeman',  pulseblaster_0,       'dds 0')   forseen assignment
+# DDS(               'blah',  pulseblaster_0,       'dds 0',freq_cal=test,freq_cal_params={'a':2,'b':3})   #forseen assignment
 # DDS(              'Imaging',  pulseblaster_0,       'dds 1')   forseen assignment
 # DigitalOut( 'Zeeman_enable',  ni_pcie_6363_0,  'port0/line9')  forseen assignment
 # DigitalOut('Imaging_enable',  ni_pcie_6363_0,  'port0/line10') forseen assignment

@@ -42,18 +42,18 @@ class pulseblaster(Tab):
         for i in range(self.num_DDS):
             # Get the widgets for the DDS:
             freq_spinbutton = self.builder.get_object('freq_chnl_%d'%i)
-            freq_unit_selection = self.builder.get_object('freq_unit_chnl_%d',%i)
+            freq_unit_selection = self.builder.get_object('freq_unit_chnl_%d'%i)
             amp_spinbutton = self.builder.get_object('amp_chnl_%d'%i)
-            amp_unit_selection = self.builder.get_object('amp_unit_chnl_%d',%i)
+            amp_unit_selection = self.builder.get_object('amp_unit_chnl_%d'%i)
             phase_spinbutton = self.builder.get_object('phase_chnl_%d'%i)
-            phase_unit_selection = self.builder.get_object('phase_unit_chnl_%d',%i)
+            phase_unit_selection = self.builder.get_object('phase_unit_chnl_%d'%i)
             gate_togglebutton = self.builder.get_object('active_chnl_%d'%i)
             label = self.builder.get_object('channel_%d_label'%i)
             
             # Find out the name of the connected device (if there is a device connected)
             channel = 'DDS %d'%i
             device = self.settings['connection_table'].find_child(self.settings['device_name'],'dds %d'%i)
-            name = ' - ' + connection_table_row.name if device else ''
+            name = ' - ' + device.name if device else ''
             
             # Set the label to reflect the connected device's name:
             label.set_text(channel + name)
@@ -68,21 +68,22 @@ class pulseblaster(Tab):
             phase_calib_params = {}
             def_phase_calib_params = "Degrees"
             # get the 3 AO children from the connection table, find their calibration details
-            if (connection_table_row.name+'_freq') in device.child_list:
-                if device.child_list[connection_table_row.name+'_freq'] != "None"
-                    freq_calib = device.child_list[connection_table_row.name+'_freq'].calibration_class
-                    freq_calib_params = eval(device.child_list[connection_table_row.name+'_freq'].calibration_parameters)
-            if (connection_table_row.name+'_amp') in device.child_list:
-                if device.child_list[connection_table_row.name+'_amp'] != "None"
-                    amp_calib = device.child_list[connection_table_row.name+'_amp'].calibration_class
-                    amp_calib_params = eval(device.child_list[connection_table_row.name+'_amp'].calibration_parameters)
-            if (connection_table_row.name+'_phase') in device.child_list:
-                if device.child_list[connection_table_row.name+'_phase'] != "None"
-                    phase_calib = device.child_list[connection_table_row.name+'_phase'].calibration_class
-                    phase_calib_params = eval(device.child_list[connection_table_row.name+'_phase'].calibration_parameters)        
+            if device:
+                if (device.name+'_freq') in device.child_list:
+                    if device.child_list[device.name+'_freq'] != "None":
+                        freq_calib = device.child_list[device.name+'_freq'].calibration_class
+                        freq_calib_params = eval(device.child_list[device.name+'_freq'].calibration_parameters)
+                if (device.name+'_amp') in device.child_list:
+                    if device.child_list[device.name+'_amp'] != "None":
+                        amp_calib = device.child_list[device.name+'_amp'].calibration_class
+                        amp_calib_params = eval(device.child_list[device.name+'_amp'].calibration_parameters)
+                if (device.name+'_phase') in device.child_list:
+                    if device.child_list[device.name+'_phase'] != "None":
+                        phase_calib = device.child_list[device.name+'_phase'].calibration_class
+                        phase_calib_params = eval(device.child_list[device.name+'_phase'].calibration_parameters)        
             
             # Make output objects:
-            freq = AO(name, channel, freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, deffreq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
+            freq = AO(name, channel, freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
             amp = AO(name, channel, amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
             phase = AO(name, channel, phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
             gate = DO(name, channel, gate_togglebutton, self.program_static)
