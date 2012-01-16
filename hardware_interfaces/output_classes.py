@@ -13,6 +13,7 @@ class AO(object):
         self.current_units = default_units
         self.hardware_unit = default_units
         
+        # Initialise Calibrations
         if calib_class is not None:
             if calib_class not in globals() or not isinstance(calib_params,dict) or test.hardware_unit != default_units:
                 # Throw an error:
@@ -32,6 +33,16 @@ class AO(object):
             self.calibration = None
             self.comboboxmodel.append([default_units])
             
+        # Initialise right click menu
+        self.menu = gtk.Menu()
+        menu_item = gtk.MenuItem("Set Limits")
+        menu_item.connect("activate",self.set_limits)
+        menu_item.show()
+        self.menu.append(menu_item)
+        menu_item = gtk.MenuItem("Lock Widget")
+        menu_item.connect("activate",self.lock)
+        menu_item.show()
+        self.menu.append(menu_item)
         
         self.add_widget(widget,combobox)
         
@@ -46,6 +57,9 @@ class AO(object):
             combobox.set_active(0)
         self.comboboxes.append(combobox)
         self.comboboxhandlerids.append(combobox.connect('changed',self.on_selection_changed))
+        
+        # setup the right click menu
+        widget.connect("button-release-event",self.show_menu)
      
     def on_selection_changed(self,combobox):
         for box, id in zip(self.comboboxes,self.comboboxhandlerids):
@@ -107,7 +121,21 @@ class AO(object):
             self.adjustment.set_value(value)
         if not program:
             self.adjustment.handler_unblock(self.handler_id)
+    
+    def set_limits(self, menu_item):
+        pass
+        
+    def lock(self, menu_item):
+        pass
+        
+    def show_menu(self,widget,event):
+        # is it a right click?
+        if event.button == 3:
+            self.menu.popup(None,None,self.find_widget_pos,event.button,event.time,event)
             
+    def find_widget_pos(self,menu,event):
+        return event.x,event.y,False
+                
             
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):
