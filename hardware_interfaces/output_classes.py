@@ -1,28 +1,44 @@
+import gtk
+
 class AO(object):
-    def __init__(self, name,  channel, widget, static_update_function, min, max, step):
-        self.widget = widget
-        self.handler_id = self.widget.connect('value-changed',static_update_function)
-        self.set_limits(min,max,step)
+    def __init__(self, name,  channel, widget, combobox, static_update_function, min, max, step):
+        self.adjustment = gtk.Adjustment(0,min,max,step,10*step,0)
+        self.handler_id = self.adjustment.connect('value-changed',static_update_function)
         self.name = name
         self.channel = channel
+        self.add_widget(widget,combobox)
+        self.comboboxes = []
+        self.comboboxhandlerids = []
         
-    def set_limits(self,min, max, step):
-        self.widget.set_increments(step,10*step)
-        self.widget.set_range(min,max)
-
+    def add_widget(widget, combobox):
+        widget.set_adjustment(self.adjustment)
+        self.comboboxes.append(combobox)
+        self.comboboxhandlerids.append(combobox.connect('selection-changed',self.on_selection_changed)
+     
+    def on_selection_changed(self,combobox):
+        for box, id in zip(self.comboboxes,self.comboboxhandlerids):
+            if box is not combobox:
+                box.handler_block(id)
+                box.set_selelction(combobox.get_selection())
+                box.handler_unblock(id)
+        self.adjustment.set_value()
+                
     @property
     def value(self):
-        return self.widget.get_value()
+        value = self.adjustment.get_value()
+        # ...convert to hardware units
+        return value
         
     def set_value(self, value, program=True):
         # conversion to float means a string can be passed in too:
         value = float(value)
         if not program:
-            self.widget.handler_block(self.handler_id)
+            self.adjustment.handler_block(self.handler_id)
         if value != self.value:
-            self.widget.set_value(value)
+            # ...convert to current units
+            self.adjustment.set_value(value)
         if not program:
-            self.widget.handler_unblock(self.handler_id)
+            self.adjustment.handler_unblock(self.handler_id)
             
             
 class DO(object):

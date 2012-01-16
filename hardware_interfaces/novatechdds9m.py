@@ -39,16 +39,16 @@ class novatechdds9m(Tab):
         self.outputs_by_widget = {}
         for i in range(self.num_DDS):
             # Get the widgets for the DDS:
-            freq_spinbutton = self.builder.get_object("frequency_adj_%d"%i)
-            amp_spinbutton = self.builder.get_object("amplitude_adj_%d"%i)
-            phase_spinbutton = self.builder.get_object("phase_adj_%d"%i)
+            freq_spinbutton = self.builder.get_object("freq_chnl_%d"%i)
+            amp_spinbutton = self.builder.get_object("amp_chnl_%d"%i)
+            phase_spinbutton = self.builder.get_object("phase_chnl_%d"%i)
             gate_checkbutton = self.builder.get_object("amp_switch_%d"%i)
             label = self.builder.get_object("channel_%d_label"%i) 
             
             # Find out the name of the connected device (if there is a device connected)
             channel = "Channel %d"%i
             device = self.settings["connection_table"].find_child(self.settings["device_name"],"channel %d"%i)
-            name = ' - ' + connection_table_row.name if device else ''
+            name = ' - ' + device.name if device else ''
 
             # Set the label to reflect the connected device's name:
             label.set_text(channel + name)
@@ -85,7 +85,7 @@ class novatechdds9m(Tab):
         # Update the GUI to reflect the current hardware values:
         # The novatech doesn't have anything to say about the checkboxes;
         # turn them on:
-        _results['en0'] = results['en1'] = True
+        _results['en0'] = _results['en1'] = True
         self.set_front_panel_state(_results)
                     
     @define_state
@@ -106,10 +106,10 @@ class novatechdds9m(Tab):
     def set_front_panel_state(self, values):
         """Updates the gui without reprogramming the hardware"""
         for i, dds in enumerate(self.dds_outputs):
-            dds.freq.set_value(self.values['freq%d'%i],program=False)
-            dds.amp.set_value(self.values['amp%d'%i],program=False)
-            dds.phase.set_value(self.values['phase%d'%i],program=False)
-            dds.gate.set_state(self.values['en%d'%i],program=False)
+            dds.freq.set_value(values['freq%d'%i],program=False)
+            dds.amp.set_value(values['amp%d'%i],program=False)
+            dds.phase.set_value(values['phase%d'%i],program=False)
+            dds.gate.set_state(values['en%d'%i],program=False)
         
     @define_state
     def program_static(self,widget):
@@ -214,8 +214,8 @@ class NovatechDDS9mWorker(Worker):
         except socket.timeout:
             raise Exception('Failed to execute QUE')
         results = {}
-        for i, line in enumerate(response[:2]):
-            freq, phase, amp = line.split()
+        for i, line in enumerate(response[:4]):
+            freq, phase, amp, ignore, ignore, ignore, ignore = line.split()
             # Convert hex multiple of 0.1 Hz to MHz:
             results['freq%d'%i] = float(int(freq,16))/10**7
             # Convert hex to int:
