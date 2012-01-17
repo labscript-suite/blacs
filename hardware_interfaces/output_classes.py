@@ -7,13 +7,13 @@ class AO(object):
         self.handler_id = self.adjustment.connect('value-changed',static_update_function)
         self.name = name
         self.channel = channel
-        self.widgets = []
         self.locked = False
         self.comboboxmodel = combobox.get_model()
         self.comboboxes = []
         self.comboboxhandlerids = []
         self.current_units = default_units
         self.hardware_unit = default_units
+        self.limits = [min,max]
         
         
         # Initialise Calibrations
@@ -39,7 +39,6 @@ class AO(object):
         self.add_widget(widget,combobox)
         
     def add_widget(self,widget, combobox):
-        self.widgets.append(widget)
         widget.set_adjustment(self.adjustment)
         # Set the model to match the other comboboxes
         combobox.set_model(self.comboboxmodel)
@@ -64,7 +63,7 @@ class AO(object):
         # Update the parameters of the Adjustment to match the new calibration!
         new_units = self.comboboxmodel.get(combobox.get_active_iter(),0)[0]
         parameter_list = [self.adjustment.get_value(),self.adjustment.get_lower(),self.adjustment.get_upper(),self.adjustment.get_step_increment(),
-                            self.adjustment.get_page_increment()]
+                            self.adjustment.get_page_increment(), self.limits[0],self.limits[1]]
         
         # If we aren't alreay in hardware units, convert to hardware units
         if self.current_units != self.calibration.hardware_unit:
@@ -90,7 +89,12 @@ class AO(object):
         
         # Update the Adjustment
         self.adjustment.configure(parameter_list[0],parameter_list[1],parameter_list[2],parameter_list[3],parameter_list[4],0)
-                
+        
+        # update saved limits
+        if parameter_list[5] > parameter_list[6]:
+            parameter_list[5], parameter_list[6] = parameter_list[6], parameter_list[5] 
+        self.limits = [parameter_list[5], parameter_list[6]]
+        
     @property
     def value(self):
         value = self.adjustment.get_value()
@@ -120,8 +124,19 @@ class AO(object):
         
     def lock(self, menu_item):
         self.locked = not self.locked
-        for widget in self.widgets:
-            widget.set_sensitive(not self.locked)
+        
+        if self.locked:
+            # Save the limits (this will be inneccessary once we implement set_limits)
+            self.limits = [self.adjustment.get_lower(),self.adjustment.get_upper()]
+            
+            # Set the limits equal to the value
+            value = self.adjustment.get_value()
+            self.adjustment.set_lower(value)
+            self.adjustment.set_upper(value)
+        else:
+            # Restore the limits
+            self.adjustment.set_lower(self.limits[0])
+            self.adjustment.set_upper(self.limits[1])
         
     def populate_context_menu(self,widget,menu):
         # is it a right click?
