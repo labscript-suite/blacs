@@ -160,7 +160,7 @@ class AO(object):
             
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):
-        self.action = gtk.ToggleAction('%s/n%s'%(channel,name))
+        self.action = gtk.ToggleAction('%s/n%s'%(channel,name), "", "", 0)
         self.handler_id = self.action.connect('toggled',static_update_function)
         self.name = name
         self.channel = channel
@@ -173,7 +173,7 @@ class DO(object):
         
     @property   
     def state(self):
-        return bool(self.action.get_state())
+        return bool(self.action.get_active())
     
     def lock(self,menuitem):
         self.locked = not self.locked
@@ -186,7 +186,7 @@ class DO(object):
         if not program:
             self.action.handler_block(self.handler_id)
         if state != self.state:
-            self.action.set_state(state)
+            self.action.set_active(state)
         if not program:
             self.action.handler_unblock(self.handler_id)
    
