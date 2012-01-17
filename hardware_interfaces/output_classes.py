@@ -160,7 +160,7 @@ class AO(object):
             
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):
-        self.action = gtk.ToggleAction('%s/n%s'%(channel,name), "", "", 0)
+        self.action = gtk.ToggleAction('%s/n%s'%(channel,name), '%s/n%s'%(channel,name), "", 0)
         self.handler_id = self.action.connect('toggled',static_update_function)
         self.name = name
         self.channel = channel
@@ -193,12 +193,10 @@ class DO(object):
     def btn_release(self,widget,event):
         if event.button == 3:
             menu = gtk.Menu()
-        
             menu_item = gtk.MenuItem("Unlock Widget" if self.locked else "Lock Widget")
             menu_item.connect("activate",self.lock)
             menu_item.show()
             menu.append(menu_item)
-            
             menu.popup(None,None,None,event.button,event.time)
             
 class RF(object):
