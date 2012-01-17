@@ -122,7 +122,7 @@ class AO(object):
     def lock(self, menu_item):
         self.locked = not self.locked
         for widget in self.widgets:
-            widget.set_sensitive(self.locked)
+            widget.set_sensitive(not self.locked)
         
     def populate_context_menu(self,widget,menu):
         # is it a right click?
