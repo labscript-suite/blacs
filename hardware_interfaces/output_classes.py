@@ -35,7 +35,6 @@ class AO(object):
             # use default units
             self.calibration = None
             self.comboboxmodel.append([default_units])
-            
         
         self.add_widget(widget,combobox)
         
@@ -146,27 +145,47 @@ class AO(object):
             
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):
-        self.widget = widget
-        self.handler_id = widget.connect('toggled',static_update_function)
+        self.action = gtk.ToggleAction('%s/n%s'%(channel,name))
+        self.handler_id = self.action.connect('toggled',static_update_function)
         self.name = name
         self.channel = channel
+        self.add_widget(widget)
+        self.locked = False
+    
+    def add_widget(self,widget):
+        self.action.connect_proxy(widget)
+        widget.connect('button-release-event',self.btn_release)
         
     @property   
     def state(self):
-        return bool(self.widget.get_state())
-        
+        return bool(self.action.get_state())
+    
+    def lock(self,menuitem):
+        self.locked = not self.locked
+        self.action.set_sensitive(not self.locked)
+            
     def set_state(self,state,program=True):
         # conversion to integer, then bool means we can safely pass in
         # either a string '1' or '0', True or False or 1 or 0
         state = bool(int(state))
         if not program:
-            self.widget.handler_block(self.handler_id)
+            self.action.handler_block(self.handler_id)
         if state != self.state:
-            self.widget.set_state(state)
+            self.action.set_state(state)
         if not program:
-            self.widget.handler_unblock(self.handler_id)
+            self.action.handler_unblock(self.handler_id)
    
-
+    def btn_release(self,widget,event):
+        if event.button == 3:
+            menu = gtk.Menu()
+        
+            menu_item = gtk.MenuItem("Unlock Widget" if self.locked else "Lock Widget")
+            menu_item.connect("activate",self.lock)
+            menu_item.show()
+            menu.append(menu_item)
+            
+            menu.popup(None,None,None,event.button,event.time)
+            
 class RF(object):
     def __init__(self, amp, freq, phase):
         self.amp = amp
