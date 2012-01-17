@@ -7,11 +7,14 @@ class AO(object):
         self.handler_id = self.adjustment.connect('value-changed',static_update_function)
         self.name = name
         self.channel = channel
+        self.widgets = []
+        self.locked = False
         self.comboboxmodel = combobox.get_model()
         self.comboboxes = []
         self.comboboxhandlerids = []
         self.current_units = default_units
         self.hardware_unit = default_units
+        
         
         # Initialise Calibrations
         if calib_class is not None:
@@ -37,6 +40,7 @@ class AO(object):
         self.add_widget(widget,combobox)
         
     def add_widget(self,widget, combobox):
+        self.widgets.append(widget)
         widget.set_adjustment(self.adjustment)
         # Set the model to match the other comboboxes
         combobox.set_model(self.comboboxmodel)
@@ -116,20 +120,29 @@ class AO(object):
         pass
         
     def lock(self, menu_item):
-        pass
+        self.locked = not self.locked
+        for widget in self.widgets:
+            widget.set_sensitive(self.locked)
         
     def populate_context_menu(self,widget,menu):
         # is it a right click?
-        menu_item = gtk.MenuItem("Set Limits")
-        menu_item.connect("activate",self.set_limits)
-        menu_item.show()
-        menu.append(menu_item)
-        menu_item = gtk.MenuItem("Lock Widget")
-        menu_item.connect("activate",self.lock)
-        menu_item.show()
-        menu.append(menu_item)
-            
-                
+        menu_item1 = gtk.MenuItem("Set Limits")
+        menu_item1.connect("activate",self.set_limits)
+        menu_item1.show()
+        menu.append(menu_item1)
+        menu_item2 = gtk.MenuItem("Unlock Widget" if self.locked else "Lock Widget")
+        menu_item2.connect("activate",self.lock)
+        menu_item2.show()
+        menu.append(menu_item2)
+        sep = gtk.SeparatorMenuItem()
+        sep.show()
+        menu.append(sep)
+        # reorder children
+        menu.reorder_child(menu_item2,0)
+        menu.reorder_child(menu_item1,1)
+        menu.reorder_child(sep,2)
+        
+        
             
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):
