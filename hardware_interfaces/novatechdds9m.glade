@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
-  <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkListStore" id="amp_0_unit_liststore">
     <columns>
       <!-- column-name unit -->
@@ -30,25 +29,21 @@
     <property name="upper">1023</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="amplitude_adj_1">
     <property name="upper">1023</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="amplitude_adj_2">
     <property name="upper">1023</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="amplitude_adj_3">
     <property name="upper">1023</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkListStore" id="freq_0_unit_liststore">
     <columns>
@@ -79,28 +74,24 @@
     <property name="value">80</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="frequency_adj_1">
     <property name="upper">170</property>
     <property name="value">80</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="frequency_adj_2">
     <property name="upper">170</property>
     <property name="value">80</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="frequency_adj_3">
     <property name="upper">170</property>
     <property name="value">80</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkListStore" id="phase_0_unit_liststore">
     <columns>
@@ -130,31 +121,25 @@
     <property name="upper">359.98000000000002</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="phase_adj_1">
     <property name="upper">359.98000000000002</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="phase_adj_2">
     <property name="upper">359.98000000000002</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkAdjustment" id="phase_adj_3">
     <property name="upper">359.98000000000002</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-    <signal name="value-changed" handler="on_value_change" swapped="no"/>
   </object>
   <object class="GtkScrolledWindow" id="toplevel">
     <property name="visible">True</property>
     <property name="can_focus">True</property>
-    <property name="hscrollbar_policy">automatic</property>
-    <property name="vscrollbar_policy">automatic</property>
     <child>
       <object class="GtkViewport" id="viewport1">
         <property name="visible">True</property>
@@ -349,8 +334,6 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_0</property>
                     <property name="digits">7</property>
                   </object>
@@ -410,8 +393,6 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_0</property>
                   </object>
                   <packing>
@@ -447,7 +428,6 @@
                     <property name="use_action_appearance">False</property>
                     <property name="active">True</property>
                     <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -488,8 +468,6 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_0</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
@@ -578,8 +556,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_1</property>
                     <property name="digits">7</property>
                   </object>
@@ -640,8 +616,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_1</property>
                   </object>
                   <packing>
@@ -677,7 +651,6 @@
                     <property name="use_action_appearance">False</property>
                     <property name="active">True</property>
                     <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -719,8 +692,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_1</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
@@ -809,8 +780,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_2</property>
                     <property name="digits">7</property>
                   </object>
@@ -871,8 +840,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_2</property>
                   </object>
                   <packing>
@@ -908,7 +875,6 @@
                     <property name="use_action_appearance">False</property>
                     <property name="active">True</property>
                     <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -950,8 +916,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_2</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
@@ -1040,8 +1004,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_3</property>
                     <property name="digits">7</property>
                   </object>
@@ -1102,8 +1064,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_3</property>
                   </object>
                   <packing>
@@ -1139,7 +1099,6 @@
                     <property name="use_action_appearance">False</property>
                     <property name="active">True</property>
                     <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="on_value_change" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -1181,8 +1140,6 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
-                    <property name="primary_icon_sensitive">True</property>
-                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_3</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>

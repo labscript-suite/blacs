@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
-  <!-- interface-naming-policy project-wide -->
   <object class="GtkAdjustment" id="adjustment1">
     <property name="lower">-10</property>
     <property name="upper">10</property>
@@ -26,11 +25,13 @@
     <property name="step_increment">0.10000000000000001</property>
     <property name="page_increment">1</property>
   </object>
+  <object class="GtkListStore" id="liststore1"/>
+  <object class="GtkListStore" id="liststore2"/>
+  <object class="GtkListStore" id="liststore3"/>
+  <object class="GtkListStore" id="liststore4"/>
   <object class="GtkScrolledWindow" id="toplevel">
     <property name="visible">True</property>
     <property name="can_focus">True</property>
-    <property name="hscrollbar_policy">automatic</property>
-    <property name="vscrollbar_policy">automatic</property>
     <child>
       <object class="GtkViewport" id="viewport1">
         <property name="visible">True</property>
@@ -50,8 +51,6 @@
                   <object class="GtkScrolledWindow" id="scrolledwindow2">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="hscrollbar_policy">automatic</property>
-                    <property name="vscrollbar_policy">automatic</property>
                     <child>
                       <object class="GtkToolPalette" id="toolpalette2">
                         <property name="visible">True</property>
@@ -111,8 +110,6 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment1</property>
                                                 <property name="digits">4</property>
                                                 <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -124,15 +121,14 @@
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkLabel" id="AO_voltage_label_1">
+                                              <object class="GtkComboBox" id="ao_units_1">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">False</property>
-                                                <property name="label" translatable="yes">V</property>
+                                                <property name="model">liststore1</property>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
                                                 <property name="fill">True</property>
-                                                <property name="padding">4</property>
                                                 <property name="position">1</property>
                                               </packing>
                                             </child>
@@ -204,8 +200,6 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment2</property>
                                                 <property name="digits">4</property>
                                                 <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -217,15 +211,14 @@
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkLabel" id="AO_voltage_label_2">
+                                              <object class="GtkComboBox" id="ao_units_2">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">False</property>
-                                                <property name="label" translatable="yes">V</property>
+                                                <property name="model">liststore2</property>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
                                                 <property name="fill">True</property>
-                                                <property name="padding">4</property>
                                                 <property name="position">1</property>
                                               </packing>
                                             </child>
@@ -300,8 +293,6 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment3</property>
                                                 <property name="digits">4</property>
                                                 <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -313,15 +304,14 @@
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkLabel" id="AO_voltage_label_3">
+                                              <object class="GtkComboBox" id="ao_units_3">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">False</property>
-                                                <property name="label" translatable="yes">V</property>
+                                                <property name="model">liststore3</property>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
                                                 <property name="fill">True</property>
-                                                <property name="padding">4</property>
                                                 <property name="position">1</property>
                                               </packing>
                                             </child>
@@ -396,8 +386,6 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment4</property>
                                                 <property name="digits">4</property>
                                                 <signal name="output" handler="on_analog_change" swapped="no"/>
@@ -409,15 +397,14 @@
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkLabel" id="AO_voltage_label_4">
+                                              <object class="GtkComboBox" id="ao_units_4">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">False</property>
-                                                <property name="label" translatable="yes">V</property>
+                                                <property name="model">liststore4</property>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
                                                 <property name="fill">True</property>
-                                                <property name="padding">4</property>
                                                 <property name="position">1</property>
                                               </packing>
                                             </child>
@@ -460,8 +447,6 @@
                   <object class="GtkScrolledWindow" id="scrolledwindow1">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="hscrollbar_policy">automatic</property>
-                    <property name="vscrollbar_policy">automatic</property>
                     <child>
                       <object class="GtkToolPalette" id="toolpalette1">
                         <property name="visible">True</property>

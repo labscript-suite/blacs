@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
-  <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkAdjustment" id="adjustment1">
     <property name="lower">-10</property>
     <property name="upper">10</property>
@@ -50,11 +49,57 @@
     <property name="step_increment">0.10000000000000001</property>
     <property name="page_increment">1</property>
   </object>
+  <object class="GtkListStore" id="liststore1">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore2">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore3">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore4">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore5">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore6">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore7">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore8">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkScrolledWindow" id="toplevel">
     <property name="visible">True</property>
     <property name="can_focus">True</property>
-    <property name="hscrollbar_policy">automatic</property>
-    <property name="vscrollbar_policy">automatic</property>
     <child>
       <object class="GtkViewport" id="viewport1">
         <property name="visible">True</property>
@@ -67,8 +112,6 @@
               <object class="GtkScrolledWindow" id="scrolledwindow2">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="hscrollbar_policy">automatic</property>
-                <property name="vscrollbar_policy">automatic</property>
                 <child>
                   <object class="GtkToolPalette" id="toolpalette2">
                     <property name="visible">True</property>
@@ -128,11 +171,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment1</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -141,15 +181,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_1">
+                                          <object class="GtkComboBox" id="ao_units_1">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore1</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext1"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
@@ -221,11 +266,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment2</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -234,15 +276,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_2">
+                                          <object class="GtkComboBox" id="ao_units_2">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore2</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext2"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
@@ -317,11 +364,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment3</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -330,15 +374,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_3">
+                                          <object class="GtkComboBox" id="ao_units_3">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore3</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext3"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
@@ -413,11 +462,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment4</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -426,15 +472,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_4">
+                                          <object class="GtkComboBox" id="ao_units_4">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore4</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext4"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
@@ -509,11 +560,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment5</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -522,15 +570,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_5">
+                                          <object class="GtkComboBox" id="ao_units_5">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore5</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext5"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
@@ -605,11 +658,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment6</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -618,15 +668,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_6">
+                                          <object class="GtkComboBox" id="ao_units_6">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore6</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext6"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
@@ -701,11 +756,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment7</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -714,15 +766,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_7">
+                                          <object class="GtkComboBox" id="ao_units_7">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore7</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext7"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
@@ -797,11 +854,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
-                                            <property name="primary_icon_sensitive">True</property>
-                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment8</property>
                                             <property name="digits">4</property>
-                                            <signal name="output" handler="on_analog_change" swapped="no"/>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
@@ -810,15 +864,20 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkLabel" id="AO_voltage_label_8">
+                                          <object class="GtkComboBox" id="ao_units_8">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">V</property>
+                                            <property name="model">liststore8</property>
+                                            <child>
+                                              <object class="GtkCellRendererText" id="cellrenderertext8"/>
+                                              <attributes>
+                                                <attribute name="text">0</attribute>
+                                              </attributes>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
-                                            <property name="padding">4</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>

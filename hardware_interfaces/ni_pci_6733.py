@@ -11,14 +11,13 @@ from output_classes import AO, DO, RF, DDS
 
 class ni_pci_6733(Tab):
     # Capabilities
-    self.num_DO = 0
-    self.num_AO = 8
-    self.num_RF = 0
-    self.num_AI = 0
-    
-    self.max_ao_voltage = 10.0
-    self.min_ao_voltage = -10.0
-    self.ao_voltage_step = 0.1
+    num_DO = 0
+    num_AO = 8
+    num_RF = 0
+    num_AI = 0
+    max_ao_voltage = 10.0
+    min_ao_voltage = -10.0
+    ao_voltage_step = 0.1
     
     def __init__(self,notebook,settings,restart=False):
         Tab.__init__(self,NiPCI6733Worker,notebook,settings)
@@ -63,8 +62,9 @@ class ni_pci_6733(Tab):
             
         self.analog_outputs = []
         for i in range(self.num_AO):
-            # Get the widget:
+            # Get the widgets:
             spinbutton = self.builder.get_object("AO_value_%d"%(i+1))
+            combobox = self.builder.get_object('ao_units_%d'%(i+1))
             channel = "ao"+str(i)
             device = self.settings["connection_table"].find_child(self.settings["device_name"],channel)
             name = device.name if device else '-'
@@ -82,7 +82,7 @@ class ni_pci_6733(Tab):
                 calib = device.calibration_class
                 calib_params = eval(device.calibration_parameters)
             
-            output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calub_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
+            output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
             self.analog_outputs.append(output)
             
         self.viewport.add(self.toplevel)
