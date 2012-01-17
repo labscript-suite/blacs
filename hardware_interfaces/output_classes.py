@@ -122,6 +122,46 @@ class AO(object):
     def set_limits(self, menu_item):
         pass
         
+    def change_step(self, menu_item):
+        dialog = gtk.Dialog("My dialog",
+                     None,
+                     gtk.DIALOG_MODAL,
+                     (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+                      gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+        
+        label = gtk.Label("Set the step size for the up/down controls on the spinbutton in %s"%self.current_units)
+        dialog.vbox.pack_start(label, expand = False, fill = False)
+        label.show()
+        entry = gtk.Entry()
+        dialog.action_area.pack_end(entry)
+        checkbox.show()
+        response = dialog.run()
+        dialog.destroy()
+        
+        if response == gtk.RESPONSE_ACCEPT:
+            
+            try:
+                # Get the value from the entry
+                value = float(entry.get_text())
+                
+                # Check if the value is valid
+                if value > (self.limits[1] - self.limits[0]):
+                    raise Exception("The step size specified is greater than the difference between the current limits")
+                
+                self.adjustment.set_step_increment(value)
+                self.adjustment.set_page_increment(value*10)
+                
+            except Exception, e:
+                # Make a message dialog with an error in
+                dialog = gtk.Dialog(None,
+                     gtk.DIALOG_MODAL,
+                     gtk.MESSAGE_ERROR,
+                     (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT),
+                     "An error occurred while updating the step size:\n\n%s"%e.message)
+                     
+                dialog.run()
+                dialog.destroy()
+        
     def lock(self, menu_item):
         self.locked = not self.locked
         
@@ -148,6 +188,10 @@ class AO(object):
         menu_item2.connect("activate",self.lock)
         menu_item2.show()
         menu.append(menu_item2)
+        menu_item3 = gtk.MenuItem("Change step size")
+        menu_item3.connect("activate",self.change_step)
+        menu_item3.show()
+        menu.append(menu_item3)
         sep = gtk.SeparatorMenuItem()
         sep.show()
         menu.append(sep)
