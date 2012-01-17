@@ -133,16 +133,17 @@ class AO(object):
         dialog.vbox.pack_start(label, expand = False, fill = False)
         label.show()
         entry = gtk.Entry()
-        dialog.action_area.pack_end(entry)
-        checkbox.show()
+        dialog.get_content_area().pack_end(entry)
+        entry.show()
         response = dialog.run()
+        value_str = entry.get_text()
         dialog.destroy()
         
         if response == gtk.RESPONSE_ACCEPT:
             
             try:
                 # Get the value from the entry
-                value = float(entry.get_text())
+                value = float(value_str)
                 
                 # Check if the value is valid
                 if value > (self.limits[1] - self.limits[0]):
@@ -153,11 +154,11 @@ class AO(object):
                 
             except Exception, e:
                 # Make a message dialog with an error in
-                dialog = gtk.Dialog(None,
+                dialog = gtk.MessageDialog(None,
                      gtk.DIALOG_MODAL,
                      gtk.MESSAGE_ERROR,
                      (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT),
-                     "An error occurred while updating the step size:\n\n%s"%e.message)
+                     "An error occurred while updating the step size:\n\n")
                      
                 dialog.run()
                 dialog.destroy()
