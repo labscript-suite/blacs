@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
+  <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkListStore" id="amp_0_unit_liststore">
     <columns>
       <!-- column-name unit -->
@@ -334,6 +335,8 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_0</property>
                     <property name="digits">7</property>
                   </object>
@@ -393,6 +396,8 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_0</property>
                   </object>
                   <packing>
@@ -468,6 +473,8 @@
                     <property name="invisible_char">●</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_0</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
@@ -556,6 +563,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_1</property>
                     <property name="digits">7</property>
                   </object>
@@ -616,6 +625,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_1</property>
                   </object>
                   <packing>
@@ -692,6 +703,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_1</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
@@ -780,6 +793,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_2</property>
                     <property name="digits">7</property>
                   </object>
@@ -840,6 +855,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_2</property>
                   </object>
                   <packing>
@@ -916,6 +933,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_2</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>
@@ -1004,6 +1023,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_3</property>
                     <property name="digits">7</property>
                   </object>
@@ -1064,6 +1085,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">amplitude_adj_3</property>
                   </object>
                   <packing>
@@ -1140,6 +1163,8 @@
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
+                    <property name="primary_icon_sensitive">True</property>
+                    <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">phase_adj_3</property>
                     <property name="digits">12</property>
                     <property name="wrap">True</property>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
+  <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkAdjustment" id="adjustment1">
     <property name="lower">-10</property>
     <property name="upper">10</property>
@@ -171,6 +172,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment1</property>
                                             <property name="digits">4</property>
                                           </object>
@@ -266,6 +269,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment2</property>
                                             <property name="digits">4</property>
                                           </object>
@@ -364,6 +369,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment3</property>
                                             <property name="digits">4</property>
                                           </object>
@@ -462,6 +469,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment4</property>
                                             <property name="digits">4</property>
                                           </object>
@@ -560,6 +569,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment5</property>
                                             <property name="digits">4</property>
                                           </object>
@@ -658,6 +669,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment6</property>
                                             <property name="digits">4</property>
                                           </object>
@@ -756,6 +769,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment7</property>
                                             <property name="digits">4</property>
                                           </object>
@@ -854,6 +869,8 @@
                                             <property name="invisible_char_set">True</property>
                                             <property name="primary_icon_activatable">False</property>
                                             <property name="secondary_icon_activatable">False</property>
+                                            <property name="primary_icon_sensitive">True</property>
+                                            <property name="secondary_icon_sensitive">True</property>
                                             <property name="adjustment">adjustment8</property>
                                             <property name="digits">4</property>
                                           </object>

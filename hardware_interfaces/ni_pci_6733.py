@@ -113,7 +113,7 @@ class ni_pci_6733(Tab):
     @define_state
     def program_static(self,output):
         if self.static_mode:
-            self.queue_work('program_static',[ouput.value for output in self.analog_outputs])
+            self.queue_work('program_static',[output.value for output in self.analog_outputs])
 
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
@@ -138,8 +138,8 @@ class ni_pci_6733(Tab):
         # Tell the queue manager we're done:
         notify_queue.put(self.device_name)
         # Update the GUI with the final values of the run:
-        for channel, value in self.final_values:
-            self.analog_outputs_by_channel[chanel].set_value(value,program=False)
+        for channel, value in self.final_values.items():
+            self.analog_outputs_by_channel[channel].set_value(value,program=False)
             
     def get_child(self,type,channel):
         if type == "DO":
@@ -161,7 +161,8 @@ class NiPCI6733Worker(Worker):
         exec 'from PyDAQmx import Task, DAQmxConnectTerms, DAQmxDisconnectTerms' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
-    
+        global pylab; import pylab 
+        
     def initialise(self, device_name, limits):
         # Create task
         self.ao_task = Task()
@@ -212,7 +213,8 @@ class NiPCI6733Worker(Worker):
                 self.ao_task.StartTask()   
                 
                 # Final values here are a dictionary of values, keyed by channel:
-                final_values = {channel.split('/')[1]: value for channel, value in zip(ao_channels, ao_data[-1,:])}
+                channel_list = [channel.split('/')[1] for channel in ao_channels.split(', ')]
+                final_values = {channel: value for channel, value in zip(channel_list, ao_data[-1,:])}
                 return final_values
             else:
                 return {}
