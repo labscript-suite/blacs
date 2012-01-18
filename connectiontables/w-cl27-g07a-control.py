@@ -8,15 +8,15 @@ NI_PCI_6733(     'ni_pci_6733_0',  pulseblaster_0, 'fast clock', '/ni_pcie_6363_
 NovaTechDDS9M( 'novatechdds9m_9',  pulseblaster_0, 'slow clock')
 
 # MAG-NEAT-O CONTROL
-AnalogOut(    'Bx',  ni_pcie_6363_0,         'ao0')
-AnalogOut(    'By',  ni_pcie_6363_0,         'ao1')
-AnalogOut(    'Bz',  ni_pcie_6363_0,         'ao2')
+AnalogOut(    'Bx',  ni_pci_6733_0,         'ao0')
+AnalogOut(    'By',  ni_pci_6733_0,         'ao1')
+AnalogOut(    'Bz',  ni_pci_6733_0,         'ao2')
 AnalogIn( 'Bx_mon',  ni_pcie_6363_0,         'ai0')
 AnalogIn( 'By_mon',  ni_pcie_6363_0,         'ai1')
 AnalogIn( 'Bz_mon',  ni_pcie_6363_0,         'ai2')
 
 # QUAD DRIVER
-AnalogOut(          'Bq',  ni_pcie_6363_0,         'ao3')
+AnalogOut(          'Bq',  ni_pci_6733_0,         'ao3')
 DigitalOut( 'cap_charge',  ni_pcie_6363_0,  'port0/line11')
 AnalogIn( 'quad_current',  ni_pcie_6363_0,         'ai3')
 
@@ -25,11 +25,11 @@ DigitalOut('Zeeman_coils',  ni_pcie_6363_0,  'port0/line12')
 DigitalOut('Zeeman_shutter',ni_pcie_6363_0,  'port0/line13')
 
 # SHUTTERS
-Shutter(    'MOT_shutter',  ni_pcie_6363_0, 'port0/line0', delay=(0,0))
-Shutter( 'Zeeman_shutter',  ni_pcie_6363_0, 'port0/line1', delay=(0,0))
-Shutter('Imaging_shutter',  ni_pcie_6363_0, 'port0/line2', delay=(0,0))
-Shutter( 'Repump_shutter',  ni_pcie_6363_0, 'port0/line3', delay=(0,0))
-Shutter(     'OP_shutter',  ni_pcie_6363_0, 'port0/line8', delay=(0,0))
+Shutter(           'MOT_shutter',  ni_pcie_6363_0, 'port0/line17', delay=(0,0))
+Shutter(    'MOT_repump_shutter',  ni_pcie_6363_0, 'port0/line18', delay=(0,0))
+Shutter(        'Zeeman_shutter',  ni_pcie_6363_0, 'port0/line19', delay=(0,0))
+Shutter( 'Zeeamn_repump_shutter',  ni_pcie_6363_0, 'port0/line20', delay=(0,0))
+#Shutter(       'Imaging_shutter',  ni_pcie_6363_0, 'port0/line8', delay=(0,0))
 
 # CAMERA
 DigitalOut('Camera_trigger',ni_pcie_6363_0,  'port0/line14')
