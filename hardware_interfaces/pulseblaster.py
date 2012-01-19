@@ -329,7 +329,7 @@ class PulseblasterWorker(Worker):
         pb_inst_dds2(0,0,0,values['en0'],0,0,0,0,values['en1'],0,values['flags'], WAIT, 0, 100)
         # Line one is a brach to line 0:
         pb_inst_dds2(0,0,0,values['en0'],0,0,0,0,values['en1'],0,values['flags'], BRANCH, 0, 100)
-        spinapi.pb_stop_programming()
+        pb_stop_programming()
         
         # Now we're waiting on line zero, so when we start() we'll go to
         # line one, then brach back to zero, completing the static update:
