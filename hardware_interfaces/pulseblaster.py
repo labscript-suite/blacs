@@ -53,10 +53,10 @@ class pulseblaster(Tab):
             # Find out the name of the connected device (if there is a device connected)
             channel = 'DDS %d'%i
             device = self.settings['connection_table'].find_child(self.settings['device_name'],'dds %d'%i)
-            name = ' - ' + device.name if device else ''
+            name = device.name if device else ''
             
             # Set the label to reflect the connected device's name:
-            label.set_text(channel + name)
+            label.set_text(channel + ' - ' + name)
             
             freq_calib = None
             freq_calib_params = {}
@@ -83,10 +83,10 @@ class pulseblaster(Tab):
                         phase_calib_params = eval(device.child_list[device.name+'_phase'].calibration_parameters)        
             
             # Make output objects:
-            freq = AO(name, channel, freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
-            amp = AO(name, channel, amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
-            phase = AO(name, channel, phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
-            gate = DO(name, channel, gate_togglebutton, self.program_static)
+            freq = AO(name+'_freq', channel+'_freq', freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
+            amp = AO(name+'_amp', channel+'_amp', amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
+            phase = AO(name+'_phase', channel+'_phase', phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
+            gate = DO(name+'_gate', channel+'_gate', gate_togglebutton, self.program_static)
             rf = RF(amp, freq, phase)
             dds = DDS(rf, gate)
             
@@ -99,7 +99,7 @@ class pulseblaster(Tab):
             # Store for later access:
             self.dds_outputs.append(dds)
             
-        self.flags = []
+        self.digital_outs = []
         for i in range(0,self.num_DO_widgets):
             #Active widgets
             if i < self.num_DO:
@@ -123,7 +123,7 @@ class pulseblaster(Tab):
                 flag.set_state(settings['flags'][i],program=False)
                 
                 # Store for later:
-                self.flags.append(flag)
+                self.digital_outs.append(flag)
             else:
                 # This pulseblaster doesn't have this flag - hide the button:
                 self.builder.get_object('flag_%d'%i).hide()
@@ -197,8 +197,8 @@ class pulseblaster(Tab):
         
     def get_front_panel_state(self):
         return {'freq0':self.dds_outputs[0].freq.value, 'amp0':self.dds_outputs[0].amp.value, 'phase0':self.dds_outputs[0].phase.value, 'en0':self.dds_outputs[0].gate.state,
-                'freq1':self.dds_outputs[1].freq.value, 'amp1':self.dds_outputs[1].amp.value, 'phase1':self.dds_outputs[1].phase.value, 'en1':self.dds_outputs[1].gate.state,
-                'flags':''.join(['1' if flag.state else '0' for flag in self.flags]).ljust(12,'0')}
+               'freq1':self.dds_outputs[1].freq.value, 'amp1':self.dds_outputs[1].amp.value, 'phase1':self.dds_outputs[1].phase.value, 'en1':self.dds_outputs[1].gate.state,
+                'flags':''.join(['1' if flag.state else '0' for flag in self.digital_outs]).ljust(12,'0')}
     
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
     # ** This method is an internal method, registered as a callback with each AO/DO/RF channel **
@@ -260,7 +260,7 @@ class pulseblaster(Tab):
     def transition_to_static(self,notify_queue):
         # Once again, the pulseblaster is always ready! However we need
         # to update the gui to reflect the current hardware values:
-        for i, flag in enumerate(self.flags):
+        for i, flag in enumerate(self.digital_outs):
             flag.set_state(self.final_values['flags'][i],program=False)
         for i, dds in enumerate(self.dds_outputs):
             dds.freq.set_value(self.final_values['freq%d'%i],program=False)
@@ -289,11 +289,12 @@ class pulseblaster(Tab):
         """Allows virtual devices to obtain this tab's output objects"""
         if type == 'DO':
             if channel in range(self.num_DO):
-                return self.flags[channel]
+                return self.digital_outs[channel]
         elif type == 'DDS':
             if channel in range(self.num_DDS):
                 return self.dds_outputs[channel]
         return None
+        
     
 class PulseblasterWorker(Worker):
     def init(self):

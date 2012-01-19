@@ -24,6 +24,9 @@ if __name__ == "__main__":
     
     # Connection Table Code
     from connections import ConnectionTable
+    
+    # Save/restore frontpanel code
+    from front_panel_settings import FrontPanelSettings
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -182,6 +185,8 @@ if __name__ == "__main__":
                 if v["visible"] and v["notebook"] in self.notebook:
                     self.notebook[v["notebook"]].set_current_page(v["page"])
             
+            self.front_panel_settings = FrontPanelSettings(self)
+            
             #TO DO:            
             # Open BLACS Config File
             # Load Virtual Devices
@@ -306,7 +311,7 @@ if __name__ == "__main__":
             return states,tab_positions,window_data
             
         def on_save_front_panel(self,widget):
-            data = self.get_save_data()
+            data = self.front_panel_settings.get_save_data()
         
             # Open save As dialog
             chooser = gtk.FileChooserDialog(title='Save Front Panel',action=gtk.FILE_CHOOSER_ACTION_SAVE,
@@ -325,7 +330,7 @@ if __name__ == "__main__":
                 chooser.destroy()
                 return
                     
-            self.save_front_panel_to_h5(current_file,data[0],data[1],data[2])    
+            self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2])    
 
         def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,silent = {}):        
             # Save the front panel!

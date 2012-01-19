@@ -51,10 +51,10 @@ class novatechdds9m(Tab):
             # Find out the name of the connected device (if there is a device connected)
             channel = "Channel %d"%i
             device = self.settings["connection_table"].find_child(self.settings["device_name"],"channel %d"%i)
-            name = ' - ' + device.name if device else ''
+            name = device.name if device else ''
 
             # Set the label to reflect the connected device's name:
-            label.set_text(channel + name)
+            label.set_text(channel + ' - ' + name)
 
             freq_calib = None
             freq_calib_params = {}
@@ -81,10 +81,10 @@ class novatechdds9m(Tab):
                         phase_calib_params = eval(device.child_list[device.name+'_phase'].calibration_parameters)   
             
             # Make output objects:
-            freq = AO(name, channel, freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
-            amp = AO(name, channel, amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
-            phase = AO(name, channel, phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
-            gate = DO(name, channel, gate_checkbutton, self.program_static)
+            freq = AO(name+'_freq', channel+'_freq', freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
+            amp = AO(name+'_amp', channel+'_amp', amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
+            phase = AO(name+'_phase', channel+'_phase', phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
+            gate = DO(name+'_gate', channel+'_gate', gate_checkbutton, self.program_static)
             rf = RF(amp, freq, phase)
             dds = DDS(rf, gate)
             
