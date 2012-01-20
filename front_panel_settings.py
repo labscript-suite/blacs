@@ -1,10 +1,13 @@
 import os
 import socket
+import logging
 
+import excepthook
 import gtk
 import numpy
 import h5py
 
+logger = logging.getLogger('BLACS.FrontPanelSettings')  
 
 class FrontPanelSettings(object):
     def __init__(self,blacs):
@@ -147,27 +150,30 @@ class FrontPanelSettings(object):
         # Iterate over each device within a class
         for devicename, device_state in states.items():
             logger.debug("saving front panel for device:" + devicename) 
-            
+            print device_state
             # Insert AO data into dataset
-            for data in device_state["AO"]:
-                ao_list.append(tuple(data))
+            for data in device_state["AO"].values():
+                if data != {}:
+                    ao_list.append(tuple(data))
                 
             # Insert DO data into dataset
-            for data in device_state["DO"]:
-                do_list.append(tuple(data))
+            for data in device_state["DO"].values():
+                if data != {}:
+                    do_list.append(tuple(data))
             
             # Insert DDS data into dataset
-            for data in device_state["DDS"]):
+            for data in device_state["DDS"].values():
                 # If we have the gate entry, pad it so we can store it in the dds list with teh AO channels
-                if 'step_size' not in data:
-                    data['value'] = float(data['value']) # Convert to float to match AO value type
-                    data['step_size'] = 0
-                    data['units'] = ''
-                dds_list.append(tuple(data))
+                if data != {}:
+                    if 'step_size' not in data:
+                        data['value'] = float(data['value']) # Convert to float to match AO value type
+                        data['step_size'] = 0
+                        data['units'] = ''
+                    dds_list.append(tuple(data))
                 
             # Save "other data"
             od = repr(device_state["other_data"])
-            other_data_list.append((device_name,od))            
+            other_data_list.append((devicename,od))            
             max_od_length = len(od) if len(od) > max_od_length else max_od_length
             
         
@@ -175,22 +181,22 @@ class FrontPanelSettings(object):
         
         
         # Create AO/DO/DDS/other_data datasets
-        ao_array = empty(len(ao_list),dtype=ao_dtype)
+        ao_array = numpy.empty(len(ao_list),dtype=ao_dtype)
         for i, row in enumerate(ao_list):
             ao_array[i] = row
         data_group.create_dataset('AO',data=ao_array)
         
-        do_array = empty(len(do_list),dtype=do_dtype)
+        do_array = numpy.empty(len(do_list),dtype=do_dtype)
         for i, row in enumerate(do_list):
             do_array[i] = row
         data_group.create_dataset('DO',data=do_array)
         
-        dds_array = empty(len(dds_list),dtype=dds_dtype)
+        dds_array = numpy.empty(len(dds_list),dtype=dds_dtype)
         for i, row in enumerate(dds_list):
             dds_array[i] = row
         data_group.create_dataset('DDS',data=dds_array)
         
-        od_array = empty(len(other_data_list),dtype=other_data_dtype)
+        od_array = numpy.empty(len(other_data_list),dtype=other_data_dtype)
         for i, row in enumerate(other_data_list):
             od_array[i] = row
         data_group.create_dataset('TAB_DATA',data=od_array)
@@ -224,37 +230,41 @@ class FrontPanelSettings(object):
         do_dict = {}
         dds_dict = {}
         
-        if getattr(tab,'num_AO') and tab.num_AO > 0:
+        if hasattr(tab,'num_AO') and tab.num_AO > 0:
             for i in range(tab.num_AO):
                 ao_chnl = tab.analog_outs[i]
                 ao_dict[ao_chnl.channel] = self.get_ao_dict(ao_chnl)
                 
-        if getattr(tab,'num_DDS') and tab.num_DDS > 0:            
+        if hasattr(tab,'num_DDS') and tab.num_DDS > 0:            
             for i in range(tab.num_DDS):
                 for ao_chnl in [tab.dds_outputs[i].freq,tab.dds_outputs[i].amp,tab.dds_outputs[i].phase]:
                     dds_dict[ao_chnl.channel] = self.get_ao_dict(ao_chnl)
                 
                 dds_dict[tab.dds_outputs[i].gate.channel] = self.get_do_dict(tab.dds_outputs[i].gate)
         
-        if getattr(tab,'num_DO') and tab.num_DO > 0:
-            for i in range(self.num_DO)
+        if hasattr(tab,'num_DO') and tab.num_DO > 0:
+            for i in range(tab.num_DO):
                 do_chnl = tab.digital_outs[i]
                 do_dict[do_chnl.channel] = self.get_do_dict(do_chnl)
         
-        return {'other_data':tab.get_save_data() if hasattr('get_save_data',tab) else {},
+        return {'other_data':tab.get_save_data() if hasattr(tab,'get_save_data') else {},
                 'AO':ao_dict,
                 'DO':do_dict,
                 'DDS':dds_dict}
                 
     def get_ao_dict(self,ao_chnl):
+        if not hasattr(ao_chnl,'name'):
+            return {}
         return {'name':ao_chnl.name,
                 'channel':ao_chnl.channel,         
                 'value':ao_chnl.adjustment.get_value(), 
                 'locked':ao_chnl.locked,
-                'step_size':ao_chnl.adjustment.get_set_step_increment(),
+                'step_size':ao_chnl.adjustment.get_step_increment(),
                 'units':ao_chnl.current_units}
     
     def get_do_dict(self,do_chnl):
+        if not hasattr(do_chnl,'name'):
+            return {}
         return {'name':do_chnl.name, 
                 'channel':do_chnl.channel, 
                 'value':bool(do_chnl.action.get_active()),

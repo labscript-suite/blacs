@@ -60,8 +60,8 @@ class ni_pci_6733(Tab):
 #            output = DO(name, NIchannel, toggle_button, self.program_static)
 #            self.digital_outs.append(output)
             
-        self.analog_outputs = []
-        self.analog_outputs_by_channel = {}
+        self.analog_outs = []
+        self.analog_outs_by_channel = {}
         for i in range(self.num_AO):
             # Get the widgets:
             spinbutton = self.builder.get_object("AO_value_%d"%(i+1))
@@ -84,8 +84,8 @@ class ni_pci_6733(Tab):
                 calib_params = eval(device.calibration_parameters)
             
             output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
-            self.analog_outputs.append(output)
-            self.analog_outputs_by_channel[channel] = output
+            self.analog_outs.append(output)
+            self.analog_outs_by_channel[channel] = output
             
         self.viewport.add(self.toplevel)
         self.initialise_device()
@@ -107,13 +107,13 @@ class ni_pci_6733(Tab):
     def get_front_panel_state(self):
         state = {}
         for i in range(self.num_AO):
-            state["AO"+str(i)] = self.analog_outputs[i].value
+            state["AO"+str(i)] = self.analog_outs[i].value
         return state
     
     @define_state
     def program_static(self,output):
         if self.static_mode:
-            self.queue_work('program_static',[output.value for output in self.analog_outputs])
+            self.queue_work('program_static',[output.value for output in self.analog_outs])
 
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
@@ -139,13 +139,10 @@ class ni_pci_6733(Tab):
         notify_queue.put(self.device_name)
         # Update the GUI with the final values of the run:
         for channel, value in self.final_values.items():
-            self.analog_outputs_by_channel[channel].set_value(value,program=False)
+            self.analog_outs_by_channel[channel].set_value(value,program=False)
             
     def get_child(self,type,channel):
-        if type == "DO":
-            if channel >= 0 and channel < self.num_DO:
-                return self.digital_outs[channel]
-        elif type == "AO":
+        if type == "AO":
             if channel >= 0 and channel < self.num_AO:
                 return self.analog_outs[channel]
 		
