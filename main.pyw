@@ -123,7 +123,7 @@ if __name__ == "__main__":
                                   "ni_pci_6733_0":{"device_name":"ni_pci_6733_0"},
                                   "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
                                   "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
-                                  "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
+                                  "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com1"},
                                   "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
                                   "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com8"},
                                   "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},

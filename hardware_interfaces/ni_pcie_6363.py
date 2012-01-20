@@ -162,7 +162,7 @@ class ni_pcie_6363(Tab):
         if self.static_mode:
             analog_values = [output.value for output in self.analog_outs]
             digital_states = [output.state for output in self.digital_outs]
-            self.queue_work('program_static',analog_values, digital_values)
+            self.queue_work('program_static',analog_values, digital_states)
 
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
@@ -269,9 +269,9 @@ class NiPCIe6363Worker(Worker):
         if result == 'error':
             raise Exception(message)
             
-    def program_static(self,analog_outs,digital_outs):
-        self.ao_data[:] = analog_data
-        self.do_data[:] = digital_data
+    def program_static(self,analog_values,digital_states):
+        self.ao_data[:] = analog_values
+        self.do_data[:] = digital_states
         self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
         self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
     

@@ -95,7 +95,7 @@ class novatechdds9m(Tab):
             self.outputs_by_widget[freq_spinbutton.get_adjustment()] = i, 'freq', freq
             self.outputs_by_widget[amp_spinbutton.get_adjustment()] = i, 'amp', amp
             self.outputs_by_widget[phase_spinbutton.get_adjustment()] = i, 'phase', phase
-            self.outputs_by_widget[gate_checkbutton] = i, 'gate', gate
+            self.outputs_by_widget[gate.action] = i, 'gate', gate
             
         # Insert our GUI into the viewport provided by BLACS:    
         self.viewport.add(self.toplevel)
