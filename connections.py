@@ -21,21 +21,29 @@ class ConnectionTable(object):
         
     def compare_to(self,other_table):
         if not isinstance(other_table,ConnectionTable):
-            return False
-    
+            return False,{"error":"The connection table passed in is not a valid connection table"}
+        error = {}
         # Check if top level children in other table are a subset of self.        
-        for key,value in other_table.toplevel_children.items():
-            if not key in self.toplevel_children:
-                self.logger.error('missing: %s'%str(key))
-                return False
+        for name,connection in other_table.toplevel_children.items():
+            if not name in self.toplevel_children:
+                self.logger.error('missing: %s'%str(name))
+                if "children_missing" not in error:
+                    error["children_missing"] = {}
+                error["children_missing"][name] = True
             
             # for each top level child in other, check if children of that object are also children of the child in self.
-            if not self.toplevel_children[key].compare_to(value):
+            result,child_error = self.toplevel_children[name].compare_to(connection)
+            if not result:
                 #TODO more info on what doesn't match? Print a diff and return it as part of the message?
                 self.logger.error('Connection table mismatch')
-                return False
+                if "children" not in error:
+                    error["children"] = {}
+                error["children"][name] = child_error
                 
-        return True
+        if error != {}:
+            return False,error
+        else:
+            return True,error
 
     def print_details(self):
         for key,value in self.toplevel_children.items():
@@ -60,6 +68,16 @@ class ConnectionTable(object):
                 
         return None
     
+    def find_by_name(self,name):
+        for device_name,connection in self.toplevel_children.items():
+            if device_name == name:
+                return connection
+            else:
+                result = connection.find_by_name(name)
+                if result is not None:
+                    return result
+        return None
+    
 class Connection(object):
     
     def __init__(self, name, device_class, parent, connected_to, calibration_class, calibration_parameters, table):
@@ -78,31 +96,39 @@ class Connection(object):
         
     def compare_to(self,other_connection):
         if not isinstance(other_connection,Connection):
-            return False
+            return False,{"error":"Internal Error. Connection Table object is corrupted."}
             
+        error = {}
         # Compare all parameters between this connection, and other connection
         if self.name != other_connection.name:
-            return False
+            error["name"] = True
         if self.device_class != other_connection.device_class:
-            return False
+            error["device_class"] = True
         if self.connected_to != other_connection.connected_to:
-            return False
+            error["connected_to"] = True
         if self.calibration_class != other_connection.calibration_class:
-            return False
+            error["calibration_class"] = True
         if self.calibration_parameters != other_connection.calibration_parameters:
-            return False
+            error["calibration_parameters"] = True
         
         # for each child in other_connection, check that the child also exists here
-        for key,value in other_connection.child_list.items():
-            if not key in self.child_list:
-                return False
+        for name,connection in other_connection.child_list.items():
+            if not name in self.child_list:
+                error.setdefault("children_missing",{})
+                error["children_missing"][name] = True
+                
                 
             # call compare_to on child so that we can check it's children!
-            if not self.child_list[key].compare_to(value):
-                return False
+            result,child_error = self.child_list[name].compare_to(connection)
+            if not result:
+                error.setdefault("children",{})
+                error["children"][name] = child_error
                 
         # We made it!
-        return True
+        if error != {}:
+            return False,error
+        else:
+            return True,error
         
     def print_details(self,indent):
         for key, value in self.child_list.items():
@@ -132,3 +158,13 @@ class Connection(object):
                 return val
         
         return None
+
+    def find_by_name(self,name):
+        for device_name,connection in self.child_list.items():
+            if device_name == name:
+                return connection
+            else:
+                result = connection.find_by_name(name)
+                if result is not None:
+                    return result
+        return None    

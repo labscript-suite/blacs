@@ -73,6 +73,8 @@ if __name__ == "__main__":
         def __init__(self):
             self.exiting = False
             
+            self.front_panel_settings = FrontPanelSettings(self)
+            
             self.builder = gtk.Builder()
             self.builder.add_from_file('main_interface.glade')
             self.builder.connect_signals(self)
@@ -115,6 +117,11 @@ if __name__ == "__main__":
             
             # Create Connection Table
             self.connection_table = ConnectionTable(h5_file)
+            
+            # Get settings to restore
+            settings,question,error = self.front_panel_settings.restore(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),self.connection_table)
+            
+            # TODO: handle question/error cases
             
             # Instantiate Devices from Connection Table, Place in Array        
             self.attached_devices = self.connection_table.find_devices(device_list)
@@ -160,6 +167,7 @@ if __name__ == "__main__":
             for k,v in self.settings_dict.items():
                 # add common keys to settings:
                 v["connection_table"] = self.connection_table
+                v["front_panel_settings"] = settings[k] if k in settings else {}
                 #v["state_machine"] = self.state_machine
             
             self.tablist = {}
@@ -185,7 +193,7 @@ if __name__ == "__main__":
                 if v["visible"] and v["notebook"] in self.notebook:
                     self.notebook[v["notebook"]].set_current_page(v["page"])
             
-            self.front_panel_settings = FrontPanelSettings(self)
+            self.front_panel_settings.setup_settings(self)
             
             #TO DO:            
             # Open BLACS Config File
@@ -356,7 +364,8 @@ if __name__ == "__main__":
                 
                 # if save_conn_table is True, we don't bother checking to see if the connection tables match, because save_conn_table is only true when the connection table doesn't exist in the current file
                 # As a result, if save_conn_table is True, we ignore connection table checking, and save the connection table in the h5file.
-                if save_conn_table or self.connection_table.compare_to(new_conn):
+                result,error = self.connection_table.compare_to(new_conn)
+                if save_conn_table or result:
                     with h5py.File(current_file,'r+') as hdf5_file:
                         if hdf5_file['/'].get('front_panel') != None:
                             # Create a dialog to ask whether we can overwrite!
@@ -543,12 +552,12 @@ if __name__ == "__main__":
                     tab.destroy()
                 
                 # Save front panel
-                data = self.get_save_data()
+                data = self.front_panel_settings.get_save_data()
                 settingspath = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
                 with h5py.File(settingspath,'r+') as h5file:
                     if 'connection table' in h5file:
                         del h5file['connection table']
-                self.save_front_panel_to_h5(settingspath,data[0],data[1],data[2],{"overwrite":True})
+                self.front_panel_settings.save_front_panel_to_h5(settingspath,data[0],data[1],data[2],{"overwrite":True})
                 gobject.timeout_add(100,self.finalise_quit,time.time())
         
         def finalise_quit(self,initial_time):
@@ -790,7 +799,7 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
                     # Get front panel data, but don't save it to the h5 file until the experiment ends:
-                    states,tab_positions,window_data = self.get_save_data()
+                    states,tab_positions,window_data = self.front_panel_settings.get_save_data()
                 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Running...(program time: "+str(time.time() - start_time)+"s")
@@ -817,7 +826,7 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
                 with h5py.File(path,'r+') as hdf5_file:
-                    self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
+                    self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
                         
                 with h5py.File(path,'a') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
@@ -914,7 +923,8 @@ if __name__ == "__main__":
             new_conn = ConnectionTable(h5_filepath)
         except:
             return "H5 file not accessible to Control PC\n"
-        if app.connection_table.compare_to(new_conn):
+        result,error = app.connection_table.compare_to(new_conn)
+        if result:
             # Has this run file been run already?
             with h5py.File(h5_filepath) as h5_file:
                 if 'data' in h5_file['/']:
@@ -941,6 +951,7 @@ if __name__ == "__main__":
                 message = "Error: Queue is not running\n"
             return message
         else:
+            # TODO: Parse and display the contents of "error" for a more detailed analysis of what is wrong!
             message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
                        "You may have:\n"
                        "    Submitted your file to the wrong control PC\n"

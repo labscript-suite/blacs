@@ -91,10 +91,14 @@ class pulseblaster(Tab):
             dds = DDS(rf, gate)
             
             # Set default values:
-            freq.set_value(settings['f%d'%i],program=False)
-            amp.set_value(settings['a%d'%i],program=False)
-            phase.set_value(settings['p%d'%i],program=False)
-            gate.set_state(settings['e%d'%i],program=False)
+            if 'DDS %d_freq'%i in settings['front_panel_settings']:
+                freq.set_value(settings['front_panel_settings']['DDS %d_freq'%i]['value'],program=False)            
+            if 'DDS %d_amp'%i in settings['front_panel_settings']: 
+                amp.set_value(settings['front_panel_settings']['DDS %d_amp'%i]['value'],program=False)
+            if 'DDS %d_phase'%i in settings['front_panel_settings']:
+                phase.set_value(settings['front_panel_settings']['DDS %d_phase'%i]['value'],program=False)
+            if 'DDS %d_gate'%i in settings['front_panel_settings']:
+                gate.set_state(settings['front_panel_settings']['DDS %d_gate'%i]['value'],program=False)
         
             # Store for later access:
             self.dds_outputs.append(dds)
