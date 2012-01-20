@@ -359,13 +359,13 @@ class PulseblasterWorker(Worker):
                 
                 pb_select_dds(i)
                 # Only reprogram each thing if there's been a change:
-                if fresh or (amps != self.smart_cache['amps']).all():   
+                if fresh or (amps != self.smart_cache['amps']).any():   
                     self.smart_cache['amps'] = amps
                     program_amp_regs(*amps)
-                if fresh or (freqs != self.smart_cache['freqs']).all():
+                if fresh or (freqs != self.smart_cache['freqs']).any():
                     self.smart_cache['freqs'] = freqs
                     program_freq_regs(*freqs)
-                if fresh or (phases != self.smart_cache['phases']).all():      
+                if fresh or (phases != self.smart_cache['phases']).any():      
                     self.smart_cache['phases'] = phases
                     program_phase_regs(*phases)
                 
@@ -386,7 +386,7 @@ class PulseblasterWorker(Worker):
             finalphase1 = phaseregs[1][phasereg1]
             
             if fresh or self.smart_cache['initial_values'] != initial_values or \
-            (self.smart_cache['pulse_program'] != pulse_program).all() or \
+            (self.smart_cache['pulse_program'] != pulse_program).any() or \
             not self.smart_cache['ready_to_go']:
             
                 self.smart_cache['ready_to_go'] = True
@@ -397,7 +397,7 @@ class PulseblasterWorker(Worker):
                 # Line one is a continue with the current front panel values:
                 pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 1*ms)
                 # Now the rest of the program:
-                if fresh or (self.smart_cache['pulse_program'] != pulse_program).all():
+                if fresh or (self.smart_cache['pulse_program'] != pulse_program).any():
                     self.smart_cache['pulse_program'] = pulse_program
                     for args in pulse_program:
                         pb_inst_dds2(*args)
