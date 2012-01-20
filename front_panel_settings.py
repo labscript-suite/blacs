@@ -7,6 +7,10 @@ import gtk
 import numpy
 import h5py
 
+
+# Connection Table Code
+from connections import ConnectionTable
+
 logger = logging.getLogger('BLACS.FrontPanelSettings')  
 
 class FrontPanelSettings(object):
@@ -17,6 +21,7 @@ class FrontPanelSettings(object):
         self.window = blacs.window
         self.panes = blacs.panes
         self.connection_table = blacs.connection_table
+        self.blacs = blacs
 
     def get_save_data(self):
         states = {}
@@ -154,12 +159,12 @@ class FrontPanelSettings(object):
             # Insert AO data into dataset
             for data in device_state["AO"].values():
                 if data != {}:
-                    ao_list.append(tuple(data))
+                    ao_list.append((data['name'],data['channel'],data['value'],data['locked'],data['step_size'],data['units']))
                 
             # Insert DO data into dataset
             for data in device_state["DO"].values():
                 if data != {}:
-                    do_list.append(tuple(data))
+                    do_list.append((data['name'],data['channel'],data['value'],data['locked']))
             
             # Insert DDS data into dataset
             for data in device_state["DDS"].values():
@@ -169,7 +174,7 @@ class FrontPanelSettings(object):
                         data['value'] = float(data['value']) # Convert to float to match AO value type
                         data['step_size'] = 0
                         data['units'] = ''
-                    dds_list.append(tuple(data))
+                    dds_list.append((data['name'],data['channel'],data['value'],data['locked'],data['step_size'],data['units']))
                 
             # Save "other data"
             od = repr(device_state["other_data"])
@@ -219,8 +224,8 @@ class FrontPanelSettings(object):
         
         # Save analysis server settings:
         dataset = data_group.create_group("analysis_server")
-        dataset.attrs['send_for_analysis'] = self.toggle_analysis.get_active()
-        dataset.attrs['server'] = self.analysis_host.get_text()
+        dataset.attrs['send_for_analysis'] = self.blacs.toggle_analysis.get_active()
+        dataset.attrs['server'] = self.blacs.analysis_host.get_text()
         
     
     def get_front_panel_state(self, tab):    

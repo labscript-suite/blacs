@@ -111,6 +111,7 @@ class pulseblaster(Tab):
                 # Find out the name of the connected device (if there is a device connected)
                 device = self.settings['connection_table'].find_child(self.settings['device_name'],'flag %d'%i)
                 name = device.name if device else '-'
+                channel = 'flag %d'%i
                 
                 # Set the label to reflect the connected device's name:
                 channel_label.set_text('Flag %d'%i)
