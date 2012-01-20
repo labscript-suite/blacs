@@ -73,7 +73,7 @@ if __name__ == "__main__":
         def __init__(self):
             self.exiting = False
             
-            self.front_panel_settings = FrontPanelSettings(self)
+            self.front_panel_settings = FrontPanelSettings()
             
             self.builder = gtk.Builder()
             self.builder.add_from_file('main_interface.glade')
@@ -120,6 +120,9 @@ if __name__ == "__main__":
             
             # Get settings to restore
             settings,question,error = self.front_panel_settings.restore(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),self.connection_table)
+            print settings
+            print question
+            print error
             
             # TODO: handle question/error cases
             
@@ -554,9 +557,12 @@ if __name__ == "__main__":
                 # Save front panel
                 data = self.front_panel_settings.get_save_data()
                 settingspath = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
-                with h5py.File(settingspath,'r+') as h5file:
-                    if 'connection table' in h5file:
-                        del h5file['connection table']
+                try:
+                    with h5py.File(settingspath,'r+') as h5file:
+                        if 'connection table' in h5file:
+                            del h5file['connection table']
+                except:
+                    pass
                 self.front_panel_settings.save_front_panel_to_h5(settingspath,data[0],data[1],data[2],{"overwrite":True})
                 gobject.timeout_add(100,self.finalise_quit,time.time())
         

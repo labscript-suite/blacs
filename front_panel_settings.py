@@ -46,13 +46,15 @@ class FrontPanelSettings(object):
         # Display errors, give option to cancel starting of BLACS so that the connection table can be edited
         
         # Create saved connection table
-        saved_ct = ConnectionTable(h5_file)
-        ct_match,error = blacs_ct.compare_to(saved_ct)
-        
         settings = {}
         question = {}
         error = {}
         try:
+            saved_ct = ConnectionTable(h5_file)
+            ct_match,error = blacs_ct.compare_to(saved_ct)
+        
+        
+        
             with h5py.File(h5_file,'r') as hdf5_file:            
                 # open AO Dataset
                 ao_dataset = hdf5_file["/front_panel/AO"][:]
@@ -71,18 +73,19 @@ class FrontPanelSettings(object):
                 for row in dds_dataset:
                     result = self.check_row(row,ct_match,blacs_ct,saved_ct)
                     settings,question,error = self.handle_return_code(row,result,settings,question,error)
-        except:
+        except Exception,e:
             logger.info("Could not load saved settings")
+            logger.info(e.message)
         return settings,question,error
 
         
-    def handle_return_code(row,result,settings,question,error):
+    def handle_return_code(self,row,result,settings,question,error):
         # 1: Restore to existing device
         # 2: Send to new device
         # 3: Device now exists, use saved values from unnamed device?
         #-1: Device no longer in the connection table, throw error
         #-2: Device parameters not compatible, throw error
-        if type(result,tuple):
+        if type(result) == tuple:
             connection = result[1]
             result = result[0]
         
@@ -204,13 +207,15 @@ class FrontPanelSettings(object):
             save_conn_table = False
             try:
                 new_conn = ConnectionTable(current_file)
+                result,error = self.connection_table.compare_to(new_conn)
             except:
                 # no connection table is present, so also save the connection table!
                 save_conn_table = True
+                result = False
             
             # if save_conn_table is True, we don't bother checking to see if the connection tables match, because save_conn_table is only true when the connection table doesn't exist in the current file
             # As a result, if save_conn_table is True, we ignore connection table checking, and save the connection table in the h5file.
-            result,error = self.connection_table.compare_to(new_conn)
+            
             if save_conn_table or result:
                 with h5py.File(current_file,'r+') as hdf5_file:
                     if hdf5_file['/'].get('front_panel') != None:
