@@ -205,7 +205,7 @@ class AO(object):
             
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):
-        self.action = gtk.ToggleAction('%s/n%s'%(channel,name), '%s/n%s'%(channel,name), "", 0)
+        self.action = gtk.ToggleAction('%s\n%s'%(channel,name), '%s\n%s'%(channel,name), "", 0)
         self.handler_id = self.action.connect('toggled',static_update_function)
         self.name = name
         self.channel = channel

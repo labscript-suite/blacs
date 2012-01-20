@@ -1,8 +1,3 @@
-from hardware_interfaces.output_types.DO import *
-from hardware_interfaces.output_types.AO import *
-
-import gobject
-import pygtk
 import gtk
 
 import Queue
@@ -11,137 +6,112 @@ import threading
 import logging
 import numpy
 import time
-import pylab
-import math
 import h5py
 import excepthook
 
 from tab_base_classes import Tab, Worker, define_state
+from output_classes import AO, DO, RF, DDS
 
 class ni_pcie_6363(Tab):
-
-    # settings should contain a dictionary of information from the connection table, relevant to this device.
-    # aka, it could be parent: pb_0/flag_0 (pseudoclock)
-    #                  device_name: ni_pcie_6363_0
-    #
-    # or for a more complex device,
-    #   parent:
-    #   name:
-    #   com_port:
-    #
-    #
+    num_DO = 48
+    num_AO = 4
+    num_RF = 0
+    num_AI = 32
+    max_ao_voltage = 10.0
+    min_ao_voltage = -10.0
+    ao_voltage_step = 0.1
+    
     def __init__(self,notebook,settings,restart=False):
         self.settings = settings
         self.device_name = self.settings['device_name']
-        # Queues that need to be passed to the worker process, which in turn passes them to the acquisition process: AI worker thread
+        
+        # Queues that need to be passed to the worker process, which in
+        # turn passes them to the acquisition process: AI worker thread
         self.write_queue = multiprocessing.Queue()
         self.read_queue = multiprocessing.Queue()
         self.result_queue = multiprocessing.Queue()
         
+        # All the arguments that the acquisition worker will require:
         acq_args = [self.settings['device_name'], self.write_queue, self.read_queue, self.result_queue]
         
         Tab.__init__(self,NiPCIe6363Worker,notebook,settings,workerargs={'acq_args':acq_args})
         
-        self.init_done = False
         self.static_mode = False
         self.destroy_complete = False
         
-        #capabilities
-        # can I abstract this away? Do I need to?
-        self.num_DO = 48
-        self.num_AO = 4
-        self.num_RF = 0
-        self.num_AI = 32
-        
-        self.max_ao_voltage = 10.0
-        self.min_ao_voltage = -10.0
-               
-        # input storage
-        self.ai_callback_list = []
-        for i in range(0,self.num_AI):
-            self.ai_callback_list.append([])
-        
-        ###############
-        # PyGTK stuff #
-        ###############
+        # PyGTK stuff:
         self.builder = gtk.Builder()
         self.builder.add_from_file('hardware_interfaces/NI_6363.glade')
+        self.builder.connect_signals(self)
         self.toplevel = self.builder.get_object('toplevel')
         
-        self.digital_outs = []
-        self.digital_widgets = []
-        for i in range(0,self.num_DO):
-            # store widget objects
-            self.digital_widgets.append(self.builder.get_object("do_toggle_"+str(i+1)))
+        self.digital_outputs = []
+        self.digital_outs_by_channel = {}
+        for i in range(self.num_DO):
+            # get the widget:
+            toggle_button = self.builder.get_object("do_toggle_%d"%(i+1))
 		
             #programatically change labels!
-            temp = self.builder.get_object("do_hardware_label_"+str(i+1))
-            temp2 = self.builder.get_object("do_real_label_"+str(i+1))
+            channel_label= self.builder.get_object("do_hardware_label_%d"%(i+1))
+            name_label = self.builder.get_object("do_real_label_%d"%(i+1))
+            
             if i < 32:
-                temp.set_text("DO P0:"+str(i))
+                channel_label.set_text("DO P0:"+str(i))
                 channel = "port0/line"+str(i)
             elif i < 40:
-                temp.set_text("DO P1:"+str(i-32)+" (PFI "+str(i-32)+")")
+                channel_label.set_text("DO P1:"+str(i-32)+" (PFI "+str(i-32)+")")
                 channel = "port1/line"+str(i-32)
             else:
-                temp.set_text("DO P2:"+str(i-40)+" (PFI "+str(i-32)+")")
+                channel_label.set_text("DO P2:"+str(i-40)+" (PFI "+str(i-32)+")")
                 channel = "port2/line"+str(i-40)
             
-            channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],channel)
-            if channel_name is not None:
-                name = channel_name.name
-            else:
-                name = "-"
+            device = self.settings["connection_table"].find_child(self.settings["device_name"],channel)
+            name = device.name if device else '-'
             
-            temp2.set_text(name)
+            name_label.set_text(name)
             
-            # Create DO object
-            # channel is currently being set to i in the DO. It should probably be a NI channel 
-            # identifier
-            self.digital_outs.append(DO(self,self.static_update,self.program_static,i,temp.get_text(),name))
-        
+            output = DO(name, channel, toggle_button, self.program_static)
+            self.digital_outs.append(output)
+            self.digital_outs_by_channel[channel] = output
+
         self.analog_outs = []
-        self.analog_widgets = []
-        for i in range(0,self.num_AO):
-            channel_name = self.settings["connection_table"].find_child(self.settings["device_name"],"ao"+str(i))
-            if channel_name is not None:
-                name = channel_name.name
-            else:
-                name = "-"
+        self.analog_outs_by_channel = {}
+        for i in range(self.num_AO):
+            # Get the widgets:
+            spinbutton = self.builder.get_object("AO_value_%d"%(i+1))
+            combobox = self.builder.get_object('ao_units_%d'%(i+1))
+            channel = "ao"+str(i)
+            device = self.settings["connection_table"].find_child(self.settings["device_name"],channel)
+            name = device.name if device else '-'
                 
             # store widget objects
-            self.analog_widgets.append(self.builder.get_object("AO_value_"+str(i+1)))
-            
             self.builder.get_object("AO_label_a"+str(i+1)).set_text("AO"+str(i))            
             self.builder.get_object("AO_label_b"+str(i+1)).set_text(name)            
             
-            self.analog_outs.append(AO(self,self.static_update,self.program_static,i,"AO"+str(i),name,[self.min_ao_voltage,self.max_ao_voltage]))
+            # Setup unit calibration:
+            calib = None
+            calib_params = {}
+            def_calib_params = "V"
+            if device:
+                # get the AO from the connection table, find its calibration details
+                calib = device.calibration_class
+                calib_params = eval(device.calibration_parameters)
             
-        # Need to connect signals!
-        self.builder.connect_signals(self)        
-        self.toplevel = self.builder.get_object('toplevel')
-        self.toplevel.hide()
+            output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
+            self.analog_outs.append(output)
+            self.analog_outs_by_channel[channel] = output
+            
         self.viewport.add(self.toplevel)
+        self.initialise_device()
         
         # Start acquisition thread which distributes newly acquired data to registered methods
         self.get_data_thread = threading.Thread(target = self.get_acquisition_data)
         self.get_data_thread.daemon = True
         self.get_data_thread.start()
         
-        self.initialise_device()
-        
-    
-    # ** This method should be common to all hardware interfaces **
-    #
-    # This method cleans up the class before the program exits. In this case, we close the worker thread!
-    #
     @define_state
     def destroy(self):
-
-        self.init_done = False
-
         self.result_queue.put([None,None,None,None,'shutdown'])
-                
         self.queue_work('close_device')
         self.do_after('leave_destroy')
         
@@ -174,277 +144,79 @@ class ni_pcie_6363(Tab):
             logger.debug('Got some data')
             div = 1/rate
             times = numpy.arange(time,time+samples*div,div)
-            #TODO will need to split up the array here. (single channel is assumed -- will need to extend for multiple channels)
-            xy = numpy.vstack((data,times))
+            #TODO will need to split up the array. (single channel is assumed -- will need to extend for multiple channels)
             with gtk.gdk.lock:
                 logger.debug('Calling callbacks')
-                #TODO Will need to loop over the array to call every callback:
-                self.ai_callback_list[0][0][0](0,xy,rate)
-
+                #TODO
                 
     def get_front_panel_state(self):
-        dict = {}
-
-        for i in range(self.num_DO):
-            dict["DO"+str(i)] = self.digital_outs[i].state
-            
+        state = {}
         for i in range(self.num_AO):
-            dict["AO"+str(i)] = self.analog_outs[i].value
-            
-        return dict
-    
-    #
-    # ** This method should be common to all hardware interfaces **
-    #
-    #
-    # "request_analog_input(channel,rate,callback)"
-    #
-    # This function takes 3 arguments
-    # 1. "channel": The AI channel you want to aquire data from
-    # 2. "rate": The MINIMUM rate you want to aquire data at. Note, you may get data at a faster rate!
-    # 3. "callback": The function you would like your data to be passed to once it is aquired. This function should
-    #   be of the form callback(channel,data,rate), where data is a 2D numpy array
-    #
-    # This function returns True, if the task was successfully started, or False if it was not.
-    #
-#    def request_analog_input(self,channel,rate,callback):
-#        if channel >= 0 and channel < self.num_AI:
-#            self.ai_callback_list[channel].append([callback,rate])
-#        
-#            # communicate with subprocess. Request data from channel be included in the queue. Up aquisition rate if necessary
-#            
-#            self.write_queue.put(["add channel","ni_pcie_6363_0/ai"+str(channel),str(rate)])
-#            
-#            return True
-#        else:
-#            return False
-    #
-    # ** This method should be common to all hardware interfaces **
-    #
-    # This is the digital analogue of the "analog" function above!
-    # It will be filled out when we work out how to handle switching channels between DO and DI!
-    # Also need to add a stop DI method
-    def request_digital_input(self,channel,rate,callback):
-        pass
-    
-    #
-    # ** This method should be common to all hardware interfaces **
-    #
-    #
-    # "stop_analog_input(channel,callback)"
-    #
-    # This function takes two arguments.
-    # 1. "Channel": the AI channel to stop
-    # 2. "callback": the callback function you wish to remove for the specified "channel"
-    #
-    # This function returns True on success, or False on failure
-    #
-    def stop_analog_input(self,channel,callback):
-        # Is the channel valid?
-        if channel < 0 or channel >= self.num_AI:
-            return False
-        
-        # find the callback entry
-        item = None
-        for i in self.ai_callback_list[channel]:
-            if i[0] == callback:
-                item = i
-                break
-        
-        # if only callback for that channel, communicate with subprocess, stop acquisition
-        if len(self.ai_callback_list[channel]) == 1:
-            # wait for confirmation from subprocess
-        
-            # call idle function to send out last data
-            self.idle_function()
-        
-        # get this information before removing from list        
-        max_rate,exists_twice = self.max_ai_rate()   
-        
-        # remove from callback list.
-        self.ai_callback_list[channel].remove(item)
-             
-        if not exists_twice and max_rate == item[1]:
-            # the callback we are deleting has the fastest request rate, and is the only channel with this high rate
-            # we need to lower the request rate now
-               
-            # find now highest rate 
-            new_rate,e = self.max_ai_rate()
-       
-    # "max_ai_rate()": This function returns two parameters
-    #
-    # 1. "rate": this is the fastest aquisition rate of any AI channel
-    # 2. "exists_twice": If the value in 1. is requested by more than one callback function, this will be True
-    #
-    def max_ai_rate(self):
-        rate = 0
-        exists_twice = False
-        for i in range(0,self.num_AI):
-            for j in range(0,len(self.ai_callback_list[i])):
-                if rate < ai_callback_list[i][j][1]:
-                    rate = ai_callback_list[i][j][1]
-                    exists_twice = False
-                elif rate == ai_callback_list[i][j][1]:
-                    exists_twice = True
-        return rate,exists_twice
-    
-    
-        
-    
-    #
-    # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
-    # ** This method is an internal method, registered as a callback with each AO/DO/RF channel **
-    #
-    # Static update 
-    # Should not program change during experimental run
-    #
+            state["AO"+str(i)] = self.analog_outs[i].value
+        for i in range(self.num_AO):
+            state["DO"+str(i)] = self.digital_outs[i].value
+        return state
+
     @define_state
     def program_static(self,output):
-        if not self.init_done or not self.static_mode:
-            return
-        
-        # create dictionary
-        ao_values = {}
-        for i in range(self.num_AO):
-            ao_values[str(i)] = self.analog_outs[i].value
-            
-        do_values = {}
-        for i in range(self.num_DO):
-            do_values[str(i)] = self.digital_outs[i].state
-            
-        self.queue_work('program_static',ao_values,do_values)
-        
-    
-    @define_state
-    def static_update(self,output):    
-        if not self.init_done or not self.static_mode:
-            return    
-        # update the GUI too!
-        # Select the output array to search from
-        search_array = None
-        if isinstance(output,DO):
-            search_array = self.digital_outs
-        elif isinstance(output,AO):
-            search_array = self.analog_outs
-            
-        # search for the output that has been updated, so we can get the right widget to update
-        channel = None
-        for i in range(0,len(search_array)):
-            if output == search_array[i]:
-                channel = i
-                break
-                
-        # Now update the widget!
-        if isinstance(output,DO):
-            if self.digital_widgets[channel].get_active() != output.state:
-                self.digital_widgets[channel].set_active(output.state)
-        elif isinstance(output,AO):
-            if self.analog_widgets[channel].get_text() != str(output.value):
-                self.analog_widgets[channel].set_text(str(output.value))
+        if self.static_mode:
+            analog_values = [output.value for output in self.analog_outs]
+            digital_states = [output.state for output in self.digital_outs]
+            self.queue_work('program_static',analog_values, digital_values)
 
-
-    #
-    # ** This method should be common to all hardware interfaces **
-    #        
-    # Program experimental sequence
-    #
-    # Needs to handle seemless transition from static to experiment sequence
-    #
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
-        # disable static update
         self.static_mode = False               
         self.queue_work('program_buffered',h5file)
         self.do_after('leave_program_buffered',notify_queue)
     
     def leave_program_buffered(self,notify_queue,_results):
+        # The final values of the run, to update the GUI with at the
+        # end of the run:
+        self.final_analog_values, self.final_digital_values = _results
         # Tell the queue manager that we're done:
         notify_queue.put(self.device_name)
         
     @define_state
     def abort_buffered(self):      
-        self.queue_work('abort_buffered')
-        self.do_after('leave_transition_to_static',notify_queue=None)
+        self.queue_work('transition_to_static',abort=True)
         
     @define_state        
     def transition_to_static(self,notify_queue):
-        # need to be careful with the order of things here, to make sure outputs don't jump around, in case a virtual device is queuing up updates.
-        #reenable static updates
+        self.static_mode = True
         self.queue_work('transition_to_static')
         self.do_after('leave_transition_to_static',notify_queue)
-        
+        # Update the GUI with the final values of the run:
+        for channel, value in self.final_analog_values.items():
+            self.analog_outs_by_channel[channel].set_value(value,program=False)
+        for channel, state in self.final_digital_values.items():
+            self.digital_outs_by_channel[channel].set_state(state,program=False)
+            
     def leave_transition_to_static(self,notify_queue,_results):    
-        final_values = _results
-        self.static_mode = True
-        # final_values is None if the run was aborted or 
-        # there was an error in the worker process. Skip this if so:
-        if final_values:
-            #update the GUI
-            for channel,value in final_values.items():
-                if channel == "digital":
-                    for i in range(32): # 32 is number of buffered channels
-                        #self.digital_outs[i].update_value(((value & (1 << i)) >> i))
-                        pass
-                else:    
-                    chan_num = int((channel.split('/'))[-1].strip('ao'))
-                    #self.analog_outs[chan_num].update_value(value)
-                
         # Tell the queue manager that we're done:
         if notify_queue is not None:
             notify_queue.put(self.device_name)
         
-        
-    
-#    def setup_buffered_trigger(self):
-#        self.buffered_do_start_task = Task()
-#        self.buffered_do_start_task.CreateDOChan("ni_pcie_6363_0/port2/line0","",DAQmx_Val_ChanPerLine)
-#        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([1],dtype=pylab.uint8),None,None)
-#    
-#    def start_buffered(self):
-#        
-#        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([0],dtype=pylab.uint8),None,None)
-#        self.buffered_do_start_task.StartTask()
-#        time.sleep(0.1)
-#        self.buffered_do_start_task.WriteDigitalLines(1,True,10.0,DAQmx_Val_GroupByScanNumber,pylab.array([1],dtype=pylab.uint8),None,None)
-#        
-#        self.buffered_do_start_task.StopTask()
-#        self.buffered_do_start_task.ClearTask()
-        
-    #
-    # ** This method should be common to all hardware interfaces **
-    #
-    # This returns the channel in the "type" (DO/AO) list
-    # We should possibly extend this to get channel based on NI channel identifier, not an array index!
     def get_child(self,type,channel):
-        if type == "DO":
-            if channel >= 0 and channel < self.num_DO:
-                return self.digital_outs[channel]
-        elif type == "AO":
-            if channel >= 0 and channel < self.num_AO:
+        if type == "AO":
+            if channel in range(self.num_AO):
                 return self.analog_outs[channel]
+        if type == "DO":
+            if channel in range(self.num_DO):
+                return self.digital_outs[channel]
 		
         # We don't have any of this type, or the channel number was invalid
         return None
     
-    ##########################
-    # PyGTK Signal functions #
-    ##########################
-    @define_state
-    def on_digital_toggled(self,widget):
-        # find widget. Send callback
-        for i in range(0,self.num_DO):
-            if self.digital_widgets[i] == widget:
-                self.digital_outs[i].update_value(widget.get_active())
-                return
-    @define_state
-    def on_analog_change(self,widget):
-        for i in range(0,self.num_AO):
-            if self.analog_widgets[i] == widget:
-                self.analog_outs[i].update_value(widget.get_text())
-
     
 class NiPCIe6363Worker(Worker):
+    num_DO = 48
+    num_AO = 4
+    num_AI = 32 
+    num_buffered_DO = 32
+        
     def init(self):
+        # Start the data acquisition subprocess:
         self.acquisition_worker = Worker2(args=self.acq_args)
         ignore, self.to_child, self.from_child, ignore = self.acq_args
         self.acquisition_worker.daemon = True
@@ -453,34 +225,25 @@ class NiPCIe6363Worker(Worker):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
-        
-        global ni_programming; from hardware_programming import ni_pcie_6363 as ni_programming
-        self.num_DO = 48
-        self.num_AO = 4
-        self.num_RF = 0
-        self.num_AI = 32        
     
     def initialise(self, device_name, limits):
-        # Create task
+        # Create AO task
         self.ao_task = Task()
         self.ao_read = int32()
         self.ao_data = numpy.zeros((self.num_AO,), dtype=numpy.float64)
+        
+        # Create DO task:
         self.do_task = Task()
         self.do_read = int32()
         self.do_data = numpy.zeros(48,dtype=numpy.uint8)
+        
         self.device_name = device_name
-        self.buffered_do_start_task = None
         self.limits = limits
         self.setup_static_channels()  
-        self.final_values = {}        
-        
-        #DAQmx Start Code        
-        self.ao_task.StartTask()  
-        self.do_task.StartTask()  
         
     def setup_static_channels(self):
         #setup AO channels
-        for i in range(0,self.num_AO): 
+        for i in range(self.num_AO): 
             self.ao_task.CreateAOVoltageChan(self.device_name+"/ao"+str(i),"",self.limits[0],self.limits[1],DAQmx_Val_Volts,None)
         
         #setup DO ports
@@ -489,76 +252,100 @@ class NiPCIe6363Worker(Worker):
         self.do_task.CreateDOChan(self.device_name+"/port0/line16:23","",DAQmx_Val_ChanForAllLines)
         self.do_task.CreateDOChan(self.device_name+"/port0/line24:31","",DAQmx_Val_ChanForAllLines)
         self.do_task.CreateDOChan(self.device_name+"/port1/line0:7","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan(self.device_name+"/port2/line0:7","",DAQmx_Val_ChanForAllLines)    
+        self.do_task.CreateDOChan(self.device_name+"/port2/line0:7","",DAQmx_Val_ChanForAllLines)  
+        
+        # Start!  
+        self.ao_task.StartTask()  
+        self.do_task.StartTask()  
         
     def close_device(self):        
         self.ao_task.StopTask()
         self.ao_task.ClearTask()
         self.do_task.StopTask()
         self.do_task.ClearTask()
+        # Kill the acquisition subprocess:
         self.to_child.put(["shutdown"])
         result, message = self.from_child.get()
         if result == 'error':
             raise Exception(message)
             
     def program_static(self,analog_outs,digital_outs):
-        # Program a static change
-        # write AO
-        for i in range(0,self.num_AO):# The 4 is from self.num_AO
-            self.ao_data[i] = analog_outs[str(i)]
+        self.ao_data[:] = analog_data
+        self.do_data[:] = digital_data
         self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
-          
-        # write DO        
-        for i in range(0,self.num_DO): #The 48 is from self.num_DO
-            if digital_outs[str(i)] == True:
-                self.do_data[i] = 1
-            else:
-                self.do_data[i] = 0
-        
         self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
     
     def program_buffered(self,h5file):        
-        self.ao_task, self.do_task, self.final_values = ni_programming.program_buffered_output(h5file,self.device_name,self.ao_task,self.do_task)
         self.to_child.put(["transition to buffered",h5file,self.device_name])
         result, message = self.from_child.get()
         if result == 'error':
             raise Exception(message)
-        return True
-    
-    def abort_buffered(self):
-        # This is almost Identical to transition_to_static, but doesn't call StopTask since this thorws an error if the task hasn't actually finished!
+        with h5py.File(h5file,'r') as hdf5_file:
+            group = hdf5_file['devices/'][self.device_name]
+            clock_terminal = group.attrs['clock_terminal']
+            h5_data = group.get('ANALOG_OUTS')
+            if h5_data:
+                ao_channels = group.attrs['analog_out_channels']
+                # We use all but the last sample (which is identical to the
+                # second last sample) in order to ensure there is one more
+                # clock tick than there are samples. The 6733 requires this
+                # to determine that the task has completed.
+                ao_data = numpy.array(h5_data,dtype=float64)[:-1,:]
+                
+                self.ao_task.StopTask()
+                self.ao_task.ClearTask()
+                self.ao_task = Task()
+                ao_read = int32()
+
+                self.ao_task.CreateAOVoltageChan(ao_channels,"",-10.0,10.0,DAQmx_Val_Volts,None)
+                self.ao_task.CfgSampClkTiming(clock_terminal,1000000,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps, ao_data.shape[0])
+                
+                self.ao_task.WriteAnalogF64(ao_data.shape[0],False,10.0,DAQmx_Val_GroupByScanNumber, ao_data,ao_read,None)
+                self.ao_task.StartTask()   
+                
+                # Final values here are a dictionary of values, keyed by channel:
+                channel_list = [channel.split('/')[1] for channel in ao_channels.split(', ')]
+                final_analog_values = {channel: value for channel, value in zip(channel_list, ao_data[-1,:])}
+            else:
+                final_analog_values = {}
+            h5_data = group.get('DIGITAL_OUTS')
+            if h5_data:
+                do_channels = group.attrs['digital_lines']
+                do_bitfield = numpy.array(h5_data,dtype=int32)
+                # Expand each bitfield int into self.num_buffered_DO
+                # (32) individual ones and zeros:
+                do_write_data = pylab.zeros((do_data.shape[0],self.num_buffered_DO),dtype=numpy.uint8)
+                for i in range(self.num_buffered_DO):
+                    do_write_data[:,i] = (do_bitfield & (1 << i)) >> i
+                    
+                self.do_task.StopTask()
+                self.do_task.ClearTask()
+                self.do_task = Task()
+                self.do_read = int32()
+        
+                do_task.CreateDOChan(do_channels,"",DAQmx_Val_ChanPerLine)
+                do_task.CfgSampClkTiming(clock_terminal,1000000,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,do_bitfield.shape[0])
+                final_digital_values = {'port0/line%d'%i: do_write_data[-1,i] for i in range(self.num_buffered_DO)}
+            else:
+                final_digital_values = {}
+            
+            return final_analog_values, final_digital_values
+            
+    def transition_to_static(self,abort=False):
+        if not abort:
+            # if aborting, don't call StopTask since this throws an
+            # error if the task hasn't actually finished!
+            self.ao_task.StopTask()
+            self.do_task.StopTask()
         self.ao_task.ClearTask()
         self.do_task.ClearTask()
-        
         self.ao_task = Task()
         self.do_task = Task()
-        
-        self.final_values = {}     
-        
         self.setup_static_channels()
-        
-        #update values on GUI
-        self.ao_task.StartTask()
-        self.do_task.StartTask()
-        self.to_child.put(["transition to static",self.device_name])
-        result,message = self.from_child.get()
-        if result == 'error':
-            raise Exception(message)
-        
-    def transition_to_static(self):
-        self.ao_task.StopTask()
-        self.ao_task.ClearTask()
-        self.do_task.StopTask()
-        self.do_task.ClearTask()
-        
-        self.ao_task = Task()
-        self.do_task = Task()
-        
-        self.setup_static_channels()
-        
-        #update values on GUI
-        self.ao_task.StartTask()
-        self.do_task.StartTask()
+        if abort:
+            # Reprogram the initial states:
+            self.program_static(self.ao_data, self.do_data)
+            
         self.to_child.put(["transition to static",self.device_name])
         result,message = self.from_child.get()
         if result == 'error':
@@ -566,11 +353,7 @@ class NiPCIe6363Worker(Worker):
         
         return self.final_values
         
-#########################################
-#                                       #
-#       Worker class for AI input       #
-#                                       #
-#########################################
+# Worker class for AI input:
 class Worker2(multiprocessing.Process):
     def run(self):
         exec 'import traceback' in globals()
@@ -638,7 +421,6 @@ class Worker2(multiprocessing.Process):
                 logger.error('An exception happened:\n %s'%message)
                 self.to_parent.put(['error', message])
         self.to_parent.put(['done',None])
-        
         
     def daqmx_read(self):
         logger = logging.getLogger('BLACS.%s.acquisition.daqmxread'%self.name)

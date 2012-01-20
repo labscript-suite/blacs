@@ -1,5 +1,3 @@
-import gobject
-import pygtk
 import gtk
 
 import numpy
@@ -30,35 +28,7 @@ class ni_pci_6733(Tab):
         self.builder = gtk.Builder()
         self.builder.add_from_file('hardware_interfaces/NI_6733.glade')
         self.builder.connect_signals(self)   
-        
         self.toplevel = self.builder.get_object('toplevel')
-        
-#        self.digital_outputs = []
-#        for i in range(self.num_DO):
-#            # get the widget:
-#            toggle_button = self.builder.get_object("do_toggle_%d"%(i+1))
-#		
-#            #programatically change labels!
-#            channel_label= self.builder.get_object("do_hardware_label_%d"%(i+1))
-#            name_label = self.builder.get_object("do_real_label_%d"%(i+1))
-#            
-#            if i < 32:
-#                channel_label.set_text("DO P0:"+str(i))
-#                NIchannel = "port0/line"+str(i)
-#            elif i < 40:
-#                channel_label.set_text("DO P1:"+str(i-32)+" (PFI "+str(i-32)+")")
-#                NIchannel = "port1/line"+str(i-32)
-#            else:
-#                channel_label.set_text("DO P2:"+str(i-40)+" (PFI "+str(i-32)+")")
-#                NIchannel = "port2/line"+str(i-40)
-#            
-#            device = self.settings["connection_table"].find_child(self.settings["device_name"],channel)
-#            name = device.name if device else '-'
-#            
-#            name_label.set_text(name)
-#            
-#            output = DO(name, NIchannel, toggle_button, self.program_static)
-#            self.digital_outs.append(output)
             
         self.analog_outs = []
         self.analog_outs_by_channel = {}
@@ -122,7 +92,8 @@ class ni_pci_6733(Tab):
         self.do_after('leave_program_buffered',notify_queue)
     
     def leave_program_buffered(self,notify_queue,_results):
-        # The final values of the run, to update the GUI with at the end of the run:
+        # The final values of the run, to update the GUI with at the
+        # end of the run:
         self.final_values = _results
         # Tell the queue manager that we're done:
         notify_queue.put(self.device_name)
@@ -155,7 +126,6 @@ class NiPCI6733Worker(Worker):
     num_AO = 8
     
     def init(self):
-        exec 'from PyDAQmx import Task, DAQmxConnectTerms, DAQmxDisconnectTerms' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global pylab; import pylab 
