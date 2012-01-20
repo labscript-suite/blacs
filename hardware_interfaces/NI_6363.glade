@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.24"/>
-  <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkAdjustment" id="adjustment1">
     <property name="lower">-10</property>
     <property name="upper">10</property>
@@ -26,15 +25,33 @@
     <property name="step_increment">0.10000000000000001</property>
     <property name="page_increment">1</property>
   </object>
-  <object class="GtkListStore" id="liststore1"/>
-  <object class="GtkListStore" id="liststore2"/>
-  <object class="GtkListStore" id="liststore3"/>
-  <object class="GtkListStore" id="liststore4"/>
+  <object class="GtkListStore" id="liststore1">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore2">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore3">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore4">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkScrolledWindow" id="toplevel">
     <property name="visible">True</property>
     <property name="can_focus">True</property>
-    <property name="hscrollbar_policy">automatic</property>
-    <property name="vscrollbar_policy">automatic</property>
     <child>
       <object class="GtkViewport" id="viewport1">
         <property name="visible">True</property>
@@ -54,8 +71,6 @@
                   <object class="GtkScrolledWindow" id="scrolledwindow2">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="hscrollbar_policy">automatic</property>
-                    <property name="vscrollbar_policy">automatic</property>
                     <child>
                       <object class="GtkToolPalette" id="toolpalette2">
                         <property name="visible">True</property>
@@ -115,11 +130,8 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment1</property>
                                                 <property name="digits">4</property>
-                                                <signal name="output" handler="on_analog_change" swapped="no"/>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -132,6 +144,12 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">False</property>
                                                 <property name="model">liststore1</property>
+                                                <child>
+                                                  <object class="GtkCellRendererText" id="cellrenderertext1"/>
+                                                  <attributes>
+                                                    <attribute name="text">0</attribute>
+                                                  </attributes>
+                                                </child>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -207,11 +225,8 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment2</property>
                                                 <property name="digits">4</property>
-                                                <signal name="output" handler="on_analog_change" swapped="no"/>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -224,6 +239,12 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">False</property>
                                                 <property name="model">liststore2</property>
+                                                <child>
+                                                  <object class="GtkCellRendererText" id="cellrenderertext2"/>
+                                                  <attributes>
+                                                    <attribute name="text">0</attribute>
+                                                  </attributes>
+                                                </child>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -302,11 +323,8 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment3</property>
                                                 <property name="digits">4</property>
-                                                <signal name="output" handler="on_analog_change" swapped="no"/>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -397,11 +415,8 @@
                                                 <property name="invisible_char_set">True</property>
                                                 <property name="primary_icon_activatable">False</property>
                                                 <property name="secondary_icon_activatable">False</property>
-                                                <property name="primary_icon_sensitive">True</property>
-                                                <property name="secondary_icon_sensitive">True</property>
                                                 <property name="adjustment">adjustment4</property>
                                                 <property name="digits">4</property>
-                                                <signal name="output" handler="on_analog_change" swapped="no"/>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -414,6 +429,12 @@
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">False</property>
                                                 <property name="model">liststore4</property>
+                                                <child>
+                                                  <object class="GtkCellRendererText" id="cellrenderertext3"/>
+                                                  <attributes>
+                                                    <attribute name="text">0</attribute>
+                                                  </attributes>
+                                                </child>
                                               </object>
                                               <packing>
                                                 <property name="expand">True</property>
@@ -460,8 +481,6 @@
                   <object class="GtkScrolledWindow" id="scrolledwindow1">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="hscrollbar_policy">automatic</property>
-                    <property name="vscrollbar_policy">automatic</property>
                     <child>
                       <object class="GtkToolPalette" id="toolpalette1">
                         <property name="visible">True</property>
@@ -485,7 +504,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_1">
                                         <property name="visible">True</property>
@@ -533,7 +551,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_2">
                                         <property name="visible">True</property>
@@ -584,7 +601,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_3">
                                         <property name="visible">True</property>
@@ -635,7 +651,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_4">
                                         <property name="visible">True</property>
@@ -686,7 +701,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_5">
                                         <property name="visible">True</property>
@@ -737,7 +751,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_6">
                                         <property name="visible">True</property>
@@ -788,7 +801,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_7">
                                         <property name="visible">True</property>
@@ -839,7 +851,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_8">
                                         <property name="visible">True</property>
@@ -890,7 +901,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_9">
                                         <property name="visible">True</property>
@@ -941,7 +951,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_10">
                                         <property name="visible">True</property>
@@ -992,7 +1001,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_11">
                                         <property name="visible">True</property>
@@ -1043,7 +1051,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_12">
                                         <property name="visible">True</property>
@@ -1094,7 +1101,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_13">
                                         <property name="visible">True</property>
@@ -1145,7 +1151,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_14">
                                         <property name="visible">True</property>
@@ -1196,7 +1201,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_15">
                                         <property name="visible">True</property>
@@ -1247,7 +1251,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_16">
                                         <property name="visible">True</property>
@@ -1298,7 +1301,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_17">
                                         <property name="visible">True</property>
@@ -1349,7 +1351,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_18">
                                         <property name="visible">True</property>
@@ -1400,7 +1401,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_19">
                                         <property name="visible">True</property>
@@ -1451,7 +1451,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_20">
                                         <property name="visible">True</property>
@@ -1502,7 +1501,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_21">
                                         <property name="visible">True</property>
@@ -1553,7 +1551,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_22">
                                         <property name="visible">True</property>
@@ -1604,7 +1601,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_23">
                                         <property name="visible">True</property>
@@ -1655,7 +1651,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_24">
                                         <property name="visible">True</property>
@@ -1706,7 +1701,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_25">
                                         <property name="visible">True</property>
@@ -1757,7 +1751,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_26">
                                         <property name="visible">True</property>
@@ -1808,7 +1801,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_27">
                                         <property name="visible">True</property>
@@ -1859,7 +1851,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_28">
                                         <property name="visible">True</property>
@@ -1910,7 +1901,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_29">
                                         <property name="visible">True</property>
@@ -1961,7 +1951,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_30">
                                         <property name="visible">True</property>
@@ -2012,7 +2001,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_31">
                                         <property name="visible">True</property>
@@ -2063,7 +2051,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_32">
                                         <property name="visible">True</property>
@@ -2124,7 +2111,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_33">
                                         <property name="visible">True</property>
@@ -2172,7 +2158,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_34">
                                         <property name="visible">True</property>
@@ -2223,7 +2208,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_35">
                                         <property name="visible">True</property>
@@ -2274,7 +2258,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_36">
                                         <property name="visible">True</property>
@@ -2325,7 +2308,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_37">
                                         <property name="visible">True</property>
@@ -2376,7 +2358,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_38">
                                         <property name="visible">True</property>
@@ -2427,7 +2408,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_39">
                                         <property name="visible">True</property>
@@ -2478,7 +2458,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_40">
                                         <property name="visible">True</property>
@@ -2539,7 +2518,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_41">
                                         <property name="visible">True</property>
@@ -2587,7 +2565,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_42">
                                         <property name="visible">True</property>
@@ -2638,7 +2615,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_43">
                                         <property name="visible">True</property>
@@ -2689,7 +2665,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_44">
                                         <property name="visible">True</property>
@@ -2740,7 +2715,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_45">
                                         <property name="visible">True</property>
@@ -2791,7 +2765,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_46">
                                         <property name="visible">True</property>
@@ -2842,7 +2815,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_47">
                                         <property name="visible">True</property>
@@ -2893,7 +2865,6 @@
                                     <property name="use_action_appearance">False</property>
                                     <property name="focus_on_click">False</property>
                                     <property name="image_position">top</property>
-                                    <signal name="toggled" handler="on_digital_toggled" swapped="no"/>
                                     <child>
                                       <object class="GtkVBox" id="do_vbox_48">
                                         <property name="visible">True</property>

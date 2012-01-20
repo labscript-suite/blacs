@@ -45,7 +45,7 @@ class ni_pcie_6363(Tab):
         self.builder.connect_signals(self)
         self.toplevel = self.builder.get_object('toplevel')
         
-        self.digital_outputs = []
+        self.digital_outs = []
         self.digital_outs_by_channel = {}
         for i in range(self.num_DO):
             # get the widget:
@@ -154,7 +154,7 @@ class ni_pcie_6363(Tab):
         for i in range(self.num_AO):
             state["AO"+str(i)] = self.analog_outs[i].value
         for i in range(self.num_AO):
-            state["DO"+str(i)] = self.digital_outs[i].value
+            state["DO"+str(i)] = self.digital_outs[i].state
         return state
 
     @define_state

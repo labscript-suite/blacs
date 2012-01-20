@@ -126,6 +126,7 @@ class NiPCI6733Worker(Worker):
     num_AO = 8
     
     def init(self):
+        exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global pylab; import pylab 

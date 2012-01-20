@@ -1,4 +1,4 @@
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Lock
 import time
 import threading
 import cPickle
@@ -379,7 +379,7 @@ class MyTab(Tab):
         bazbutton = gtk.Button('baz, 0.5 seconds!')
         addbazbutton = gtk.Button('add 2 second timeout to baz')
         removebazbutton = gtk.Button('remove baz timeout')
-        bazunpickleable= gtk.Button('try to pass baz a queue')
+        bazunpickleable= gtk.Button('try to pass baz a multiprocessing.Lock()')
         fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
         self.checkbutton=gtk.CheckButton('have baz\nreturn a Queue')
         self.toplevel = gtk.VBox()
@@ -465,7 +465,7 @@ class MyTab(Tab):
     @define_state    
     def baz_unpickleable(self, button):
         self.logger.debug('entered bar')
-        self.queue_work('baz', 5,6,7,x=Queue())
+        self.queue_work('baz', 5,6,7,x=Lock())
         self.do_after('leave_bar', 1,2,3,bar='baz')
         
     def leave_baz(self,*args,**kwargs):
