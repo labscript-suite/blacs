@@ -53,6 +53,7 @@ class AO(object):
         
         # Add signal to populate the right click context menu with our own things!
         widget.connect("populate-popup", self.populate_context_menu)
+        widget.connect("button-release-event",self.on_button_release)
      
     def on_selection_changed(self,combobox):
         for box, id in zip(self.comboboxes,self.comboboxhandlerids):
@@ -147,6 +148,9 @@ class AO(object):
         pass
         
     def change_step(self, menu_item):
+        def handle_entry(widget,dialog):
+            dialog.response(gtk.RESPONSE_ACCEPT)
+        
         dialog = gtk.Dialog("My dialog",
                      None,
                      gtk.DIALOG_MODAL,
@@ -157,6 +161,7 @@ class AO(object):
         dialog.vbox.pack_start(label, expand = False, fill = False)
         label.show()
         entry = gtk.Entry()
+        entry.connect("activate",handle_entry,dialog)
         dialog.get_content_area().pack_end(entry)
         entry.show()
         response = dialog.run()
@@ -181,8 +186,8 @@ class AO(object):
                 dialog = gtk.MessageDialog(None,
                      gtk.DIALOG_MODAL,
                      gtk.MESSAGE_ERROR,
-                     (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT),
-                     "An error occurred while updating the step size:\n\n")
+                     gtk.BUTTONS_NONE,
+                     "An error occurred while updating the step size:\n\n%s"%e.message)
                      
                 dialog.run()
                 dialog.destroy()
@@ -229,10 +234,6 @@ class AO(object):
         
     def populate_context_menu(self,widget,menu):
         # is it a right click?
-        menu_item1 = gtk.MenuItem("Set Limits")
-        menu_item1.connect("activate",self.set_limits)
-        menu_item1.show()
-        menu.append(menu_item1)
         menu_item2 = gtk.MenuItem("Unlock Widget" if self.locked else "Lock Widget")
         menu_item2.connect("activate",self.lock)
         menu_item2.show()
@@ -246,10 +247,14 @@ class AO(object):
         menu.append(sep)
         # reorder children
         menu.reorder_child(menu_item2,0)
-        menu.reorder_child(menu_item1,1)
+        menu.reorder_child(menu_item3,1)
         menu.reorder_child(sep,2)
         
-        
+    def on_button_release(self,widget,event):
+        if event.button == 3:
+            menu = gtk.Menu()
+            self.populate_context_menu(widget,menu)
+            menu.popup(None,None,None,event.button,event.time)
             
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):

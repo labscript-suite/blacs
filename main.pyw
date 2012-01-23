@@ -128,9 +128,6 @@ if __name__ == "__main__":
             
             # Get settings to restore
             settings,question,error = self.front_panel_settings.restore(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),self.connection_table)
-            print settings
-            print question
-            print error
             
             # TODO: handle question/error cases
             

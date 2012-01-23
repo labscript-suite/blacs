@@ -273,7 +273,6 @@ class FrontPanelSettings(object):
         # Iterate over each device within a class
         for devicename, device_state in states.items():
             logger.debug("saving front panel for device:" + devicename) 
-            print device_state
             # Insert AO data into dataset
             for data in device_state["AO"].values():
                 if data != {}:
