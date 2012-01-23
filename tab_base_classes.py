@@ -349,7 +349,9 @@ class Worker(Process):
                 except:
                     results = None
                     success = False
-                    message = traceback.format_exc()
+                    traceback_lines = traceback.format_exception(sys.exc_type, sys.exc_value, sys.exc_traceback)
+                    del traceback_lines[1]
+                    message = ''.join(traceback_lines)
                     self.logger.error('Exception in job:\n%s'%message)
                 # Check if results object is serialisable:
                 try:
