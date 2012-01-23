@@ -96,7 +96,7 @@ class FrontPanelSettings(object):
             settings.setdefault(connection.parent.name,{})
             settings[connection.parent.name][connection.connected_to] = row
         elif result == 3:
-            question.set_default(connection.parent.name,{})
+            question.setdefault(connection.parent.name,{})
             question[connection.parent.name][connection.connected_to] = row
         elif result == -1:
             error[row[1]+'_'+row[2]] = row,"missing"
@@ -115,6 +115,7 @@ class FrontPanelSettings(object):
                 # Find if this device is in the connection table
                 connection = blacs_ct.find_by_name(row[0])
                 connection2 = saved_ct.find_by_name(row[0])
+                
                 if connection:
                     # compare the two connections, see what differs
                     # if compare fails only on parent, connected to:
@@ -122,12 +123,13 @@ class FrontPanelSettings(object):
                     # else:
                     #     show error, device parameters not compatible with saved data
                     result,error = connection.compare_to(connection2)
+                    
                     allowed_length = 0
                     if "connected_to" in error:
                         allowed_length += 1
                         
                     if len(error) > allowed_length:
-                        return -2 # failure, device parameters not compatible
+                        return -2 # failure, device parameters not compatible                        
                     elif error == {} and connection.parent.name == connection2.parent.name:
                         return 1 # All details about this device match
                     else:
