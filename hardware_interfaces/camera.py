@@ -18,6 +18,7 @@ class camera(Tab):
         self.builder.get_object('title').set_text(self.settings["device_name"])
         self.camera_responding = self.builder.get_object('responding')
         self.camera_notresponding = self.builder.get_object('notresponding')
+        self.camera_working = self.builder.get_object('working')
         self.host = self.builder.get_object('host')
         self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
@@ -49,15 +50,18 @@ class camera(Tab):
     
     @define_state
     def initialise_camera(self,button=None):
+        self.camera_working.show()
+        self.camera_notresponding.hide()
+        self.camera_responding.hide()
         self.queue_work('initialise_camera', self.host.get_text(), self.port.get_text())
         self.do_after('after_initialise_camera')
         
     def after_initialise_camera(self,_results):
         if _results:
+            self.camera_working.hide()
             self.camera_responding.show()
-            self.camera_notresponding.hide()
         else:
-            self.camera_responding.hide()
+            self.camera_working.hide()
             self.camera_notresponding.show()
     
     @define_state
@@ -92,6 +96,9 @@ class CameraWorker(Worker):
     
     def initialise_camera(self, host, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        assert port, 'No port number supplied.'
+        assert host, 'No hostname supplied.'
+        assert str(int(port)) == port, 'Port must be an integer.'
         s.connect((host, int(port)))
         s.send('hello\r\n')
         response = s.recv(1024)

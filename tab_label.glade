@@ -1,46 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.22"/>
-  <!-- interface-naming-policy project-wide -->
   <object class="GtkHBox" id="toplevel">
     <property name="visible">True</property>
+    <property name="can_focus">False</property>
     <child>
-      <object class="GtkImage" id="working">
-        <property name="stock">gtk-execute</property>
-        <property name="icon-size">1</property>
+      <object class="GtkSpinner" id="working">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="active">True</property>
       </object>
       <packing>
-        <property name="padding">2</property>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
         <property name="position">0</property>
       </packing>
     </child>
     <child>
       <object class="GtkImage" id="ready">
         <property name="visible">True</property>
+        <property name="can_focus">False</property>
         <property name="stock">gtk-yes</property>
         <property name="icon-size">1</property>
       </object>
       <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
         <property name="padding">2</property>
         <property name="position">1</property>
       </packing>
     </child>
     <child>
       <object class="GtkImage" id="error">
+        <property name="can_focus">False</property>
         <property name="stock">gtk-dialog-warning</property>
         <property name="icon-size">1</property>
       </object>
       <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
         <property name="padding">2</property>
         <property name="position">2</property>
       </packing>
     </child>
     <child>
       <object class="GtkImage" id="buffered_mode">
+        <property name="can_focus">False</property>
         <property name="stock">gtk-go-forward</property>
         <property name="icon-size">1</property>
       </object>
       <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
         <property name="padding">2</property>
         <property name="position">3</property>
       </packing>
@@ -48,9 +59,12 @@
     <child>
       <object class="GtkLabel" id="label">
         <property name="visible">True</property>
+        <property name="can_focus">False</property>
         <property name="label" translatable="yes">label</property>
       </object>
       <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
         <property name="position">4</property>
       </packing>
     </child>
