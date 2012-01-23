@@ -54,11 +54,29 @@ class ni_pci_6733(Tab):
                 calib_params = eval(device.calibration_parameters)
             
             output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
+            
+            if 'front_panel_settings' in settings:
+                if key in settings['front_panel_settings']:
+                    saved_data = settings['front_panel_settings'][channel]
+                    # Update the unit selection
+                    output.change_units(saved_data['current_units']
+                    
+                    # Update the value
+                    output.set_value(saved_data['base_value'],program=False)
+
+                    # Update the step size
+                    output.set_step_size_in_base_units(saved_data['base_step_size'])
+                    
+                    # Update the Lock
+                    output.locked = saved_data['locked']
+                    output.update_lock()
+                    
             self.analog_outs.append(output)
             self.analog_outs_by_channel[channel] = output
             
         self.viewport.add(self.toplevel)
         self.initialise_device()
+        self.program_static()
     
     @define_state
     def destroy(self):
@@ -81,7 +99,7 @@ class ni_pci_6733(Tab):
         return state
     
     @define_state
-    def program_static(self,output):
+    def program_static(self,output=None):
         if self.static_mode:
             self.queue_work('program_static',[output.value for output in self.analog_outs])
 

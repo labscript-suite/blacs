@@ -68,6 +68,7 @@ class pulseblaster(Tab):
             phase_calib_params = {}
             def_phase_calib_params = "Degrees"
             # get the 3 AO children from the connection table, find their calibration details
+            # Also get their min/max values
             if device:
                 if (device.name+'_freq') in device.child_list:
                     if device.child_list[device.name+'_freq'] != "None":
@@ -82,6 +83,7 @@ class pulseblaster(Tab):
                         phase_calib = device.child_list[device.name+'_phase'].calibration_class
                         phase_calib_params = eval(device.child_list[device.name+'_phase'].calibration_parameters)        
             
+            
             # Make output objects:
             freq = AO(name+'_freq', channel+'_freq', freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
             amp = AO(name+'_amp', channel+'_amp', amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
@@ -91,14 +93,28 @@ class pulseblaster(Tab):
             dds = DDS(rf, gate)
             
             # Set default values:
-            if 'DDS %d_freq'%i in settings['front_panel_settings']:
-                freq.set_value(settings['front_panel_settings']['DDS %d_freq'%i]['value'],program=False)            
-            if 'DDS %d_amp'%i in settings['front_panel_settings']: 
-                amp.set_value(settings['front_panel_settings']['DDS %d_amp'%i]['value'],program=False)
-            if 'DDS %d_phase'%i in settings['front_panel_settings']:
-                phase.set_value(settings['front_panel_settings']['DDS %d_phase'%i]['value'],program=False)
-            if 'DDS %d_gate'%i in settings['front_panel_settings']:
-                gate.set_state(settings['front_panel_settings']['DDS %d_gate'%i]['value'],program=False)
+            if 'front_panel_settings' in settings:
+                ao_list = [('DDS %d_freq'%i,freq),('DDS %d_amp'%i,amp),('DDS %d_phase'%i,phase)]
+                for key,ao_object in ao_list:
+                    if key in settings['front_panel_settings']:
+                        saved_data = settings['front_panel_settings'][key]
+                        # Update the unit selection
+                        ao_object.change_units(saved_data['current_units']
+                        
+                        # Update the value
+                        ao_object.set_value(saved_data['base_value'],program=False)
+
+                        # Update the step size
+                        ao_object.set_step_size_in_base_units(saved_data['base_step_size'])
+                        
+                        # Update the Lock
+                        ao_object.locked = saved_data['locked']
+                        ao_object.update_lock()
+                
+                if 'DDS %d_gate'%i in settings['front_panel_settings']:
+                    gate.set_state(settings['front_panel_settings']['DDS %d_gate'%i]['base_value'],program=False)
+                    
+                    # TODO: Set lock state
         
             # Store for later access:
             self.dds_outputs.append(dds)

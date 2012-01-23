@@ -273,8 +273,8 @@ class FrontPanelSettings(object):
         dds_list = []
         other_data_list = []
        
-        ao_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('value',float),('locked',bool),('step_size',float),('units','a256')]
-        do_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('value',bool),('locked',bool)]
+        ao_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
+        do_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',bool),('locked',bool)]
         dds_dtype = ao_dtype
         max_od_length = 2
             
@@ -381,9 +381,9 @@ class FrontPanelSettings(object):
             return {}
         return {'name':ao_chnl.name,
                 'channel':ao_chnl.channel,         
-                'value':ao_chnl.adjustment.get_value(), 
+                'value':ao_chnl.value(), 
                 'locked':ao_chnl.locked,
-                'step_size':ao_chnl.adjustment.get_step_increment(),
+                'step_size':ao_chnl.get_step_in_hardware_units(),
                 'units':ao_chnl.current_units}
     
     def get_do_dict(self,do_chnl):

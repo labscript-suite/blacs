@@ -2,8 +2,8 @@ import gtk
 from calibrations import *
 
 class AO(object):
-    def __init__(self, name,  channel, widget, combobox, calib_class, calib_params, default_units, static_update_function, min, max, step):
-        self.adjustment = gtk.Adjustment(0,min,max,step,10*step,0)
+    def __init__(self, name, channel, widget, combobox, calib_class, calib_params, default_units, static_update_function, min, max, step, value = 0, current_units = None):
+        self.adjustment = gtk.Adjustment(value,min,max,step,10*step,0)
         self.handler_id = self.adjustment.connect('value-changed',static_update_function)
         self.name = name
         self.channel = channel
@@ -12,21 +12,22 @@ class AO(object):
         self.comboboxes = []
         self.comboboxhandlerids = []
         self.current_units = default_units
-        self.hardware_unit = default_units
+        self.base_unit = default_units
         self.limits = [min,max]
         
         
         # Initialise Calibrations
         if calib_class is not None:
-            if calib_class not in globals() or not isinstance(calib_params,dict) or test.hardware_unit != default_units:
+            if calib_class not in globals() or not isinstance(calib_params,dict) or test.base_unit != default_units:
                 # Throw an error:
                 # Use default units
                 self.calibration = None
                 self.comboboxmodel.append([default_units])
             else:
                 # initialise calibration class
-                self.calibration = globals()[calib_class](calib_params)
-                self.comboboxmodel.append([self.calibration.hardware_unit])
+                self.calibration = globals()[calib_class](calib_params)                
+                self.comboboxmodel.append([self.calibration.base_unit])
+                        
                 for unit in self.calibration.human_units:
                     self.comboboxmodel.append([unit])
                     
@@ -37,7 +38,13 @@ class AO(object):
             self.comboboxmodel.append([default_units])
         
         self.add_widget(widget,combobox)
-        
+    
+    def restore_saved(self):
+        # Block all handlers
+        # Check unit exists
+        # Set combobox to unit
+        # Update 
+    
     def add_widget(self,widget, combobox):
         widget.set_adjustment(self.adjustment)
         # Set the model to match the other comboboxes
@@ -62,22 +69,27 @@ class AO(object):
                 
         # Update the parameters of the Adjustment to match the new calibration!
         new_units = self.comboboxmodel.get(combobox.get_active_iter(),0)[0]
-        parameter_list = [self.adjustment.get_value(),self.adjustment.get_lower(),self.adjustment.get_upper(),self.adjustment.get_step_increment(),
-                            self.adjustment.get_page_increment(), self.limits[0],self.limits[1]]
         
-        # If we aren't alreay in hardware units, convert to hardware units
-        if self.current_units != self.calibration.hardware_unit:
+        # do derivative on step size after conversion to get a correct conversion
+        step_lower = self.adjustment.get_value()
+        step_upper = self.adjustment.get_value() + self.adjustment.get_step_increment()
+        
+        parameter_list = [self.adjustment.get_value(),self.adjustment.get_lower(),self.adjustment.get_upper(),step_lower,step_upper,
+                          self.limits[0],self.limits[1]]
+        
+        # If we aren't alreay in base units, convert to base units
+        if self.current_units != self.calibration.base_unit:
             # get the conversion function
-            convert = getattr(self.calibration,self.current_units+"_to_hardware")
+            convert = getattr(self.calibration,self.current_units+"_to_base")
             for index,param in enumerate(parameter_list):
-                #convert each to hardware units
+                #convert each to base units
                 parameter_list[index] = convert(param)
         
         # Now convert to the new unit
-        if new_units != self.calibration.hardware_unit:
-            convert = getattr(self.calibration,new_units+"_from_hardware")
+        if new_units != self.calibration.base_unit:
+            convert = getattr(self.calibration,new_units+"_from_base")
             for index,param in enumerate(parameter_list):
-                #convert each to hardware units
+                #convert each to base units
                 parameter_list[index] = convert(param)
         
         # Store the current units
@@ -87,29 +99,46 @@ class AO(object):
         if parameter_list[1] > parameter_list[2]:
             parameter_list[1], parameter_list[2] = parameter_list[2], parameter_list[1]
         
+        # Block the signal (nothing has actually changed in the value to program)
+        self.adjustment.handler_block(self.handler_id)            
         # Update the Adjustment
-        self.adjustment.configure(parameter_list[0],parameter_list[1],parameter_list[2],parameter_list[3],parameter_list[4],0)
+        self.adjustment.configure(parameter_list[0],parameter_list[1],parameter_list[2],abs(parameter_list[3]-parameter_list[4]),abs(parameter_list[3]-parameter_list[4])*10,0)
+        #Unblock the handler
+        self.adjustment.handler_unblock(self.handler_id)
         
         # update saved limits
         if parameter_list[5] > parameter_list[6]:
             parameter_list[5], parameter_list[6] = parameter_list[6], parameter_list[5] 
         self.limits = [parameter_list[5], parameter_list[6]]
+     
+    def change_units(self,unit):
+        # default to base units
+        unit_index = 0
         
+        i = 1
+        for unit_choice in self.calibration.human_units:
+            if unit_choice == unit:
+                unit_index = i
+            i += 1
+            
+        # Set one of the comboboxes to the correct unit (the rest will be updated automatically)
+        self.comboboxes[0].set_active(unit_index)
+    
     @property
     def value(self):
         value = self.adjustment.get_value()
-        # If we aren't alreay in hardware units, convert to hardware units
-        if self.current_units != self.hardware_unit: 
-            convert = getattr(self.calibration,self.current_units+"_to_hardware")
+        # If we aren't already in base units, convert to base units
+        if self.current_units != self.base_unit: 
+            convert = getattr(self.calibration,self.current_units+"_to_base")
             value = convert(value)
         return value
         
     def set_value(self, value, program=True):
         # conversion to float means a string can be passed in too:
         value = float(value)
-        # If we aren't in hardware units, convert to the new units!
-        if self.current_units != self.hardware_unit: 
-            convert = getattr(self.calibration,self.current_units+"_from_hardware")
+        # If we aren't in base units, convert to the new units!
+        if self.current_units != self.base_unit: 
+            convert = getattr(self.calibration,self.current_units+"_from_base")
             value = convert(value)
             
         if not program:
@@ -162,12 +191,35 @@ class AO(object):
                      
                 dialog.run()
                 dialog.destroy()
+    
+    def set_step_size_in_base_units(self,step_size):
+        # convert to current units
+        step_size_upper = self.adjustment.get_value()+step_size
+        if self.current_units != self.base_unit: 
+            convert = getattr(self.calibration,self.current_units+"_from_base")
+            step_size = convert(step_size)
+            step_size_upper = convert(step_size_upper)
         
+        self.adjustment.set_step_increment(abs(step_size-step_size_upper))
+        self.adjustment.set_page_increment(abs(step_size-step_size_upper)*10)
+    
+    def get_step_in_base_units(self):
+        value = self.adjustment.get_step_increment() + self.adjustment.get_value()
+        value2 = self.adjustment.get_value()
+        
+        if self.current_units != self.base_unit: 
+            convert = getattr(self.calibration,self.current_units+"_to_base")
+            value = convert(value)
+            value2 = convert(value2)
+        return abs(value - value2)
+    
     def lock(self, menu_item):
         self.locked = not self.locked
-        
+        self.update_lock()
+    
+    def update_lock(self):    
         if self.locked:
-            # Save the limits (this will be inneccessary once we implement set_limits)
+            # Save the limits (this will be inneccessary once we implement software limits)
             self.limits = [self.adjustment.get_lower(),self.adjustment.get_upper()]
             
             # Set the limits equal to the value
