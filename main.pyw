@@ -116,7 +116,15 @@ if __name__ == "__main__":
             h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
             
             # Create Connection Table
-            self.connection_table = ConnectionTable(h5_file)
+            try:
+                self.connection_table = ConnectionTable(h5_file)
+            except:
+                dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%h5_file)
+                     
+                dialog.run()
+                dialog.destroy()
+                sys.exit("Invalid Connection Table")
+                return
             
             # Get settings to restore
             settings,question,error = self.front_panel_settings.restore(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),self.connection_table)

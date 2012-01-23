@@ -53,26 +53,14 @@ class FrontPanelSettings(object):
             saved_ct = ConnectionTable(h5_file)
             ct_match,error = blacs_ct.compare_to(saved_ct)
         
-        
-        
             with h5py.File(h5_file,'r') as hdf5_file:            
-                # open AO Dataset
-                ao_dataset = hdf5_file["/front_panel/AO"][:]
-                for row in ao_dataset:
-                    result = self.check_row(row,ct_match,blacs_ct,saved_ct)
-                    settings,question,error = self.handle_return_code(row,result,settings,question,error)
-                
-                # open DO dataset   
-                do_dataset = hdf5_file["/front_panel/DO"][:]            
-                for row in do_dataset:
-                    result = self.check_row(row,ct_match,blacs_ct,saved_ct)
-                    settings,question,error = self.handle_return_code(row,result,settings,question,error)
-                
-                # open DDS dataset
-                dds_dataset = hdf5_file["/front_panel/DDS"][:]
-                for row in dds_dataset:
-                    result = self.check_row(row,ct_match,blacs_ct,saved_ct)
-                    settings,question,error = self.handle_return_code(row,result,settings,question,error)
+                # open Datasets
+                type_list = ["AO", "DO", "DDS"]
+                for key in type_list:
+                    dataset = hdf5_file["/front_panel"].get(key, [])
+                    for row in dataset:
+                        result = self.check_row(row,ct_match,blacs_ct,saved_ct)
+                        settings,question,error = self.handle_return_code(row,result,settings,question,error)
         except Exception,e:
             logger.info("Could not load saved settings")
             logger.info(e.message)
@@ -313,20 +301,23 @@ class FrontPanelSettings(object):
             
         
         # Create AO/DO/DDS/other_data datasets
-        ao_array = numpy.empty(len(ao_list),dtype=ao_dtype)
-        for i, row in enumerate(ao_list):
-            ao_array[i] = row
-        data_group.create_dataset('AO',data=ao_array)
+        if ao_list:
+            ao_array = numpy.empty(len(ao_list),dtype=ao_dtype)
+            for i, row in enumerate(ao_list):
+                ao_array[i] = row
+            data_group.create_dataset('AO',data=ao_array)
         
-        do_array = numpy.empty(len(do_list),dtype=do_dtype)
-        for i, row in enumerate(do_list):
-            do_array[i] = row
-        data_group.create_dataset('DO',data=do_array)
+        if do_list:
+            do_array = numpy.empty(len(do_list),dtype=do_dtype)
+            for i, row in enumerate(do_list):
+                do_array[i] = row
+            data_group.create_dataset('DO',data=do_array)
         
-        dds_array = numpy.empty(len(dds_list),dtype=dds_dtype)
-        for i, row in enumerate(dds_list):
-            dds_array[i] = row
-        data_group.create_dataset('DDS',data=dds_array)
+        if dds_list:
+            dds_array = numpy.empty(len(dds_list),dtype=dds_dtype)
+            for i, row in enumerate(dds_list):
+                dds_array[i] = row
+            data_group.create_dataset('DDS',data=dds_array)
    
         
         # Save BLACS Main GUI Info
