@@ -189,9 +189,7 @@ class novatechdds9m(Tab):
         else: abort = False
         self.queue_work('transition_to_static',abort=abort)
         # Update the gui to reflect the current hardware values:
-        if abort:
-            self.set_front_panel_state(self.initial_values)
-        else:
+        if not abort:
             # The final results don't say anything about the checkboxes;
             # turn them on:
             for i in range(4):
@@ -295,18 +293,18 @@ class NovatechDDS9mWorker(Worker):
                 if fresh or data != self.smart_cache['STATIC_DATA']:
                     self.logger.debug('Static data has changed, reprogramming.')
                     self.smart_cache['SMART_DATA'] = data
-                    connection.write('F2 %f\r\n'%(data['freq2']/10.0**7))
-                    connection.readline()
-                    connection.write('V2 %u\r\n'%(data['amp2']))
-                    connection.readline()
-                    connection.write('P2 %u\r\n'%(data['phase2']))
-                    connection.readline()
-                    connection.write('F3 %f\r\n'%(data['freq3']/10.0**7))
-                    connection.readline()
-                    connection.write('V3 %u\r\n'%data['amp3'])
-                    connection.readline()
-                    connection.write('P3 %u\r\n'%data['phase3'])
-                    connection.readline()
+                    self.connection.write('F2 %f\r\n'%(data['freq2']/10.0**7))
+                    self.connection.readline()
+                    self.connection.write('V2 %u\r\n'%(data['amp2']))
+                    self.connection.readline()
+                    self.connection.write('P2 %u\r\n'%(data['phase2']))
+                    self.connection.readline()
+                    self.connection.write('F3 %f\r\n'%(data['freq3']/10.0**7))
+                    self.connection.readline()
+                    self.connection.write('V3 %u\r\n'%data['amp3'])
+                    self.connection.readline()
+                    self.connection.write('P3 %u\r\n'%data['phase3'])
+                    self.connection.readline()
                     
                     # Save these values into final_values so the GUI can
                     # be updated at the end of the run to reflect them:
@@ -322,10 +320,10 @@ class NovatechDDS9mWorker(Worker):
                 data = group['TABLE_DATA'][:]
                 for i, line in enumerate(data):
                     oldtable = self.smart_cache['TABLE_DATA']
-                    if fresh or i >= len(oldtable) or data != oldtable[i]:
+                    if fresh or i >= len(oldtable) or (data != oldtable[i]).any():
                         for ddsno in range(2):
-                            connection.write('t%d %04x %08x,%04x,%04x,ff\r\n '%(ddsno, i,line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]))
-                            connection.readline()
+                            self.connection.write('t%d %04x %08x,%04x,%04x,ff\r\n '%(ddsno, i,line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]))
+                            self.connection.readline()
                 # Store the table for future smart programming comparisons:
                 try:
                     self.smart_cache['TABLE_DATA'][:len(data)] = data
@@ -344,11 +342,11 @@ class NovatechDDS9mWorker(Worker):
                 self.final_values['phase1'] = data[-1]['phase1']*360/16384.0
                 
             # Transition to table mode:
-            connection.write('m t\r\n')
-            connection.readline()
+            self.connection.write('m t\r\n')
+            self.connection.readline()
             # Transition to hardware updates:
-            connection.write('I e\r\n')
-            connection.readline()
+            self.connection.write('I e\r\n')
+            self.connection.readline()
             # We are now waiting for a rising edge to trigger the output
             # of the second table pair (first of the experiment)
             return self.final_values
@@ -373,20 +371,20 @@ class NovatechDDS9mWorker(Worker):
             values = self.final_values
             DDSs = [0,1]
             
-        for dds in DDSs:
-            if 'freq%d'%i in values:
-                 command = 'F%d %f\r\n' %(dds, values['freq%d'%i])
+        for ddsnumber in DDSs:
+            if 'freq%d'%ddsnumber in values:
+                 command = 'F%d %f\r\n' %(ddsnumber, values['freq%d'%ddsnumber])
                  self.connection.write(command)
                  if self.connection.readline() != "OK\r\n":
                      raise Exception('Error: Failed to execute %s'%command)
-            if 'amp%d'%i in values:
-                 gate_factor = values['en%d'%i] if 'en%d'%i in values else 1
-                 command = 'V%d %d\r\n' %(dds, values['amp%d'%i]*gate_factor)
+            if 'amp%d'%ddsnumber in values:
+                 gate_factor = values['en%d'%ddsnumber] if 'en%d'%ddsnumber in values else 1
+                 command = 'V%d %d\r\n' %(ddsnumber, values['amp%d'%ddsnumber]*gate_factor)
                  self.connection.write(command)
                  if self.connection.readline() != "OK\r\n":
                      raise Exception('Error: Failed to execute %s'%command)
-            if 'phase%d'%i in values:
-                 command = 'P%d %d\r\n' %(dds, values['phase%d'%i]*16384/360)
+            if 'phase%d'%ddsnumber in values:
+                 command = 'P%d %d\r\n' %(ddsnumber, values['phase%d'%ddsnumber]*16384/360)
                  self.connection.write(command)
                  if self.connection.readline() != "OK\r\n":
                      raise Exception('Error: Failed to execute %s'%command)

@@ -388,8 +388,9 @@ class PulseblasterWorker(Worker):
             finalamp1 = ampregs[1][ampreg1]
             finalphase0 = phaseregs[0][phasereg0]
             finalphase1 = phaseregs[1][phasereg1]
-            
-            if fresh or self.smart_cache['initial_values'] != initial_values or \
+
+            if fresh or (self.smart_cache['initial_values'] != initial_values) or \
+            (len(self.smart_cache['pulse_program']) != len(pulse_program)) or \
             (self.smart_cache['pulse_program'] != pulse_program).any() or \
             not self.smart_cache['ready_to_go']:
             
@@ -401,7 +402,8 @@ class PulseblasterWorker(Worker):
                 # Line one is a continue with the current front panel values:
                 pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 1*ms)
                 # Now the rest of the program:
-                if fresh or (self.smart_cache['pulse_program'] != pulse_program).any():
+                if fresh or len(self.smart_cache['pulse_program']) != len(pulse_program) or \
+                (self.smart_cache['pulse_program'] != pulse_program).any():
                     self.smart_cache['pulse_program'] = pulse_program
                     for args in pulse_program:
                         pb_inst_dds2(*args)
