@@ -286,11 +286,7 @@ class NiPCIe6363Worker(Worker):
             h5_data = group.get('ANALOG_OUTS')
             if h5_data:
                 ao_channels = group.attrs['analog_out_channels']
-                # We use all but the last sample (which is identical to the
-                # second last sample) in order to ensure there is one more
-                # clock tick than there are samples. The 6733 requires this
-                # to determine that the task has completed.
-                ao_data = numpy.array(h5_data,dtype=float64)[:-1,:]
+                ao_data = numpy.array(h5_data,dtype=float64)
                 
                 self.ao_task.StopTask()
                 self.ao_task.ClearTask()
@@ -314,7 +310,7 @@ class NiPCIe6363Worker(Worker):
                 do_bitfield = numpy.array(h5_data,dtype=int32)
                 # Expand each bitfield int into self.num_buffered_DO
                 # (32) individual ones and zeros:
-                do_write_data = pylab.zeros((do_data.shape[0],self.num_buffered_DO),dtype=numpy.uint8)
+                do_write_data = numpy.zeros((do_bitfield.shape[0],self.num_buffered_DO),dtype=numpy.uint8)
                 for i in range(self.num_buffered_DO):
                     do_write_data[:,i] = (do_bitfield & (1 << i)) >> i
                     
@@ -323,8 +319,10 @@ class NiPCIe6363Worker(Worker):
                 self.do_task = Task()
                 self.do_read = int32()
         
-                do_task.CreateDOChan(do_channels,"",DAQmx_Val_ChanPerLine)
-                do_task.CfgSampClkTiming(clock_terminal,1000000,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,do_bitfield.shape[0])
+                self.do_task.CreateDOChan(do_channels,"",DAQmx_Val_ChanPerLine)
+                self.do_task.CfgSampClkTiming(clock_terminal,1000000,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,do_bitfield.shape[0])
+                self.do_task.WriteDigitalLines(do_bitfield.shape[0],False,10.0,DAQmx_Val_GroupByScanNumber,do_write_data,self.do_read,None)
+                self.do_task.StartTask()
                 final_digital_values = {'port0/line%d'%i: do_write_data[-1,i] for i in range(self.num_buffered_DO)}
             else:
                 final_digital_values = {}
@@ -350,8 +348,6 @@ class NiPCIe6363Worker(Worker):
         result,message = self.from_child.get()
         if result == 'error':
             raise Exception(message)
-        
-        return self.final_values
         
 # Worker class for AI input:
 class Worker2(multiprocessing.Process):
