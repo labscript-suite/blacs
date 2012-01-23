@@ -39,12 +39,6 @@ class AO(object):
         
         self.add_widget(widget,combobox)
     
-    def restore_saved(self):
-        # Block all handlers
-        # Check unit exists
-        # Set combobox to unit
-        # Update 
-    
     def add_widget(self,widget, combobox):
         widget.set_adjustment(self.adjustment)
         # Set the model to match the other comboboxes
@@ -115,11 +109,12 @@ class AO(object):
         # default to base units
         unit_index = 0
         
-        i = 1
-        for unit_choice in self.calibration.human_units:
-            if unit_choice == unit:
-                unit_index = i
-            i += 1
+        if self.calibration:
+            i = 1
+            for unit_choice in self.calibration.human_units:
+                if unit_choice == unit:
+                    unit_index = i
+                i += 1
             
         # Set one of the comboboxes to the correct unit (the rest will be updated automatically)
         self.comboboxes[0].set_active(unit_index)
@@ -195,13 +190,14 @@ class AO(object):
     def set_step_size_in_base_units(self,step_size):
         # convert to current units
         step_size_upper = self.adjustment.get_value()+step_size
+        step_size_lower = self.adjustment.get_value()
         if self.current_units != self.base_unit: 
             convert = getattr(self.calibration,self.current_units+"_from_base")
-            step_size = convert(step_size)
+            step_size_lower = convert(step_size_lower)
             step_size_upper = convert(step_size_upper)
         
-        self.adjustment.set_step_increment(abs(step_size-step_size_upper))
-        self.adjustment.set_page_increment(abs(step_size-step_size_upper)*10)
+        self.adjustment.set_step_increment(abs(step_size_lower-step_size_upper))
+        self.adjustment.set_page_increment(abs(step_size_lower-step_size_upper)*10)
     
     def get_step_in_base_units(self):
         value = self.adjustment.get_step_increment() + self.adjustment.get_value()

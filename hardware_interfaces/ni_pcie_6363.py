@@ -72,8 +72,8 @@ class ni_pcie_6363(Tab):
             
             output = DO(name, channel, toggle_button, self.program_static)
             if 'front_panel_settings' in settings:
-                if 'DDS %d_gate'%i in settings['front_panel_settings']:
-                    gate.set_state(settings['front_panel_settings'][channel]['base_value'],program=False)
+                if channel in settings['front_panel_settings']:
+                    output.set_state(settings['front_panel_settings'][channel]['base_value'],program=False)
                     
                     # TODO: Set lock state
             
@@ -106,10 +106,10 @@ class ni_pcie_6363(Tab):
             output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
             
             if 'front_panel_settings' in settings:
-                if key in settings['front_panel_settings']:
+                if channel in settings['front_panel_settings']:
                     saved_data = settings['front_panel_settings'][channel]
                     # Update the unit selection
-                    output.change_units(saved_data['current_units']
+                    output.change_units(saved_data['current_units'])
                     
                     # Update the value
                     output.set_value(saved_data['base_value'],program=False)

@@ -381,9 +381,9 @@ class FrontPanelSettings(object):
             return {}
         return {'name':ao_chnl.name,
                 'channel':ao_chnl.channel,         
-                'value':ao_chnl.value(), 
+                'value':ao_chnl.value, 
                 'locked':ao_chnl.locked,
-                'step_size':ao_chnl.get_step_in_hardware_units(),
+                'step_size':ao_chnl.get_step_in_base_units(),
                 'units':ao_chnl.current_units}
     
     def get_do_dict(self,do_chnl):

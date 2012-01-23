@@ -99,7 +99,7 @@ class pulseblaster(Tab):
                     if key in settings['front_panel_settings']:
                         saved_data = settings['front_panel_settings'][key]
                         # Update the unit selection
-                        ao_object.change_units(saved_data['current_units']
+                        ao_object.change_units(saved_data['current_units'])
                         
                         # Update the value
                         ao_object.set_value(saved_data['base_value'],program=False)
@@ -139,9 +139,12 @@ class pulseblaster(Tab):
                 
                 # Make output object:
                 flag = DO(name, channel, flag_togglebutton, self.program_static)
-            
-                # Set default value:
-                flag.set_state(settings['flags'][i],program=False)
+                
+                if 'front_panel_settings' in settings:
+                    if channel in settings['front_panel_settings']:
+                        flag.set_state(settings['front_panel_settings'][channel]['base_value'],program=False)
+                        
+                        # TODO: Set lock state
                 
                 # Store for later:
                 self.digital_outs.append(flag)

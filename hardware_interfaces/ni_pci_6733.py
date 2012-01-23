@@ -56,10 +56,10 @@ class ni_pci_6733(Tab):
             output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
             
             if 'front_panel_settings' in settings:
-                if key in settings['front_panel_settings']:
+                if channel in settings['front_panel_settings']:
                     saved_data = settings['front_panel_settings'][channel]
                     # Update the unit selection
-                    output.change_units(saved_data['current_units']
+                    output.change_units(saved_data['current_units'])
                     
                     # Update the value
                     output.set_value(saved_data['base_value'],program=False)
