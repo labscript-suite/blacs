@@ -83,6 +83,8 @@ class FrontPanelSettings(object):
         # 1: Restore to existing device
         # 2: Send to new device
         # 3: Device now exists, use saved values from unnamed device?
+        #    Note that if 2 has happened, 3 will also happen
+        #    This is because we have the original channel, and the moved channel in the same place
         #-1: Device no longer in the connection table, throw error
         #-2: Device parameters not compatible, throw error
         if type(result) == tuple:
