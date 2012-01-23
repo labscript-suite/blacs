@@ -30,15 +30,15 @@ class ConnectionTable(object):
                 if "children_missing" not in error:
                     error["children_missing"] = {}
                 error["children_missing"][name] = True
-            
-            # for each top level child in other, check if children of that object are also children of the child in self.
-            result,child_error = self.toplevel_children[name].compare_to(connection)
-            if not result:
-                #TODO more info on what doesn't match? Print a diff and return it as part of the message?
-                self.logger.error('Connection table mismatch')
-                if "children" not in error:
-                    error["children"] = {}
-                error["children"][name] = child_error
+            else:
+                # for each top level child in other, check if children of that object are also children of the child in self.
+                result,child_error = self.toplevel_children[name].compare_to(connection)
+                if not result:
+                    #TODO more info on what doesn't match? Print a diff and return it as part of the message?
+                    self.logger.error('Connection table mismatch')
+                    if "children" not in error:
+                        error["children"] = {}
+                    error["children"][name] = child_error
                 
         if error != {}:
             return False,error
@@ -117,12 +117,12 @@ class Connection(object):
                 error.setdefault("children_missing",{})
                 error["children_missing"][name] = True
                 
-                
-            # call compare_to on child so that we can check it's children!
-            result,child_error = self.child_list[name].compare_to(connection)
-            if not result:
-                error.setdefault("children",{})
-                error["children"][name] = child_error
+            else:    
+                # call compare_to on child so that we can check it's children!
+                result,child_error = self.child_list[name].compare_to(connection)
+                if not result:
+                    error.setdefault("children",{})
+                    error["children"][name] = child_error
                 
         # We made it!
         if error != {}:
