@@ -175,11 +175,7 @@ class FrontPanelSettings(object):
         
         return states,tab_positions,window_data 
     
-    def save_conn_table_to_h5_file(self,hdf5_file):
-        h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
-        with h5py.File(h5_file,'r') as conn_table:
-            conn_data = numpy.array(conn_table['/connection table'][:])
-            hdf5_file['/'].create_dataset('connection table',data=conn_data)
+        
 
     def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,silent = {}):        
         # Save the front panel!
@@ -255,7 +251,7 @@ class FrontPanelSettings(object):
     
     def store_front_panel_in_h5(self, hdf5_file,states,tab_positions,window_data,save_conn_table = False):
         if save_conn_table:
-            self.save_conn_table_to_h5_file(hdf5_file)
+            hdf5_file.create_dataset('connection table',data=self.connection_table.table)
         
         #with h5py.File(current_file,'a') as hdf5_file:
         data_group = hdf5_file['/'].create_group('front_panel')

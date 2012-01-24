@@ -9,11 +9,11 @@ class ConnectionTable(object):
         self.logger.debug('Parsing connection table from %s'%h5file)
         with h5py.File(h5file,'r') as hdf5_file:
             try:
-                table = hdf5_file['connection table'][:]
+                self.table = hdf5_file['connection table'][:]
                 
-                for row in table:
+                for row in self.table:
                     if row[3] == "None":
-                        self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],table)
+                        self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],self.table)
                 
             except:
                 self.logger.error('Unable to get connection table  %s'%h5file)
