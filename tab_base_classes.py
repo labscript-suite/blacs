@@ -1,4 +1,5 @@
 from multiprocessing import Process, Queue, Lock
+import sys
 import time
 import threading
 import cPickle
@@ -192,7 +193,6 @@ class Tab(object):
         if self.not_responding_for > 5 + self.hide_not_responding_error_until:
             self.hide_not_responding_error_for = 0
             self.notresponding.show()
-            self.tab_label_widgets['error'].show()
             hours, remainder = divmod(int(self.not_responding_for), 3600)
             minutes, seconds = divmod(remainder, 60)
             if hours:
