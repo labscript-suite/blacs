@@ -22,28 +22,23 @@ class camera(Tab):
         self.host = self.builder.get_object('host')
         self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
-        self.restore_front_panel_state()
+        self.restore_save_data()
         self.builder.connect_signals(self)
         host, port = self.host.get_text(), self.port.get_text()
         if host and port:
             self.initialise_camera()
         
-    def get_front_panel_state(self):
+    def get_save_data(self):
         return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
     
     def restore_front_panel_state(self):
-        try:
-            with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
-                dataset = hdf5_file['front_panel/camera']
-                for row in dataset:
-                   name,host,port = row
-                   if name == self.device_name:
-                        self.host.set_text(host)
-                        self.port.set_text(port)
-                        return
-                self.logger.warning('No entry for this device in saved front panel states')
-        except:
-            self.logger.warning('Couldn\'t restore front panel state')
+        save_data = self.settings['save_data']
+        if save_data:
+            host, port = save_data['host'], save_data['port']
+            self.host.set_text(host)
+            self.port.set_text(port)
+        else:
+            self.logger.warning('No previous front panel state to restore')
             
     @define_state
     def destroy(self):        
