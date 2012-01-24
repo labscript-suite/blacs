@@ -99,6 +99,7 @@ class CameraWorker(Worker):
         assert port, 'No port number supplied.'
         assert host, 'No hostname supplied.'
         assert str(int(port)) == port, 'Port must be an integer.'
+        s.settimeout(10)
         s.connect((host, int(port)))
         s.send('hello\r\n')
         response = s.recv(1024)
