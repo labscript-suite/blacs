@@ -20,17 +20,17 @@ DigitalOut(     'Rb_Optical_Pumping_RF_Switch',          pulseblaster_0,        
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 8')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 9')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 10')
-#DigitalOut(     '',                                     pulseblaster_0,         'flag 11')
-#DDS(            'unused1',                              pulseblaster_0,         'dds 0')
-#DDS(            'unused2',                              pulseblaster_0,         'dds 1')
+DigitalOut(     'Novatech_Gate',                                     pulseblaster_0,         'flag 11')
+#DDS(            'dipole_main',                           pulseblaster_0,         'dds 0')
+#DDS(            'dipole_secondary',                      pulseblaster_0,         'dds 1')
 
 
-#DigitalOut(     '',                                     pulseblaster_0,         'flag 0')
-#DigitalOut(     '',                                     pulseblaster_0,         'flag 1')
-#DigitalOut(     '',                                     pulseblaster_0,         'flag 2')
-#DigitalOut(     '',                                     pulseblaster_0,         'flag 3')
-#DDS(            'unused1',                              pulseblaster_0,         'dds 0')
-#DDS(            'unused2',                              pulseblaster_0,         'dds 1')
+#DigitalOut(     '',                                     pulseblaster_1,         'flag 0')
+#DigitalOut(     '',                                     pulseblaster_1,         'flag 1')
+#DigitalOut(     '',                                     pulseblaster_1,         'flag 2')
+#DigitalOut(     '',                                     pulseblaster_1,         'flag 3')
+DDS(            'dipole_main',                           pulseblaster_1,         'dds 0')
+DDS(            'dipole_secondary',                      pulseblaster_1,         'dds 1')
 
 
 
@@ -40,48 +40,48 @@ StaticDDS(       'Rb_Repump',                            novatechdds9m_0,       
 StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,        'channel 3')
 
 DDS(            'Rb_Optical_Pumping',                    novatechdds9m_1,        'channel 0')
-DDS(            'K_Main_MOT',                                     novatechdds9m_1,        'channel 1')
+#DDS(            'K_Main_MOT',                            novatechdds9m_1,        'channel 1')
 StaticDDS(      'Rb_Imaging',                            novatechdds9m_1,        'channel 2')
 #StaticDDS(       '',                                     novatechdds9m_1,        'channel 3')
 
-#DDS(            'K_Main_MOT',                   novatechdds9m_2,        'channel 0')
+DDS(            'K_Main_MOT',                           novatechdds9m_2,        'channel 0')
 DDS(            'K_Repump',                             novatechdds9m_2,        'channel 1')
-#DoubledDDS(     'K_Repump',                             novatechdds9m_2,        'channel 1')
-StaticDDS(      'K_Lock',                           novatechdds9m_2,        'channel 2')
-#DoubledStaticDDS('',                                     novatechdds9m_2,        'channel 3')
+StaticDDS(      'K_Lock',                               novatechdds9m_2,        'channel 2')
+StaticDDS(      'K_Push',                               novatechdds9m_2,        'channel 3')
 
-AnalogOut(      'ASD',                                   ni_pcie_6363_0,         'ao0')
+#AnalogOut(      '',                                   ni_pcie_6363_0,         'ao0')
 #AnalogOut(      'ao1',                                     ni_pcie_6363_0,         'ao1')
-AnalogOut(      'ao2',                                     ni_pcie_6363_0,         'ao2')
-#AnalogOut(      'ao3',                                     ni_pcie_6363_0,         'ao3')
+AnalogOut(      'top_racetrack',                         ni_pcie_6363_0,         'ao2')
+AnalogOut(      'bottom_racetrack',                      ni_pcie_6363_0,         'ao3')
 
 DigitalOut(     'Rb_Central_MOT_RF_Switch',              ni_pcie_6363_0,         'port0/line0')                                  #NT_0_0
 DigitalOut(     'Rb_Source_MOT_RF_Switch',                ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1
 DigitalOut(     'Rb_Repump_RF_Switch',                   ni_pcie_6363_0,         'port0/line2')                                  #NT_0_2
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line3')
+# DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line3')
 DigitalOut(     'K_MOT',                                 ni_pcie_6363_0,         'port0/line4')                                  #NT_2_0
 DigitalOut(     'K_Repump_RF_Switch',                    ni_pcie_6363_0,         'port0/line5')                                  #NT_2_1
-DigitalOut(     'K_Lock_RF_Switch',                  ni_pcie_6363_0,         'port0/line6')                                  #NT_2_2
-DigitalOut(     'Novatech_2_3',                          ni_pcie_6363_0,         'port0/line7')                                  #NT_2_3
-Shutter(        'Rb_Source_MOT_Shutter',                 ni_pcie_6363_0,         'port0/line8', delay=(5e-3,5e-3))               #Sh_1_1
-Shutter(        'Rb_Probe_Shutter',                      ni_pcie_6363_0,         'port0/line9', delay=(5e-3,5e-3))               #Sh_1_2
-Shutter(     'Shutter_1_3',                              ni_pcie_6363_0,         'port0/line10', delay=(5e-3,5e-3))              #Sh_1_3
-Shutter(     'Shuter_1_4',                               ni_pcie_6363_0,         'port0/line11', delay=(5e-3,5e-3))              #Sh_1_4
-Shutter(     'Shutter_0_1',                              ni_pcie_6363_0,         'port0/line12', delay=(5e-3,5e-3))              #Sh_0_1
-Shutter(     'Shutter_0_2',                              ni_pcie_6363_0,         'port0/line13', delay=(5e-3,5e-3))              #Sh_0_2
-Shutter(     'Shutter_0_3',                              ni_pcie_6363_0,         'port0/line14', delay=(5e-3,5e-3))              #Sh_0_3
-Shutter(     'Shutter_0_4',                              ni_pcie_6363_0,         'port0/line15', delay=(5e-3,5e-3))              #Sh_0_4
-DigitalOut(     'do16test',                                     ni_pcie_6363_0,         'port0/line16')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line17')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line18')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line19')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line20')
+DigitalOut(     'K_Lock_RF_Switch',                      ni_pcie_6363_0,         'port0/line6')                                  #NT_2_2
+DigitalOut(     'K_Push_RF_Switch',                      ni_pcie_6363_0,         'port0/line7')                                  #NT_2_3
+Shutter(        'Rb_Source_MOT_Shutter',                 ni_pcie_6363_0,         'port0/line8', delay=(3e-3,3e-3))               #Sh_1_1
+Shutter(        'Rb_MOT_and_Probe_Shutter',              ni_pcie_6363_0,         'port0/line9', delay=(3e-3,3.25e-3))               #Sh_1_2
+Shutter(        'Rb_Probe_Shutter',                      ni_pcie_6363_0,         'port0/line10', delay=(3e-3,3.5e-3))              #Sh_1_3
+Shutter(        'Rb_Push_Shutter',                       ni_pcie_6363_0,         'port0/line11', delay=(3e-3,3e-3))              #Sh_1_4
+#Shutter(     'Shutter_0_1',                              ni_pcie_6363_0,         'port0/line12', delay=(5e-3,5e-3))              #Sh_0_1
+#Shutter(     'Shutter_0_2',                              ni_pcie_6363_0,         'port0/line13', delay=(5e-3,5e-3))              #Sh_0_2
+#Shutter(     'Shutter_0_3',                              ni_pcie_6363_0,         'port0/line14', delay=(5e-3,5e-3))              #Sh_0_3
+#Shutter(     'Shutter_0_4',                              ni_pcie_6363_0,         'port0/line15', delay=(5e-3,5e-3))              #Sh_0_4
+
+DigitalOut(     'do16test',                              ni_pcie_6363_0,         'port0/line16')
+Camera(           'camera',                              ni_pcie_6363_0,         'port0/line17', 0.1, 'side')
+DigitalOut(     'central_coils_test',                                     ni_pcie_6363_0,         'port0/line18')
+Shutter(     'central_coils_trigger',                                     ni_pcie_6363_0,         'port0/line19',delay=(0,12e-3))
+Camera(     'red_camera',                                     ni_pcie_6363_0,         'port0/line20',0.1,'side')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line21')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line22')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line23')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line24')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line25')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line26')
+Shutter(     'Shutter_Rb_Central_MOT',                   ni_pcie_6363_0,         'port0/line24', delay=(2.5e-3,3.5e-3))              #Sh_0_4
+Shutter(     'Shutter_Rb_Repump_Source_MOT',             ni_pcie_6363_0,         'port0/line25', delay=(2.5e-3,3.5e-3))              #Sh_0_4
+Shutter(     'Shutter_Rb_Repump_Central_MOT',            ni_pcie_6363_0,         'port0/line26', delay=(4e-3,2.5e-3))              #Sh_0_4
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line27')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line28')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line29')
