@@ -138,7 +138,7 @@ if __name__ == "__main__":
                                   "ni_pci_6733_0":{"device_name":"ni_pci_6733_0"},
                                   "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
                                   "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
-                                  "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com1"},
+                                  "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
                                   "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
                                   "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com8"},
                                   "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
@@ -825,13 +825,6 @@ if __name__ == "__main__":
                 outfile.write('\nrun:    ' + str(time.time() - t0))
                 t0 = time.time()
                 
-                if self.manager_repeat:
-                        # Resubmit job to the bottom of the queue:
-                        process_request(path)
-                        
-                outfile.write('\nresubmit run:    ' + str(time.time() - t0))
-                t0 = time.time()   
-                
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
                 with h5py.File(path,'r+') as hdf5_file:
@@ -842,7 +835,7 @@ if __name__ == "__main__":
                 
                 outfile.write('\nSaving front panel state:    ' + str(time.time() - t0))
                 t0 = time.time()
-                
+        
                 # A Queue for event-based notification of when the devices have transitioned to static mode:
                 notify_queue_static = Queue.Queue()    
                     
