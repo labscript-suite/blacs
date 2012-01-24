@@ -1,5 +1,4 @@
 from multiprocessing import Process, Queue, Lock
-import sys
 import time
 import threading
 import cPickle
