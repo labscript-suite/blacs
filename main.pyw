@@ -172,11 +172,11 @@ if __name__ == "__main__":
             except:
                 pass 
                 
-            for k,v in self.settings_dict.items():
+            for k,v in self.attached_devices.items():
+                self.settings_dict.setdefault(k,{"device_name":k})
                 # add common keys to settings:
-                v["connection_table"] = self.connection_table
-                v["front_panel_settings"] = settings[k] if k in settings else {}
-                #v["state_machine"] = self.state_machine
+                self.settings_dict[k]["connection_table"] = self.connection_table
+                self.settings_dict[k]["front_panel_settings"] = settings[k] if k in settings else {}
             
             self.tablist = {}
             for k,v in self.attached_devices.items():
