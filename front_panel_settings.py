@@ -49,11 +49,24 @@ class FrontPanelSettings(object):
         settings = {}
         question = {}
         error = {}
+        tab_data = {}
         try:
             saved_ct = ConnectionTable(h5_file)
             ct_match,error = blacs_ct.compare_to(saved_ct)
         
-            with h5py.File(h5_file,'r') as hdf5_file:            
+            with h5py.File(h5_file,'r') as hdf5_file:
+                # Get Tab Data
+                dataset = hdf5_file['/front_panel'].get('_notebook_data',[])
+                for row in dataset:
+                    tab_data.setdefault(row['tab_name'],{})
+                    try:
+                        tab_data[row['tab_name']] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(row['data'])}
+                    except:
+                        logger.info("Could not load tab data for %s"%row['tab_name'])
+                
+                #now get dataset attributes
+                tab_data['BLACS settings'] = dict(dataset.attrs)
+                
                 # open Datasets
                 type_list = ["AO", "DO", "DDS"]
                 for key in type_list:
@@ -64,7 +77,7 @@ class FrontPanelSettings(object):
         except Exception,e:
             logger.info("Could not load saved settings")
             logger.info(e.message)
-        return settings,question,error
+        return settings,question,error,tab_data
 
         
     def handle_return_code(self,row,result,settings,question,error):

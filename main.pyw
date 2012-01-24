@@ -127,7 +127,7 @@ if __name__ == "__main__":
                 return
             
             # Get settings to restore
-            settings,question,error = self.front_panel_settings.restore(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),self.connection_table)
+            settings,question,error,tab_data = self.front_panel_settings.restore(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),self.connection_table)
             
             # TODO: handle question/error cases
             
@@ -146,19 +146,12 @@ if __name__ == "__main__":
                                  }
             
             # read out position settings:
-            tab_positions = {}
             try:
-                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
-                    notebook_settings = hdf5_file['/front_panel/_notebook_data']
-                    
-                    self.window.move(notebook_settings.attrs["window_xpos"],notebook_settings.attrs["window_ypos"])
-                    self.window.resize(notebook_settings.attrs["window_width"],notebook_settings.attrs["window_height"])
-                    
-                    for row in notebook_settings:
-                        tab_positions[row[0]] = {"notebook":row[1],"page":row[2],"visible":row[3]}
-                    
-                    for k,v in self.panes.items():
-                        v.set_position(notebook_settings.attrs[k])
+                self.window.move(tab_data['BLACS settings']["window_xpos"],tab_data['BLACS settings']["window_ypos"])
+                self.window.resize(tab_data['BLACS settings']["window_width"],tab_data['BLACS settings']["window_height"])
+                
+                for k,v in self.panes.items():
+                    v.set_position(tab_data['BLACS settings'][k])
                         
             except Exception as e:
                 logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
@@ -177,12 +170,14 @@ if __name__ == "__main__":
                 # add common keys to settings:
                 self.settings_dict[k]["connection_table"] = self.connection_table
                 self.settings_dict[k]["front_panel_settings"] = settings[k] if k in settings else {}
+                self.settings_dict[k]["saved_data"] = tab_data[k]['data'] if k in tab_data else {}
+                
             
             self.tablist = {}
             for k,v in self.attached_devices.items():
                 notebook_num = "1"
-                if k in tab_positions:
-                    notebook_num = tab_positions[k]["notebook"]
+                if k in tab_data:
+                    notebook_num = tab_data[k]["notebook"]
                     if notebook_num not in self.notebook:        
                         notebook_num = "1"
                         
@@ -190,13 +185,15 @@ if __name__ == "__main__":
             
             # Now that all the pages are created, reorder them!
             for k,v in self.attached_devices.items():
-                if k in tab_positions:
-                    notebook_num = tab_positions[k]["notebook"]
+                if k in tab_data:
+                    notebook_num = tab_data[k]["notebook"]
                     if notebook_num in self.notebook:                                        
-                        self.notebook[notebook_num].reorder_child(self.tablist[k]._toplevel,tab_positions[k]["page"])
+                        self.notebook[notebook_num].reorder_child(self.tablist[k]._toplevel,tab_data[k]["page"])
                     
             # now that they are in the correct order, set the correct one visible
-            for k,v in tab_positions.items():
+            for k,v in tab_data.items():
+                if k == 'BLACS settings':
+                    continue
                 # if the notebook still exists and we are on the entry that is visible
                 if v["visible"] and v["notebook"] in self.notebook:
                     self.notebook[v["notebook"]].set_current_page(v["page"])
