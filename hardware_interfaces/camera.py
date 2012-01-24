@@ -23,9 +23,11 @@ class camera(Tab):
         self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
         self.restore_front_panel_state()
-        self.initialise_camera()
         self.builder.connect_signals(self)
-    
+        host, port = self.host.get_text(), self.port.get_text()
+        if host and port:
+            self.initialise_camera()
+        
     def get_front_panel_state(self):
         return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
     
@@ -53,7 +55,8 @@ class camera(Tab):
         self.camera_working.show()
         self.camera_notresponding.hide()
         self.camera_responding.hide()
-        self.queue_work('initialise_camera', self.host.get_text(), self.port.get_text())
+        host, port = self.host.get_text(), self.port.get_text()
+        self.queue_work('initialise_camera', host, port)
         self.do_after('after_initialise_camera')
         
     def after_initialise_camera(self,_results):
