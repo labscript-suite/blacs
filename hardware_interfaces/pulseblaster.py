@@ -336,7 +336,6 @@ class PulseblasterWorker(Worker):
         pb_select_board(self.pb_num)
         pb_init()
         pb_core_clock(75)
-        pb_stop()
 
     def program_static(self,values):
         # Program the DDS registers:
