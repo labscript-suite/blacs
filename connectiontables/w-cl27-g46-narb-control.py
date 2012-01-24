@@ -11,8 +11,8 @@ AnalogOut( 'analog2',  ni_pci_6733_0,         'ao1')
 
 #AnalogIn(   'input1',  ni_pcie_6363_0,         'ai0')
 
-DigitalOut(  'digital0',  ni_pcie_6363_0, 'port0/line0')
-DigitalOut(  'table_enable',  pulseblaster_0,      'flag 2')
+#DigitalOut(  'digital0',  ni_pcie_6363_0, 'port0/line0')
+#DigitalOut(  'table_enable',  pulseblaster_0,      'flag 2')
 
 DDS(          'dds0', novatechdds9m_0,   'channel 0')
 DDS(          'dds2',  pulseblaster_0,       'dds 0')

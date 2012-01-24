@@ -697,7 +697,7 @@ if __name__ == "__main__":
             
             with gtk.gdk.lock:
                 self.status_bar.set_text("Idle")
-            outfile = open(r'Z:\Temp\timing.txt','w')
+            outfile = open(r'C:\\pythonlib\BLACS\timing.txt','w')
             while self.manager_running:
                 total_start_time = t0 = time.time()
                 # If the pause button is pushed in, sleep
@@ -743,15 +743,11 @@ if __name__ == "__main__":
                         # do we need to transition this device?
                         with h5py.File(path,'r') as hdf5_file:
                             if name in hdf5_file['devices/']:
-                                # leave camera 'til everything else is
-                                # done, workaround for the fact that the
-                                # camera system does writes to the h5 file:
-                                if name != 'camera':
-                                    if tab.error:
-                                        logger.error('%s has an error condition, aborting run' % name)
-                                        error_condition = True
-                                        break
-                                    tab.transition_to_buffered(path,notify_queue_buffered)
+                                if tab.error:
+                                    logger.error('%s has an error condition, aborting run' % name)
+                                    error_condition = True
+                                    break
+                                tab.transition_to_buffered(path,notify_queue_buffered)
                                 transition_list[name] = tab
                 
                 devices_in_use = transition_list.copy()
@@ -782,11 +778,6 @@ if __name__ == "__main__":
                             timed_out = True
                             break
 
-                    # If only the camera remains, transition it to buffered now:
-                    if transition_list.keys() == ['camera']:
-                        with gtk.gdk.lock:
-                            transition_list['camera'].transition_to_buffered(path,notify_queue_buffered)
-                
                 # Handle if we broke out of loop due to timeout or error:
                 if timed_out or error_condition:
                     # Pause the queue, re add the path to the top of the queue, and set a status message!
@@ -834,6 +825,13 @@ if __name__ == "__main__":
                 outfile.write('\nrun:    ' + str(time.time() - t0))
                 t0 = time.time()
                 
+                if self.manager_repeat:
+                        # Resubmit job to the bottom of the queue:
+                        process_request(path)
+                        
+                outfile.write('\nresubmit run:    ' + str(time.time() - t0))
+                t0 = time.time()   
+                
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
                 with h5py.File(path,'r+') as hdf5_file:
@@ -854,7 +852,6 @@ if __name__ == "__main__":
                 for devicename, tab in devices_in_use.items():
                     with gtk.gdk.lock:
                         tab.transition_to_static(notify_queue_static)
-                for devicename, tab in devices_in_use.items():        
                     notify_queue_static.get()
                             
                 logger.info('All devices are back in static mode.')  

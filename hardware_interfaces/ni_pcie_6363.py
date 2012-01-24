@@ -330,6 +330,7 @@ class NiPCIe6363Worker(Worker):
                 final_analog_values = {}
             h5_data = group.get('DIGITAL_OUTS')
             if h5_data:
+                self.buffered_digital = True
                 do_channels = group.attrs['digital_lines']
                 do_bitfield = numpy.array(h5_data,dtype=int32)
                 # Expand each bitfield int into self.num_buffered_DO
@@ -349,6 +350,11 @@ class NiPCIe6363Worker(Worker):
                 self.do_task.StartTask()
                 final_digital_values = {'port0/line%d'%i: do_write_data[-1,i] for i in range(self.num_buffered_DO)}
             else:
+                self.buffered_digital = False
+                # We still have to stop the task to make the 
+                # clock flag available for buffered analog output:
+                self.do_task.StopTask()
+                self.do_task.ClearTask()
                 final_digital_values = {}
             
             return final_analog_values, final_digital_values
@@ -358,9 +364,13 @@ class NiPCIe6363Worker(Worker):
             # if aborting, don't call StopTask since this throws an
             # error if the task hasn't actually finished!
             self.ao_task.StopTask()
-            self.do_task.StopTask()
+            if self.buffered_digital:
+                # only stop the digital task if there actually was one:
+                self.do_task.StopTask()
         self.ao_task.ClearTask()
-        self.do_task.ClearTask()
+        if self.buffered_digital:
+            # only clear the digital task if there actually was one:
+            self.do_task.ClearTask()
         self.ao_task = Task()
         self.do_task = Task()
         self.setup_static_channels()
