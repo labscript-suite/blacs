@@ -22,7 +22,7 @@ class camera(Tab):
         self.host = self.builder.get_object('host')
         self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
-        self.restore_save_data()
+        self.restore_front_panel_state()
         self.builder.connect_signals(self)
         host, port = self.host.get_text(), self.port.get_text()
         if host and port:
@@ -32,7 +32,7 @@ class camera(Tab):
         return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
     
     def restore_front_panel_state(self):
-        save_data = self.settings['save_data']
+        save_data = self.settings['saved_data']
         if save_data:
             host, port = save_data['host'], save_data['port']
             self.host.set_text(host)
