@@ -14,7 +14,8 @@ if __name__ == "__main__":
     import socket
     import urllib
     import urllib2
-    import Queue
+    import Queue    
+    import ctypes
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
     import gtk
@@ -962,6 +963,8 @@ if __name__ == "__main__":
 
 
     port = 42517
+    myappid = 'monashbec.BLACS' # arbitrary string
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     gtk.gdk.threads_init()
     app = BLACS()
     # Make it not look so terrible (if icons and themes are installed):
