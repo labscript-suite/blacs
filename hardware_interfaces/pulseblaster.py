@@ -1,5 +1,5 @@
 import gtk
-from output_classes import AO, DO, RF, DDS
+from output_classes import AO, DO, DDS
 from tab_base_classes import Tab, Worker, define_state
 
 class pulseblaster(Tab):
@@ -8,15 +8,12 @@ class pulseblaster(Tab):
     num_DO = 4 #sometimes might be 12
     num_DO_widgets = 12
     
-    freq_min = 0.0000003   # In MHz
-    freq_max = 150.0
-    freq_step = 1 
-    amp_min = 0.0          # In Vpp
-    amp_max = 1.0
-    amp_step = 0.01
-    phase_min = 0          # In Degrees
-    phase_max = 360
-    phase_step = 1
+    
+    base_units = {'freq':'MHz',     'amp':'Vpp', 'phase':'Degrees'}
+    base_min =   {'freq':0.0000003, 'amp':0.0,   'phase':0}
+    base_max =   {'freq':150.0,     'amp':1.0,   'phase':360}
+    base_step =  {'freq':1,         'amp':0.01,  'phase':1}
+    
         
     def __init__(self,notebook,settings,restart=False):
         Tab.__init__(self,PulseblasterWorker,notebook,settings)
@@ -40,84 +37,64 @@ class pulseblaster(Tab):
 
         self.dds_outputs = []
         for i in range(self.num_DDS):
-            # Get the widgets for the DDS:
-            freq_spinbutton = self.builder.get_object('freq_chnl_%d'%i)
-            freq_unit_selection = self.builder.get_object('freq_unit_chnl_%d'%i)
-            amp_spinbutton = self.builder.get_object('amp_chnl_%d'%i)
-            amp_unit_selection = self.builder.get_object('amp_unit_chnl_%d'%i)
-            phase_spinbutton = self.builder.get_object('phase_chnl_%d'%i)
-            phase_unit_selection = self.builder.get_object('phase_unit_chnl_%d'%i)
-            gate_togglebutton = self.builder.get_object('active_chnl_%d'%i)
-            label = self.builder.get_object('channel_%d_label'%i)
-            
-            # Find out the name of the connected device (if there is a device connected)
+            # Generate a unique channel name (unique to the device instance,
+            # it does not need to be unique to BLACS)
             channel = 'DDS %d'%i
-            device = self.settings['connection_table'].find_child(self.settings['device_name'],'dds %d'%i)
-            name = device.name if device else ''
+            # Get the connection table entry object
+            conn_table_entry = self.settings['connection_table'].find_child(self.settings['device_name'],'dds %d'%i)
+            # Get the name of the channel
+            # If no name exists, it MUST be set to '-'
+            name = conn_table_entry.name if conn_table_entry else '-'
             
-            # Set the label to reflect the connected device's name:
-            label.set_text(channel + ' - ' + name)
+            # Set the label to reflect the connected channels name:
+            self.builder.get_object('channel_%d_label'%i).set_text(channel + ' - ' + name)
             
-            freq_calib = None
-            freq_calib_params = {}
-            def_freq_calib_params = "MHz"
-            amp_calib = None
-            amp_calib_params = {}
-            def_amp_calib_params = "V"
-            phase_calib = None
-            phase_calib_params = {}
-            def_phase_calib_params = "Degrees"
-            # get the 3 AO children from the connection table, find their calibration details
-            # Also get their min/max values
-            if device:
-                if (device.name+'_freq') in device.child_list:
-                    if device.child_list[device.name+'_freq'] != "None":
-                        freq_calib = device.child_list[device.name+'_freq'].calibration_class
-                        freq_calib_params = eval(device.child_list[device.name+'_freq'].calibration_parameters)
-                if (device.name+'_amp') in device.child_list:
-                    if device.child_list[device.name+'_amp'] != "None":
-                        amp_calib = device.child_list[device.name+'_amp'].calibration_class
-                        amp_calib_params = eval(device.child_list[device.name+'_amp'].calibration_parameters)
-                if (device.name+'_phase') in device.child_list:
-                    if device.child_list[device.name+'_phase'] != "None":
-                        phase_calib = device.child_list[device.name+'_phase'].calibration_class
-                        phase_calib_params = eval(device.child_list[device.name+'_phase'].calibration_parameters)        
-            
-            
-            # Make output objects:
-            freq = AO(name+'_freq', channel+'_freq', freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
-            amp = AO(name+'_amp', channel+'_amp', amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
-            phase = AO(name+'_phase', channel+'_phase', phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
-            gate = DO(name+'_gate', channel+'_gate', gate_togglebutton, self.program_static)
-            rf = RF(amp, freq, phase)
-            dds = DDS(rf, gate)
-            
-            # Set default values:
-            if 'front_panel_settings' in settings:
-                ao_list = [('DDS %d_freq'%i,freq),('DDS %d_amp'%i,amp),('DDS %d_phase'%i,phase)]
-                for key,ao_object in ao_list:
-                    if key in settings['front_panel_settings']:
-                        saved_data = settings['front_panel_settings'][key]
-                        # Update the unit selection
-                        ao_object.change_units(saved_data['current_units'])
-                        
-                        # Update the value
-                        ao_object.set_value(saved_data['base_value'],program=False)
-
-                        # Update the step size
-                        ao_object.set_step_size_in_base_units(saved_data['base_step_size'])
-                        
-                        # Update the Lock
-                        ao_object.locked = saved_data['locked']
-                        ao_object.update_lock()
+            # Loop over freq,amp,phase and create AO objects for each
+            ao_objects = {}
+            sub_chnl_list = ['freq','amp','phase']
+            for sub_chnl in sub_chnl_list:
+                calib = None
+                calib_params = {}
                 
-                if 'DDS %d_gate'%i in settings['front_panel_settings']:
-                    gate.set_state(settings['front_panel_settings']['DDS %d_gate'%i]['base_value'],program=False)
+                # find the calibration details for this subchannel
+                # TODO: Also get their min/max values
+                if conn_table_entry:
+                    if (conn_table_entry.name+'_'+sub_chnl) in conn_table_entry.child_list:
+                        sub_chnl_entry = conn_table_entry.child_list[conn_table_entry.name+'_'+sub_chnl]
+                        if sub_chnl_entry != "None":
+                            calib = sub_chnl_entry.calibration_class
+                            calib_params = eval(sub_chnl_entry.calibration_parameters)
+                
+                # Get the widgets from the glade file
+                spinbutton = self.builder.get_object(sub_chnl+'_chnl_%d'%i)
+                unit_selection = self.builder.get_object(sub_chnl+'_unit_chnl_%d'%i)
+                        
+                # Make output object:
+                ao_objects[sub_chnl] = AO(name+'_'+sub_chnl, 
+                                          channel+'_'+sub_chnl, 
+                                          spinbutton, 
+                                          unit_selection, 
+                                          calib, 
+                                          calib_params, 
+                                          self.base_units[sub_chnl], 
+                                          self.program_static, 
+                                          self.base_min[sub_chnl], 
+                                          self.base_max[sub_chnl], 
+                                          self.base_step[sub_chnl])
+                # Set default values:
+                ao_objects[sub_chnl].update(settings)                
+            
+            # Get the widgets for the gate
+            gate_togglebutton = self.builder.get_object('active_chnl_%d'%i)        
+            # Make the gate DO object            
+            gate = DO(name+'_gate', channel+'_gate', gate_togglebutton, self.program_static)
+            if 'DDS %d_gate'%i in settings['front_panel_settings']:
+                gate.set_state(settings['front_panel_settings']['DDS %d_gate'%i]['base_value'],program=False)
+                
+                # TODO: Set lock state
                     
-                    # TODO: Set lock state
-        
-            # Store for later access:
-            self.dds_outputs.append(dds)
+            # Construct the DDS object and store for later access:
+            self.dds_outputs.append(DDS(ao_objects['freq'],ao_objects['amp'],ao_objects['phase'],gate))
             
         self.digital_outs = []
         for i in range(0,self.num_DO_widgets):

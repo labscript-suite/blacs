@@ -39,6 +39,23 @@ class AO(object):
         
         self.add_widget(widget,combobox)
     
+    def update(self,settings):
+        if 'front_panel_settings' in settings:
+            if self.channel in settings['front_panel_settings']:
+                saved_data = settings['front_panel_settings'][self.channel]
+                # Update the unit selection
+                self.change_units(saved_data['current_units'])
+                
+                # Update the value
+                self.set_value(saved_data['base_value'],program=False)
+
+                # Update the step size
+                self.set_step_size_in_base_units(saved_data['base_step_size'])
+                
+                # Update the Lock
+                self.locked = saved_data['locked']
+                self.update_lock()
+    
     def add_widget(self,widget, combobox):
         widget.set_adjustment(self.adjustment)
         # Set the model to match the other comboboxes
@@ -297,18 +314,11 @@ class DO(object):
             menu.append(menu_item)
             menu.popup(None,None,None,event.button,event.time)
             
-class RF(object):
-    def __init__(self, amp, freq, phase):
+        
+class DDS(object):
+    def __init__(self, freq, amp, phase, gate):
         self.amp = amp
         self.freq = freq
         self.phase = phase
-        
-        
-class DDS(object):
-    def __init__(self, RF, gate):
-        self.RF = RF
-        self.amp = RF.amp
-        self.freq = RF.freq
-        self.phase = RF.phase
         self.gate = gate
         

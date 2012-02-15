@@ -10,7 +10,7 @@ import h5py
 import excepthook
 
 from tab_base_classes import Tab, Worker, define_state
-from output_classes import AO, DO, RF, DDS
+from output_classes import AO, DO, DDS
 
 class ni_pcie_6363(Tab):
     num_DO = 48

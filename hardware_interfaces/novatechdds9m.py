@@ -1,5 +1,5 @@
 import gtk
-from output_classes import AO, DO, RF, DDS
+from output_classes import AO, DO, DDS
 from tab_base_classes import Tab, Worker, define_state
 
 class novatechdds9m(Tab):
@@ -51,7 +51,7 @@ class novatechdds9m(Tab):
             # Find out the name of the connected device (if there is a device connected)
             channel = "Channel %d"%i
             device = self.settings["connection_table"].find_child(self.settings["device_name"],"channel %d"%i)
-            name = device.name if device else ''
+            name = device.name if device else '-'
 
             # Set the label to reflect the connected device's name:
             label.set_text(channel + ' - ' + name)
@@ -85,8 +85,8 @@ class novatechdds9m(Tab):
             amp = AO(name+'_amp', channel+'_amp', amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
             phase = AO(name+'_phase', channel+'_phase', phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
             gate = DO(name+'_gate', channel+'_gate', gate_checkbutton, self.program_static)
-            rf = RF(amp, freq, phase)
-            dds = DDS(rf, gate)
+            
+            dds = DDS(freq,amp,phase, gate)
             
             # Store for later access:
             self.dds_outputs.append(dds)
