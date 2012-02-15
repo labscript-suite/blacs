@@ -142,6 +142,7 @@ if __name__ == "__main__":
                                   "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
                                   "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
                                   "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com8"},
+                                  "novatechdds9m_3":{"device_name":"novatechdds9m_3","COM":"com12"},
                                   "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
                                   "camera":{"device_name":"camera"}
                                  }
