@@ -972,6 +972,7 @@ if __name__ == "__main__":
     gtk.settings_get_default().set_string_property('gtk-theme-name','Clearlooks','')
     gtk.settings_get_default().set_string_property('gtk-font-name','ubuntu 9','')
     gtk.settings_get_default().props.gtk_button_images = True
+    gtk.rc_parse('blacs.gtkrc')
     serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
     serverthread.daemon = True
     serverthread.start()

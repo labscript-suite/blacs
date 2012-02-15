@@ -276,15 +276,21 @@ class AO(object):
 class DO(object):
     def __init__(self, name, channel, widget, static_update_function):
         self.action = gtk.ToggleAction('%s\n%s'%(channel,name), '%s\n%s'%(channel,name), "", 0)
+        self.handler_id0 = self.action.connect('toggled',self.check_lock)
         self.handler_id = self.action.connect('toggled',static_update_function)
+        self.handler_id2 = self.action.connect('toggled',self.update_style)
         self.name = name
         self.channel = channel
+        self.widget_list = []
         self.add_widget(widget)
         self.locked = False
+        self.current_state = self.action.get_active()
+        self.update_style()
     
     def add_widget(self,widget):
         self.action.connect_proxy(widget)
         widget.connect('button-release-event',self.btn_release)
+        self.widget_list.append(widget)
         
     @property   
     def state(self):
@@ -292,12 +298,17 @@ class DO(object):
     
     def lock(self,menuitem):
         self.locked = not self.locked
-        self.action.set_sensitive(not self.locked)
+        #self.action.set_sensitive(not self.locked)
+        self.update_style()
             
     def set_state(self,state,program=True):
         # conversion to integer, then bool means we can safely pass in
         # either a string '1' or '0', True or False or 1 or 0
         state = bool(int(state))
+        
+        # We are programatically setting the state, so break the check lock function logic
+        self.current_state = state
+        
         if not program:
             self.action.handler_block(self.handler_id)
         if state != self.state:
@@ -313,6 +324,24 @@ class DO(object):
             menu_item.show()
             menu.append(menu_item)
             menu.popup(None,None,None,event.button,event.time)
+    
+    def check_lock(self,widget):
+        if self.locked and self.current_state != self.action.get_active():
+            #Don't update the self.current_state variable 
+            self.action.stop_emission('toggled')    
+            self.action.handler_block(self.handler_id)
+            self.action.set_active(self.current_state)
+            self.action.handler_unblock(self.handler_id)
+            
+        else:
+            self.current_state = self.action.get_active()
+    
+    def update_style(self,widget=None):
+        for widget in self.widget_list:
+            if self.state:
+                widget.set_name('pressed_%stoggle_widget'%('disabled_' if self.locked else ''))
+            else:
+                widget.set_name('normal_%stoggle_widget'%('disabled_' if self.locked else ''))
             
         
 class DDS(object):
