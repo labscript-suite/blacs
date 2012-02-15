@@ -1,2 +1,2 @@
-
-device_list=["ni_pcie_6363","ni_pci_6733","novatechdds9m","pulseblaster","camera"]
+import os
+device_list=[name.split('.py')[0] for name in os.listdir(os.path.dirname(__file__)) if name.endswith('.py') and name not in ['output_classes.py','__init__.py']]
