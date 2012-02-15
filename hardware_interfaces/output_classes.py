@@ -287,6 +287,17 @@ class DO(object):
         self.current_state = self.action.get_active()
         self.update_style()
     
+    def update(self,settings):
+        if 'front_panel_settings' in settings:
+            if self.channel in settings['front_panel_settings']:
+                saved_data = settings['front_panel_settings'][self.channel]
+                # Update the value
+                self.set_state(saved_data['base_value'],program=False)
+
+                # Update the Lock
+                self.locked = saved_data['locked']
+                self.update_style()
+    
     def add_widget(self,widget):
         self.action.connect_proxy(widget)
         widget.connect('button-release-event',self.btn_release)

@@ -87,11 +87,8 @@ class pulseblaster(Tab):
             # Get the widgets for the gate
             gate_togglebutton = self.builder.get_object('active_chnl_%d'%i)        
             # Make the gate DO object            
-            gate = DO(name+'_gate', channel+'_gate', gate_togglebutton, self.program_static)
-            if 'DDS %d_gate'%i in settings['front_panel_settings']:
-                gate.set_state(settings['front_panel_settings']['DDS %d_gate'%i]['base_value'],program=False)
-                
-                # TODO: Set lock state
+            gate = DO(name+'_gate', channel+'_gate', gate_togglebutton, self.program_static)            
+            gate.update(settings)
                     
             # Construct the DDS object and store for later access:
             self.dds_outputs.append(DDS(ao_objects['freq'],ao_objects['amp'],ao_objects['phase'],gate))
@@ -116,12 +113,8 @@ class pulseblaster(Tab):
                 
                 # Make output object:
                 flag = DO(name, channel, flag_togglebutton, self.program_static)
+                flag.update(settings)
                 
-                if 'front_panel_settings' in settings:
-                    if channel in settings['front_panel_settings']:
-                        flag.set_state(settings['front_panel_settings'][channel]['base_value'],program=False)
-                        
-                        # TODO: Set lock state
                 
                 # Store for later:
                 self.digital_outs.append(flag)

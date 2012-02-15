@@ -5,8 +5,8 @@ style "pressed_toggle" {
 	ythickness = 3
 
     bg[NORMAL]        = shade (1.04, @bg_color)
-	bg[PRELIGHT]      = shade (1.06, @green)
-	bg[ACTIVE]        = shade (0.85, @green)
+	bg[PRELIGHT]      = shade (1.26, @green)
+	bg[ACTIVE]        = shade (1.06, @green)
     
     
 }
@@ -17,16 +17,16 @@ style "normal_toggle" {
 
 	bg[NORMAL]        = shade (1.04, @bg_color)
 	bg[PRELIGHT]      = shade (1.06, @bg_color)    
-	bg[ACTIVE]        = shade (0.85, @green)
+	bg[ACTIVE]        = shade (1.06, @green)
 }
 
 style "normal_disabled_toggle" {
 	xthickness = 3
 	ythickness = 3
 
-	bg[PRELIGHT] = @bg_color
-	bg[NORMAL]   = @bg_color
-	bg[ACTIVE]   = @bg_color
+	bg[PRELIGHT] = shade (0.85, @bg_color)
+	bg[NORMAL]   = shade (0.85, @bg_color)
+	bg[ACTIVE]   = shade (0.85, @bg_color)
     
 }
 
@@ -35,9 +35,9 @@ style "pressed_disabled_toggle" {
 	ythickness = 3
 
 	
-	bg[PRELIGHT] = @green
-	bg[NORMAL]   = @green
-	bg[ACTIVE]   = @green
+	bg[PRELIGHT] = shade (0.85, @green)
+	bg[NORMAL]   = shade (0.85, @green)
+	bg[ACTIVE]   = shade (0.85, @green)
     
 }
 

@@ -71,11 +71,7 @@ class ni_pcie_6363(Tab):
             name_label.set_text(name)
             
             output = DO(name, channel, toggle_button, self.program_static)
-            if 'front_panel_settings' in settings:
-                if channel in settings['front_panel_settings']:
-                    output.set_state(settings['front_panel_settings'][channel]['base_value'],program=False)
-                    
-                    # TODO: Set lock state
+            output.update(settings)
             
             self.digital_outs.append(output)
             self.digital_outs_by_channel[channel] = output
@@ -104,22 +100,7 @@ class ni_pcie_6363(Tab):
                 calib_params = eval(device.calibration_parameters)
             
             output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
-            
-            if 'front_panel_settings' in settings:
-                if channel in settings['front_panel_settings']:
-                    saved_data = settings['front_panel_settings'][channel]
-                    # Update the unit selection
-                    output.change_units(saved_data['current_units'])
-                    
-                    # Update the value
-                    output.set_value(saved_data['base_value'],program=False)
-
-                    # Update the step size
-                    output.set_step_size_in_base_units(saved_data['base_step_size'])
-                    
-                    # Update the Lock
-                    output.locked = saved_data['locked']
-                    output.update_lock()
+            output.update(settings)
             
             self.analog_outs.append(output)
             self.analog_outs_by_channel[channel] = output
