@@ -320,8 +320,8 @@ class NovatechDDS9mWorker(Worker):
                 data = group['TABLE_DATA'][:]
                 for i, line in enumerate(data):
                     oldtable = self.smart_cache['TABLE_DATA']
-                    if fresh or i >= len(oldtable) or (data != oldtable[i]).any():
-                        for ddsno in range(2):
+                    for ddsno in range(2):
+                        if fresh or i >= len(oldtable) or line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno] != oldtable['freq%d'%ddsno],oldtable['phase%d'%ddsno],oldtable['amp%d'%ddsno]:
                             self.connection.write('t%d %04x %08x,%04x,%04x,ff\r\n '%(ddsno, i,line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]))
                             self.connection.readline()
                 # Store the table for future smart programming comparisons:
