@@ -1,5 +1,5 @@
 import gtk
-from calibrations import *
+from unitconversions import *
 
 class AO(object):
     def __init__(self, name, channel, widget, combobox, calib_class, calib_params, default_units, static_update_function, min, max, step, value = 0, current_units = None):
@@ -18,7 +18,7 @@ class AO(object):
         
         # Initialise Calibrations
         if calib_class is not None:
-            if calib_class not in globals() or not isinstance(calib_params,dict) or test.base_unit != default_units:
+            if calib_class not in globals() or not isinstance(calib_params,dict) or globals()[calib_class].base_unit != default_units:
                 # Throw an error:
                 # Use default units
                 self.calibration = None
@@ -28,7 +28,7 @@ class AO(object):
                 self.calibration = globals()[calib_class](calib_params)                
                 self.comboboxmodel.append([self.calibration.base_unit])
                         
-                for unit in self.calibration.human_units:
+                for unit in self.calibration.derived_units:
                     self.comboboxmodel.append([unit])
                     
                 combobox.set_active(0)
@@ -129,7 +129,7 @@ class AO(object):
         
         if self.calibration:
             i = 1
-            for unit_choice in self.calibration.human_units:
+            for unit_choice in self.calibration.derived_units:
                 if unit_choice == unit:
                     unit_index = i
                 i += 1

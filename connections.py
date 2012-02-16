@@ -58,11 +58,11 @@ class ConnectionTable(object):
         
         return return_list
     
-    # Returns the "Connection" object which is a child of "device_name", connected via "connected_to"
+    # Returns the "Connection" object which is a child of "device_name", connected via "parent_port"
     # Eg, Returns the child of "pulseblaster_0" connected via "dds 0"
-    def find_child(self,device_name,connected_to):
+    def find_child(self,device_name,parent_port):
         for k,v in self.toplevel_children.items():
-            val = v.find_child(device_name,connected_to)
+            val = v.find_child(device_name,parent_port)
             if val is not None:
                 return val
                 
@@ -80,14 +80,14 @@ class ConnectionTable(object):
     
 class Connection(object):
     
-    def __init__(self, name, device_class, parent, connected_to, calibration_class, calibration_parameters, table):
+    def __init__(self, name, device_class, parent, parent_port, unit_conversion_class, unit_conversion_params, table):
         self.child_list = {}
         self.name = name
         self.device_class = device_class
-        self.connected_to = connected_to
+        self.parent_port = parent_port
         self.parent = parent
-        self.calibration_class = calibration_class
-        self.calibration_parameters = calibration_parameters
+        self.unit_conversion_class = unit_conversion_class
+        self.unit_conversion_params = unit_conversion_params
         
         # Create children
         for row in table:
@@ -104,12 +104,12 @@ class Connection(object):
             error["name"] = True
         if self.device_class != other_connection.device_class:
             error["device_class"] = True
-        if self.connected_to != other_connection.connected_to:
-            error["connected_to"] = True
-        if self.calibration_class != other_connection.calibration_class:
-            error["calibration_class"] = True
-        if self.calibration_parameters != other_connection.calibration_parameters:
-            error["calibration_parameters"] = True
+        if self.parent_port != other_connection.parent_port:
+            error["parent_port"] = True
+        if self.unit_conversion_class != other_connection.unit_conversion_class:
+            error["unit_conversion_class"] = True
+        if self.unit_conversion_params != other_connection.unit_conversion_params:
+            error["unit_conversion_params"] = True
         
         # for each child in other_connection, check that the child also exists here
         for name,connection in other_connection.child_list.items():
@@ -145,15 +145,15 @@ class Connection(object):
             
         return return_list   
 
-    def find_child(self,device_name,connected_to):
+    def find_child(self,device_name,parent_port):
         for k,v in self.child_list.items():
-            if v.parent.name == device_name and v.connected_to == connected_to:
+            if v.parent.name == device_name and v.parent_port == parent_port:
                 return v
         
         # This is done separately to the above iteration for speed. 
         # We search for all children first, before going down another layer.
         for k,v in self.child_list.items():
-            val = v.find_child(device_name,connected_to)
+            val = v.find_child(device_name,parent_port)
             if val is not None:
                 return val
         

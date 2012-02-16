@@ -69,16 +69,16 @@ class novatechdds9m(Tab):
                 # get the 3 AO children from the connection table, find their calibration details
                 if (device.name+'_freq') in device.child_list:
                     if device.child_list[device.name+'_freq'] != "None":
-                        freq_calib = device.child_list[device.name+'_freq'].calibration_class
-                        freq_calib_params = eval(device.child_list[device.name+'_freq'].calibration_parameters)
+                        freq_calib = device.child_list[device.name+'_freq'].unit_conversion_class
+                        freq_calib_params = eval(device.child_list[device.name+'_freq'].unit_conversion_params)
                 if (device.name+'_amp') in device.child_list:
                     if device.child_list[device.name+'_amp'] != "None":
-                        amp_calib = device.child_list[device.name+'_amp'].calibration_class
-                        amp_calib_params = eval(device.child_list[device.name+'_amp'].calibration_parameters)
+                        amp_calib = device.child_list[device.name+'_amp'].unit_conversion_class
+                        amp_calib_params = eval(device.child_list[device.name+'_amp'].unit_conversion_params)
                 if (device.name+'_phase') in device.child_list:
                     if device.child_list[device.name+'_phase'] != "None":
-                        phase_calib = device.child_list[device.name+'_phase'].calibration_class
-                        phase_calib_params = eval(device.child_list[device.name+'_phase'].calibration_parameters)   
+                        phase_calib = device.child_list[device.name+'_phase'].unit_conversion_class
+                        phase_calib_params = eval(device.child_list[device.name+'_phase'].unit_conversion_params)   
             
             # Make output objects:
             freq = AO(name+'_freq', channel+'_freq', freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)

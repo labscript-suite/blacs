@@ -50,8 +50,8 @@ class ni_pci_6733(Tab):
             def_calib_params = "V"
             if device:
                 # get the AO from the connection table, find its calibration details
-                calib = device.calibration_class
-                calib_params = eval(device.calibration_parameters)
+                calib = device.unit_conversion_class
+                calib_params = eval(device.unit_conversion_params)
             
             output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
             output.update(settings)

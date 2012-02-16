@@ -97,10 +97,10 @@ class FrontPanelSettings(object):
             settings[row[1]][row[2]] = row
         elif result == 2:
             settings.setdefault(connection.parent.name,{})
-            settings[connection.parent.name][connection.connected_to] = row
+            settings[connection.parent.name][connection.parent_port] = row
         elif result == 3:
             question.setdefault(connection.parent.name,{})
-            question[connection.parent.name][connection.connected_to] = row
+            question[connection.parent.name][connection.parent_port] = row
         elif result == -1:
             error[row[1]+'_'+row[2]] = row,"missing"
         elif result == -2:
@@ -128,7 +128,7 @@ class FrontPanelSettings(object):
                     result,error = connection.compare_to(connection2)
                     
                     allowed_length = 0
-                    if "connected_to" in error:
+                    if "parent_port" in error:
                         allowed_length += 1
                         
                     if len(error) > allowed_length:

@@ -62,8 +62,8 @@ class pulseblaster(Tab):
                     if (conn_table_entry.name+'_'+sub_chnl) in conn_table_entry.child_list:
                         sub_chnl_entry = conn_table_entry.child_list[conn_table_entry.name+'_'+sub_chnl]
                         if sub_chnl_entry != "None":
-                            calib = sub_chnl_entry.calibration_class
-                            calib_params = eval(sub_chnl_entry.calibration_parameters)
+                            calib = sub_chnl_entry.unit_conversion_class
+                            calib_params = eval(sub_chnl_entry.unit_conversion_params)
                 
                 # Get the widgets from the glade file
                 spinbutton = self.builder.get_object(sub_chnl+'_chnl_%d'%i)
