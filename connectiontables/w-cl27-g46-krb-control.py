@@ -7,12 +7,12 @@ NI_PCI_6733(    'ni_pci_6733_0',  pulseblaster_0, 'fast clock','/ni_pcie_6363_0/
 NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock')#flag 1
 NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock')#flag 1
 NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 1
-
+NovaTechDDS9M( 'novatechdds9m_3', pulseblaster_1, 'fast clock')
 
 #DigitalOut(     'Fast_Clock',                           pulseblaster_0,         'flag 0')
 #DigitalOut(     'Slow_Clock',                           pulseblaster_0,         'flag 1')                                       #NT_1,2,3
 DigitalOut(     'Novatech_1_1',                          pulseblaster_0,         'flag 2')                                       #NT_1_1 gate
-#DigitalOut(     '',          pulseblaster_0,         'flag 3')                                       #NT_1_2 gate -- In use in Rb_Imaging DDS
+#DigitalOut(     '',          pulseblaster_0,         'flag 3')                                       #NT_1_2 gate -- In use in Rb_Push DDS
 #DigitalOut(     '',          pulseblaster_0,         'flag 4')                                       #NT_1_0 gate -- In use in Rb_Optical_Pumping DDS
 #DigitalOut(     'Wait',                                 pulseblaster_0,         'flag 5')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 6')                                       
@@ -41,7 +41,7 @@ StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,       
 
 DDS(            'Rb_Optical_Pumping',                    novatechdds9m_1,        'channel 0', digital_gate={'device':pulseblaster_0,'connection':'flag 4'})
 #DDS(            '',                                     novatechdds9m_1,        'channel 1', digital_gate={'device':pulseblaster_0,'connection':'flag 2'})
-StaticDDS(      'Rb_Imaging',                            novatechdds9m_1,        'channel 2', digital_gate={'device':pulseblaster_0,'connection':'flag 3'})
+StaticDDS(      'Rb_Push',                            novatechdds9m_1,        'channel 2', digital_gate={'device':pulseblaster_0,'connection':'flag 3'})
 #StaticDDS(       '',                                    novatechdds9m_1,        'channel 3')
 
 DDS(            'K_Main_MOT',                           novatechdds9m_2,        'channel 0', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line4'})
@@ -49,10 +49,21 @@ DDS(            'K_Repump',                             novatechdds9m_2,        
 StaticDDS(      'K_Lock',                               novatechdds9m_2,        'channel 2')
 StaticDDS(      'K_Push',                               novatechdds9m_2,        'channel 3', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line7'})
 
+DDS(            'Dipole_Trap',                           novatechdds9m_3,        'channel 0')
+#DDS(            '',                             novatechdds9m_3,        'channel 1')
+#StaticDDS(      '',                               novatechdds9m_3,        'channel 2')
+#StaticDDS(      '',                               novatechdds9m_3,        'channel 3')
+
+
 #AnalogOut(      '',                                   ni_pcie_6363_0,         'ao0')
 #AnalogOut(      '',                                     ni_pcie_6363_0,         'ao1')
 AnalogOut(      'top_racetrack',                         ni_pcie_6363_0,         'ao2')
 AnalogOut(      'bottom_racetrack',                      ni_pcie_6363_0,         'ao3')
+
+AnalogOut(      'Rb_Central_Bq',                      ni_pci_6733_0,         'ao0')
+AnalogOut(      'Rb_Source_Bq',                      ni_pci_6733_0,         'ao1')
+AnalogOut(      'Unused',                      ni_pci_6733_0,         'ao3')
+AnalogOut(      'Central_bias_z',                      ni_pci_6733_0,         'ao4')
 
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line0')                                  #NT_0_0 gate -- In use in RB_Central_MOT DDS
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1 gate -- In use in RB_Source_MOT DDS
