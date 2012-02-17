@@ -22,6 +22,8 @@ AnalogIn( 'quad_current',  ni_pcie_6363_0,   'ai3')
 
 # ZEEMAN SLOWER
 DigitalOut('Zeeman_coil_2',  ni_pcie_6363_0, 'port0/line0')
+# TABLE ENABLE
+DigitalOut('Table_Enable',  ni_pcie_6363_0, 'port0/line21')
 
 # SHUTTERS
 Shutter(           'MOT_shutter',  ni_pcie_6363_0, 'port0/line17', delay=(0,0))
@@ -47,7 +49,7 @@ StaticDDS(        'MOT',  novatechdds9m_9, 'channel 2', digital_gate = {'device'
 StaticDDS( 'MOT_repump',  novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
 
 # IMAGING SYSTEM
-Camera( 'avt_gx1920', ni_pcie_6363_0, 'port0/line1', 0.1, 'side')
+Camera( 'camera', ni_pcie_6363_0, 'port0/line1', 0.1, 'side')
 
 # PULSEBLASTER 0 DDS
 DDS(         'Imaging',  pulseblaster_0,     'dds 0')
