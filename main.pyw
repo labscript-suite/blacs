@@ -502,7 +502,6 @@ if __name__ == "__main__":
                         new_file['/'].copy(old_file['/script'],"script")
                         new_file['/'].copy(old_file['/globals'],"globals")
                         new_file['/'].copy(old_file['/connection table'],"connection table")
-                        new_file['/'].copy(old_file['/analysis'],"analysis")
             except Exception as e:
                 raise
                 logger.error('Clean H5 File Error: %s' %str(e))
