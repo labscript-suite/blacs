@@ -1,5 +1,5 @@
 from labscript import *
-from calibrations import *
+from unitconversions import *
 
 # MAIN DEVICE DEFINITIONS
 PulseBlaster(   'pulseblaster_0')
@@ -44,8 +44,8 @@ AnalogIn( 'MOT_fluoro',  ni_pcie_6363_0,     'ai9')
 
 # SUPERNOVA
 DDS(             'MOPA',  novatechdds9m_9, 'channel 0', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line4'})
-DDS(           'Zeeman',  novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'})   # proposed RF channel
-StaticDDS(        'MOT',  novatechdds9m_9, 'channel 2', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line6'})
+DDS(           'MOT',  novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'})   # proposed RF channel
+StaticDDS(        'Zeeman',  novatechdds9m_9, 'channel 2', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line6'})
 StaticDDS( 'MOT_repump',  novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
 
 # IMAGING SYSTEM
