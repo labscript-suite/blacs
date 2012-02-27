@@ -60,8 +60,8 @@ DDS(            'Dipole_Trap',                           novatechdds9m_3,       
 AnalogOut(      'top_racetrack',                         ni_pcie_6363_0,         'ao2')
 AnalogOut(      'bottom_racetrack',                      ni_pcie_6363_0,         'ao3')
 
-AnalogOut(      'Rb_Central_Bq',                      ni_pci_6733_0,         'ao0')
-AnalogOut(      'Rb_Source_Bq',                      ni_pci_6733_0,         'ao1')
+AnalogOut(      'Central_Bq',                      ni_pci_6733_0,         'ao0')
+AnalogOut(      'K_Source_Bq',                      ni_pci_6733_0,         'ao1')
 AnalogOut(      'Unused',                      ni_pci_6733_0,         'ao3')
 AnalogOut(      'Central_bias_z',                      ni_pci_6733_0,         'ao4')
 
