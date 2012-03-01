@@ -97,11 +97,8 @@ if __name__ == "__main__":
             self.status_bar = self.builder.get_object("status_label")
             self.queue_pause_button = self.builder.get_object("Queue_Pause")
             self.now_running = self.builder.get_object('label_now_running')
-            self.analysis_host = self.builder.get_object('analysis_server_host')
-            self.server_is_responding = self.builder.get_object('server_is_responding')
-            self.server_is_not_responding = self.builder.get_object('server_is_not_responding')
-            self.toggle_analysis = self.builder.get_object('analysis_toggle')
-            
+            self.analysis_container = self.builder.get_object('analysis_submission_container')
+ 
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
             
@@ -158,15 +155,6 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
             
-            # read out analysis server settings:
-            try:
-                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
-                    dataset = hdf5_file["/front_panel/analysis_server"]
-                    self.toggle_analysis.set_active(dataset.attrs['send_for_analysis'])
-                    self.analysis_host.set_text(dataset.attrs['server']) 
-            except:
-                pass 
-                
             for k,v in self.attached_devices.items():
                 self.settings_dict.setdefault(k,{"device_name":k})
                 # add common keys to settings:
@@ -241,10 +229,10 @@ if __name__ == "__main__":
             self.manager.daemon=True
             self.manager.start()
             
-            if self.toggle_analysis.get_active():
-                with gtk.gdk.lock:
-                    self.on_check_connectivity_clicked(None)
-                
+            # Start the analysis submission thread:
+            self.analysis_queue = Queue.Queue()
+            self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue)
+            
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
             #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
@@ -280,51 +268,6 @@ if __name__ == "__main__":
                 message.destroy()
             logger.info('Open file:\n%s ' % result)
             
-        def get_save_data(self):   
-            # So states is a dict with an item for each device
-            # *class*. These items have the key being the class name, and
-            # the value being another dictionary. This other dictionary
-            # has keys being the specific names of each device of that
-            # class, and values being each device tab's settings dict.
-            states = {}
-            tab_positions = {}
-            for devicename,tab in self.tablist.items():
-                deviceclass_name = self.attached_devices[devicename]
-                if deviceclass_name not in states:
-                    states[deviceclass_name] = {}
-                front_panel_states = tab.get_front_panel_state()
-                states[deviceclass_name][devicename] = front_panel_states
-            
-                # Find the notebook it is in
-                current_notebook = tab._toplevel.get_parent()
-                # By default we assume it is in notebook1. This way, if a tab gets lost somewhere, and isn't found to be a child of any notebook we know about, 
-                # it will revert back to notebook 1 when the file is loaded!
-                current_notebook_name = "1" 
-                
-                for notebook_name,notebook in self.notebook.items():
-                    if notebook == current_notebook:
-                        current_notebook_name = notebook_name                       
-                
-                page = current_notebook.page_num(tab._toplevel)
-                visible = True if current_notebook.get_current_page() == page else False
-                # find the page it is in
-                tab_positions[devicename] = {"notebook":current_notebook_name,"page":page, "visible":visible}
-            
-            # save window data
-            window_data = {}
-            
-            # Size of window
-            #self.window.unmaximize()
-            win_size = self.window.get_size()
-            win_pos = self.window.get_position()
-            #self.window.maximize()
-            window_data["window"] = {"width":win_size[0],"height":win_size[1],"xpos":win_pos[0],"ypos":win_pos[1]}
-            # Main Hpane
-            for k,v in self.panes.items():
-                window_data[k] = v.get_position()
-            
-            return states,tab_positions,window_data
-            
         def on_save_front_panel(self,widget):
             data = self.front_panel_settings.get_save_data()
         
@@ -347,152 +290,6 @@ if __name__ == "__main__":
                     
             self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2])    
 
-        def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,silent = {}):        
-            # Save the front panel!
-
-            # Does the file exist?            
-            #   Yes: Check connection table inside matches current connection table. Does it match?
-            #        Yes: Does the file have a front panel already saved in it?
-            #               Yes: Can we overwrite?
-            #                  Yes: Delete front_panel group, save new front panel
-            #                  No:  Create error dialog!
-            #               No: Save front panel in here
-            #   
-            #        No: Return
-            #   No: Create new file, place inside the connection table and front panel
-                
-            if os.path.isfile(current_file):
-                save_conn_table = False
-                try:
-                    new_conn = ConnectionTable(current_file)
-                except:
-                    # no connection table is present, so also save the connection table!
-                    save_conn_table = True
-                
-                # if save_conn_table is True, we don't bother checking to see if the connection tables match, because save_conn_table is only true when the connection table doesn't exist in the current file
-                # As a result, if save_conn_table is True, we ignore connection table checking, and save the connection table in the h5file.
-                result,error = self.connection_table.compare_to(new_conn)
-                if save_conn_table or result:
-                    with h5py.File(current_file,'r+') as hdf5_file:
-                        if hdf5_file['/'].get('front_panel') != None:
-                            # Create a dialog to ask whether we can overwrite!
-                            overwrite = False
-                            if not silent:                                
-                                message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_YES_NO, "Do you wish to replace the existing front panel configuration in this file?")                             
-                                resp = message.run()
-                                
-                                if resp == gtk.RESPONSE_YES:
-                                    overwrite = True                              
-                                message.destroy()
-                            else:
-                                overwrite = silent["overwrite"]
-                            
-                            if overwrite:
-                                # Delete Front panel group, save new front panel
-                                del hdf5_file['/front_panel']
-                                self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table)
-                            else:
-                                if not silent:
-                                    message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_CANCEL, "Front Panel not saved.") 
-                                    message.run()  
-                                    message.destroy()
-                                else:
-                                    logger.info("Front Panel not saved as it already existed in the h5 file '"+current_file+"'")
-                                return
-                        else: 
-                            # Save Front Panel in here
-                            self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table)
-                else:
-                    # Create Error dialog (invalid connection table)
-                    if not silent:
-                        message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_CANCEL, "The Front Panel was not saved as the file selected contains a connection table which is not a subset of the current connection table.") 
-                        message.run()  
-                        message.destroy()   
-                    else:
-                        logger.info("Front Panel not saved as the connection table in the h5 file '"+current_file+"' didn't match the current connection table.")
-                    return
-            else:
-                with h5py.File(current_file,'w') as hdf5_file:
-                    # save connection table, save front panel                    
-                    self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table=True)
-            
-        def save_conn_table_to_h5_file(self,hdf5_file):
-            h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
-            with h5py.File(h5_file,'r') as conn_table:
-                conn_data = numpy.array(conn_table['/connection table'][:])
-                hdf5_file['/'].create_dataset('connection table',data=conn_data)
-
-           
-        def store_front_panel_in_h5(self, hdf5_file,states,tab_positions,window_data,save_conn_table = False):
-            if save_conn_table:
-                self.save_conn_table_to_h5_file(hdf5_file)
-            
-            #with h5py.File(current_file,'a') as hdf5_file:
-            data_group = hdf5_file['/'].create_group('front_panel')
-            
-            # Iterate over each device class:
-            for deviceclass, deviceclass_states in states.items():
-                logger.debug("saving front panel for class:" + deviceclass) 
-                device_data = None
-                dataset = None
-                dtypes = [('name','a256')]
-                
-                i = 0
-                # Iterate over each device within a class
-                for devicename, device_state in deviceclass_states.items():
-                    logger.debug("saving front panel for device:" + devicename) 
-                    if device_data is None:
-                        # Add the dtypes for the device's state property
-                        # name (eg freq0, DO12, etc) and value of the
-                        # property:
-                        for property_name, property_value in device_state.items():
-                            dtype = type(property_value)
-                            if dtype is str:
-                                # Have to specify string length:
-                                dtype = 'a256'
-                            dtypes.append((property_name,dtype))
-                        logger.debug("Generated dtypes dtypes:"+str(dtypes))
-                        
-                        # Create the numpy array
-                        device_data = numpy.empty(len(deviceclass_states),dtype=dtypes)
-                        logger.debug("Length of dict 'deviceclass_states': "+str(len(deviceclass_states)))
-                        logger.debug("Shape of data array: "+str(device_data.shape)) 
-                        
-                    logger.debug("inserting data to the array")
-                    
-                    # Get the data into a list for the i'th row.
-                    data_list = [devicename]
-                    for property_name, property_value in device_state.items():
-                        data_list.append(property_value)
-                    device_data[i] = tuple(data_list)
-                    i += 1
-                
-                # Create the dataset! 
-                logger.debug("attempting to create dataset...")   
-                dataset = data_group.create_dataset(deviceclass,data=device_data)
-                
-            # Save tab positions
-            #logger.info(tab_positions)
-            i = 0
-            tab_data = numpy.empty(len(tab_positions),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool)])
-            for k,v in tab_positions.items():
-                tab_data[i] = (k,v["notebook"],v["page"],v["visible"])
-                i += 1
-            dataset = data_group.create_dataset("_notebook_data",data=tab_data)
-            dataset.attrs["window_width"] = window_data["window"]["width"]
-            dataset.attrs["window_height"] = window_data["window"]["height"]
-            dataset.attrs["window_xpos"] = window_data["window"]["xpos"]
-            dataset.attrs["window_ypos"] = window_data["window"]["ypos"]
-            for k,v in window_data.items():
-                if k != "window":
-                    dataset.attrs[k] = v
-            
-            # Save analysis server settings:
-            dataset = data_group.create_group("analysis_server")
-            dataset.attrs['send_for_analysis'] = self.toggle_analysis.get_active()
-            dataset.attrs['server'] = self.analysis_host.get_text()
-            
-            
         def clean_h5_file(self,h5file,new_h5_file):
             try:
                 with h5py.File(h5file,'r') as old_file:
@@ -525,30 +322,6 @@ if __name__ == "__main__":
             self.destroy()
             return True
         
-        def on_check_connectivity_clicked(self,widget):
-            success = False
-            try:
-                response = self.send_for_analysis('hello')            
-                if response == 'hello':
-                    success = True
-                else:
-                    response = 'Server returned invalid response:\n%s'%response
-            except Exception as e:
-                response = str(e)
-            if success:
-                self.server_is_responding.show()
-                self.server_is_not_responding.hide()
-                self.toggle_analysis.set_sensitive(True)
-            else:
-                self.server_is_responding.hide()
-                self.server_is_not_responding.show()
-                self.toggle_analysis.set_sensitive(False)
-                self.toggle_analysis.set_state(False)
-                message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
-                                            'Problem connecting to analysis server:\n' + response) 
-                message.run()  
-                message.destroy()
-                
         def destroy(self):
             logger.info('destroy called')
             if not self.exiting:
@@ -691,6 +464,12 @@ if __name__ == "__main__":
             # While the program is running!
             logger.info('starting')
             
+            # HDF5 prints lots of errors by default, for things that aren't
+            # actually errors. These are silenced on a per thread basis,
+            # and automatically silenced in the main thread when h5py is
+            # imported. So we'll silence them in this thread too:
+            h5py._errors.silence_errors()
+            
             timeout_limit = 130 #seconds
             
             with gtk.gdk.lock:
@@ -798,7 +577,7 @@ if __name__ == "__main__":
                 t0 = time.time()
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
-                    # Get front panel data, but don't save it to the h5 file until the experiment ends:
+                     Get front panel data, but don't save it to the h5 file until the experiment ends:
                     states,tab_positions,window_data = self.front_panel_settings.get_save_data()
                 
                 with gtk.gdk.lock:
@@ -827,10 +606,10 @@ if __name__ == "__main__":
                     self.status_bar.set_text("Sequence done, saving data...")
                 with h5py.File(path,'r+') as hdf5_file:
                     self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
-                        
                 with h5py.File(path,'a') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
-                
+                     stamp with the run time of the experiment
+                    hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',time.localtime())
                 outfile.write('\nSaving front panel state:    ' + str(time.time() - t0))
                 t0 = time.time()
         
@@ -848,31 +627,8 @@ if __name__ == "__main__":
                 logger.info('All devices are back in static mode.')  
                 outfile.write('\nTransition to static:    ' + str(time.time() - t0))
                 t0 = time.time()
-                if self.toggle_analysis.get_active() and self.toggle_analysis.get_sensitive():
-                    with gtk.gdk.lock:
-                        self.status_bar.set_text("Submitting to analysis server")
-                    success = False
-                    try:
-                        response = self.send_for_analysis(path)            
-                        if response == 'added successfully':
-                            success = True
-                        else:
-                            response = 'Server returned invalid response:\n%s'%response
-                    except Exception as e:
-                        response = str(e)
-                    with gtk.gdk.lock:
-                        if success:
-                            self.server_is_responding.show()
-                            self.server_is_not_responding.hide()
-                            self.toggle_analysis.set_sensitive(True)
-                        else:
-                            self.server_is_responding.hide()
-                            self.server_is_not_responding.show()
-                            self.toggle_analysis.set_sensitive(False)
-                            message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_OK,
-                                                        'Problem connecting to analysis server:\n' + response) 
-                            message.run()  
-                            message.destroy()
+                # Submit to the analysis server, if submission is enabled:
+                self.analysis_queue.put(['file', path])            
                         
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Idle")
@@ -884,17 +640,131 @@ if __name__ == "__main__":
                 outfile.flush()
                 outfile.write('\nTotal for run:' + str(time.time() - total_start_time))
             logger.info('Stopping')
-    
-        def send_for_analysis(self, path):
-            port = 42519
-            server = self.analysis_host.get_text()
-            # Workaround to force python not to use IPv6 for the request:
-            address  = socket.gethostbyname(server)
-            #print 'Submitting run file %s.\n'%os.path.basename(run_file)
-            params = urllib.urlencode({'filepath': path})
-            response = urllib2.urlopen('http://%s:%d'%(address,port), params, 2).read()
-            return response
+
+    class AnalysisSubmission(object):
+        port = 42519
+        
+        def __init__(self, container, inqueue):
+            self.inqueue = inqueue
+            
+            builder = gtk.Builder()
+            builder.add_from_file('analysis_submission.glade')
+            builder.connect_signals(self)
+            
+            self.analysis_host = builder.get_object('analysis_server_host')
+            self.server_is_responding = builder.get_object('server_is_responding')
+            self.server_is_not_responding = builder.get_object('server_is_not_responding')
+            self.toggle_analysis = builder.get_object('analysis_toggle')
+            self.analysis_error = builder.get_object('analysis_error')
+            self.analysis_error_message = builder.get_object('analysis_error_message')
+            self.spinner = builder.get_object('spinner')
+            toplevel = builder.get_object('toplevel')
+            
+            container.add(toplevel)
+            toplevel.show()
+            
+            # load settings:
+            try:
+                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
+                    dataset = hdf5_file["/front_panel/analysis_server"]
+                    self.toggle_analysis.set_active(dataset.attrs['send_for_analysis'])
+                    self.analysis_host.set_text(dataset.attrs['server']) 
+            except:
+                pass 
+            self.waiting_for_submission = []
+            self.mainloop_thread = threading.Thread(target=self.mainloop)
+            self.mainloop_thread.daemon = True
+            self.mainloop_thread.start()
+            if self.toggle_analysis.get_active():
+                self.inqueue.put(['check connectivity', None])
+        
+        def on_check_connectivity_clicked(self,widget):
+            self.inqueue.put(['check connectivity',None])       
+            
+        def on_try_again_clicked(self,widget):
+            self.inqueue.put(['try again', None])
+        
+        def on_clear_clicked(self,widget):
+            self.inqueue.put(['clear',None])
+                     
+        def mainloop(self):
+            while True:
+                signal, data = self.inqueue.get()
+                with gtk.gdk.lock:
+                    self.spinner.show()
+                if signal == 'close':
+                    break
+                elif signal == 'file':
+                    if self.toggle_analysis.get_active():
+                        self.waiting_for_submission.append(data)
+                    self.submit_waiting_files()
+                elif signal == 'try again':
+                    self.submit_waiting_files()
+                elif signal == 'check connectivity':
+                    self.check_connectivity()
+                elif signal == 'clear':
+                    self.waiting_for_submission = []
+                    with gtk.gdk.lock:
+                        self.analysis_error.hide()
+                else:
+                    raise ValueError('Invalid signal: %s'%str(signal))
+                with gtk.gdk.lock:
+                    self.spinner.hide()   
                        
+        def check_connectivity(self):
+            with gtk.gdk.lock:
+                server = self.analysis_host.get_text()
+            try:
+                # Workaround to force python not to use IPv6 for the request:
+                address  = socket.gethostbyname(server)
+                #print 'Submitting run file %s.\n'%os.path.basename(run_file)
+                params = urllib.urlencode({'filepath': 'hello'})
+                response = urllib2.urlopen('http://%s:%d'%(address,self.port), params, 2).read()
+                if response == 'hello':
+                    success = True
+                else:
+                    success = False
+            except Exception:
+                success = False
+            with gtk.gdk.lock:
+                if success:
+                    self.server_is_responding.show()
+                    self.server_is_not_responding.hide()
+                else:
+                    self.server_is_responding.hide()
+                    self.server_is_not_responding.show()
+                         
+        def submit_waiting_files(self):
+            if not self.waiting_for_submission:
+                return
+            while self.waiting_for_submission:
+                path = self.waiting_for_submission.pop(0)
+                with gtk.gdk.lock:
+                    server = self.analysis_host.get_text()
+                try:
+                    # Workaround to force python not to use IPv6 for the request:
+                    address  = socket.gethostbyname(server)
+                    #print 'Submitting run file %s.\n'%os.path.basename(run_file)
+                    params = urllib.urlencode({'filepath': path})
+                    response = urllib2.urlopen('http://%s:%d'%(address,self.port), params, 2).read()
+                    if response != 'added successfully':
+                        raise Exception
+                except:
+                    # Put the file back at the beginning of the waiting list:
+                    self.waiting_for_submission.insert(0,path)
+                    # Change the gui to show the error state:
+                    with gtk.gdk.lock:
+                        self.server_is_responding.hide()
+                        self.server_is_not_responding.show()
+                        self.analysis_error.show()
+                        self.analysis_error_message.set_markup('<span foreground="red">Couldn\'t submit %d files</span>'%len(self.waiting_for_submission))
+                    return
+            # If the loop completed, then the submissions were successful:
+            with gtk.gdk.lock:
+                self.server_is_responding.show()
+                self.server_is_not_responding.hide()
+                self.analysis_error.hide()
+                
     class RequestHandler(BaseHTTPRequestHandler):
         def do_POST(self):
             self.send_response(200)
@@ -964,7 +834,8 @@ if __name__ == "__main__":
 
     port = 42517
     myappid = 'monashbec.BLACS' # arbitrary string
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    if os.name == 'nt': # please leave this in so I can test in linux!
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     gtk.gdk.threads_init()
     app = BLACS()
     # Make it not look so terrible (if icons and themes are installed):

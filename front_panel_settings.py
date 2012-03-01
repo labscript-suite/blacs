@@ -346,8 +346,8 @@ class FrontPanelSettings(object):
         
         # Save analysis server settings:
         dataset = data_group.create_group("analysis_server")
-        dataset.attrs['send_for_analysis'] = self.blacs.toggle_analysis.get_active()
-        dataset.attrs['server'] = self.blacs.analysis_host.get_text()
+        dataset.attrs['send_for_analysis'] = self.blacs.analysis_submission.toggle_analysis.get_active()
+        dataset.attrs['server'] = self.blacs.analysis_submission.analysis_host.get_text()
         
     
     def get_front_panel_state(self, tab):    
