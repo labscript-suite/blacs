@@ -577,7 +577,7 @@ if __name__ == "__main__":
                 t0 = time.time()
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
-                     Get front panel data, but don't save it to the h5 file until the experiment ends:
+                    # Get front panel data, but don't save it to the h5 file until the experiment ends:
                     states,tab_positions,window_data = self.front_panel_settings.get_save_data()
                 
                 with gtk.gdk.lock:
@@ -608,7 +608,7 @@ if __name__ == "__main__":
                     self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
                 with h5py.File(path,'a') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
-                     stamp with the run time of the experiment
+                    # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',time.localtime())
                 outfile.write('\nSaving front panel state:    ' + str(time.time() - t0))
                 t0 = time.time()

@@ -46,14 +46,17 @@ AnalogIn( 'MOT_fluoro',  ni_pcie_6363_0,     'ai9')
 DDS(             'MOPA',  novatechdds9m_9, 'channel 0', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line4'})
 DDS(           'MOT',  novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'})   # proposed RF channel
 StaticDDS(        'Zeeman',  novatechdds9m_9, 'channel 2', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line6'})
-StaticDDS( 'MOT_repump',  novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
+StaticDDS( 'MOT_repump_lock',  novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
 
 # IMAGING SYSTEM
 Camera( 'camera', ni_pcie_6363_0, 'port0/line1', 0.1, 'side')
 
 # PULSEBLASTER 0 DDS
 DDS(         'Imaging',  pulseblaster_0,     'dds 0')
-DDS( 'MOT_repump_lock',  pulseblaster_0,     'dds 1')
+DDS( 'MOT_repump',  pulseblaster_0,     'dds 1')
+
+# FLUORESCENCE MONITORING
+AnalogIn( 'MOT_fluoro',  ni_pcie_6363_0,         'ai8')
 
 # Triggering
 DigitalOut('cro_trigger', ni_pcie_6363_0, 'port0/line15')

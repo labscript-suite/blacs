@@ -18,6 +18,33 @@ class ConnectionTable(object):
             except:
                 self.logger.error('Unable to get connection table  %s'%h5file)
                 raise
+                
+    def assert_superset(self,other):
+        # let's check that we're a superset of the connection table in "other"
+        if not isinstance(other,ConnectionTable):
+            raise TypeError, "Loaded file is not a valid connection table"
+        
+        missing = []    # things i don't know exist
+        incompat = []   # things that are different from what i expect
+        
+        devlist = dict(zip(self.table['name'],self.table))  # dict-arise it!
+        for dev in other.table:
+            z = devlist.get(dev[0],None)    # does it exist?
+            if z is None:
+                missing.append(dev[0])
+            elif z != dev:                  # is it the same?
+                incompat.append(dev[0])
+        
+        # construct a human-readable explanation
+        errmsg = ""
+        if len(missing) > 0:
+            errmsg += '\nDevices that do not exist in the connection table:\n\t'+'\n\t'.join(missing)
+        if len(incompat) > 0:
+            errmsg += '\nDevices with incompatible settings:\n\t'+'\n\t'.join(incompat)
+        
+        # if there is no error message, then everything must be good!
+        if len(errmsg) > 0:
+            raise Exception, "Cannot execute script as connection tables do not match."+errmsg
         
     def compare_to(self,other_table):
         if not isinstance(other_table,ConnectionTable):

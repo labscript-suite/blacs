@@ -378,7 +378,7 @@ class Worker2(multiprocessing.Process):
         self.daqlock = threading.Condition()
         # Channel details
         self.channels = []
-        self.rate = 1.
+        self.rate = 1000.
         self.samples_per_channel = 1000
         self.h5_file = ""
         self.buffered_channels = []
