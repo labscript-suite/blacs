@@ -299,7 +299,9 @@ class PulseblasterWorker(Worker):
         self.pb_reset = pb_reset
         self.pb_close = pb_close
         self.pb_read_status = pb_read_status
-        self.smart_cache = {'amps':None,'freqs':None,'phases':None,'pulse_program':None,'ready_to_go':False}
+        self.smart_cache = {'amps0':None,'freqs0':None,'phases0':None,
+                            'amps1':None,'freqs1':None,'phases1':None,
+                            'pulse_program':None,'ready_to_go':False}
     
     def initialise_pulseblaster(self, pb_num):
         self.pb_num = pb_num
@@ -351,14 +353,14 @@ class PulseblasterWorker(Worker):
                 
                 pb_select_dds(i)
                 # Only reprogram each thing if there's been a change:
-                if fresh or (amps != self.smart_cache['amps']).any():   
-                    self.smart_cache['amps'] = amps
+                if fresh or (amps != self.smart_cache['amps%d'%i]).any():   
+                    self.smart_cache['amps%d'%i] = amps
                     program_amp_regs(*amps)
-                if fresh or (freqs != self.smart_cache['freqs']).any():
-                    self.smart_cache['freqs'] = freqs
+                if fresh or (freqs != self.smart_cache['freqs%d'%i]).any():
+                    self.smart_cache['freqs%d'%i] = freqs
                     program_freq_regs(*freqs)
-                if fresh or (phases != self.smart_cache['phases']).any():      
-                    self.smart_cache['phases'] = phases
+                if fresh or (phases != self.smart_cache['phases%d'%i]).any():      
+                    self.smart_cache['phases%d'%i] = phases
                     program_phase_regs(*phases)
                 
                 ampregs.append(amps)

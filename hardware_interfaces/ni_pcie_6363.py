@@ -8,6 +8,7 @@ import numpy
 import time
 import h5py
 import excepthook
+from subproc_utils import kill_on_exit
 
 from tab_base_classes import Tab, Worker, define_state
 from output_classes import AO, DO, DDS
@@ -226,6 +227,7 @@ class NiPCIe6363Worker(Worker):
         ignore, self.to_child, self.from_child, ignore = self.acq_args
         self.acquisition_worker.daemon = True
         self.acquisition_worker.start()
+        kill_on_exit(self.acquisition_worker)
         
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
