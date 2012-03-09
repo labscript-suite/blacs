@@ -8,7 +8,6 @@ import logging
 import cgi
 import gtk, gobject
 import excepthook
-from subproc_utils import kill_on_exit
 
 class Counter(object):
     """A class with a single method that 
@@ -46,7 +45,6 @@ class Tab(object):
         self.from_worker = Queue()
         self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker,workerargs])
         self.worker.start()
-        kill_on_exit(self.worker)
         self.not_responding_for = 0
         self.hide_not_responding_error_until = 0
         self.timeout = gobject.timeout_add(1000,self.check_time)
