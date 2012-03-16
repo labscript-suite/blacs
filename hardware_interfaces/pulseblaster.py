@@ -353,13 +353,13 @@ class PulseblasterWorker(Worker):
                 
                 pb_select_dds(i)
                 # Only reprogram each thing if there's been a change:
-                if fresh or (amps != self.smart_cache['amps%d'%i]).any():   
+                if fresh or len(amps) != len(self.smart_cache['amps%d'%i]) or (amps != self.smart_cache['amps%d'%i]).any():   
                     self.smart_cache['amps%d'%i] = amps
                     program_amp_regs(*amps)
-                if fresh or (freqs != self.smart_cache['freqs%d'%i]).any():
+                if fresh or len(freqs) != len(self.smart_cache['freqs%d'%i]) or (freqs != self.smart_cache['freqs%d'%i]).any():
                     self.smart_cache['freqs%d'%i] = freqs
                     program_freq_regs(*freqs)
-                if fresh or (phases != self.smart_cache['phases%d'%i]).any():      
+                if fresh or len(phases) != len(self.smart_cache['phases%d'%i]) or (phases != self.smart_cache['phases%d'%i]).any():      
                     self.smart_cache['phases%d'%i] = phases
                     program_phase_regs(*phases)
                 
