@@ -8,12 +8,16 @@ NI_PCI_6733(     'ni_pci_6733_0',  pulseblaster_0, 'fast clock', '/ni_pcie_6363_
 NovaTechDDS9M( 'novatechdds9m_9',  pulseblaster_0, 'slow clock')
 
 # MAG-NEAT-O CONTROL
-AnalogOut(    'Bx',  ni_pci_6733_0,          'ao0')
+AnalogOut(    'Bx0',  ni_pci_6733_0,          'ao0')
+AnalogOut(    'Bx1',  ni_pci_6733_0,          'ao5')
 AnalogOut(    'By',  ni_pci_6733_0,          'ao1')
-AnalogOut(    'Bz',  ni_pci_6733_0,          'ao2')
+AnalogOut(    'Bz0',  ni_pci_6733_0,          'ao2')
+AnalogOut(    'Bz1',  ni_pci_6733_0,          'ao4')
 AnalogIn( 'Bx_mon',  ni_pcie_6363_0,         'ai0')
 AnalogIn( 'By_mon',  ni_pcie_6363_0,         'ai1')
 AnalogIn( 'Bz_mon',  ni_pcie_6363_0,         'ai2')
+#Dummy NI 6733
+#AnalogOut(    'destroy_universe',  ni_pci_6733_0,          'ao6')
 
 # QUAD DRIVER
 AnalogOut(          'Bq',  ni_pci_6733_0,    'ao3')
