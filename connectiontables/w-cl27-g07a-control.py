@@ -8,52 +8,52 @@ NI_PCI_6733(     'ni_pci_6733_0',  pulseblaster_0, 'fast clock', '/ni_pcie_6363_
 NovaTechDDS9M( 'novatechdds9m_9',  pulseblaster_0, 'slow clock')
 
 # MAG-NEAT-O CONTROL
-AnalogOut(    'Bx0',  ni_pci_6733_0,          'ao0')
-AnalogOut(    'Bx1',  ni_pci_6733_0,          'ao5')
-AnalogOut(    'By',  ni_pci_6733_0,          'ao1')
-AnalogOut(    'Bz0',  ni_pci_6733_0,          'ao2')
-AnalogOut(    'Bz1',  ni_pci_6733_0,          'ao4')
-AnalogIn( 'Bx_mon',  ni_pcie_6363_0,         'ai0')
-AnalogIn( 'By_mon',  ni_pcie_6363_0,         'ai1')
-AnalogIn( 'Bz_mon',  ni_pcie_6363_0,         'ai2')
+AnalogOut(   'Bx0',  ni_pci_6733_0, 'ao0')
+AnalogOut(   'Bx1',  ni_pci_6733_0, 'ao5')
+AnalogOut(    'By',  ni_pci_6733_0, 'ao1')
+AnalogOut(   'Bz0',  ni_pci_6733_0, 'ao2')
+AnalogOut(   'Bz1',  ni_pci_6733_0, 'ao4')
+AnalogIn( 'Bx_mon', ni_pcie_6363_0, 'ai0')
+AnalogIn( 'By_mon', ni_pcie_6363_0, 'ai1')
+AnalogIn( 'Bz_mon', ni_pcie_6363_0, 'ai2')
+
 #Dummy NI 6733
 #AnalogOut(    'destroy_universe',  ni_pci_6733_0,          'ao6')
 
 # QUAD DRIVER
-AnalogOut(          'Bq',  ni_pci_6733_0,    'ao3')
-DigitalOut( 'cap_charge',  ni_pcie_6363_0,   'port0/line11')
-AnalogIn( 'quad_current',  ni_pcie_6363_0,   'ai3')
+AnalogOut(          'Bq', ni_pci_6733_0,  'ao3')
+DigitalOut( 'cap_charge', ni_pcie_6363_0, 'port0/line11')
+AnalogIn( 'quad_current', ni_pcie_6363_0, 'ai3')
 
 # ZEEMAN SLOWER
-DigitalOut('Zeeman_coil_2',  ni_pcie_6363_0, 'port0/line0')
-# TABLE ENABLE
-DigitalOut('Table_Enable',  ni_pcie_6363_0, 'port0/line21')
+DigitalOut( 'Zeeman_coil_2', ni_pcie_6363_0, 'port0/line0')
 
 # SHUTTERS
-Shutter(           'MOT_shutter',  ni_pcie_6363_0, 'port0/line17', delay=(0,0))
-Shutter(    'MOT_repump_shutter',  ni_pcie_6363_0, 'port0/line18', delay=(0,0))
-Shutter(        'Zeeman_shutter',  ni_pcie_6363_0, 'port0/line19', delay=(0,0))
-Shutter( 'Zeeman_repump_shutter',  ni_pcie_6363_0, 'port0/line20', delay=(0,0))
+Shutter(           'MOT_shutter', ni_pcie_6363_0, 'port0/line17', delay=(0,0))
+Shutter(    'MOT_repump_shutter', ni_pcie_6363_0, 'port0/line18', delay=(0,0))
+Shutter(        'Zeeman_shutter', ni_pcie_6363_0, 'port0/line19', delay=(0,0))
+Shutter( 'Zeeman_repump_shutter', ni_pcie_6363_0, 'port0/line20', delay=(0,0))
 #Shutter(       'Imaging_shutter',  ni_pcie_6363_0, 'port0/line8', delay=(0,0))
 
 # POWER MONITORING
-AnalogIn(    'MOT_power',  ni_pcie_6363_0,   'ai4')
-AnalogIn( 'Zeeman_power',  ni_pcie_6363_0,   'ai5')
-AnalogIn(     'OP_power',  ni_pcie_6363_0,   'ai6')
-AnalogIn('Imaging_power',  ni_pcie_6363_0,   'ai7')
-AnalogIn( 'TA_seed_leak',  ni_pcie_6363_0,   'ai8')
+AnalogIn(     'MOT_power', ni_pcie_6363_0, 'ai4')
+AnalogIn(  'Zeeman_power', ni_pcie_6363_0, 'ai5')
+AnalogIn(      'OP_power', ni_pcie_6363_0, 'ai6')
+AnalogIn( 'Imaging_power', ni_pcie_6363_0, 'ai7')
+AnalogIn(  'TA_seed_leak', ni_pcie_6363_0, 'ai8')
 
 # FLUORESCENCE MONITORING
-AnalogIn( 'MOT_fluoro',  ni_pcie_6363_0,     'ai9')
+AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai9')
 
 # SUPERNOVA
-DDS(             'MOPA',  novatechdds9m_9, 'channel 0', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line4'})
-DDS(           'MOT',  novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'})   # proposed RF channel
-StaticDDS(        'Zeeman',  novatechdds9m_9, 'channel 2', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line6'})
-StaticDDS( 'MOT_repump_lock',  novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
+DDS(                  'MOPA', novatechdds9m_9, 'channel 0', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line4'})
+DDS(                   'MOT', novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'})   # proposed RF channel
+StaticDDS(          'Zeeman', novatechdds9m_9, 'channel 2', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line6'})
+StaticDDS( 'MOT_repump_lock', novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
+DigitalOut(   'Table_Enable',  ni_pcie_6363_0, 'port0/line21')
 
 # IMAGING SYSTEM
-Camera( 'camera', ni_pcie_6363_0, 'port0/line1', 0.1, 'side')
+Camera( 'avt_gx1920_0', ni_pcie_6363_0, 'port0/line1', 0.1, 'side')
 
 # PULSEBLASTER 0 DDS
 DDS(         'Imaging',  pulseblaster_0,     'dds 0')
