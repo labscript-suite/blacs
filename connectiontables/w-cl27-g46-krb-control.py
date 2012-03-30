@@ -36,13 +36,13 @@ DDS(            'dipole_secondary',                      pulseblaster_1,        
 
 DDS(             'Rb_Central_MOT',                       novatechdds9m_0,        'channel 0', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line0'})
 DDS(             'Rb_Source_MOT',                        novatechdds9m_0,        'channel 1', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line1'})
-StaticDDS(       'Rb_Repump',                            novatechdds9m_0,        'channel 2', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line2'})
+StaticDDS(       'Rb_Source_Repump',                     novatechdds9m_0,        'channel 2', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line2'})
 StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,        'channel 3')
 
 DDS(            'Rb_Optical_Pumping',                    novatechdds9m_1,        'channel 0', digital_gate={'device':pulseblaster_0,'connection':'flag 4'})
 #DDS(            '',                                     novatechdds9m_1,        'channel 1', digital_gate={'device':pulseblaster_0,'connection':'flag 2'})
 StaticDDS(      'Rb_Push',                            novatechdds9m_1,        'channel 2', digital_gate={'device':pulseblaster_0,'connection':'flag 3'})
-#StaticDDS(       '',                                    novatechdds9m_1,        'channel 3')
+StaticDDS(       'Rb_Central_Repump',                  novatechdds9m_1,        'channel 3', digital_gate={'device':pulseblaster_0,'connection':'flag 5'})
 
 DDS(            'K_Main_MOT',                           novatechdds9m_2,        'channel 0', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line4'})
 DDS(            'K_Repump',                             novatechdds9m_2,        'channel 1', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line5'})
@@ -61,7 +61,7 @@ AnalogOut(      'top_racetrack',                         ni_pcie_6363_0,        
 AnalogOut(      'bottom_racetrack',                      ni_pcie_6363_0,         'ao3')
 
 AnalogOut(      'Central_Bq',                      ni_pci_6733_0,         'ao0')
-AnalogOut(      'K_Source_Bq',                      ni_pci_6733_0,         'ao1')
+AnalogOut(      'Rb_Source_Bq',                      ni_pci_6733_0,         'ao1')
 AnalogOut(      'Unused',                      ni_pci_6733_0,         'ao3')
 AnalogOut(      'Central_bias_z',                      ni_pci_6733_0,         'ao4')
 
@@ -87,9 +87,9 @@ Camera(     'red_camera',                                     ni_pcie_6363_0,   
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line21')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line22')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line23')
-Shutter(     'Shutter_Rb_Central_MOT',                   ni_pcie_6363_0,         'port0/line24', delay=(2.5e-3,3.5e-3))              #Sh_0_4
-Shutter(     'Shutter_Rb_Repump_Source_MOT',             ni_pcie_6363_0,         'port0/line25', delay=(2.5e-3,3.5e-3))              #Sh_0_4
-Shutter(     'Shutter_Rb_Repump_Central_MOT',            ni_pcie_6363_0,         'port0/line26', delay=(4e-3,2.5e-3))              #Sh_0_4
+Shutter(     'Rb_Central_MOT_Shutter',                   ni_pcie_6363_0,         'port0/line24', delay=(2.5e-3,3.5e-3))              #Sh_0_4
+#Shutter(     'Rb_Source_Repump_Shutter',             ni_pcie_6363_0,         'port0/line25', delay=(2.5e-3,3.5e-3))              #Sh_0_4
+Shutter(     'Rb_Central_Repump_Shutter',            ni_pcie_6363_0,         'port0/line26', delay=(4e-3,2.5e-3))              #Sh_0_4
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line27')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line28')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line29')
@@ -112,7 +112,7 @@ AnalogIn(       'ai12',                                     ni_pcie_6363_0,     
 AnalogIn(       'ai13',                                     ni_pcie_6363_0,         'ai13')
 AnalogIn(       'ai14',                                     ni_pcie_6363_0,         'ai14')
 AnalogIn(       'ai15',                                     ni_pcie_6363_0,         'ai15')
-AnalogIn(       'ai16',                                     ni_pcie_6363_0,         'ai16')
+AnalogIn(       'central_MOT_photodiode',                   ni_pcie_6363_0,         'ai16')
 AnalogIn(       'ai17',                                     ni_pcie_6363_0,         'ai17')
 AnalogIn(       'ai18',                                     ni_pcie_6363_0,         'ai18')
 AnalogIn(       'ai19',                                     ni_pcie_6363_0,         'ai19')
