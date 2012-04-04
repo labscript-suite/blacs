@@ -359,7 +359,7 @@ class NiPCIe6363Worker(Worker):
             # Reprogram the initial states:
             self.program_static(self.ao_data, self.do_data)
             
-        self.to_child.put(["transition to static",self.device_name])
+        self.to_child.put(["transition to static",(self.device_name,abort)])
         result,message = self.from_child.get()
         if result == 'error':
             if not abort: # Ignore the error if the run was aborted:
@@ -424,7 +424,7 @@ class Worker2(multiprocessing.Process):
                 elif cmd[0] == "transition to buffered":
                     self.transition_to_buffered(cmd[1],cmd[2])
                 elif cmd[0] == "transition to static":
-                    self.transition_to_static(cmd[1])
+                    self.transition_to_static(*cmd[1])
                 elif cmd == "":
                     pass
                 self.to_parent.put(['done',None])
@@ -574,18 +574,15 @@ class Worker2(multiprocessing.Process):
         
         self.setup_task()     
     
-    def transition_to_static(self,device_name):
+    def transition_to_static(self,device_name,abort):
         self.logger.debug('transition_to_static')
         # Stop acquisition (this should really be done on a digital edge, but that is for later! Maybe use a Counter)
         self.stop_task()        
         self.logger.info('transitioning to static, task stopped')
         # save the data acquired to the h5 file
         with h5py.File(self.h5_file,'a') as hdf5_file:
-            try:
+            if not abort:
                 data_group = hdf5_file['data']
-            except KeyError:
-                # If the data group doesn't exist, then the run must've been aborted. Nothing to do here:
-                return
             ni_group = data_group.create_group(device_name)
 
             dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
@@ -611,7 +608,8 @@ class Worker2(multiprocessing.Process):
         # return to previous acquisition mode
         self.buffered = False
         self.setup_task()
-        self.extract_measurements(device_name)
+        if not abort:
+            self.extract_measurements(device_name)
         
     def extract_measurements(self, device_name):
         self.logger.debug('extract_measurements')
