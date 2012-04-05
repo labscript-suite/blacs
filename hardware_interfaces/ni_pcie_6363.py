@@ -641,7 +641,7 @@ class Worker2(multiprocessing.Process):
                                        end_index-start_index+1,
                                        endpoint=True)
                 values = raw_data[connection][start_index:end_index+1]
-                dtypes = [('t', numpy.float32),('values', numpy.float32)]
+                dtypes = [('t', numpy.float64),('values', numpy.float32)]
                 data = numpy.empty(len(values),dtype=dtypes)
                 data['t'] = times
                 data['values'] = values
