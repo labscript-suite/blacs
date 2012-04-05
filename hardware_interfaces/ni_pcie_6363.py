@@ -630,13 +630,13 @@ class Worker2(multiprocessing.Process):
                 start_index = numpy.ceil(self.buffered_rate*(start_time-self.ai_start_delay))
                 end_index = numpy.floor(self.buffered_rate*(end_time-self.ai_start_delay))
                 # numpy.ceil does what we want above, but float errors can miss the equality
-                if self.ai_start_delay + (start_index-1)/acquisition_rate - start_time > -2e-16:
+                if self.ai_start_delay + (start_index-1)/self.buffered_rate - start_time > -2e-16:
                     start_index -= 1
                 # We actually want numpy.floor(x) to yield the largest integer < x (not <=) 
-                if end_time - self.ai_start_delay - end_index/acquisition_rate < 2e-16:
+                if end_time - self.ai_start_delay - end_index/self.buffered_rate < 2e-16:
                     end_index -= 1
-                acquisition_start_time = self.ai_start_delay + start_index/acquisition_rate
-                acquisition_end_time = self.ai_start_delay + end_index/acquisition_rate
+                acquisition_start_time = self.ai_start_delay + start_index/self.buffered_rate
+                acquisition_end_time = self.ai_start_delay + end_index/self.buffered_rate
                 times = numpy.linspace(acquisition_start_time, acquisition_end_time, 
                                        end_index-start_index+1,
                                        endpoint=True)
