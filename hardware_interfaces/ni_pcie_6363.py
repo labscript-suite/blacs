@@ -20,7 +20,6 @@ class ni_pcie_6363(Tab):
     max_ao_voltage = 10.0
     min_ao_voltage = -10.0
     ao_voltage_step = 0.1
-    ai_start_delay = 25e-9
     
     def __init__(self,notebook,settings,restart=False):
         self.settings = settings
@@ -382,6 +381,7 @@ class Worker2(multiprocessing.Process):
         self.channels = []
         self.rate = 1000.
         self.samples_per_channel = 1000
+        self.ai_start_delay = 25e-9
         self.h5_file = ""
         self.buffered_channels = []
         self.buffered_rate = 0
@@ -627,16 +627,16 @@ class Worker2(multiprocessing.Process):
                 measurements = hdf5_file.create_group('/data/traces')
             raw_data = hdf5_file['/data/'+device_name+'/analog_data']
             for connection,label,start_time,end_time,scale_factor,units in acquisitions:
-                start_index = numpy.ceil(self.buffered_rate*(start_time-ai_start_delay))
-                end_index = numpy.floor(self.buffered_rate*(end_time-ai_start_delay))
+                start_index = numpy.ceil(self.buffered_rate*(start_time-self.ai_start_delay))
+                end_index = numpy.floor(self.buffered_rate*(end_time-self.ai_start_delay))
                 # numpy.ceil does what we want above, but float errors can miss the equality
-                if ai_start_delay + (start_index-1)/acquisition_rate - start_time > -2e-16:
+                if self.ai_start_delay + (start_index-1)/acquisition_rate - start_time > -2e-16:
                     start_index -= 1
                 # We actually want numpy.floor(x) to yield the largest integer < x (not <=) 
-                if end_time - ai_start_delay - end_index/acquisition_rate < 2e-16:
+                if end_time - self.ai_start_delay - end_index/acquisition_rate < 2e-16:
                     end_index -= 1
-                acquisition_start_time = ai_start_delay + start_index/acquisition_rate
-                acquisition_end_time = ai_start_delay + end_index/acquisition_rate
+                acquisition_start_time = self.ai_start_delay + start_index/acquisition_rate
+                acquisition_end_time = self.ai_start_delay + end_index/acquisition_rate
                 times = numpy.linspace(acquisition_start_time, acquisition_end_time, 
                                        end_index-start_index+1,
                                        endpoint=True)
