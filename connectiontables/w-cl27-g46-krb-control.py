@@ -39,7 +39,7 @@ DDS(             'Rb_Source_MOT',                        novatechdds9m_0,       
 StaticDDS(       'Rb_Source_Repump',                     novatechdds9m_0,        'channel 2', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line2'})
 StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,        'channel 3')
 
-DDS(            'Rb_Optical_Pumping',                    novatechdds9m_1,        'channel 0', digital_gate={'device':pulseblaster_0,'connection':'flag 4'})
+DDS(            'Rb_Central_Imaging',                    novatechdds9m_1,        'channel 0', digital_gate={'device':pulseblaster_0,'connection':'flag 4'})
 #DDS(            '',                                     novatechdds9m_1,        'channel 1', digital_gate={'device':pulseblaster_0,'connection':'flag 2'})
 StaticDDS(      'Rb_Push',                            novatechdds9m_1,        'channel 2', digital_gate={'device':pulseblaster_0,'connection':'flag 3'})
 StaticDDS(       'Rb_Central_Repump',                  novatechdds9m_1,        'channel 3', digital_gate={'device':pulseblaster_0,'connection':'flag 5'})
@@ -75,15 +75,15 @@ DigitalOut(     'K_Lock_RF_Switch',                      ni_pcie_6363_0,        
 #DigitalOut(     '',                      ni_pcie_6363_0,         'port0/line7')                                  #NT_2_3 gate -- In use in K_Push DDS
 Shutter(        'Rb_Source_MOT_Shutter',                 ni_pcie_6363_0,         'port0/line8', delay=(3e-3,3e-3))               #Sh_1_1
 Shutter(        'Rb_MOT_and_Probe_Shutter',              ni_pcie_6363_0,         'port0/line9', delay=(3e-3,3.25e-3))               #Sh_1_2
-Shutter(        'Rb_Probe_Shutter',                      ni_pcie_6363_0,         'port0/line10', delay=(3e-3,3.5e-3))              #Sh_1_3
+Shutter(        'Central_Imaging_Shutter',                      ni_pcie_6363_0,         'port0/line10', delay=(3e-3,3.5e-3))              #Sh_1_3
 Shutter(        'Rb_Push_Shutter',                       ni_pcie_6363_0,         'port0/line11', delay=(3e-3,3e-3))              #Sh_1_4
 #Shutter(     'Shutter_0_1',                              ni_pcie_6363_0,         'port0/line12', delay=(5e-3,5e-3))              #Sh_0_1
 #Shutter(     'Shutter_0_2',                              ni_pcie_6363_0,         'port0/line13', delay=(5e-3,5e-3))              #Sh_0_2
 #Shutter(     'Shutter_0_3',                              ni_pcie_6363_0,         'port0/line14', delay=(5e-3,5e-3))              #Sh_0_3
 #Shutter(     'Shutter_0_4',                              ni_pcie_6363_0,         'port0/line15', delay=(5e-3,5e-3))              #Sh_0_4
 
-Camera(           'camera',                              ni_pcie_6363_0,         'port0/line17', 0.1, 'side')
-Camera(     'red_camera',                                     ni_pcie_6363_0,         'port0/line20',0.1,'side')
+Camera(           'camera',                              ni_pcie_6363_0,         'port0/line17',0, 'side') # Change exposer time to a global
+Camera(     'red_camera',                                     ni_pcie_6363_0,         'port0/line20',0,'side') # Change exposer time to a global
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line21')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line22')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line23')
