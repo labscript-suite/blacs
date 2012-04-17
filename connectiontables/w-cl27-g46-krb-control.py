@@ -62,8 +62,12 @@ AnalogOut(      'bottom_racetrack',                      ni_pcie_6363_0,        
 
 AnalogOut(      'Central_Bq',                      ni_pci_6733_0,         'ao0')
 AnalogOut(      'Rb_Source_Bq',                      ni_pci_6733_0,         'ao1')
-AnalogOut(      'Unused',                      ni_pci_6733_0,         'ao3')
+# z: vertical, x: along the differential pumping tube, y: along imaging axis
+AnalogOut(      'Central_bias_y',                      ni_pci_6733_0,         'ao2')
+AnalogOut(      'Central_bias_x',                      ni_pci_6733_0,         'ao3')
 AnalogOut(      'Central_bias_z',                      ni_pci_6733_0,         'ao4')
+
+AnalogOut(      'Unused',                      ni_pci_6733_0,         'ao5')
 
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line0')                                  #NT_0_0 gate -- In use in RB_Central_MOT DDS
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1 gate -- In use in RB_Source_MOT DDS
