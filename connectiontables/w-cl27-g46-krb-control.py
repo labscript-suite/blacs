@@ -35,14 +35,14 @@ DDS(            'dipole_secondary',                      pulseblaster_1,        
 
 
 DDS(             'Rb_Central_MOT',                       novatechdds9m_0,        'channel 0', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line0'})
-DDS(             'Rb_Source_MOT',                        novatechdds9m_0,        'channel 1', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line1'})
+DDS(             'Rb_Central_Repump',                        novatechdds9m_0,        'channel 1', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line1'})
 StaticDDS(       'Rb_Source_Repump',                     novatechdds9m_0,        'channel 2', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line2'})
 StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,        'channel 3')
 
 DDS(            'Rb_Central_Imaging',                    novatechdds9m_1,        'channel 0', digital_gate={'device':pulseblaster_0,'connection':'flag 4'})
 #DDS(            '',                                     novatechdds9m_1,        'channel 1', digital_gate={'device':pulseblaster_0,'connection':'flag 2'})
 StaticDDS(      'Rb_Push',                            novatechdds9m_1,        'channel 2', digital_gate={'device':pulseblaster_0,'connection':'flag 3'})
-StaticDDS(       'Rb_Central_Repump',                  novatechdds9m_1,        'channel 3', digital_gate={'device':pulseblaster_0,'connection':'flag 5'})
+StaticDDS(       'Rb_Source_MOT',                  novatechdds9m_1,        'channel 3', digital_gate={'device':pulseblaster_0,'connection':'flag 5'})
 
 DDS(            'K_Main_MOT',                           novatechdds9m_2,        'channel 0', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line4'})
 DDS(            'K_Repump',                             novatechdds9m_2,        'channel 1', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line5'})
