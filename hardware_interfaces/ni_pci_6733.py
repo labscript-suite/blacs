@@ -195,8 +195,6 @@ class NiPCI6733Worker(Worker):
                 return {}
         
     def transition_to_static(self,abort=False):
-        import time
-        time.sleep(100)
         if not abort:
             # if aborting, don't call StopTask since this throws an
             # error if the task hasn't actually finished!
