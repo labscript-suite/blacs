@@ -6,10 +6,10 @@ import h5py
 from tab_base_classes import Tab, Worker, define_state
 
 class camera(Tab):
-    def __init__(self,notebook,settings,restart=False):
+    def __init__(self,BLACS, notebook,settings,restart=False):
         self.destroy_complete = False
         self.static_mode = True
-        Tab.__init__(self,CameraWorker,notebook,settings)
+        Tab.__init__(self,BLACS,CameraWorker,notebook,settings)
         self.settings = settings
         self.device_name = self.settings["device_name"]
         self.builder = gtk.Builder()

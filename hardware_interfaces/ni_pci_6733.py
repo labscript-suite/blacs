@@ -17,8 +17,8 @@ class ni_pci_6733(Tab):
     min_ao_voltage = -10.0
     ao_voltage_step = 0.1
     
-    def __init__(self,notebook,settings,restart=False):
-        Tab.__init__(self,NiPCI6733Worker,notebook,settings)
+    def __init__(self,BLACS,notebook,settings,restart=False):
+        Tab.__init__(self,BLACS,NiPCI6733Worker,notebook,settings)
         self.settings = settings
         self.device_name = settings['device_name']
         self.static_mode = True
@@ -109,12 +109,16 @@ class ni_pci_6733(Tab):
     def transition_to_static(self,notify_queue):
         self.static_mode = True
         self.queue_work('transition_to_static')
-        # Tell the queue manager we're done:
-        notify_queue.put(self.device_name)
+        self.do_after('leave_transition_to_static',notify_queue)
         # Update the GUI with the final values of the run:
         for channel, value in self.final_values.items():
             self.analog_outs_by_channel[channel].set_value(value,program=False)
-            
+        
+    def leave_transition_to_static(self,notify_queue,_results):    
+        # Tell the queue manager that we're done:
+        if notify_queue is not None:
+            notify_queue.put(self.device_name)
+
     def get_child(self,type,channel):
         if type == "AO":
             if channel >= 0 and channel < self.num_AO:
@@ -191,6 +195,8 @@ class NiPCI6733Worker(Worker):
                 return {}
         
     def transition_to_static(self,abort=False):
+        import time
+        time.sleep(100)
         if not abort:
             # if aborting, don't call StopTask since this throws an
             # error if the task hasn't actually finished!

@@ -21,7 +21,7 @@ class ni_pcie_6363(Tab):
     min_ao_voltage = -10.0
     ao_voltage_step = 0.1
     
-    def __init__(self,notebook,settings,restart=False):
+    def __init__(self,BLACS,notebook,settings,restart=False):
         self.settings = settings
         self.device_name = self.settings['device_name']
         
@@ -34,7 +34,7 @@ class ni_pcie_6363(Tab):
         # All the arguments that the acquisition worker will require:
         acq_args = [self.settings['device_name'], self.write_queue, self.read_queue, self.result_queue]
         
-        Tab.__init__(self,NiPCIe6363Worker,notebook,settings,workerargs={'acq_args':acq_args})
+        Tab.__init__(self,BLACS,NiPCIe6363Worker,notebook,settings,workerargs={'acq_args':acq_args})
         
         self.static_mode = False
         self.destroy_complete = False
@@ -581,30 +581,30 @@ class Worker2(multiprocessing.Process):
         self.stop_task()        
         self.logger.info('transitioning to static, task stopped')
         # save the data acquired to the h5 file
-        with h5py.File(self.h5_file,'a') as hdf5_file:
-            if not abort:
+        if not abort:
+            with h5py.File(self.h5_file,'a') as hdf5_file:
                 data_group = hdf5_file['data']
-            ni_group = data_group.create_group(device_name)
+                ni_group = data_group.create_group(device_name)
 
-            dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
+                dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
 
-            start_time = time.time()
-            if self.buffered_data_list:
-                self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
-                for i, data in enumerate(self.buffered_data_list):
-                    data.shape = (len(self.buffered_channels),self.ai_read.value)              
-                    for j, (chan, dtype) in enumerate(dtypes):
-                        self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
-                    if i % 100 == 0:
-                        self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
-                ni_group.create_dataset('analog_data', data = self.buffered_data)
-                self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
-        
-        self.buffered_data = None
-        self.buffered_data_list = []
-        
-        # Send data to callback functions as requested (in one big chunk!)
-        #self.result_queue.put([self.t0,self.rate,self.ai_read,len(self.channels),self.ai_data])
+                start_time = time.time()
+                if self.buffered_data_list:
+                    self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
+                    for i, data in enumerate(self.buffered_data_list):
+                        data.shape = (len(self.buffered_channels),self.ai_read.value)              
+                        for j, (chan, dtype) in enumerate(dtypes):
+                            self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
+                        if i % 100 == 0:
+                            self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
+                    ni_group.create_dataset('analog_data', data = self.buffered_data)
+                    self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
+            
+            self.buffered_data = None
+            self.buffered_data_list = []
+            
+            # Send data to callback functions as requested (in one big chunk!)
+            #self.result_queue.put([self.t0,self.rate,self.ai_read,len(self.channels),self.ai_data])
         
         # return to previous acquisition mode
         self.buffered = False

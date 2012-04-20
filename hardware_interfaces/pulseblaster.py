@@ -15,8 +15,8 @@ class pulseblaster(Tab):
     base_step =  {'freq':1,         'amp':0.01,  'phase':1}
     
         
-    def __init__(self,notebook,settings,restart=False):
-        Tab.__init__(self,PulseblasterWorker,notebook,settings)
+    def __init__(self,BLACS,notebook,settings,restart=False):
+        Tab.__init__(self,BLACS,PulseblasterWorker,notebook,settings)
         self.settings = settings
         self.device_name = settings['device_name']        
         self.pb_num = int(settings['device_num'])

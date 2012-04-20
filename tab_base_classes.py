@@ -34,7 +34,8 @@ def define_state(function):
     
         
 class Tab(object):
-    def __init__(self,WorkerClass,notebook,settings,workerargs={},restart=False):
+    def __init__(self,BLACS,WorkerClass,notebook,settings,workerargs={},restart=False):
+        self.BLACS = BLACS
         self.notebook = notebook
         self.settings = settings
         self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
@@ -166,9 +167,11 @@ class Tab(object):
         # Note: the following function call will break if the user hasn't
         # overridden the __init__ function to take these arguments. So
         # make sure you do that!
-        self.__init__(self.notebook, self.settings,restart=True)
+        self.__init__(self.BLACS, self.notebook, self.settings,restart=True)
         self.notebook.reorder_child(self._toplevel,currentpage)
         self.notebook.set_current_page(currentpage)
+        # If BLACS is waiting on this tab for something, tell it to abort!
+        self.BLACS.current_queue.put('abort')
     
     def queue_work(self,funcname,*args,**kwargs):
         self._work = (funcname,args,kwargs)

@@ -171,7 +171,7 @@ if __name__ == "__main__":
                     if notebook_num not in self.notebook:        
                         notebook_num = "1"
                         
-                self.tablist[k] = globals()[v](self.notebook[notebook_num],self.settings_dict[k])
+                self.tablist[k] = globals()[v](self,self.notebook[notebook_num],self.settings_dict[k])
             
             # Now that all the pages are created, reorder them!
             for k,v in self.attached_devices.items():
@@ -470,13 +470,17 @@ if __name__ == "__main__":
             # imported. So we'll silence them in this thread too:
             h5py._errors.silence_errors()
             
+            # This name stores the queue currently being used to
+            # communicate with tabs, so that abort signals can be put
+            # to it when those tabs never respond and are restarted by
+            # the user.
+            self.current_queue = Queue.Queue()
+            
             timeout_limit = 130 #seconds
             
             with gtk.gdk.lock:
                 self.status_bar.set_text("Idle")
-            outfile = open(r'C:\\pythonlib\BLACS\timing.txt','w')
             while self.manager_running:
-                total_start_time = t0 = time.time()
                 # If the pause button is pushed in, sleep
                 if self.manager_paused:
                     with gtk.gdk.lock:
@@ -504,13 +508,11 @@ if __name__ == "__main__":
                     self.now_running.set_markup('Now running: <b>%s</b>'%os.path.basename(path))
                     self.now_running.show()
                 logger.info('Got a file: %s' % path)
-                outfile.write('\ngetting a file:    ' + str(time.time() - t0))
-                t0 = time.time()
                 # Transition devices to buffered mode
                 transition_list = {}     
                 # A Queue for event-based notification when the tabs have
                 # completed transitioning to buffered:
-                notify_queue_buffered = Queue.Queue()           
+                self.current_queue = Queue.Queue()           
                 start_time = time.time()
                 timed_out = False
                 error_condition = False
@@ -524,7 +526,7 @@ if __name__ == "__main__":
                                     logger.error('%s has an error condition, aborting run' % name)
                                     error_condition = True
                                     break
-                                tab.transition_to_buffered(path,notify_queue_buffered)
+                                tab.transition_to_buffered(path,self.current_queue)
                                 transition_list[name] = tab
                 
                 devices_in_use = transition_list.copy()
@@ -532,7 +534,11 @@ if __name__ == "__main__":
                 while transition_list and not error_condition:
                     try:
                         # Wait for a device to transtition_to_buffered:
-                        name = notify_queue_buffered.get(timeout=2)
+                        name = self.current_queue.get(timeout=2)
+                        if name == 'abort':
+                            logger.info('abort signal received during transition to buffered' % name)
+                            error_condition = True
+                            break
                         logger.debug('%s finished transitioning to buffered mode' % name)
                         # The tab says it's done, but does it have an error condition?
                         if transition_list[name].error:
@@ -573,8 +579,6 @@ if __name__ == "__main__":
                     with gtk.gdk.lock:
                         self.now_running.hide()
                     continue
-                outfile.write('\nTransition to buffered:    ' + str(time.time() - t0))
-                t0 = time.time()
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
                     # Get front panel data, but don't save it to the h5 file until the experiment ends:
@@ -583,24 +587,22 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Running...(program time: "+str(time.time() - start_time)+"s")
                     
-                outfile.write('\nGetting front panel state:    ' + str(time.time() - t0))
-                t0 = time.time()
                 # A Queue for event-based notification of when the experiment has finished.
-                notify_queue_end_run = Queue.Queue()   
+                self.current_queue = Queue.Queue()   
                 
                 # Tell the Pulseblaster to start the run and to let us know when the it's finished:
                 
                 logger.debug('About to start the PulseBlaster')
-                self.tablist["pulseblaster_0"].start_run(notify_queue_end_run)
+                self.tablist["pulseblaster_0"].start_run(self.current_queue)
                 
                 # Science!
                 
                 # Wait for notification of the end of run:
-                notify_queue_end_run.get()
+                result = self.current_queue.get()
+                if result == 'abort':
+                    pass # not implemented
                 logger.info('Run complete')
                 
-                outfile.write('\nrun:    ' + str(time.time() - t0))
-                t0 = time.time()
                 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
@@ -610,35 +612,45 @@ if __name__ == "__main__":
                     data_group = hdf5_file['/'].create_group('data')
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',time.localtime())
-                outfile.write('\nSaving front panel state:    ' + str(time.time() - t0))
-                t0 = time.time()
         
                 # A Queue for event-based notification of when the devices have transitioned to static mode:
-                notify_queue_static = Queue.Queue()    
+                self.current_queue = Queue.Queue()    
                     
                 # only transition one device to static at a time,
                 # since writing data to the h5 file can potentially
                 # happen at this stage:
+                error_condition = False
                 for devicename, tab in devices_in_use.items():
                     with gtk.gdk.lock:
-                        tab.transition_to_static(notify_queue_static)
-                    notify_queue_static.get()
-                            
-                logger.info('All devices are back in static mode.')  
-                outfile.write('\nTransition to static:    ' + str(time.time() - t0))
-                t0 = time.time()
-                # Submit to the analysis server, if submission is enabled:
-                self.analysis_queue.put(['file', path])            
+                        tab.transition_to_static(self.current_queue)
+                    result = self.current_queue.get()
+                    if result == 'abort':
+                        error_condition = True
+                    if tab.error:
+                        error_condition = True
+                if not error_condition:            
+                    logger.info('All devices are back in static mode.')  
+                    # Submit to the analysis server, if submission is enabled:
+                    self.analysis_queue.put(['file', path])
                         
-                with gtk.gdk.lock:
-                    self.status_bar.set_text("Idle")
-                    if self.manager_repeat:
-                        # Resubmit job to the bottom of the queue:
-                        process_request(path)
-                    self.now_running.hide()
-                outfile.write('\nFinalisation stuff:' + str(time.time() - t0))
-                outfile.flush()
-                outfile.write('\nTotal for run:' + str(time.time() - total_start_time))
+                    with gtk.gdk.lock:
+                        self.status_bar.set_text("Idle")
+                        if self.manager_repeat:
+                            # Resubmit job to the bottom of the queue:
+                            process_request(path)
+                        self.now_running.hide()
+                else:
+                    self.manager_paused = True
+                    # clean the h5 file:
+                    self.clean_h5_file(path, 'temp.h5')
+                    os.remove(path)
+                    os.rename('temp.h5', path)
+                    # Put it back at the start of the queue:
+                    self.queue.prepend([path])
+                    with gtk.gdk.lock:
+                        self.queue_pause_button.set_state(True)
+                        self.status_bar.set_text("Error during transtion to static. Queue Paused.")
+                        self.now_running.hide()
             logger.info('Stopping')
 
     class AnalysisSubmission(object):

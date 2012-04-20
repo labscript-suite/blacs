@@ -16,8 +16,8 @@ class novatechdds9m(Tab):
     phase_max = 360
     phase_step = 1
         
-    def __init__(self,notebook,settings,restart=False):
-        Tab.__init__(self,NovatechDDS9mWorker,notebook,settings)
+    def __init__(self,BLACS,notebook,settings,restart=False):
+        Tab.__init__(self,BLACS,NovatechDDS9mWorker,notebook,settings)
         self.settings = settings
         self.device_name = settings['device_name']
         self.fresh = False # whether to force a full reprogramming of table mode
@@ -188,6 +188,8 @@ class novatechdds9m(Tab):
             abort = True
         else: abort = False
         self.queue_work('transition_to_static',abort=abort)
+        # Tell the queue manager once we're done:
+        self.do_after('leave_transition_to_static',notify_queue)
         # Update the gui to reflect the current hardware values:
         if not abort:
             # The final results don't say anything about the checkboxes;
@@ -196,10 +198,12 @@ class novatechdds9m(Tab):
                 self.final_values['en%d'%i] = True
             self.set_front_panel_state(self.final_values)
         self.static_mode=True
-        # Tell the queue manager that we're done:
-        if notify_queue:
-            notify_queue.put(self.device_name)
     
+    def leave_transition_to_static(self,notify_queue,_results):    
+        # Tell the queue manager that we're done:
+        if notify_queue is not None:
+            notify_queue.put(self.device_name)
+            
     @define_state
     def toggle_fresh(self,button):
         if button.get_active():
