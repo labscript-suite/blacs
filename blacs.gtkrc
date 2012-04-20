@@ -1,5 +1,5 @@
 gtk-color-scheme = "green:#33CC4D\nbg_color:#EDECEB\nwhite:#FFFFFF\nblack:#000000"
-
+ 
 style "pressed_toggle" {
 	xthickness = 3
 	ythickness = 3
