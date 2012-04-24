@@ -20,7 +20,7 @@ AnalogIn( 'By_mon', ni_pcie_6363_0, 'ai1')
 AnalogIn( 'Bz_mon', ni_pcie_6363_0, 'ai2')
 
 # QUAD DRIVER
-AnalogOut(          'Bq',  ni_pci_6733_0, 'ao6', unit_conversion_class=quad_driver, unit_conversion_parameters={'A_per_V':Bq_A_per_V, 'Gcm_per_A':Bq_Gcm_per_A})
+AnalogOut(          'Bq', ni_pcie_6363_0, 'ao6', unit_conversion_class=quad_driver, unit_conversion_parameters={'A_per_V':Bq_A_per_V, 'Gcm_per_A':Bq_Gcm_per_A})
 DigitalOut( 'cap_charge', ni_pcie_6363_0, 'port0/line11')
 AnalogIn( 'quad_current', ni_pcie_6363_0, 'ai3')
 
@@ -50,7 +50,7 @@ AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai9')
 
 # SUPERNOVA
 DDS(                  'MOPA', novatechdds9m_9, 'channel 0', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line4'})
-DDS(                   'MOT', novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'}, unit_conversion_class=detuning, unit_conversion_parameters={'pass':2, 'detuning_0':2*MOPA_frequency+80})
+DDS(                   'MOT', novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'}, freq_conv_class=detuning, freq_conv_params={'pass':2, 'detuning_0':2*MOPA_frequency+80})
 StaticDDS(          'Zeeman', novatechdds9m_9, 'channel 2', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line6'})
 StaticDDS( 'MOT_repump_lock', novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
 DigitalOut(   'table_enable',  ni_pcie_6363_0, 'port0/line21')
