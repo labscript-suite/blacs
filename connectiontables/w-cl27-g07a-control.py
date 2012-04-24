@@ -30,17 +30,20 @@ DigitalOut( 'Zeeman_coil_2', ni_pcie_6363_0, 'port0/line0')
 
 # SHUTTERS
 Shutter(           'MOT_shutter', ni_pcie_6363_0, 'port0/line17', delay=(0,0))
-Shutter(    'MOT_repump_shutter', ni_pcie_6363_0, 'port0/line18', delay=(0,0))
+Shutter(       'imaging_shutter', ni_pcie_6363_0, 'port0/line18', delay=(0,0))
 Shutter(        'Zeeman_shutter', ni_pcie_6363_0, 'port0/line19', delay=(0,0))
 Shutter( 'Zeeman_repump_shutter', ni_pcie_6363_0, 'port0/line20', delay=(0,0))
-#Shutter(       'Imaging_shutter',  ni_pcie_6363_0, 'port0/line8', delay=(0,0))
+
+#ATOM BEAM SHUTTER
+DigitalOut('Atom_Shutter', ni_pcie_6363_0, 'port0/line3')
 
 # POWER MONITORING
-AnalogIn(     'MOT_power', ni_pcie_6363_0, 'ai4')
-AnalogIn(  'Zeeman_power', ni_pcie_6363_0, 'ai5')
-AnalogIn(      'OP_power', ni_pcie_6363_0, 'ai6')
-AnalogIn( 'Imaging_power', ni_pcie_6363_0, 'ai7')
-AnalogIn(  'TA_seed_leak', ni_pcie_6363_0, 'ai8')
+AnalogIn(     'MOT_power', ni_pcie_6363_0,  'ai4')
+AnalogIn(  'Zeeman_power', ni_pcie_6363_0,  'ai5')
+AnalogIn(      'OP_power', ni_pcie_6363_0,  'ai6')
+#AnalogIn( 'Imaging_power', ni_pcie_6363_0,  'ai7')
+AnalogIn(  'TA_seed_leak', ni_pcie_6363_0,  'ai8')
+AnalogIn( 'imaging_power', ni_pcie_6363_0, 'ai18')
 
 # FLUORESCENCE MONITORING
 AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai9')
@@ -49,14 +52,14 @@ AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai9')
 DDS(                  'MOPA', novatechdds9m_9, 'channel 0', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line4'})
 DDS(                   'MOT', novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'})   # proposed RF channel
 StaticDDS(          'Zeeman', novatechdds9m_9, 'channel 2', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line6'})
-StaticDDS( 'MOT_repump_lock', novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
+StaticDDS( 'Optical_Pumping', novatechdds9m_9, 'channel 3', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line7'})
 DigitalOut(   'Table_Enable',  ni_pcie_6363_0, 'port0/line21')
 
 # IMAGING SYSTEM
 Camera( 'avt_gx1920_0', ni_pcie_6363_0, 'port0/line1', 0.1, 'side')
 
 # PULSEBLASTER 0 DDS
-DDS(         'Imaging',  pulseblaster_0,     'dds 0')
+DDS(    'Imaging',  pulseblaster_0,     'dds 0')
 DDS( 'MOT_repump',  pulseblaster_0,     'dds 1')
 
 # FLUORESCENCE MONITORING
