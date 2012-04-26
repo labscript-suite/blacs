@@ -462,8 +462,16 @@ class Worker2(multiprocessing.Process):
                     except Exception as e:
                         logger.error('acquisition error: %s' %str(e))
                         if self.abort:
-                            # If an abort is in progress, then we expect an excpetion here. Don't raise it.
-                            logger.debug('ignoring error since an abort is in progress')
+                            # If an abort is in progress, then we expect an exception here. Don't raise it.
+                            logger.debug('ignoring error since an abort is in progress.')
+                            # Ensure the next iteration of this while loop
+                            # doesn't happen until the task is restarted.
+                            # The thread calling self.stop_task() is
+                            # also setting self.task_running = False
+                            # right about now, but we don't want to rely
+                            # on it doing so in time. Doing it here too
+                            # avoids a race condition.
+                            self.task_running = False
                             continue
                         raise e
                 # send the data to the queue
