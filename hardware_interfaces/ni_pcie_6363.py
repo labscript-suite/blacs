@@ -389,6 +389,7 @@ class Worker2(multiprocessing.Process):
         self.buffered_data_list = []
         
         self.task = None
+        self.abort = False
         
         self.daqmx_read_thread = threading.Thread(target=self.daqmx_read)
         self.daqmx_read_thread.daemon = True
@@ -460,6 +461,10 @@ class Worker2(multiprocessing.Process):
                             logger.warning(error)
                     except Exception as e:
                         logger.error('acquisition error: %s' %str(e))
+                        if self.abort:
+                            # If an abort is in progress, then we expect an excpetion here. Don't raise it.
+                            logger.debug('ignoring error since an abort is in progress')
+                            continue
                         raise e
                 # send the data to the queue
                 if self.buffered:
@@ -577,7 +582,11 @@ class Worker2(multiprocessing.Process):
     def transition_to_static(self,device_name,abort):
         self.logger.debug('transition_to_static')
         # Stop acquisition (this should really be done on a digital edge, but that is for later! Maybe use a Counter)
-        self.stop_task()        
+        # Set the abort flag so that the acquisition thread knows to expect an exception in the case of an abort:
+        self.abort = abort
+        self.stop_task()
+        # Reset the abort flag so that unexpected exceptions are still raised:        
+        self.abort = False
         self.logger.info('transitioning to static, task stopped')
         # save the data acquired to the h5 file
         if not abort:
