@@ -362,8 +362,7 @@ class NiPCIe6363Worker(Worker):
         self.to_child.put(["transition to static",(self.device_name,abort)])
         result,message = self.from_child.get()
         if result == 'error':
-            if not abort: # Ignore the error if the run was aborted:
-                raise Exception(message)
+            raise Exception(message)
         
 # Worker class for AI input:
 class Worker2(multiprocessing.Process):
