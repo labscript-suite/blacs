@@ -49,7 +49,7 @@ DDS(            'K_Repump',                             novatechdds9m_2,        
 StaticDDS(      'K_Lock',                               novatechdds9m_2,        'channel 2')
 StaticDDS(      'K_Push',                               novatechdds9m_2,        'channel 3', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line7'})
 
-DDS(            'Dipole_Trap',                           novatechdds9m_3,        'channel 0')
+DDS(            'Dipole_Trap',                           novatechdds9m_1,        'channel 1')
 #DDS(            '',                             novatechdds9m_3,        'channel 1')
 #StaticDDS(      '',                               novatechdds9m_3,        'channel 2')
 #StaticDDS(      '',                               novatechdds9m_3,        'channel 3')
