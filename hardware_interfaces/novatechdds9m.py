@@ -1,14 +1,14 @@
 import gtk
 from output_classes import AO, DO, DDS
 from tab_base_classes import Tab, Worker, define_state
-
+from time import time
 class novatechdds9m(Tab):
     # Capabilities
     num_DDS = 4
     
-    freq_min = 0.0000001   # In MHz
-    freq_max = 170.0
-    freq_step = 1
+    freq_min = 0.1   # In MHz
+    freq_max = 170.0*10.0**6
+    freq_step = 10**6
     amp_min = 0            # In Vpp
     amp_max = 1023
     amp_step = 1
@@ -58,7 +58,7 @@ class novatechdds9m(Tab):
 
             freq_calib = None
             freq_calib_params = {}
-            def_freq_calib_params = "MHz"
+            def_freq_calib_params = "Hz"
             amp_calib = None
             amp_calib_params = {}
             def_amp_calib_params = "Arb."
@@ -259,7 +259,7 @@ class NovatechDDS9mWorker(Worker):
         for i, line in enumerate(response[:4]):
             freq, phase, amp, ignore, ignore, ignore, ignore = line.split()
             # Convert hex multiple of 0.1 Hz to MHz:
-            results['freq%d'%i] = float(int(freq,16))/10**7
+            results['freq%d'%i] = float(int(freq,16))/10
             # Convert hex to int:
             results['amp%d'%i] = int(amp,16)
             # Convert hex fraction of 16384 to degrees:
@@ -268,7 +268,7 @@ class NovatechDDS9mWorker(Worker):
         
     def program_static(self,channel,type,value):
         if type == 'freq':
-            self.connection.write('F%d %f\r\n'%(channel,value))
+            self.connection.write('F%d %f\r\n'%(channel,value/10.0**6))
             if self.connection.readline() != "OK\r\n":
                 raise Exception('Error: Failed to execute command: '+'F%d %f\r\n'%(channel,value))
         elif type == 'amp':
@@ -312,8 +312,8 @@ class NovatechDDS9mWorker(Worker):
                     
                     # Save these values into final_values so the GUI can
                     # be updated at the end of the run to reflect them:
-                    self.final_values['freq2'] = data['freq2']/10.0**7
-                    self.final_values['freq3'] = data['freq3']/10.0**7
+                    self.final_values['freq2'] = data['freq2']/10.0
+                    self.final_values['freq3'] = data['freq3']/10.0
                     self.final_values['amp2'] = data['amp2']
                     self.final_values['amp3'] = data['amp3']
                     self.final_values['phase2'] = data['phase2']*360/16384.0
@@ -323,11 +323,15 @@ class NovatechDDS9mWorker(Worker):
             if 'TABLE_DATA' in group:
                 data = group['TABLE_DATA'][:]
                 for i, line in enumerate(data):
+                    st = time()
                     oldtable = self.smart_cache['TABLE_DATA']
                     for ddsno in range(2):
                         if fresh or i >= len(oldtable) or (line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]) != (oldtable[i]['freq%d'%ddsno],oldtable[i]['phase%d'%ddsno],oldtable[i]['amp%d'%ddsno]):
                             self.connection.write('t%d %04x %08x,%04x,%04x,ff\r\n '%(ddsno, i,line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]))
                             self.connection.readline()
+                    et = time()
+                    tt=et-st
+                    self.logger.debug('Time spent on line %s: %s'%(i,tt))
                 # Store the table for future smart programming comparisons:
                 try:
                     self.smart_cache['TABLE_DATA'][:len(data)] = data
@@ -338,8 +342,8 @@ class NovatechDDS9mWorker(Worker):
                     
                 # Get the final values of table mode so that the GUI can
                 # reflect them after the run:
-                self.final_values['freq0'] = data[-1]['freq0']/10.0**7
-                self.final_values['freq1'] = data[-1]['freq1']/10.0**7
+                self.final_values['freq0'] = data[-1]['freq0']/10.0
+                self.final_values['freq1'] = data[-1]['freq1']/10.0
                 self.final_values['amp0'] = data[-1]['amp0']
                 self.final_values['amp1'] = data[-1]['amp1']
                 self.final_values['phase0'] = data[-1]['phase0']*360/16384.0
@@ -377,7 +381,7 @@ class NovatechDDS9mWorker(Worker):
             
         for ddsnumber in DDSs:
             if 'freq%d'%ddsnumber in values:
-                 command = 'F%d %f\r\n' %(ddsnumber, values['freq%d'%ddsnumber])
+                 command = 'F%d %f\r\n' %(ddsnumber, values['freq%d'%ddsnumber]/10.0**6)
                  self.connection.write(command)
                  if self.connection.readline() != "OK\r\n":
                      raise Exception('Error: Failed to execute %s'%command)
