@@ -42,7 +42,7 @@ DigitalOut('atom_shutter', ni_pcie_6363_0, 'port0/line3')
 AnalogIn(     'MOT_power', ni_pcie_6363_0,  'ai4')
 AnalogIn(  'Zeeman_power', ni_pcie_6363_0,  'ai5')
 AnalogIn(      'OP_power', ni_pcie_6363_0,  'ai6')
-AnalogIn( 'imaging_power', ni_pcie_6363_0,  'ai7')
+AnalogIn( 'imaging_power', ni_pcie_6363_0,  'ai19')
 
 # FLUORESCENCE MONITORING
 AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai8')
