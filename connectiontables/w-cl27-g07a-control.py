@@ -28,7 +28,7 @@ AnalogIn( 'quad_current', ni_pcie_6363_0, 'ai3')
 DigitalOut( 'Zeeman_coil_2', ni_pcie_6363_0, 'port0/line0')
 
 # SHUTTERS
-#Shutter(           'MOT_shutter', ni_pcie_6363_0, 'port0/line17', delay=(0,0))
+Shutter(           'MOT_shutter', ni_pcie_6363_0, 'port0/line17', delay=(0,0))
 Shutter(    'MOT_repump_shutter', ni_pcie_6363_0, 'port0/line18', delay=(0,0))
 Shutter(        'Zeeman_shutter', ni_pcie_6363_0, 'port0/line19', delay=(0,0))
 Shutter( 'Zeeman_repump_shutter', ni_pcie_6363_0, 'port0/line20', delay=(0,0))
@@ -39,10 +39,11 @@ Shutter(       'imaging_shutter', ni_pcie_6363_0, 'port0/line21', delay=(0,0))
 DigitalOut('atom_shutter', ni_pcie_6363_0, 'port0/line3')
 
 # POWER MONITORING
-AnalogIn(     'MOT_power', ni_pcie_6363_0,  'ai4')
-AnalogIn(  'Zeeman_power', ni_pcie_6363_0,  'ai5')
-AnalogIn(      'OP_power', ni_pcie_6363_0,  'ai6')
-AnalogIn( 'imaging_power', ni_pcie_6363_0,  'ai19')
+AnalogIn(             'MOT_power', ni_pcie_6363_0,  'ai16')
+AnalogIn(          'Zeeman_power', ni_pcie_6363_0,  'ai17')
+AnalogIn(      'MOT_repump_power', ni_pcie_6363_0,  'ai18')
+AnalogIn(         'imaging_power', ni_pcie_6363_0,  'ai19')
+AnalogIn( 'optical_pumping_power', ni_pcie_6363_0,  'ai20')
 
 # FLUORESCENCE MONITORING
 AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai8')
@@ -69,8 +70,10 @@ DDS( 'optical_pumping', pulseblaster_1, 'dds 1')
 DigitalOut( 'cro_trigger', ni_pcie_6363_0, 'port0/line15')
 AnalogIn(      'aux_in_0', ni_pcie_6363_0, 'ai10')
 AnalogIn(      'aux_in_1', ni_pcie_6363_0, 'ai11')
-AnalogOut(     'aux_out_0', ni_pcie_6363_0, 'ao0')
-AnalogOut(     'aux_out_1', ni_pcie_6363_0, 'ao1')
-AnalogOut(     'aux_out_2',  ni_pci_6733_0, 'ao7')
+AnalogIn(      'aux_in_2', ni_pcie_6363_0, 'ai22')
+AnalogIn(      'aux_in_3', ni_pcie_6363_0, 'ai23')
+AnalogOut(    'aux_out_0', ni_pcie_6363_0, 'ao0')
+AnalogOut(    'aux_out_1', ni_pcie_6363_0, 'ao1')
+AnalogOut(    'aux_out_2',  ni_pci_6733_0, 'ao7')
 
 stop(1)
