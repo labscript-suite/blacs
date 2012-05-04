@@ -61,8 +61,9 @@ DDS(    'imaging', pulseblaster_0, 'dds 0')
 DDS( 'MOT_repump', pulseblaster_0, 'dds 1')
 
 # PULSEBLASTER 1 DDS
-DDS(         'RF_evap', pulseblaster_1, 'dds 0')
+DDS(         'rf_evap', pulseblaster_1, 'dds 0')
 DDS( 'optical_pumping', pulseblaster_1, 'dds 1')
+DigitalOut( 'pulseblaster_1_trigger', pulseblaster_0, 'flag 2')
 
 # AUXILLARY
 DigitalOut( 'cro_trigger', ni_pcie_6363_0, 'port0/line15')
