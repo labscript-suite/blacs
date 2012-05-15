@@ -707,9 +707,9 @@ if __name__ == "__main__":
                 if signal == 'close':
                     break
                 elif signal == 'file':
-					with gtk.gdk.lock:
-						if self.toggle_analysis.get_active():
-							self.waiting_for_submission.append(data)
+                    with gtk.gdk.lock:
+                        if self.toggle_analysis.get_active():
+                            self.waiting_for_submission.append(data)
                     self.submit_waiting_files()
                 elif signal == 'try again':
                     self.submit_waiting_files()
