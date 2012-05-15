@@ -446,7 +446,7 @@
                                   <object class="GtkImage" id="image8">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
-                                    <property name="stock">gtk-refresh</property>
+                                    <property name="icon_name">media-playlist-repeat</property>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
