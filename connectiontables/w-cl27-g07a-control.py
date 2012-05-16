@@ -33,7 +33,7 @@ Shutter(    'MOT_repump_shutter', ni_pcie_6363_0, 'port0/line18', delay=(0,0))
 Shutter(        'Zeeman_shutter', ni_pcie_6363_0, 'port0/line19', delay=(0,0))
 Shutter( 'Zeeman_repump_shutter', ni_pcie_6363_0, 'port0/line20', delay=(0,0))
 Shutter(       'imaging_shutter', ni_pcie_6363_0, 'port0/line21', delay=(0,0))
-#Shutter(            'OP_shutter', ni_pcie_6363_0, 'port0/line22', delay=(0,0))
+Shutter(            'OP_shutter', ni_pcie_6363_0, 'port0/line22', delay=(0,0))
 Shutter(          'atom_shutter', ni_pcie_6363_0,  'port0/line3', delay=(0,0))
 
 # POWER MONITORING
