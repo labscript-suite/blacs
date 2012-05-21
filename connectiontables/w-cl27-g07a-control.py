@@ -62,7 +62,7 @@ DDS( 'MOT_repump', pulseblaster_0, 'dds 1')
 
 # PULSEBLASTER 1 DDS
 DDS(         'rf_evap', pulseblaster_1, 'dds 0')
-DDS( 'optical_pumping', pulseblaster_1, 'dds 1')
+DDS(     'dipole_trap', pulseblaster_1, 'dds 1')
 DigitalOut( 'pulseblaster_1_trigger', pulseblaster_0, 'flag 2')
 
 # AUXILLARY
