@@ -647,7 +647,7 @@ if __name__ == "__main__":
                         os.remove(path)
                         os.rename('temp.h5', path)
                     except WindowsError if os.name == 'nt' else None:
-                        logger.warning('Couldn\'t delete failed run file, another process may be using it. Using alternate filename for second attempt.')
+                        logger.warning('Couldn\'t delete failed run file %s, another process may be using it. Using alternate filename for second attempt.'%path)
                         os.rename('temp.h5', path.replace('.h5','_retry.h5'))
                     # Put it back at the start of the queue:
                     self.queue.prepend([path])
