@@ -11,11 +11,11 @@ NovaTechDDS9M( 'novatechdds9m_3', pulseblaster_1, 'fast clock')
 
 #DigitalOut(     'Fast_Clock',                           pulseblaster_0,         'flag 0')
 #DigitalOut(     'Slow_Clock',                           pulseblaster_0,         'flag 1')                                       #NT_1,2,3
-DigitalOut(     'Novatech_1_1',                          pulseblaster_0,         'flag 2')                                       #NT_1_1 gate
+#DigitalOut(     'Novatech_1_1',                          pulseblaster_0,         'flag 2')                                       #NT_1_1 gate
 #DigitalOut(     '',          pulseblaster_0,         'flag 3')                                       #NT_1_2 gate -- In use in Rb_Push DDS
 #DigitalOut(     '',          pulseblaster_0,         'flag 4')                                       #NT_1_0 gate -- In use in Rb_Optical_Pumping DDS
 #DigitalOut(     'Wait',                                 pulseblaster_0,         'flag 5')
-#DigitalOut(     '',                                     pulseblaster_0,         'flag 6')                                       
+#DigitalOut(     '',                          pulseblaster_0,         'flag 6')                                       
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 7')                                       
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 8')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 9')
@@ -40,7 +40,7 @@ StaticDDS(       'Rb_Source_Repump',                     novatechdds9m_0,       
 StaticDDS(       'Rb_Main_Lock',                         novatechdds9m_0,        'channel 3')
 
 DDS(            'Rb_Central_Imaging',                    novatechdds9m_1,        'channel 0', digital_gate={'device':pulseblaster_0,'connection':'flag 4'})
-#DDS(            '',                                     novatechdds9m_1,        'channel 1', digital_gate={'device':pulseblaster_0,'connection':'flag 2'})
+
 StaticDDS(      'Rb_Push',                            novatechdds9m_1,        'channel 2', digital_gate={'device':pulseblaster_0,'connection':'flag 3'})
 StaticDDS(       'Rb_Source_MOT',                  novatechdds9m_1,        'channel 3', digital_gate={'device':pulseblaster_0,'connection':'flag 5'})
 
@@ -49,15 +49,16 @@ DDS(            'K_Repump',                             novatechdds9m_2,        
 StaticDDS(      'K_Lock',                               novatechdds9m_2,        'channel 2')
 StaticDDS(      'K_Push',                               novatechdds9m_2,        'channel 3', digital_gate={'device':ni_pcie_6363_0,'connection':'port0/line7'})
 
-DDS(            'Dipole_Trap',                           novatechdds9m_1,        'channel 1')
-#DDS(            '',                             novatechdds9m_3,        'channel 1')
+
+DDS(            'Dipole_Trap',                           novatechdds9m_3,        'channel 0', digital_gate={'device':pulseblaster_1,'connection':'flag 3'})
+DDS(            'Evap_RF',                             novatechdds9m_3,        'channel 1', digital_gate={'device':pulseblaster_1,'connection':'flag 2'})
 #StaticDDS(      '',                               novatechdds9m_3,        'channel 2')
 #StaticDDS(      '',                               novatechdds9m_3,        'channel 3')
 
 
 #AnalogOut(      '',                                   ni_pcie_6363_0,         'ao0')
 #AnalogOut(      '',                                     ni_pcie_6363_0,         'ao1')
-AnalogOut(      'top_racetrack',                         ni_pcie_6363_0,         'ao2')
+AnalogOut(      'Sorensen_Voltage',                         ni_pcie_6363_0,         'ao2')
 AnalogOut(      'bottom_racetrack',                      ni_pcie_6363_0,         'ao3')
 
 AnalogOut(      'Central_Bq',                      ni_pci_6733_0,         'ao0')
@@ -72,7 +73,7 @@ AnalogOut(      'Unused',                      ni_pci_6733_0,         'ao5')
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line0')                                  #NT_0_0 gate -- In use in RB_Central_MOT DDS
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line1')                                  #NT_0_1 gate -- In use in RB_Source_MOT DDS
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line2')                                  #NT_0_2 -- In use in Rb_Repump DDS
-# DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line3')
+DigitalOut(     'pb_1_trigger',                          ni_pcie_6363_0,         'port0/line3') 
 #DigitalOut(     '',                                 ni_pcie_6363_0,         'port0/line4')                                  #NT_2_0 gate -- In use in K_Main_MOT DDS
 #DigitalOut(     '',                    ni_pcie_6363_0,         'port0/line5')                                  #NT_2_1 gate -- In use in K_Repump DDS
 DigitalOut(     'K_Lock_RF_Switch',                      ni_pcie_6363_0,         'port0/line6')                                  #NT_2_2
