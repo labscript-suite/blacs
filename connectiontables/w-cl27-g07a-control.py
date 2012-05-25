@@ -46,6 +46,9 @@ AnalogIn( 'optical_pumping_power', ni_pcie_6363_0,  'ai20')
 # FLUORESCENCE MONITORING
 AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai8')
 
+#  DIPOLE TRAP POWER MONITOR
+AnalogIn( 'ODT_power', ni_pcie_6363_0, 'ai4')
+
 # SUPERNOVA
 DDS(                  'MOPA', novatechdds9m_9, 'channel 0', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line4'}, freq_conv_class=detuning, freq_conv_params={'pass':-2, 'detuning_0':-80})
 DDS(                   'MOT', novatechdds9m_9, 'channel 1', digital_gate = {'device': ni_pcie_6363_0, 'connection': 'port0/line5'}, freq_conv_class=detuning, freq_conv_params={'pass':2, 'detuning_0':-2*MOPA_frequency-80})
