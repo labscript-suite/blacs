@@ -497,6 +497,8 @@ class Worker2(multiprocessing.Process):
         #DAQmx Configure Code
         with self.daqlock:
             self.logger.debug('setup_task got daqlock')
+            if self.task:
+                self.task.ClearTask()##
             if self.buffered:
                 chnl_list = self.buffered_channels
                 rate = self.buffered_rate
