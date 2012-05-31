@@ -2,11 +2,13 @@ from labscript import *
 from unitconversions import *
 
 # MAIN DEVICE DEFINITIONS
-PulseBlaster(   'pulseblaster_0')
-PulseBlaster(   'pulseblaster_1')
-NI_PCIe_6363(   'ni_pcie_6363_0',  pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0', acquisition_rate=1e4)
-NI_PCI_6733(     'ni_pci_6733_0',  pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0')
-NovaTechDDS9M( 'novatechdds9m_9',  pulseblaster_0, 'slow clock')
+PulseBlaster(     'pulseblaster_0')
+PulseBlaster(     'pulseblaster_1')
+#PulseBlaster(     'pulseblaster_2')
+NI_PCIe_6363(     'ni_pcie_6363_0', pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0', acquisition_rate=1e4)
+NI_PCI_6733(       'ni_pci_6733_0', pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0')
+NovaTechDDS9M(   'novatechdds9m_9', pulseblaster_0, 'slow clock')
+DigitalOut( 'pulseblaster_trigger', pulseblaster_0, 'flag 2')
 
 # MAG-NEAT-O CONTROL
 AnalogOut(   'Bx0',  ni_pci_6733_0, 'ao0')
@@ -66,7 +68,9 @@ DDS( 'MOT_repump', pulseblaster_0, 'dds 1')
 # PULSEBLASTER 1 DDS
 DDS(         'rf_evap', pulseblaster_1, 'dds 0')
 DDS(     'dipole_trap', pulseblaster_1, 'dds 1')
-DigitalOut( 'pulseblaster_1_trigger', pulseblaster_0, 'flag 2')
+
+# PULSEBLASTER 2 DDS
+# DDS(     'dipole_trap', pulseblaster_2, 'dds 0')
 
 # AUXILLARY
 DigitalOut( 'cro_trigger', ni_pcie_6363_0, 'port0/line15')
