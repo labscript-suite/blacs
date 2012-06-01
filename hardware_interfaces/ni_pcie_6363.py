@@ -453,7 +453,8 @@ class Worker2(multiprocessing.Process):
                         chnl_list = self.channels
                     try:
                         error = "Task did not return an error, but it should have"
-                        error = self.task.ReadAnalogF64(self.samples_per_channel,5,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
+                        acquisition_timeout = 5
+                        error = self.task.ReadAnalogF64(self.samples_per_channel,acquisition_timeout,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
                         logger.debug('Reading complete')
                         if error < 0:
                             raise Exception(error)
@@ -473,7 +474,11 @@ class Worker2(multiprocessing.Process):
                             # avoids a race condition.
                             self.task_running = False
                             continue
-                        raise e
+                        else:
+                            # Error was likely a timeout error...some other device might be bing slow 
+                            # transitioning to buffered, so we haven't got our start trigger yet. 
+                            # Keep trying until task_running is False:
+                            continue
                 # send the data to the queue
                 if self.buffered:
                     # rearrange ai_data into correct form
