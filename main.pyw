@@ -23,11 +23,16 @@ if __name__ == "__main__":
     import numpy
     import h5py
     
+    from filewatcher import FileWatcher
+    
     # Connection Table Code
     from connections import ConnectionTable
     
     # Save/restore frontpanel code
     from front_panel_settings import FrontPanelSettings
+    
+    # Notification code
+    from notifications import Notifications
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -80,6 +85,9 @@ if __name__ == "__main__":
             self.builder.add_from_file('main_interface.glade')
             self.builder.connect_signals(self)
             self.window = self.builder.get_object("window")
+            self.mainbox = self.builder.get_object("main_box")
+            self.notifications = Notifications(self)
+            
             self.notebook = {}
             self.notebook["1"] = self.builder.get_object("notebook1")
             self.notebook["2"] = self.builder.get_object("notebook2")
@@ -98,6 +106,9 @@ if __name__ == "__main__":
             self.queue_pause_button = self.builder.get_object("Queue_Pause")
             self.now_running = self.builder.get_object('label_now_running')
             self.analysis_container = self.builder.get_object('analysis_submission_container')
+ 
+            #self.connection_table_widget = self.builder.get_object('expanded_recompile')
+            #self.connection_table_widget.hide()
  
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
@@ -136,12 +147,14 @@ if __name__ == "__main__":
                                   "ni_pci_6733_0":{"device_name":"ni_pci_6733_0"},
                                   "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
                                   "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
+                                  "pulseblaster_2":{"device_name":"pulseblaster_2","device_num":2,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
                                   "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
                                   "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
                                   "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com11"},
                                   "novatechdds9m_3":{"device_name":"novatechdds9m_3","COM":"com12"},
                                   "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
-                                  "camera":{"device_name":"camera"}
+                                  "camera":{"device_name":"camera"},
+                                  #"zaber_stages":{"device_name":"zaber_stages","COM":"com1"},
                                  }
             
             # read out position settings:
@@ -233,6 +246,17 @@ if __name__ == "__main__":
             self.analysis_queue = Queue.Queue()
             self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue)
             
+            file_list = [os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".py"),
+                         os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".h5")]
+            
+            # append the list of globals
+            
+            # Start the file watching!
+            self.filewatcher = FileWatcher(self.on_file_change,file_list)
+            
+        def on_file_change(self,filename,modified_time):
+            self.notifications.show('recompile')
+            
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
             #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
@@ -289,7 +313,7 @@ if __name__ == "__main__":
                 return
                     
             self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2])    
-
+            
         def clean_h5_file(self,h5file,new_h5_file):
             try:
                 with h5py.File(h5file,'r') as old_file:
@@ -308,7 +332,7 @@ if __name__ == "__main__":
         
         def on_edit_connection_table(self,widget):
             pass
-            
+              
         def on_about(self,widget):
             pass
             
@@ -327,6 +351,8 @@ if __name__ == "__main__":
             if not self.exiting:
                 self.exiting = True
                 self.manager_running = False
+                self.filewatcher.stop()
+                
                 for tab in self.tablist.values():
                     tab.destroy()
                 
