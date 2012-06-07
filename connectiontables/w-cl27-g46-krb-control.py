@@ -1,4 +1,5 @@
 from labscript import *
+from unitconversions import *
 
 PulseBlaster(  'pulseblaster_0')
 PulseBlaster(  'pulseblaster_1')
@@ -61,13 +62,32 @@ StaticDDS(      'K_Lock',                               novatechdds9m_3,        
 AnalogOut(      'Sorensen_Voltage',                         ni_pcie_6363_0,         'ao2')
 AnalogOut(      'bottom_racetrack',                      ni_pcie_6363_0,         'ao3')
 
-AnalogOut(      'Central_Bq',                      ni_pci_6733_0,         'ao0')
-AnalogOut(      'Rb_Source_Bq',                      ni_pci_6733_0,         'ao1')
-# z: vertical, x: along the differential pumping tube, y: along imaging axis
-AnalogOut(      'Central_bias_y',                      ni_pci_6733_0,         'ao2')
-AnalogOut(      'Central_bias_x',                      ni_pci_6733_0,         'ao3')
-AnalogOut(      'Central_bias_z',                      ni_pci_6733_0,         'ao4')
 
+AnalogOut('Central_Bq', ni_pci_6733_0, 'ao0', unit_conversion_class=UnidirectionalCoilDriver,
+        unit_conversion_parameters={
+            "slope": central_quad_slope,
+            "shift": central_quad_shift,
+            "saturation": central_quad_saturation
+        })
+AnalogOut('Rb_Source_Bq', ni_pci_6733_0, 'ao1')
+AnalogOut("Central_bias_y", ni_pci_6733_0, 'ao2', unit_conversion_class=UnidirectionalCoilDriver,
+        unit_conversion_parameters={
+            "slope": central_bias_y_slope,
+            "shift": central_bias_y_shift,
+            "saturation": central_bias_y_saturation
+            })
+AnalogOut("Central_bias_x", ni_pci_6733_0, 'ao3', unit_conversion_class=UnidirectionalCoilDriver,
+        unit_conversion_parameters={
+            "slope": central_bias_x_slope,
+            "shift": central_bias_x_shift,
+            "saturation": central_bias_x_saturation
+            })
+AnalogOut('Central_bias_z', ni_pci_6733_0, 'ao4', unit_conversion_class=UnidirectionalCoilDriver,
+        unit_conversion_parameters={
+            "slope": central_bias_z_slope,
+            "shift": central_bias_z_shift,
+            "saturation": central_bias_z_saturation
+            })
 AnalogOut(      'Unused',                      ni_pci_6733_0,         'ao5')
 
 #DigitalOut(     '',              ni_pcie_6363_0,         'port0/line0')                                  #NT_0_0 gate -- In use in RB_Central_MOT DDS
