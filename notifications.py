@@ -1,6 +1,7 @@
 import gtk
 import new
 import time
+import gobject
 
 class Notifications(object):
     def __init__(self,BLACS):
@@ -38,6 +39,8 @@ class Notifications(object):
         
         self.BLACS.mainbox.pack_start(self.toplevel,False,False,0)
         self.BLACS.mainbox.reorder_child(self.toplevel,1)
+        self.show_all()
+        self.close_all()
         
     def update_bar(self):
         for name,widgets in self.notifications.items():
@@ -55,14 +58,16 @@ class Notifications(object):
     
     def close_all(self):
         for name in self.types:
-            self.notifications[name]['minimized'].hide()
-            self.notifications[name]['expanded'].hide()
-        self.update_bar()
+            self.close(name)
     
     def close(self,name):
         self.notifications[name]['minimized'].hide()
         self.notifications[name]['expanded'].hide()
         self.update_bar()
+    
+    def show_all(self):    
+        for name in self.types:
+            self.show(name)
         
     def show(self,name):
         # Don't bother showing if it is already visible

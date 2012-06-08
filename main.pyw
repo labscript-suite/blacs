@@ -82,6 +82,10 @@ if __name__ == "__main__":
             self.exiting = False
             
             self.front_panel_settings = FrontPanelSettings()
+            self.settings_path = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
+            # Create the settings h5 file if it doesn't exist!
+            with h5py.File(self.settings_path,'a') as h5file:
+                pass
             
             self.builder = gtk.Builder()
             self.builder.add_from_file('main_interface.glade')
@@ -138,7 +142,7 @@ if __name__ == "__main__":
                 return
             
             # Get settings to restore
-            settings,question,error,tab_data = self.front_panel_settings.restore(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),self.connection_table)
+            settings,question,error,tab_data = self.front_panel_settings.restore(self.settings_path,self.connection_table)
             
             # TODO: handle question/error cases
             
@@ -251,7 +255,7 @@ if __name__ == "__main__":
             
             
             # setup the settings system
-            self.settings = Settings(file=os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),
+            self.settings = Settings(file=self.settings_path,
                                      parent = self.window,
                                      page_classes=[settings_pages.connection_table.ConnectionTable])
             self.settings.register_callback(self.on_settings_changed)
@@ -286,7 +290,7 @@ if __name__ == "__main__":
         def on_settings_changed(self):
             # update the filewatching code!
             self.setup_folder_watching()
-        
+                
         def on_open_preferences(self,widget):
             self.settings.create_dialog()
             
@@ -407,21 +411,24 @@ if __name__ == "__main__":
                 self.manager_running = False
                 self.filewatcher.stop()
                 self.settings.close()
+                self.notifications.close_all()
                 
-                for tab in self.tablist.values():
-                    tab.destroy()
+                gobject.idle_add(self.on_save_exit)
                 
-                # Save front panel
-                data = self.front_panel_settings.get_save_data()
-                settingspath = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
-                try:
-                    with h5py.File(settingspath,'r+') as h5file:
-                        if 'connection table' in h5file:
-                            del h5file['connection table']
-                except:
-                    pass
-                self.front_panel_settings.save_front_panel_to_h5(settingspath,data[0],data[1],data[2],{"overwrite":True})
-                gobject.timeout_add(100,self.finalise_quit,time.time())
+        def on_save_exit(self):
+            # Save front panel
+            data = self.front_panel_settings.get_save_data()
+           
+            with h5py.File(self.settings_path,'r+') as h5file:
+                if 'connection table' in h5file:
+                    del h5file['connection table']
+            
+            self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],{"overwrite":True})
+                             
+            for tab in self.tablist.values():
+                tab.destroy()            
+                
+            gobject.timeout_add(100,self.finalise_quit,time.time())
         
         def finalise_quit(self,initial_time):
             # Kill any tabs which didn't close themselves:
