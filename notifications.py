@@ -14,9 +14,9 @@ class Notifications(object):
         self.notifications = {}
         
         # Define notifications here
-        types = ['unversioned','recompile']
+        self.types = ['unversioned','recompile']
         
-        for name in types:
+        for name in self.types:
             self.notifications[name] = {}
             self.notifications[name]['expanded'] = self.builder.get_object('expanded_'+name)
             self.notifications[name]['minimized'] = self.builder.get_object('minimized_'+name)            
@@ -53,6 +53,12 @@ class Notifications(object):
         
         pass        
     
+    def close_all(self):
+        for name in self.types:
+            self.notifications[name]['minimized'].hide()
+            self.notifications[name]['expanded'].hide()
+        self.update_bar()
+    
     def close(self,name):
         self.notifications[name]['minimized'].hide()
         self.notifications[name]['expanded'].hide()
@@ -65,3 +71,6 @@ class Notifications(object):
         self.notifications[name]['minimized'].hide()
         self.notifications[name]['expanded'].show()
         self.update_bar()
+        
+    def on_recompile_restart(self,widget):
+        self.BLACS.recompile_connection_table(None)

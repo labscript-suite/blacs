@@ -248,22 +248,65 @@ if __name__ == "__main__":
             self.analysis_queue = Queue.Queue()
             self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue)
             
+            
+            
+            # setup the settings system
+            self.settings = Settings(file=os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),
+                                     parent = self.window,
+                                     page_classes=[settings_pages.connection_table.ConnectionTable])
+            self.settings.register_callback(self.on_settings_changed)
+            
+            self.filewatcher = None
+            self.setup_folder_watching()
+            
+        def setup_folder_watching(self):                
+            folder_list = []
             file_list = [os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".py"),
                          os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".h5")]
             
             # append the list of globals
+            file_list += self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
+            # iterate over list, split folders off from files!
+            calibration_list = self.settings.get_value(settings_pages.connection_table.ConnectionTable,'calibrations_list')
+            for path in calibration_list:
+                if os.path.isdir(path):
+                    folder_list.append(path)
+                else:
+                    file_list.append(path)
             
+            # stop watching if we already were
+            if self.filewatcher:
+                self.filewatcher.stop()
             # Start the file watching!
-            self.filewatcher = FileWatcher(self.on_file_change,file_list)
-            
-            # setup the settings system
-            self.settings = Settings(parent = self.window,page_classes=[settings_pages.connection_table.ConnectionTable])
+            self.filewatcher = FileWatcher(self.on_file_change,file_list,folder_list)
             
         def on_file_change(self,filename,modified_time):
             self.notifications.show('recompile')
+            
+        def on_settings_changed(self):
+            # update the filewatching code!
+            self.setup_folder_watching()
         
         def on_open_preferences(self,widget):
             self.settings.create_dialog()
+            
+        def recompile_connection_table(self,widget):
+            # get list of globals
+            globals = self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
+            
+            # Pop up terminal window
+            
+            # attempt recompile
+            
+        def restart_BLACS(self):
+            # prevent more experiments from being queued
+            
+            # wait for experiments to complete?
+        
+            # launch process to restart BLACS
+            
+            # Exit BLACS
+            self.destroy()
         
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]

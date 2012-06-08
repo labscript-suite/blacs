@@ -2,13 +2,13 @@
 <interface>
   <requires lib="gtk+" version="2.24"/>
   <!-- interface-naming-policy project-wide -->
-  <object class="GtkListStore" id="calibration_store">
+  <object class="GtkListStore" id="calibrations_store">
     <columns>
       <!-- column-name path -->
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkListStore" id="global_store">
+  <object class="GtkListStore" id="globals_store">
     <columns>
       <!-- column-name path -->
       <column type="gchararray"/>
@@ -103,7 +103,7 @@
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
                                 <property name="relief">none</property>
-                                <signal name="clicked" handler="delete_h5file" swapped="no"/>
+                                <signal name="clicked" handler="delete_global_file" swapped="no"/>
                                 <child>
                                   <object class="GtkImage" id="image1">
                                     <property name="visible">True</property>
@@ -133,10 +133,10 @@
                             <property name="hscrollbar_policy">automatic</property>
                             <property name="vscrollbar_policy">automatic</property>
                             <child>
-                              <object class="GtkTreeView" id="treeview2">
+                              <object class="GtkTreeView" id="globals_view">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="model">global_store</property>
+                                <property name="model">globals_store</property>
                                 <property name="search_column">0</property>
                                 <child>
                                   <object class="GtkTreeViewColumn" id="treeviewcolumn2">
@@ -170,7 +170,7 @@
                   <object class="GtkLabel" id="label4">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Globals&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Global h5 files&lt;/b&gt;</property>
                     <property name="use_markup">True</property>
                   </object>
                 </child>
@@ -210,7 +210,7 @@
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
                                 <property name="relief">none</property>
-                                <signal name="clicked" handler="add_calibration" swapped="no"/>
+                                <signal name="clicked" handler="add_calibration_file" swapped="no"/>
                                 <child>
                                   <object class="GtkHBox" id="hbox5">
                                     <property name="visible">True</property>
@@ -334,10 +334,10 @@
                             <property name="hscrollbar_policy">automatic</property>
                             <property name="vscrollbar_policy">automatic</property>
                             <child>
-                              <object class="GtkTreeView" id="treeview1">
+                              <object class="GtkTreeView" id="calibrations_view">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
-                                <property name="model">calibration_store</property>
+                                <property name="model">calibrations_store</property>
                                 <property name="search_column">0</property>
                                 <child>
                                   <object class="GtkTreeViewColumn" id="treeviewcolumn1">
@@ -371,7 +371,7 @@
                   <object class="GtkLabel" id="label3">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Watched calibrations&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Watched calibration scripts&lt;/b&gt;</property>
                     <property name="use_markup">True</property>
                   </object>
                 </child>
