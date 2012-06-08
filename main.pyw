@@ -2,6 +2,7 @@ import sys
 import logging, logging.handlers
 import excepthook
 import os
+from subprocess import Popen
 
 #
 # Note, Throughout this file we put things we don't want imported in the Worker Processes, inside a "if __name__ == "__main__":"
@@ -257,7 +258,8 @@ if __name__ == "__main__":
             # setup the settings system
             self.settings = Settings(file=self.settings_path,
                                      parent = self.window,
-                                     page_classes=[settings_pages.connection_table.ConnectionTable])
+                                     page_classes=[settings_pages.connection_table.ConnectionTable,
+                                                   settings_pages.general.General])
             self.settings.register_callback(self.on_settings_changed)
             
             self.filewatcher = None
@@ -386,7 +388,16 @@ if __name__ == "__main__":
             return True
         
         def on_edit_connection_table(self,widget):
-            pass
+            # get path to text editor
+            editor_path = self.settings.get_value(settings_pages.general.General,'ct_editor')
+            if editor_path:  
+                try:
+                    Popen([editor_path, os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".py")])
+                except Exception:
+                    raise Exception("Unable to launch text editor. Check the path is valid in the preferences")
+            else:
+                raise Exception("No editor path was specified in the preferences")
+                
             
         def on_select_globals(self,widget):
             self.settings.create_dialog(goto_page=settings_pages.connection_table.ConnectionTable)
