@@ -23,6 +23,8 @@ if __name__ == "__main__":
     import numpy
     import h5py
     
+    from settings import Settings
+    import settings_pages
     from filewatcher import FileWatcher
     
     # Connection Table Code
@@ -254,9 +256,15 @@ if __name__ == "__main__":
             # Start the file watching!
             self.filewatcher = FileWatcher(self.on_file_change,file_list)
             
+            # setup the settings system
+            self.settings = Settings(parent = self.window,page_classes=[settings_pages.watcher.Watcher])
+            
         def on_file_change(self,filename,modified_time):
             self.notifications.show('recompile')
-            
+        
+        def on_open_preferences(self,widget):
+            self.settings.create_dialog()
+        
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
             #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
@@ -352,6 +360,7 @@ if __name__ == "__main__":
                 self.exiting = True
                 self.manager_running = False
                 self.filewatcher.stop()
+                self.settings.close()
                 
                 for tab in self.tablist.values():
                     tab.destroy()
