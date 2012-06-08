@@ -99,7 +99,7 @@ DigitalOut(     'pb_1_trigger',                          ni_pcie_6363_0,        
 #DigitalOut(     'K_Lock_RF_Switch',                      ni_pcie_6363_0,         'port0/line6')                                  #NT_2_2
 #DigitalOut(     '',                      ni_pcie_6363_0,         'port0/line7')                                  #NT_2_3 gate -- In use in K_Push DDS
 Shutter(        'Rb_Source_MOT_Shutter',                 ni_pcie_6363_0,         'port0/line8', delay=(3e-3,3e-3))               #Sh_1_1
-Shutter(        'Rb_MOT_and_Probe_Shutter',              ni_pcie_6363_0,         'port0/line9', delay=(3e-3,3.25e-3))               #Sh_1_2
+#Shutter(        'Rb_MOT_and_Probe_Shutter',              ni_pcie_6363_0,         'port0/line9', delay=(3e-3,3.25e-3))               #Sh_1_2
 Shutter(        'Central_Imaging_Shutter',                      ni_pcie_6363_0,         'port0/line10', delay=(3e-3,3.5e-3))              #Sh_1_3
 Shutter(        'Rb_Push_Shutter',                       ni_pcie_6363_0,         'port0/line11', delay=(3e-3,3e-3))              #Sh_1_4
 #Shutter(     'Shutter_0_1',                              ni_pcie_6363_0,         'port0/line12', delay=(5e-3,5e-3))              #Sh_0_1
@@ -109,8 +109,8 @@ Shutter(        'Rb_Push_Shutter',                       ni_pcie_6363_0,        
 
 Camera(           'camera',                              ni_pcie_6363_0,         'port0/line17',0, 'side') # Change exposer time to a global
 Camera(     'red_camera',                                     ni_pcie_6363_0,         'port0/line20',0,'side') # Change exposer time to a global
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line21')
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line22')
+DigitalOut(     'Bottom_Bragg_Mirror',                                     ni_pcie_6363_0,         'port0/line21')
+DigitalOut(     'Top_Bragg_Mirror',                                     ni_pcie_6363_0,         'port0/line22')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line23')
 Shutter(     'Rb_Central_MOT_Shutter',                   ni_pcie_6363_0,         'port0/line24', delay=(2.5e-3,3.5e-3))              #Sh_0_4
 #Shutter(     'Rb_Source_Repump_Shutter',             ni_pcie_6363_0,         'port0/line25', delay=(2.5e-3,3.5e-3))              #Sh_0_4
@@ -137,10 +137,10 @@ AnalogIn(       'ai12',                                     ni_pcie_6363_0,     
 AnalogIn(       'ai13',                                     ni_pcie_6363_0,         'ai13')
 AnalogIn(       'ai14',                                     ni_pcie_6363_0,         'ai14')
 AnalogIn(       'ai15',                                     ni_pcie_6363_0,         'ai15')
-AnalogIn(       'central_MOT_photodiode',                   ni_pcie_6363_0,         'ai16')
-AnalogIn(       'ai17',                                     ni_pcie_6363_0,         'ai17')
-AnalogIn(       'ai18',                                     ni_pcie_6363_0,         'ai18')
-AnalogIn(       'ai19',                                     ni_pcie_6363_0,         'ai19')
+AnalogIn(       'central_Bq_monitor',                       ni_pcie_6363_0,         'ai16')
+AnalogIn(       'central_bias_y_monitor',                   ni_pcie_6363_0,         'ai17')
+AnalogIn(       'central_bias_x_monitor',                   ni_pcie_6363_0,         'ai18')
+AnalogIn(       'central_bias_z_monitor',                   ni_pcie_6363_0,         'ai19')
 AnalogIn(       'ai20',                                     ni_pcie_6363_0,         'ai20')
 AnalogIn(       'ai21',                                     ni_pcie_6363_0,         'ai21')
 AnalogIn(       'ai22',                                     ni_pcie_6363_0,         'ai22')
