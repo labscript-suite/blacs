@@ -257,7 +257,7 @@ if __name__ == "__main__":
             self.filewatcher = FileWatcher(self.on_file_change,file_list)
             
             # setup the settings system
-            self.settings = Settings(parent = self.window,page_classes=[settings_pages.watcher.Watcher])
+            self.settings = Settings(parent = self.window,page_classes=[settings_pages.connection_table.ConnectionTable])
             
         def on_file_change(self,filename,modified_time):
             self.notifications.show('recompile')
@@ -340,6 +340,9 @@ if __name__ == "__main__":
         
         def on_edit_connection_table(self,widget):
             pass
+            
+        def on_select_globals(self,widget):
+            self.settings.create_dialog(goto_page=settings_pages.connection_table.ConnectionTable)
               
         def on_about(self,widget):
             pass

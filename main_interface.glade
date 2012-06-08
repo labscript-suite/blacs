@@ -190,6 +190,7 @@
                         <property name="use_underline">True</property>
                         <property name="image">image15</property>
                         <property name="use_stock">False</property>
+                        <signal name="activate" handler="on_select_globals" swapped="no"/>
                       </object>
                     </child>
                     <child>

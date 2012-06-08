@@ -1,23 +1,22 @@
 import os
 import gtk
 
-class Watcher(object):
-    name = "Watched Files"
+class ConnectionTable(object):
+    name = "Connection Table"
 
     def __init__(self):
         # initialise !
         pass
         
-    # Create the GTK page, and add to the notebook    
+    # Create the GTK page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
         builder = gtk.Builder()
-        builder.add_from_file(os.path.join(os.path.dirname(os.path.realpath(__file__)),'watcher.glade'))
+        builder.add_from_file(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.glade'))
         builder.connect_signals(self)
     
         toplevel = builder.get_object('toplevel')
         
-        notebook.append_page(toplevel,gtk.Label("File Watcher"))
-        toplevel.show()
+        return toplevel,None
         
     def save(self):
         pass
