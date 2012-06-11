@@ -28,10 +28,10 @@
             </child>
             <child>
               <object class="GtkButton" id="button8">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
                 <property name="relief">none</property>
                 <signal name="clicked" handler="expand_unversioned" swapped="no"/>
                 <child>
@@ -87,10 +87,10 @@
             </child>
             <child>
               <object class="GtkButton" id="button9">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
                 <property name="relief">none</property>
                 <signal name="clicked" handler="expand_recompile" swapped="no"/>
                 <child>
@@ -164,7 +164,6 @@
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">This copy of BLACS has unversioned changes.</property>
             <attributes>
-              <attribute name="size" value="50"/>
               <attribute name="foreground" value="#ffff00000000"/>
             </attributes>
           </object>
@@ -176,10 +175,10 @@
         </child>
         <child>
           <object class="GtkButton" id="button6">
-            <property name="use_action_appearance">False</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
+            <property name="use_action_appearance">False</property>
             <property name="relief">none</property>
             <signal name="clicked" handler="minimize_unversioned" swapped="no"/>
             <child>
@@ -239,7 +238,6 @@
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">The connection table and/or connection table globals have changed. You need to recompile the connection table</property>
                 <attributes>
-                  <attribute name="size" value="50"/>
                   <attribute name="foreground" value="#ffff00000000"/>
                 </attributes>
               </object>
@@ -251,10 +249,10 @@
             </child>
             <child>
               <object class="GtkButton" id="button7">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
                 <property name="relief">none</property>
                 <signal name="clicked" handler="minimize_recompile" swapped="no"/>
                 <child>
@@ -297,10 +295,10 @@
             <child>
               <object class="GtkButton" id="recompile_restart">
                 <property name="label" translatable="yes">Recompile and restart BLACS</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
                 <signal name="activate" handler="on_recompile_restart" swapped="no"/>
               </object>
               <packing>
