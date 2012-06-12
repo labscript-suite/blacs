@@ -27,7 +27,7 @@ if __name__ == "__main__":
     from settings import Settings
     import settings_pages
     from filewatcher import FileWatcher
-    
+    from compile_and_restart import CompileAndRestart
     # Connection Table Code
     from connections import ConnectionTable
     
@@ -254,7 +254,6 @@ if __name__ == "__main__":
             self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue)
             
             
-            
             # setup the settings system
             self.settings = Settings(file=self.settings_path,
                                      parent = self.window,
@@ -262,13 +261,15 @@ if __name__ == "__main__":
                                                    settings_pages.general.General])
             self.settings.register_callback(self.on_settings_changed)
             
+            self.connection_table_labscript = os.path.abspath(os.path.join("connectiontables", socket.gethostname()+".py"))
+            self.connection_table_h5file = os.path.abspath(os.path.join("connectiontables", socket.gethostname()+".h5"))
+            
             self.filewatcher = None
             self.setup_folder_watching()
             
         def setup_folder_watching(self):                
             folder_list = []
-            file_list = [os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".py"),
-                         os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".h5")]
+            file_list = [self.connection_table_labscript, self.connection_table_h5file]
             
             # append the list of globals
             file_list += self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
@@ -297,23 +298,11 @@ if __name__ == "__main__":
             self.settings.create_dialog()
             
         def recompile_connection_table(self,widget):
+            logger.info('recompile connection table called')
             # get list of globals
-            globals = self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
+            globals_files = self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
+            CompileAndRestart(self,globals_files,self.connection_table_labscript, self.connection_table_h5file)
             
-            # Pop up terminal window
-            
-            # attempt recompile
-            
-        def restart_BLACS(self):
-            # prevent more experiments from being queued
-            
-            # wait for experiments to complete?
-        
-            # launch process to restart BLACS
-            
-            # Exit BLACS
-            self.destroy()
-        
         def update_plot(self,channel,data,rate):
             line = self.ax.get_lines()[0]
             #self.plot_data = numpy.append(self.plot_data[len(data[0,:]):],data[0,:])
@@ -423,6 +412,9 @@ if __name__ == "__main__":
                 self.filewatcher.stop()
                 self.settings.close()
                 self.notifications.close_all()
+                http_server.shutdown()
+                http_server.server_close()
+                http_server.socket.close()
                 
                 gobject.idle_add(self.on_save_exit)
                 
@@ -960,7 +952,8 @@ if __name__ == "__main__":
     gtk.settings_get_default().set_string_property('gtk-font-name','ubuntu 9','')
     gtk.settings_get_default().props.gtk_button_images = True
     gtk.rc_parse('blacs.gtkrc')
-    serverthread = threading.Thread(target = HTTPServer(('', port),RequestHandler).serve_forever)
+    http_server = HTTPServer(('', port),RequestHandler)
+    serverthread = threading.Thread(target = http_server.serve_forever)
     serverthread.daemon = True
     serverthread.start()
     with gtk.gdk.lock:

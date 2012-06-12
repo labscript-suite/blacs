@@ -49,13 +49,6 @@ class Notifications(object):
                 return
         self.notification_bar.hide()
         
-    def on_recompile_restart(self,widget):
-        # Recompile the connection table
-        
-        # if compilation successful, restart BLACS
-        
-        pass        
-    
     def close_all(self):
         for name in self.types:
             self.close(name)
@@ -79,3 +72,5 @@ class Notifications(object):
         
     def on_recompile_restart(self,widget):
         self.BLACS.recompile_connection_table(None)
+        
+        
