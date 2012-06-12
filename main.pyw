@@ -126,7 +126,10 @@ if __name__ == "__main__":
             
             # Need to connect signals!
             self.builder.connect_signals(self)
-
+            
+            # Set the icon!
+            self.window.set_icon_from_file(os.path.join('BLACS.svg'))
+            
             # Load Connection Table
             # Get H5 file        
             h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
