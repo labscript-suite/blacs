@@ -76,6 +76,11 @@ class CompileAndRestart(object):
             if success:
                 self.button_restart.set_sensitive(True)
                 self.label_success.set_visible(True)
+                try:
+                    os.remove(self.output_path)
+                except OSError:
+                     # File doesn't exist, no need to delete then:
+                    pass
                 os.rename(self.tempfilename,self.output_path)
             else:
                 self.label_failure.set_visible(True)
