@@ -620,7 +620,7 @@ class Worker2(multiprocessing.Process):
                             self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
                         if i % 100 == 0:
                             self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
-                    ni_group.create_dataset('analog_data', data = self.buffered_data)
+                    self.extract_measurements(device_name)
                     self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
             
             self.buffered_data = None
@@ -632,8 +632,6 @@ class Worker2(multiprocessing.Process):
         # return to previous acquisition mode
         self.buffered = False
         self.setup_task()
-        if not abort:
-            self.extract_measurements(device_name)
         
     def extract_measurements(self, device_name):
         self.logger.debug('extract_measurements')
@@ -648,7 +646,6 @@ class Worker2(multiprocessing.Process):
             except:
                 # Group doesn't exist yet, create it:
                 measurements = hdf5_file.create_group('/data/traces')
-            raw_data = hdf5_file['/data/'+device_name+'/analog_data']
             for connection,label,start_time,end_time,scale_factor,units in acquisitions:
                 start_index = numpy.ceil(self.buffered_rate*(start_time-self.ai_start_delay))
                 end_index = numpy.floor(self.buffered_rate*(end_time-self.ai_start_delay))
@@ -663,7 +660,7 @@ class Worker2(multiprocessing.Process):
                 times = numpy.linspace(acquisition_start_time, acquisition_end_time, 
                                        end_index-start_index+1,
                                        endpoint=True)
-                values = raw_data[connection][start_index:end_index+1]
+                values = self.buffered_data[connection][start_index:end_index+1]
                 dtypes = [('t', numpy.float64),('values', numpy.float32)]
                 data = numpy.empty(len(values),dtype=dtypes)
                 data['t'] = times
