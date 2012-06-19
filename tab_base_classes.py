@@ -27,8 +27,7 @@ def define_state(function):
     def f(self,*args,**kwargs):
         function.__name__ = escapedname
         setattr(self,escapedname,function)
-        self.event_args.append([args,kwargs])
-        self.event_queue.put(escapedname)
+        self.event_queue.put([escapedname,[args,kwargs]])
     f.__name__ = unescaped_name
     return f
     
@@ -41,7 +40,6 @@ class Tab(object):
         self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
         self.logger.debug('Started')     
         self.event_queue = Queue()
-        self.event_args = []
         self.to_worker = Queue()
         self.from_worker = Queue()
         self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker,workerargs])
@@ -153,7 +151,7 @@ class Tab(object):
         # (albeit doing nothing) that we don't need:
         if self.mainloop_thread.is_alive():
             self.from_worker.put((False,'quit',None))
-            self.event_queue.put('_quit')
+            self.event_queue.put(['_quit',None])
         self.notebook = self._toplevel.get_parent()
         currentpage = None
         if self.notebook:
@@ -215,12 +213,12 @@ class Tab(object):
             while True:
                 # Get the next task from the event queue:
                 logger.debug('Waiting for next event')
-                funcname = self.event_queue.get()
+                funcname, data = self.event_queue.get()
                 if funcname == '_quit':
                     # The user has requested a restart:
                     logger.debug('Received quit signal')
                     break
-                args,kwargs = self.event_args.pop(0)
+                args,kwargs = data
                 if self._work is not None or self._finalisation is not None:
                     message = ('There has been work queued up for the subprocess, '
                                'or a finalisation queued up, even though no initial event'
@@ -414,7 +412,7 @@ class MyTab(Tab):
 
     # It is critical that you decorate your callbacks with @define_state
     # as below. This makes the function get queued up and executed
-    # in turn by our state machine instead of immediately by theargs,kwargs = self.event_args.pop(0)
+    # in turn by our state machine instead of immediately by the
     # GTK mainloop. Only don't decorate if you're certain that your
     # callback can safely happen no matter what state the system is
     # in (for example, adjusting the axis range of a plot, or other
