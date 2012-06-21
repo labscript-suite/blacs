@@ -35,7 +35,7 @@ class camera(Tab):
     def restore_save_data(self):
         save_data = self.settings['saved_data']
         if save_data:
-            host, port = save_data['host'], save_data['port']
+            host = save_data['host']
             self.host.set_text(host)
         else:
             self.logger.warning('No previous front panel state to restore')

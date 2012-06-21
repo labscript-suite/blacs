@@ -1,4 +1,5 @@
 from multiprocessing import Process, Queue, Lock
+from Queue import Queue as NormalQueue
 import time
 import sys
 import threading
@@ -39,7 +40,7 @@ class Tab(object):
         self.settings = settings
         self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
         self.logger.debug('Started')     
-        self.event_queue = Queue()
+        self.event_queue = NormalQueue()
         self.to_worker = Queue()
         self.from_worker = Queue()
         self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker,workerargs])
