@@ -13,7 +13,7 @@ class ConnectionTable(object):
                 
                 for row in self.table:
                     if row[3] == "None":
-                        self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],self.table)
+                        self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],self.table)
                 
             except:
                 self.logger.error('Unable to get connection table  %s'%h5file)
@@ -107,7 +107,7 @@ class ConnectionTable(object):
     
 class Connection(object):
     
-    def __init__(self, name, device_class, parent, parent_port, unit_conversion_class, unit_conversion_params, table):
+    def __init__(self, name, device_class, parent, parent_port, unit_conversion_class, unit_conversion_params, BLACS_connection, table):
         self.child_list = {}
         self.name = name
         self.device_class = device_class
@@ -115,11 +115,12 @@ class Connection(object):
         self.parent = parent
         self.unit_conversion_class = unit_conversion_class
         self.unit_conversion_params = unit_conversion_params
+        self.BLACS_connection = BLACS_connection
         
         # Create children
         for row in table:
             if row[2] == self.name:
-                self.child_list[row[0]] = Connection(row[0],row[1],self,row[3],row[4],row[5],table)
+                self.child_list[row[0]] = Connection(row[0],row[1],self,row[3],row[4],row[5],row[6],table)
         
     def compare_to(self,other_connection):
         if not isinstance(other_connection,Connection):
@@ -137,6 +138,8 @@ class Connection(object):
             error["unit_conversion_class"] = True
         if self.unit_conversion_params != other_connection.unit_conversion_params:
             error["unit_conversion_params"] = True
+        if self.BLACS_connection != other_connection.BLACS_connection:
+            error["BLACS_connection"] = True
         
         # for each child in other_connection, check that the child also exists here
         for name,connection in other_connection.child_list.items():
