@@ -5,21 +5,21 @@ from tab_base_classes import Tab, Worker, define_state
 class pulseblaster(Tab):
     # Capabilities
     num_DDS = 2
-    num_DO = 4 #sometimes might be 12
+    num_DO = 12 #sometimes might be 12
     num_DO_widgets = 12
     
     
-    base_units = {'freq':'MHz',     'amp':'Vpp', 'phase':'Degrees'}
-    base_min =   {'freq':0.0000003, 'amp':0.0,   'phase':0}
-    base_max =   {'freq':150.0,     'amp':1.0,   'phase':360}
-    base_step =  {'freq':1,         'amp':0.01,  'phase':1}
+    base_units = {'freq':'Hz',        'amp':'Vpp', 'phase':'Degrees'}
+    base_min =   {'freq':0.3,         'amp':0.0,   'phase':0}
+    base_max =   {'freq':150000000.0, 'amp':1.0,   'phase':360}
+    base_step =  {'freq':1000000,           'amp':0.01,  'phase':1}
     
         
     def __init__(self,BLACS,notebook,settings,restart=False):
         Tab.__init__(self,BLACS,PulseblasterWorker,notebook,settings)
         self.settings = settings
         self.device_name = settings['device_name']        
-        self.pb_num = int(settings['device_num'])
+        self.pb_num = int(self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection)
         self.fresh = True
         self.static_mode = True
         self.destroy_complete = False
@@ -316,7 +316,7 @@ class PulseblasterWorker(Worker):
             # Program the frequency, amplitude and phase into their
             # zeroth registers:
             program_amp_regs(values['amp%d'%i])
-            program_freq_regs(values['freq%d'%i]) # method expects MHz
+            program_freq_regs(values['freq%d'%i]/10.0**6) # method expects MHz
             program_phase_regs(values['phase%d'%i])
 
         # Write the first two lines of the pulse program:
@@ -348,7 +348,7 @@ class PulseblasterWorker(Worker):
                 phases = group['DDS%d/PHASE_REGS'%i][:]
                 
                 amps[0] = initial_values['amp%d'%i]
-                freqs[0] = initial_values['freq%d'%i] # had better be in MHz!
+                freqs[0] = initial_values['freq%d'%i]/10.0**6 # had better be in MHz!
                 phases[0] = initial_values['phase%d'%i]
                 
                 pb_select_dds(i)
@@ -372,8 +372,8 @@ class PulseblasterWorker(Worker):
             
             #Let's get the final state of the pulseblaster. z's are the args we don't need:
             freqreg0,phasereg0,ampreg0,en0,z,freqreg1,phasereg1,ampreg1,en1,z,flags,z,z,z = pulse_program[-1]
-            finalfreq0 = freqregs[0][freqreg0]
-            finalfreq1 = freqregs[1][freqreg1]
+            finalfreq0 = freqregs[0][freqreg0]*10.0**6 # Front panel expects frequency in Hz
+            finalfreq1 = freqregs[1][freqreg1]*10.0**6 # Front panel expects frequency in Hz
             finalamp0 = ampregs[0][ampreg0]
             finalamp1 = ampregs[1][ampreg1]
             finalphase0 = phaseregs[0][phasereg0]

@@ -153,17 +153,7 @@ if __name__ == "__main__":
             # Instantiate Devices from Connection Table, Place in Array        
             self.attached_devices = self.connection_table.find_devices(device_list)
             
-            self.settings_dict = {"ni_pcie_6363_0":{"device_name":"ni_pcie_6363_0"},
-                                  "ni_pci_6733_0":{"device_name":"ni_pci_6733_0"},
-                                  "pulseblaster_0":{"device_name":"pulseblaster_0","device_num":0,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
-                                  "pulseblaster_1":{"device_name":"pulseblaster_1","device_num":1,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
-                                  "pulseblaster_2":{"device_name":"pulseblaster_2","device_num":2,"f0":"20.0","a0":"0.15","p0":"0","e0":0,"f1":"20.0","a1":"0.35","p1":"0","e1":0,'flags':'000000000000'},
-                                  "novatechdds9m_0":{"device_name":"novatechdds9m_0","COM":"com10"},
-                                  "novatechdds9m_1":{"device_name":"novatechdds9m_1","COM":"com13"},
-                                  "novatechdds9m_2":{"device_name":"novatechdds9m_2","COM":"com11"},
-                                  "novatechdds9m_3":{"device_name":"novatechdds9m_3","COM":"com12"},
-                                  "novatechdds9m_9":{"device_name":"novatechdds9m_9","COM":"com9"},
-                                  "camera":{"device_name":"camera"},
+            self.settings_dict = {
                                   #"zaber_stages":{"device_name":"zaber_stages","COM":"com1"},
                                  }
             
@@ -554,6 +544,8 @@ if __name__ == "__main__":
         # Return to start
         
         def manage(self):
+
+
             logger = logging.getLogger('BLACS.queue_manager')   
             # While the program is running!
             logger.info('starting')
@@ -594,7 +586,8 @@ if __name__ == "__main__":
                             self.status_bar.set_text("Idle")
                     time.sleep(1)
                     continue
-                    
+
+                
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Reading file path from the queue:")    
                     path = "".join(self.queue.get(iter,0))
@@ -749,6 +742,11 @@ if __name__ == "__main__":
                         self.queue_pause_button.set_state(True)
                         self.status_bar.set_text("Error during transtion to static. Queue Paused.")
                         self.now_running.hide()
+                        
+                #import memprof
+                #import gc
+                #gc.collect()
+                #memprof.count_diffs()
             logger.info('Stopping')
 
     class AnalysisSubmission(object):

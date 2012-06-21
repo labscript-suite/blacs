@@ -23,6 +23,7 @@ class novatechdds9m(Tab):
         self.fresh = False # whether to force a full reprogramming of table mode
         self.static_mode = True
         self.destroy_complete = False
+        self.com_port = self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection
 
         # PyGTK stuff:
         self.builder = gtk.Builder()
@@ -33,7 +34,7 @@ class novatechdds9m(Tab):
         self.checkbutton_fresh = self.builder.get_object('force_fresh_program')
         self.smart_disabled = self.builder.get_object('hbox_fresh_program')
         self.smart_enabled = self.builder.get_object('hbox_smart_in_use')
-        self.builder.get_object('title').set_text(self.settings["device_name"]+" - Port: "+self.settings["COM"])
+        self.builder.get_object('title').set_text(self.settings["device_name"]+" - Port: "+self.com_port)
                 
         self.dds_outputs = []
         self.outputs_by_widget = {}
@@ -105,7 +106,7 @@ class novatechdds9m(Tab):
         
     @define_state
     def initialise_novatech(self):
-        self.queue_work('initialise_novatech', self.settings["COM"], 115200)
+        self.queue_work('initialise_novatech', self.com_port, 115200)
         self.do_after('leave_initialise')
     
     def leave_initialise(self,_results):

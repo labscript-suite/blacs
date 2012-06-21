@@ -24,6 +24,12 @@
     <property name="step_increment">0.01</property>
     <property name="page_increment">0.01</property>
   </object>
+  <object class="GtkListStore" id="phase_0_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkListStore" id="freq_0_unit_liststore">
     <columns>
       <!-- column-name unit -->
@@ -47,12 +53,6 @@
     <property name="value">80</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
-  </object>
-  <object class="GtkListStore" id="phase_0_unit_liststore">
-    <columns>
-      <!-- column-name unit -->
-      <column type="gchararray"/>
-    </columns>
   </object>
   <object class="GtkListStore" id="phase_1_unit_liststore">
     <columns>
@@ -186,9 +186,9 @@
                     <child>
                       <object class="GtkCheckButton" id="force_fresh_program">
                         <property name="label" translatable="yes">Force fresh reprogram</property>
+                        <property name="use_action_appearance">False</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="xalign">0</property>
                         <property name="draw_indicator">True</property>
                         <signal name="toggled" handler="toggle_fresh" swapped="no"/>
@@ -252,10 +252,10 @@
                 <child>
                   <object class="GtkToggleButton" id="active_chnl_0">
                     <property name="label" translatable="yes">Active</property>
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                   </object>
                   <packing>
@@ -288,7 +288,7 @@
                     <property name="primary_icon_sensitive">True</property>
                     <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_0</property>
-                    <property name="digits">7</property>
+                    <property name="digits">2</property>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -479,10 +479,10 @@
                 <child>
                   <object class="GtkToggleButton" id="active_chnl_1">
                     <property name="label" translatable="yes">Active</property>
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                   </object>
                   <packing>
@@ -516,7 +516,7 @@
                     <property name="primary_icon_sensitive">True</property>
                     <property name="secondary_icon_sensitive">True</property>
                     <property name="adjustment">frequency_adj_1</property>
-                    <property name="digits">7</property>
+                    <property name="digits">2</property>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -709,10 +709,10 @@
                 <property name="homogeneous">True</property>
                 <child>
                   <object class="GtkToggleButton" id="flag_0">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_0">
@@ -753,10 +753,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_1">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_1">
@@ -797,10 +797,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_2">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_2">
@@ -841,10 +841,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_3">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_3">
@@ -885,10 +885,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_4">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_4">
@@ -929,10 +929,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_5">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_5">
@@ -973,10 +973,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_6">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_6">
@@ -1017,10 +1017,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_7">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_7">
@@ -1061,10 +1061,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_8">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_8">
@@ -1105,10 +1105,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_9">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_9">
@@ -1149,10 +1149,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_10">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_10">
@@ -1193,10 +1193,10 @@
                 </child>
                 <child>
                   <object class="GtkToggleButton" id="flag_11">
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <property name="focus_on_click">False</property>
                     <child>
                       <object class="GtkVBox" id="flag_button_vbox_11">
@@ -1513,10 +1513,10 @@
                 <child>
                   <object class="GtkButton" id="start_button">
                     <property name="label" translatable="yes">Start</property>
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <signal name="clicked" handler="start" swapped="no"/>
                   </object>
                   <packing>
@@ -1528,10 +1528,10 @@
                 <child>
                   <object class="GtkButton" id="stop_button">
                     <property name="label" translatable="yes">Stop</property>
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <signal name="clicked" handler="stop" swapped="no"/>
                   </object>
                   <packing>
@@ -1543,10 +1543,10 @@
                 <child>
                   <object class="GtkButton" id="reset_button">
                     <property name="label" translatable="yes">Reset</property>
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <signal name="clicked" handler="reset" swapped="no"/>
                   </object>
                   <packing>
