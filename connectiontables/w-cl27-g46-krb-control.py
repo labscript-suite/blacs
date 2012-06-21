@@ -113,9 +113,9 @@ DigitalOut(     'Bottom_Bragg_Mirror',                                     ni_pc
 DigitalOut(     'Top_Bragg_Mirror',                                     ni_pcie_6363_0,         'port0/line22')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line23')
 Shutter(     'Rb_Central_MOT_Shutter',                   ni_pcie_6363_0,         'port0/line24', delay=(2.5e-3,3.5e-3))              #Sh_0_4
-#Shutter(     'Rb_Source_Repump_Shutter',             ni_pcie_6363_0,         'port0/line25', delay=(2.5e-3,3.5e-3))              #Sh_0_4
-Shutter(     'Rb_Central_Repump_Shutter',            ni_pcie_6363_0,         'port0/line26', delay=(4e-3,2.5e-3))              #Sh_0_4
-#DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line27')
+Shutter(     'Central_MOT_Shutter',                      ni_pcie_6363_0,         'port0/line25', delay=(2.5e-3,3.5e-3))              #Sh_0_4
+Shutter(     'Rb_Central_Repump_Shutter',                ni_pcie_6363_0,         'port0/line26', delay=(4e-3,2.5e-3))              #Sh_0_4
+Shutter(     'Rb_Optical_Pumping_Repump_Shutter',        ni_pcie_6363_0,         'port0/line27', delay=(2.5e-3,3.5e-3))
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line28')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line29')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line30')
