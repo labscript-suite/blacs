@@ -85,6 +85,7 @@
                   <object class="GtkEntry" id="port">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="editable">False</property>
                     <property name="invisible_char">•</property>
                     <property name="invisible_char_set">True</property>
                     <property name="primary_icon_activatable">False</property>
@@ -216,10 +217,10 @@
                 <child>
                   <object class="GtkButton" id="button1">
                     <property name="label" translatable="yes">Check connectivity</property>
+                    <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
-                    <property name="use_action_appearance">False</property>
                     <signal name="clicked" handler="initialise_camera" swapped="no"/>
                   </object>
                   <packing>

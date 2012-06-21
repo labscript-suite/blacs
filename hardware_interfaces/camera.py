@@ -23,20 +23,20 @@ class camera(Tab):
         self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
         self.restore_save_data()
+        self.port.set_text(self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection)
         self.builder.connect_signals(self)
         host, port = self.host.get_text(), self.port.get_text()
         if host and port:
             self.initialise_camera()
         
     def get_save_data(self):
-        return {'host':str(self.host.get_text()),  'port': str(self.port.get_text())}
+        return {'host':str(self.host.get_text())}
     
     def restore_save_data(self):
         save_data = self.settings['saved_data']
         if save_data:
             host, port = save_data['host'], save_data['port']
             self.host.set_text(host)
-            self.port.set_text(port)
         else:
             self.logger.warning('No previous front panel state to restore')
             
@@ -123,7 +123,7 @@ class CameraWorker(Worker):
         
     def finished_experiment(self,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(10)
+        s.settimeout(20)
         s.connect((host, int(port)))
         s.send('done\r\n')
         response = s.recv(1024)
