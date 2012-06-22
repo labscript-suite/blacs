@@ -36,6 +36,9 @@ if __name__ == "__main__":
     
     # Notification code
     from notifications import Notifications
+    
+    # Lab config code
+    from LabConfig import LabConfig
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -82,8 +85,20 @@ if __name__ == "__main__":
         def __init__(self):
             self.exiting = False
             
+            # Load the experiment config file, and verify that the necessary parameters are there"
+            config_path = r'C:\labconfig\\'+socket.gethostname()+r'.ini'
+            self.settings_path = r'C:\labconfig\\'+socket.gethostname()+r'_BLACS.h5'
+            required_config_params = {"DEFAULT":["experiment_name"],
+                                      "programs":["text_editor"]
+                                      "paths":["shared_drive",
+                                               "connection_table_h5",
+                                               "connection_table_py",
+                                              ],
+                                     }
+            self.exp_config = LabConfig(config_path,required_config_params)
             self.front_panel_settings = FrontPanelSettings()
-            self.settings_path = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
+            #self.settings_path = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
+            
             # Create the settings h5 file if it doesn't exist!
             with h5py.File(self.settings_path,'a') as h5file:
                 pass
@@ -114,15 +129,12 @@ if __name__ == "__main__":
             self.now_running = self.builder.get_object('label_now_running')
             self.analysis_container = self.builder.get_object('analysis_submission_container')
  
-            #self.connection_table_widget = self.builder.get_object('expanded_recompile')
-            #self.connection_table_widget.hide()
- 
             treeselection = self.listwidget.get_selection()
             treeselection.set_mode(gtk.SELECTION_MULTIPLE)
             
             # Set group ID's of notebooks to be the same
-            for k,v in self.notebook.items():
-                v.set_group_id(1323)
+            for notebook_number, notebook in self.notebook.items():
+                notebook.set_group_id(1323)
             
             # Need to connect signals!
             self.builder.connect_signals(self)
@@ -130,13 +142,16 @@ if __name__ == "__main__":
             # Set the icon!
             self.window.set_icon_from_file(os.path.join('BLACS.svg'))
             
+            #
             # Load Connection Table
-            # Get H5 file        
-            h5_file = os.path.join("connectiontables", socket.gethostname()+".h5")
+            #
+            # Get file paths (used for file watching later)           
+            self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
+            self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
             
-            # Create Connection Table
+            # Create Connection Table object
             try:
-                self.connection_table = ConnectionTable(h5_file)
+                self.connection_table = ConnectionTable(self.connection_table_h5file)
             except:
                 dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%h5_file)
                      
@@ -162,44 +177,44 @@ if __name__ == "__main__":
                 self.window.move(tab_data['BLACS settings']["window_xpos"],tab_data['BLACS settings']["window_ypos"])
                 self.window.resize(tab_data['BLACS settings']["window_width"],tab_data['BLACS settings']["window_height"])
                 
-                for k,v in self.panes.items():
-                    v.set_position(tab_data['BLACS settings'][k])
+                for pane_name,pane in self.panes.items():
+                    pane.set_position(tab_data['BLACS settings'][pane_name])
                         
             except Exception as e:
                 logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
             
-            for k,v in self.attached_devices.items():
-                self.settings_dict.setdefault(k,{"device_name":k})
-                # add common keys to settings:
-                self.settings_dict[k]["connection_table"] = self.connection_table
-                self.settings_dict[k]["front_panel_settings"] = settings[k] if k in settings else {}
-                self.settings_dict[k]["saved_data"] = tab_data[k]['data'] if k in tab_data else {}
-                
-            
             self.tablist = {}
-            for k,v in self.attached_devices.items():
+            for device_name,device_class in self.attached_devices.items():
+                self.settings_dict.setdefault(device_name,{"device_name":device_name})
+                # add common keys to settings:
+                self.settings_dict[device_name]["connection_table"] = self.connection_table
+                self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
+                self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
+                
+                # Select the notebook to add the device to
                 notebook_num = "1"
-                if k in tab_data:
-                    notebook_num = tab_data[k]["notebook"]
+                if device_name in tab_data:
+                    notebook_num = tab_data[device_name]["notebook"]
                     if notebook_num not in self.notebook:        
                         notebook_num = "1"
-                        
-                self.tablist[k] = globals()[v](self,self.notebook[notebook_num],self.settings_dict[k])
+                
+                # Instantiate the device        
+                self.tablist[device_name] = globals()[device_class](self,self.notebook[notebook_num],self.settings_dict[device_name])
             
             # Now that all the pages are created, reorder them!
-            for k,v in self.attached_devices.items():
-                if k in tab_data:
-                    notebook_num = tab_data[k]["notebook"]
+            for device_name,device_class in self.attached_devices.items():
+                if device_name in tab_data:
+                    notebook_num = tab_data[device_name]["notebook"]
                     if notebook_num in self.notebook:                                        
-                        self.notebook[notebook_num].reorder_child(self.tablist[k]._toplevel,tab_data[k]["page"])
+                        self.notebook[notebook_num].reorder_child(self.tablist[device_name]._toplevel,tab_data[device_name]["page"])
                     
-            # now that they are in the correct order, set the correct one visible
-            for k,v in tab_data.items():
-                if k == 'BLACS settings':
+            # Now that they are in the correct order, set the correct one visible
+            for device_name,device_data in tab_data.items():
+                if device_name == 'BLACS settings':
                     continue
                 # if the notebook still exists and we are on the entry that is visible
-                if v["visible"] and v["notebook"] in self.notebook:
-                    self.notebook[v["notebook"]].set_current_page(v["page"])
+                if device_data["visible"] and device_data["notebook"] in self.notebook:
+                    self.notebook[device_data["notebook"]].set_current_page(device_data["page"])
             
             self.front_panel_settings.setup_settings(self)
             
@@ -207,31 +222,8 @@ if __name__ == "__main__":
             # Open BLACS Config File
             # Load Virtual Devices
             
-            #self.shutter_tab = globals()["shutter"]([self.tab.get_child("DO",1),self.tab.get_child("DO",5),self.tab.get_child("DO",27),self.tab.get_child("DO",13)])
-            #self.notebook.append_page(self.shutter_tab.tab,gtk.Label("shutter_0"))
-            #
-            # Setup a quick test of plotting data!
-            #
-            vbox = gtk.VBox()
 
-            fig = Figure(figsize=(5,4), dpi=100)
-            ax = fig.add_subplot(111)
-            t = numpy.arange(0,10000,1)
-            s = numpy.arange(-10,11,21/10000.)
-            self.plot_data = s
-            ax.plot(t,s)
-            self.ax = ax
-            self.figure = fig
-
-            canvas = FigureCanvas(fig)  # a gtk.DrawingArea
-            self.canvas = canvas
-            vbox.pack_start(canvas)
-            #self.notebook.append_page(vbox,gtk.Label("graph!"))
-            #vbox.show_all()
-            #self.tablist["ni_pcie_6363_0"].request_analog_input(0,50000,self.update_plot)
-            
-            self.window.maximize()
-            
+            self.window.maximize()            
             self.window.show()
             
             # Start Queue Manager
@@ -247,15 +239,12 @@ if __name__ == "__main__":
             self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue)
             
             
-            # setup the settings system
+            # setup the BLACS preferences system
             self.settings = Settings(file=self.settings_path,
                                      parent = self.window,
                                      page_classes=[settings_pages.connection_table.ConnectionTable,
                                                    settings_pages.general.General])
             self.settings.register_callback(self.on_settings_changed)
-            
-            self.connection_table_labscript = os.path.abspath(os.path.join("connectiontables", socket.gethostname()+".py"))
-            self.connection_table_h5file = os.path.abspath(os.path.join("connectiontables", socket.gethostname()+".h5"))
             
             self.filewatcher = None
             self.setup_folder_watching()
@@ -371,12 +360,16 @@ if __name__ == "__main__":
         
         def on_edit_connection_table(self,widget):
             # get path to text editor
-            editor_path = self.settings.get_value(settings_pages.general.General,'ct_editor')
+            editor_path = self.exp_config.get('programs','text_editor')
             if editor_path:  
+                if '{file}' in editor_path:
+                    editor_path.replace('{file}', self.exp_config.get('paths','connection_table_py'))
+                else:
+                    editor_path += " "+ self.exp_config.get('paths','connection_table_py')
                 try:
-                    Popen([editor_path, os.path.join(os.path.dirname(os.path.realpath(__file__)),"connectiontables", socket.gethostname()+".py")])
+                    Popen([editor_path])
                 except Exception:
-                    raise Exception("Unable to launch text editor. Check the path is valid in the preferences")
+                    raise Exception("Unable to launch text editor. Check the path is valid in the experiment config file (%s)"%self.exp_config.config_path)
             else:
                 raise Exception("No editor path was specified in the preferences")
                 
@@ -883,6 +876,9 @@ if __name__ == "__main__":
             postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
             h5_filepath =  postvars['filepath'][0]
             with gtk.gdk.lock:
+                # Get the share drive prefix
+                app.exp_config.get('paths','shared_drive')                
+                # TODO: prepend the share drive prefix to the path
                 message = process_request(h5_filepath)
             logger.info('Request handler: %s ' % message.strip())
             self.wfile.write(message)
