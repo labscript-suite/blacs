@@ -89,7 +89,9 @@ if __name__ == "__main__":
             config_path = r'C:\labconfig\\'+socket.gethostname()+r'.ini'
             self.settings_path = r'C:\labconfig\\'+socket.gethostname()+r'_BLACS.h5'
             required_config_params = {"DEFAULT":["experiment_name"],
-                                      "programs":["text_editor"]
+                                      "programs":["text_editor",
+                                                  "text_editor_arguments",
+                                                 ],
                                       "paths":["shared_drive",
                                                "connection_table_h5",
                                                "connection_table_py",
@@ -153,7 +155,7 @@ if __name__ == "__main__":
             try:
                 self.connection_table = ConnectionTable(self.connection_table_h5file)
             except:
-                dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%h5_file)
+                dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%self.connection_table_h5file)
                      
                 dialog.run()
                 dialog.destroy()
@@ -361,17 +363,19 @@ if __name__ == "__main__":
         def on_edit_connection_table(self,widget):
             # get path to text editor
             editor_path = self.exp_config.get('programs','text_editor')
+            editor_args = self.exp_config.get('programs','text_editor_arguments')
             if editor_path:  
-                if '{file}' in editor_path:
-                    editor_path.replace('{file}', self.exp_config.get('paths','connection_table_py'))
+                if '{file}' in editor_args:
+                    editor_args = editor_args.replace('{file}', self.exp_config.get('paths','connection_table_py'))
                 else:
-                    editor_path += " "+ self.exp_config.get('paths','connection_table_py')
+                    editor_args = self.exp_config.get('paths','connection_table_py') + " " + editor_args
+                
                 try:
-                    Popen([editor_path])
+                    Popen([editor_path,editor_args])
                 except Exception:
                     raise Exception("Unable to launch text editor. Check the path is valid in the experiment config file (%s)"%self.exp_config.config_path)
             else:
-                raise Exception("No editor path was specified in the preferences")
+                raise Exception("No editor path was specified in the lab config file")
                 
             
         def on_select_globals(self,widget):
