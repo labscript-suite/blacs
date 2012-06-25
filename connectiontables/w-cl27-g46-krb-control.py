@@ -1,14 +1,14 @@
 from labscript import *
 from unitconversions import *
 
-PulseBlaster(  'pulseblaster_0')
-PulseBlaster(  'pulseblaster_1')
+PulseBlaster(  'pulseblaster_0', board_number=0)
+PulseBlaster(  'pulseblaster_1', board_number=1)
 NI_PCIe_6363(  'ni_pcie_6363_0',  pulseblaster_0, 'fast clock','/ni_pcie_6363_0/PFI0')
 NI_PCI_6733(    'ni_pci_6733_0',  pulseblaster_0, 'fast clock','/ni_pcie_6363_0/PFI0')
-NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock')#flag 1
-NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock')#flag 1
-NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock')#flag 1
-NovaTechDDS9M( 'novatechdds9m_3', pulseblaster_1, 'fast clock')
+NovaTechDDS9M( 'novatechdds9m_0', pulseblaster_0, 'slow clock', com_port="com10")#flag 1
+NovaTechDDS9M( 'novatechdds9m_1', pulseblaster_0, 'slow clock', com_port="com13")#flag 1
+NovaTechDDS9M( 'novatechdds9m_2', pulseblaster_0, 'slow clock', com_port="com11")#flag 1
+NovaTechDDS9M( 'novatechdds9m_3', pulseblaster_1, 'fast clock', com_port="com12")
 
 #DigitalOut(     'Fast_Clock',                           pulseblaster_0,         'flag 0')
 #DigitalOut(     'Slow_Clock',                           pulseblaster_0,         'flag 1')                                       #NT_1,2,3
@@ -22,7 +22,7 @@ NovaTechDDS9M( 'novatechdds9m_3', pulseblaster_1, 'fast clock')
 #DigitalOut(     '',                                     pulseblaster_0,         'flag 9')
 Shutter(     'Rb_Optical_Pumping_Shutter',                                     pulseblaster_0,         'flag 10', delay=(3e-3,3e-3))
 DigitalOut(     'Novatech_Gate',                         pulseblaster_0,         'flag 11')
-#DDS(            'dipole_main',                           pulseblaster_0,         'dds 0')
+DDS(            'asd',                           pulseblaster_0,         'dds 0')
 #DDS(            'dipole_secondary',                      pulseblaster_0,         'dds 1')
 
 
@@ -107,8 +107,8 @@ Shutter(        'Rb_Push_Shutter',                       ni_pcie_6363_0,        
 #Shutter(     'Shutter_0_3',                              ni_pcie_6363_0,         'port0/line14', delay=(5e-3,5e-3))              #Sh_0_3
 #Shutter(     'Shutter_0_4',                              ni_pcie_6363_0,         'port0/line15', delay=(5e-3,5e-3))              #Sh_0_4
 
-Camera(           'camera',                              ni_pcie_6363_0,         'port0/line17',0, 'side') # Change exposer time to a global
-Camera(     'red_camera',                                     ni_pcie_6363_0,         'port0/line20',0,'side') # Change exposer time to a global
+Camera(           'camera',                              ni_pcie_6363_0,         'port0/line17',BIAS_port=42519,exposuretime=0, orientation='side') # Change exposer time to a global
+Camera(     'red_camera',                                     ni_pcie_6363_0,         'port0/line20',BIAS_port=42518,exposuretime=0,orientation='side') # Change exposer time to a global
 DigitalOut(     'Bottom_Bragg_Mirror',                                     ni_pcie_6363_0,         'port0/line21')
 DigitalOut(     'Top_Bragg_Mirror',                                     ni_pcie_6363_0,         'port0/line22')
 #DigitalOut(     '',                                     ni_pcie_6363_0,         'port0/line23')
