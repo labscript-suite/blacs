@@ -82,22 +82,11 @@ if __name__ == "__main__":
 
 
     class BLACS(object):       
-        def __init__(self):
+        def __init__(self,exp_config,settings_path):
             self.exiting = False
             
-            # Load the experiment config file, and verify that the necessary parameters are there"
-            config_path = r'C:\labconfig\\'+socket.gethostname()+r'.ini'
-            self.settings_path = r'C:\labconfig\\'+socket.gethostname()+r'_BLACS.h5'
-            required_config_params = {"DEFAULT":["experiment_name"],
-                                      "programs":["text_editor",
-                                                  "text_editor_arguments",
-                                                 ],
-                                      "paths":["shared_drive",
-                                               "connection_table_h5",
-                                               "connection_table_py",
-                                              ],
-                                     }
-            self.exp_config = LabConfig(config_path,required_config_params)
+            self.exp_config = exp_config
+            self.settings_path = settings_path
             self.front_panel_settings = FrontPanelSettings()
             #self.settings_path = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
             
@@ -940,13 +929,30 @@ if __name__ == "__main__":
                        "Please verify your experiment script matches the current experiment configuration, and try again\n")
             return message
 
-
-    port = 42517
+    #####################
+    ### BEGIN PROGRAM ###
+    #####################
+    # Load the experiment config file, and verify that the necessary parameters are there"
+    config_path = r'C:\labconfig\\'+socket.gethostname()+r'.ini'
+    settings_path = r'C:\labconfig\\'+socket.gethostname()+r'_BLACS.h5'
+    required_config_params = {"DEFAULT":["experiment_name"],
+                              "programs":["text_editor",
+                                          "text_editor_arguments",
+                                         ],
+                              "paths":["shared_drive",
+                                       "connection_table_h5",
+                                       "connection_table_py",                                       
+                                      ],
+                              "ports":["BLACS"],
+                             }
+    exp_config = LabConfig(config_path,required_config_params)        
+    
+    port = int(exp_config.get('ports','BLACS'))
     myappid = 'monashbec.BLACS' # arbitrary string
     if os.name == 'nt': # please leave this in so I can test in linux!
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     gtk.gdk.threads_init()
-    app = BLACS()
+    app = BLACS(exp_config,settings_path)
     # Make it not look so terrible (if icons and themes are installed):
     gtk.settings_get_default().set_string_property('gtk-icon-theme-name','gnome-human','')
     gtk.settings_get_default().set_string_property('gtk-theme-name','Clearlooks','')
