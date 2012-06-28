@@ -184,7 +184,8 @@ class ni_pcie_6363(Tab):
         notify_queue.put(self.device_name)
         
     @define_state
-    def abort_buffered(self):      
+    def abort_buffered(self):
+        self.static_mode = True
         self.queue_work('transition_to_static',abort=True)
         
     @define_state        
