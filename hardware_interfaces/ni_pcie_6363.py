@@ -6,6 +6,7 @@ import threading
 import logging
 import numpy
 import time
+import os
 import h5py
 import excepthook
 
@@ -41,7 +42,7 @@ class ni_pcie_6363(Tab):
         
         # PyGTK stuff:
         self.builder = gtk.Builder()
-        self.builder.add_from_file('hardware_interfaces/NI_6363.glade')
+        self.builder.add_from_file(os.path.join(os.path.dirname(os.path.realpath(__file__)),'NI_6363.glade'))
         self.builder.connect_signals(self)
         self.toplevel = self.builder.get_object('toplevel')
         
