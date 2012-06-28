@@ -149,7 +149,7 @@ class pulseblaster(Tab):
 
     @define_state
     def initialise_pulseblaster(self):
-        self.queue_work('initialise_pulseblaster',self.pb_num)
+        self.queue_work('initialise_pulseblaster',self.device_name,self.pb_num)
         
     @define_state
     def destroy(self):        
@@ -303,7 +303,8 @@ class PulseblasterWorker(Worker):
                             'amps1':None,'freqs1':None,'phases1':None,
                             'pulse_program':None,'ready_to_go':False}
     
-    def initialise_pulseblaster(self, pb_num):
+    def initialise_pulseblaster(self, name, pb_num):
+        self.device_name = name
         self.pb_num = pb_num
         pb_select_board(self.pb_num)
         pb_init()
@@ -337,7 +338,7 @@ class PulseblasterWorker(Worker):
         
     def program_buffered(self,h5file,initial_values,fresh):
         with h5py.File(h5file,'r') as hdf5_file:
-            group = hdf5_file['devices/pulseblaster_%d'%self.pb_num]
+            group = hdf5_file['devices/%s'%self.device_name]
             # Program the DDS registers:
             ampregs = []
             freqregs = []
