@@ -39,7 +39,13 @@ class camera(Tab):
             self.host.set_text(host)
         else:
             self.logger.warning('No previous front panel state to restore')
-            
+    
+    @define_state
+    def on_change_host(self,widget):
+        # Save host into settings
+        self.settings['saved_data'] = self.get_save_data()
+        self.initialise_camera()        
+    
     @define_state
     def destroy(self):        
         self.destroy_complete = True
