@@ -2,12 +2,12 @@ from labscript import *
 from unitconversions import *
 
 # MAIN DEVICE DEFINITIONS
-PulseBlaster(     'pulseblaster_0',board_number=0)
-PulseBlaster(     'pulseblaster_1',board_number=1)
+PulseBlaster(     'pulseblaster_0', board_number=0)
+PulseBlaster(     'pulseblaster_1', board_number=1)
 #PulseBlaster(     'pulseblaster_2')
 NI_PCIe_6363(     'ni_pcie_6363_0', pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0', acquisition_rate=1e4)
 NI_PCI_6733(       'ni_pci_6733_0', pulseblaster_0, 'fast clock', '/ni_pcie_6363_0/PFI0')
-NovaTechDDS9M(   'novatechdds9m_9', pulseblaster_0, 'slow clock',com_port="com9")
+NovaTechDDS9M(   'novatechdds9m_9', pulseblaster_0, 'slow clock', com_port="com9")
 DigitalOut( 'pulseblaster_trigger', pulseblaster_0, 'flag 2')
 
 # MAG-NEAT-O CONTROL
@@ -36,15 +36,15 @@ Shutter(        'Zeeman_shutter', ni_pcie_6363_0, 'port0/line19', delay=(0,0))
 Shutter( 'Zeeman_repump_shutter', ni_pcie_6363_0, 'port0/line20', delay=(0,0))
 Shutter(       'imaging_shutter', ni_pcie_6363_0, 'port0/line21', delay=(0,0))
 Shutter(            'OP_shutter', ni_pcie_6363_0, 'port0/line22', delay=(0,0))
-Shutter(          'atom_shutter', ni_pcie_6363_0,  'port0/line3', delay=(0,0))
-Shutter(        'flipper_mirror', ni_pcie_6363_0,  'port0/line2', delay=(0,0))
+Shutter(          'atom_shutter', ni_pcie_6363_0, 'port0/line3',  delay=(0,0))
+Shutter(        'flipper_mirror', ni_pcie_6363_0, 'port0/line2',  delay=(0,0))
 
 # POWER MONITORING
-AnalogIn(             'MOT_power', ni_pcie_6363_0,  'ai16')
-AnalogIn(          'Zeeman_power', ni_pcie_6363_0,  'ai17')
-AnalogIn(      'MOT_repump_power', ni_pcie_6363_0,  'ai18')
-AnalogIn(         'imaging_power', ni_pcie_6363_0,  'ai19')
-AnalogIn( 'optical_pumping_power', ni_pcie_6363_0,  'ai20')
+AnalogIn(             'MOT_power', ni_pcie_6363_0, 'ai16')
+AnalogIn(          'Zeeman_power', ni_pcie_6363_0, 'ai17')
+AnalogIn(      'MOT_repump_power', ni_pcie_6363_0, 'ai18')
+AnalogIn(         'imaging_power', ni_pcie_6363_0, 'ai19')
+AnalogIn( 'optical_pumping_power', ni_pcie_6363_0, 'ai20')
 
 # FLUORESCENCE MONITORING
 AnalogIn( 'MOT_fluoro', ni_pcie_6363_0, 'ai8')
@@ -60,7 +60,7 @@ StaticDDS( 'MOT_repump_lock', novatechdds9m_9, 'channel 3', digital_gate = {'dev
 DigitalOut(   'table_enable',  ni_pcie_6363_0, 'port0/line23')
 
 # IMAGING SYSTEM
-Camera( 'avt_gx1920_0', ni_pcie_6363_0, 'port0/line1',BIAS_port=42518, exposuretime=0.1, orientation='side')
+Camera( 'avt_gx1920_0', ni_pcie_6363_0, 'port0/line1', BIAS_port=42518, exposuretime=0.1, orientation='side')
 
 # PULSEBLASTER 0 DDS
 DDS(    'imaging', pulseblaster_0, 'dds 0')
