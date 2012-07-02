@@ -62,12 +62,20 @@ class AO(object):
                 self.locked = saved_data['locked']
                 self.update_lock()
             else:
-                settings['front_panel_settings'][self.channel] = {}
+                settings['front_panel_settings'][self.channel] = {'base_value':self.value,
+                                                                  'current_units':self.current_units,
+                                                                  'base_step_size':self.adjustment.get_step_increment(),
+                                                                  'locked':self.locked,
+                                                                  }
         else:
             if not isinstance(settings,dict):
                 settings = {}                
             settings['front_panel_settings'] = {}
-            settings['front_panel_settings'][self.channel] = {}
+            settings['front_panel_settings'][self.channel] = {'base_value':self.value,
+                                                              'current_units':self.current_units,
+                                                              'base_step_size':self.adjustment.get_step_increment(),
+                                                              'locked':self.locked,
+                                                              }
             
     
     def add_widget(self,widget, combobox):
@@ -119,14 +127,7 @@ class AO(object):
                 parameter_list[index] = convert(param)
         
         # Store the current units
-        self.current_units = new_units
-        
-        # update the settings dictionary if it exists, to maintain continuity on tab restarts
-        if hasattr(self,'settings'):
-            if 'front_panel_settings' in self.settings:
-                if self.channel in self.settings['front_panel_settings']:
-                    self.settings['front_panel_settings'][self.channel]['current_units'] = self.current_units
-                    
+        self.current_units = new_units      
         
         # Check to see if the upper/lower bound has switched
         if parameter_list[1] > parameter_list[2]:
@@ -138,6 +139,13 @@ class AO(object):
         self.adjustment.configure(parameter_list[0],parameter_list[1],parameter_list[2],abs(parameter_list[3]-parameter_list[4]),abs(parameter_list[3]-parameter_list[4])*10,0)
         #Unblock the handler
         self.adjustment.handler_unblock(self.handler_id)
+        
+        # update the settings dictionary if it exists, to maintain continuity on tab restarts
+        if hasattr(self,'settings'):
+            if 'front_panel_settings' in self.settings:
+                if self.channel in self.settings['front_panel_settings']:
+                    self.settings['front_panel_settings'][self.channel]['current_units'] = self.current_units
+                    self.settings['front_panel_settings'][self.channel]['base_step_size'] = self.get_step_in_base_units()
         
         # update saved limits
         if parameter_list[5] > parameter_list[6]:
@@ -228,14 +236,14 @@ class AO(object):
                 if value > (self.limits[1] - self.limits[0]):
                     raise Exception("The step size specified is greater than the difference between the current limits")
                 
+                self.adjustment.set_step_increment(value)
+                self.adjustment.set_page_increment(value*10)
+                
                 # update the settings dictionary if it exists, to maintain continuity on tab restarts
                 if hasattr(self,'settings'):
                     if 'front_panel_settings' in self.settings:
                         if self.channel in self.settings['front_panel_settings']:
-                            self.settings['front_panel_settings'][self.channel]['base_step_size'] = value
-                
-                self.adjustment.set_step_increment(value)
-                self.adjustment.set_page_increment(value*10)
+                            self.settings['front_panel_settings'][self.channel]['base_step_size'] = self.get_step_in_base_units()
                 
             except Exception, e:
                 # Make a message dialog with an error in
@@ -334,7 +342,7 @@ class DO(object):
     
     def update(self,settings):
         # Save the settings so we can update them when things chnage to maintain continuity between tab restarts
-        
+        self.settings = settings
         if 'front_panel_settings' in settings:
             if self.channel in settings['front_panel_settings']:
                 saved_data = settings['front_panel_settings'][self.channel]
@@ -345,12 +353,16 @@ class DO(object):
                 self.locked = saved_data['locked']
                 self.update_style()
             else:
-                settings['front_panel_settings'][self.channel] = {}
+                settings['front_panel_settings'][self.channel] = {'base_value':self.state,                                                                  
+                                                                  'locked':self.locked,
+                                                                  }
         else:
             if not isinstance(settings,dict):
                 settings = {}                
             settings['front_panel_settings'] = {}
-            settings['front_panel_settings'][self.channel] = {}
+            settings['front_panel_settings'][self.channel] = {'base_value':self.state,                                                                  
+                                                              'locked':self.locked,
+                                                              }
     
     def add_widget(self,widget):
         self.action.connect_proxy(widget)
