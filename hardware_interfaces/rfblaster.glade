@@ -292,8 +292,8 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkRadioButton" id="radiobutton5">
-                        <property name="label" translatable="yes">Keep new values</property>
+                      <object class="GtkRadioButton" id="radiobutton_pull_remote_0">
+                        <property name="label" translatable="yes">Use the (changed) values in the RfBlaster</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
@@ -309,14 +309,15 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkRadioButton" id="radiobutton6">
-                        <property name="label" translatable="yes">Revert to last BLACS values</property>
+                      <object class="GtkRadioButton" id="radiobutton_push_BLACS_0">
+                        <property name="label" translatable="yes">Use current front panel values from BLACS</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
                         <property name="active">True</property>
                         <property name="draw_indicator">True</property>
+                        <property name="group">radiobutton_pull_remote_0</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -522,8 +523,8 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkRadioButton" id="radiobutton1">
-                        <property name="label" translatable="yes">Keep new values</property>
+                      <object class="GtkRadioButton" id="radiobutton_pull_remote_1">
+                        <property name="label" translatable="yes">Use the (changed) values in the RfBlaster</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
@@ -539,14 +540,15 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkRadioButton" id="radiobutton2">
-                        <property name="label" translatable="yes">Revert to last BLACS values</property>
+                      <object class="GtkRadioButton" id="radiobutton_push_BLACS_1">
+                        <property name="label" translatable="yes">Use current front panel values from BLACS</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
                         <property name="active">True</property>
                         <property name="draw_indicator">True</property>
+                        <property name="group">radiobutton_pull_remote_1</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -579,7 +581,7 @@
                     </child>
                     <child>
                       <object class="GtkButton" id="resolve_changes">
-                        <property name="label" translatable="yes">Continue</property>
+                        <property name="label" translatable="yes">Apply</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>

@@ -37,6 +37,8 @@ class rfblaster(Tab):
         self.main_view = self.builder.get_object('main_vbox')
         self.dds_outputs = []
         self.changed_outputs = {'f':[],'a':[],'p':[]}
+        self.radio_widgets = {}
+        
         for i in range(self.num_DDS):
             # Generate a unique channel name (unique to the device instance,
             # it does not need to be unique to BLACS)
@@ -54,6 +56,11 @@ class rfblaster(Tab):
             self.changed_outputs['f'].append(self.builder.get_object('new_freq_%d'%i))
             self.changed_outputs['a'].append(self.builder.get_object('new_amp_%d'%i))
             self.changed_outputs['p'].append(self.builder.get_object('new_phase_%d'%i))
+            
+            # Save the radio widgets for when values on the RfBlaster change without the tabs knowledge
+            self.radio_widgets['%d_push_BLACS'%i] = self.builder.get_object('radiobutton_push_BLACS_%d'%i)
+            self.radio_widgets['%d_pull_remote'%i] = self.builder.get_object('radiobutton_pull_remote_%d'%i)
+            
             # Loop over freq,amp,phase and create AO objects for each
             ao_objects = {}
             sub_chnl_list = ['freq','amp','phase']
@@ -93,6 +100,7 @@ class rfblaster(Tab):
             #gate_togglebutton = self.builder.get_object('active_chnl_%d'%i)        
             # Make the gate DO object            
             gate = DO(name+'_gate', channel+'_gate', gate_checkbutton, self.program_static)
+            gate.update(settings)
                     
             # Construct the DDS object and store for later access:
             self.dds_outputs.append(DDS(ao_objects['freq'],ao_objects['amp'],ao_objects['phase'],gate))
@@ -111,6 +119,7 @@ class rfblaster(Tab):
     @define_state
     def initialise_rfblaster(self):
         self.queue_work('initialise_rfblaster',self.device_name,self.address,self.num_DDS)
+        self.status_monitor()
         
     @define_state
     def destroy(self):        
@@ -145,9 +154,9 @@ class rfblaster(Tab):
             self.static_mode = False
             self.main_view.set_sensitive(False)
             self.changed_view.set_visible(True)
-            [widget.set_value(value) for widget,value in zip(self.changed_outputs['f'],self.new_values['f'])]
-            [widget.set_value(value) for widget,value in zip(self.changed_outputs['a'],self.new_values['a'])]
-            [widget.set_value(value) for widget,value in zip(self.changed_outputs['p'],self.new_values['p'])]
+            [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['f'],self.new_values['f'])]
+            [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['a'],self.new_values['a'])]
+            [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['p'],self.new_values['p'])]
         else:
             self.static_mode = True
             self.main_view.set_sensitive(True)
@@ -159,10 +168,13 @@ class rfblaster(Tab):
         self.main_view.set_sensitive(True)
         self.changed_view.set_visible(False)
         for i, dds in enumerate(self.dds_outputs):
-            dds.freq.set_value(self.new_values['f'][i],program=False)
-            dds.amp.set_value(self.new_values['a'][i],program=False)
-            dds.phase.set_value(self.new_values['p'][i],program=False)
-        self.queue_work('transition_to_static',updated=True)
+            # do we want to use the remote values?
+            if self.radio_widgets['%d_pull_remote'%i].get_active():
+                dds.freq.set_value(self.new_values['f'][i],program=False)
+                dds.amp.set_value(self.new_values['a'][i],program=False)
+                dds.phase.set_value(self.new_values['p'][i],program=False)
+                dds.gate.set_state(True,program=False)
+        self.queue_work('program_static',self.get_front_panel_state())
     
     
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
@@ -242,6 +254,8 @@ class RFBlasterWorker(Worker):
     def program_static(self,values):
         # Program the DDS registers:
         form = MultiPartForm()
+        #raise Exception(values)
+        form_values = {}
         for i in range(self.num_DDS):
             # Program the frequency, amplitude and phase
             form.add_field("a_ch%d_in"%i,str(values['a'][i]*values['e'][i]))
@@ -250,16 +264,31 @@ class RFBlasterWorker(Worker):
             form.add_field("f_ch%d_wr"%i,"False")
             form.add_field("a_ch%d_wr"%i,"False")
             form.add_field("p_ch%d_wr"%i,"False")
+            
+            form_values["a_ch%d_in"%i] = str(values['a'][i]*values['e'][i])
+            form_values["f_ch%d_in"%i] = str(values['f'][i]*1e-6) # method expects MHz
+            form_values["p_ch%d_in"%i] = str(values['p'][i])
+            form_values["f_ch%d_wr"%i] = "0"
+            form_values["a_ch%d_wr"%i] = "0"
+            form_values["p_ch%d_wr"%i] = "0"
+            
         form.add_field("set_dds","Set device")
+        form_values['set_dds'] = "Set device"
         # Build the request
         req = urllib2.Request(self.address)
-
+        #raise Exception(form_values)
         body = str(form)
-        req.add_header('Content-type', form.get_content_type())
-        req.add_header('Content-length', len(body))
-        req.add_data(body)
-        urllib2.urlopen(req,timeout=self.timeout)
+        #req.add_header('Content-type', form.get_content_type())
+        #req.add_header('Content-length', len(body))
+        #req.add_data(body)
         
+
+        data = urllib.urlencode(form_values)
+        data = data.replace("+","%20")
+        #raise Exception(data)
+        req = urllib2.Request(self.address, data)
+        a = str(urllib2.urlopen(req,timeout=self.timeout).readlines())
+        #raise Exception(a)
         
     def program_buffered(self,h5file):
         with h5py.File(h5file,'r') as hdf5_file:
@@ -299,10 +328,8 @@ class RFBlasterWorker(Worker):
             
         else:
             #program final_values
-            if not updated:
-                vals = self.final_values
-            else:
-                vals = self.new_values
+            vals = self.final_values
+                
             for i in range(self.num_DDS):
                 # Program the frequency, amplitude and phase
                 form.add_field("f_ch%d_in"%i,str(vals['f'][i]*1e-6)) #MHz rather than Hz!
@@ -326,15 +353,21 @@ class RFBlasterWorker(Worker):
         #read the webserver page to see what values it puts in the form
         page = str(urllib2.urlopen(self.address,timeout=self.timeout).readlines())
         #prepare regular expressions for finding the values:
-        search = re.compile(r'name="([fap])_ch(\d+?)_in"\s*?value="[0-9.]+?"')
+        search = re.compile(r'name="([fap])_ch(\d+?)_in"\s*?value="([0-9.]+?)"')
+        
         webvalues = re.findall(search,page)
         front_panel['f'] = [val*1e-6 for val in front_panel['f']]
+        front_panel['a'] = [val*enable for val,enable in zip(front_panel['a'],front_panel['e'])]
         changed = False
         newvals = {'f':zeros(self.num_DDS),'a':zeros(self.num_DDS),'p':zeros(self.num_DDS)}
+        e= ""
         for register,channel,value in webvalues:
-            if float(front_panel[register][int(channel)]) != float(value):
+            if str(float(front_panel[register][int(channel)])) != str(float(value)):
+                e += register+channel+str(float(value))+str(float(front_panel[register][int(channel)]))+' '
                 changed = True
             newvals[register][int(channel)] = float(value)
+        if e:
+            raise Exception(e)
         newvals['e']=ones(self.num_DDS)
         newvals['f'] = [val*1e6 for val in newvals['f']]
         return changed,newvals
