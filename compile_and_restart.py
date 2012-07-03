@@ -81,7 +81,14 @@ class CompileAndRestart(object):
                 except OSError:
                      # File doesn't exist, no need to delete then:
                     pass
-                os.rename(self.tempfilename,self.output_path)
+                try:
+                    os.rename(self.tempfilename,self.output_path)
+                except OSError:
+                    self.output_box.queue.put(['stderr','Couldn\'t replace existing connection table h5 file. Is it open in another process?'])
+                    self.label_failure.set_visible(True)
+                    self.label_success.set_visible(False)
+                    self.button_restart.set_sensitive(False)
+                    os.remove(self.tempfilename)
             else:
                 self.label_failure.set_visible(True)
                 self.button_restart.set_sensitive(False)

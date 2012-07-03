@@ -38,7 +38,7 @@ if __name__ == "__main__":
     from notifications import Notifications
     
     # Lab config code
-    from LabConfig import LabConfig
+    from LabConfig import LabConfig, config_prefix
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -933,8 +933,8 @@ if __name__ == "__main__":
     ### BEGIN PROGRAM ###
     #####################
     # Load the experiment config file, and verify that the necessary parameters are there"
-    config_path = r'C:\labconfig\\'+socket.gethostname()+r'.ini'
-    settings_path = r'C:\labconfig\\'+socket.gethostname()+r'_BLACS.h5'
+    config_path = os.path.join(config_prefix,'%s.ini'%socket.gethostname())
+    settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%socket.gethostname())
     required_config_params = {"DEFAULT":["experiment_name"],
                               "programs":["text_editor",
                                           "text_editor_arguments",
