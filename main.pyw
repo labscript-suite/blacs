@@ -1,4 +1,10 @@
 import sys
+if __name__ == "__main__":
+    from splash_screen import SplashWindow
+    splash = SplashWindow('BLACS.png',(500,500),(70,450))
+    
+    splash.update_text('Importing logging...')
+
 import logging, logging.handlers
 import excepthook
 import os
@@ -9,6 +15,8 @@ from subprocess import Popen
 # Otherwise we import a bunch of stuff we don't need into the child processes! This is due to the way processes are spawned on windows. 
 #
 if __name__ == "__main__":
+    
+    splash.update_text('Importing standard libraries...')
     import threading
     import cgi
     import time
@@ -19,11 +27,13 @@ if __name__ == "__main__":
     import ctypes
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
+    splash.update_text('Importing gtk/numpy/h5py...')
     import gtk
     import gobject
     import numpy
     import h5py
     
+    splash.update_text('Importing pythonlib modules')
     from settings import Settings
     import settings_pages
     from filewatcher import FileWatcher
@@ -59,11 +69,14 @@ def setup_logging():
     logger.setLevel(logging.DEBUG)
     return logger
     
+if __name__ == "__main__":
+    splash.update_text('Setting up logging...')
 logger = setup_logging()
 excepthook.set_logger(logger)
 if __name__ == "__main__":
     logger.info('\n\n===============starting===============\n')
     
+    splash.update_text('Importing device classes...')
 # Hardware Interface Imports
 from hardware_interfaces import *
 for device in device_list:    
@@ -72,8 +85,10 @@ for device in device_list:
 if __name__ == "__main__":
     # Virtual Devices Import
     #needs to be dynamic import
+    splash.update_text('Importing virtual device classes...')
     from virtual_devices.shutter import *
 
+    splash.update_text('Importing matplotlib...')
     # Temporary imports to demonstrate plotting
     from matplotlib.figure import Figure
     from matplotlib.axes import Axes
@@ -82,7 +97,7 @@ if __name__ == "__main__":
 
 
     class BLACS(object):       
-        def __init__(self,exp_config,settings_path):
+        def __init__(self,exp_config,settings_path,splash):
             self.exiting = False
             
             self.exp_config = exp_config
@@ -90,10 +105,12 @@ if __name__ == "__main__":
             self.front_panel_settings = FrontPanelSettings()
             #self.settings_path = os.path.join("connectiontables", socket.gethostname()+"_settings.h5")
             
+            splash.update_text('creating settings h5 file...')
             # Create the settings h5 file if it doesn't exist!
             with h5py.File(self.settings_path,'a') as h5file:
                 pass
             
+            splash.update_text('Creating BLACS interface...')
             self.builder = gtk.Builder()
             self.builder.add_from_file('main_interface.glade')
             self.builder.connect_signals(self)
@@ -136,6 +153,7 @@ if __name__ == "__main__":
             #
             # Load Connection Table
             #
+            splash.update_text('Loading connection table...')
             # Get file paths (used for file watching later)           
             self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
             self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
@@ -152,6 +170,7 @@ if __name__ == "__main__":
                 return
             
             # Get settings to restore
+            splash.update_text('Loading device save data...')
             settings,question,error,tab_data = self.front_panel_settings.restore(self.settings_path,self.connection_table)
             
             # TODO: handle question/error cases
@@ -174,6 +193,7 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
             
+            splash.update_text('Creating the device tabs...')
             self.tablist = {}
             for device_name,device_class in self.attached_devices.items():
                 self.settings_dict.setdefault(device_name,{"device_name":device_name})
@@ -188,10 +208,11 @@ if __name__ == "__main__":
                     notebook_num = tab_data[device_name]["notebook"]
                     if notebook_num not in self.notebook:        
                         notebook_num = "1"
-                
+                splash.update_text('Creating the device tabs...'+device_name+'...')
                 # Instantiate the device        
                 self.tablist[device_name] = globals()[device_class](self,self.notebook[notebook_num],self.settings_dict[device_name])
             
+            splash.update_text('restoring tab positions...')
             # Now that all the pages are created, reorder them!
             for device_name,device_class in self.attached_devices.items():
                 if device_name in tab_data:
@@ -218,6 +239,7 @@ if __name__ == "__main__":
             self.window.show()
             
             # Start Queue Manager
+            splash.update_text('Starting the queue manager thread...')
             self.manager_running = True
             self.manager_paused = False
             self.manager_repeat = False
@@ -226,19 +248,23 @@ if __name__ == "__main__":
             self.manager.start()
             
             # Start the analysis submission thread:
+            splash.update_text('Starting the analysis submission thread...')
             self.analysis_queue = Queue.Queue()
             self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue)
             
             
             # setup the BLACS preferences system
+            splash.update_text('Setting up the BLACS settings...')
             self.settings = Settings(file=self.settings_path,
                                      parent = self.window,
                                      page_classes=[settings_pages.connection_table.ConnectionTable,
                                                    settings_pages.general.General])
             self.settings.register_callback(self.on_settings_changed)
             
+            splash.update_text('Setting up connection table file watching...')
             self.filewatcher = None
             self.setup_folder_watching()
+            
             
         def setup_folder_watching(self):                
             folder_list = []
@@ -931,7 +957,8 @@ if __name__ == "__main__":
 
     #####################
     ### BEGIN PROGRAM ###
-    #####################
+    #####################    
+    splash.update_text('Loading configuration file...')
     # Load the experiment config file, and verify that the necessary parameters are there"
     config_path = os.path.join(config_prefix,'%s.ini'%socket.gethostname())
     settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%socket.gethostname())
@@ -952,17 +979,28 @@ if __name__ == "__main__":
     if os.name == 'nt': # please leave this in so I can test in linux!
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     gtk.gdk.threads_init()
-    app = BLACS(exp_config,settings_path)
+    
+    
+    app = BLACS(exp_config,settings_path,splash)
     # Make it not look so terrible (if icons and themes are installed):
+    
+    splash.update_text('configuring theme...')
     gtk.settings_get_default().set_string_property('gtk-icon-theme-name','gnome-human','')
     gtk.settings_get_default().set_string_property('gtk-theme-name','Clearlooks','')
     gtk.settings_get_default().set_string_property('gtk-font-name','ubuntu 9','')
     gtk.settings_get_default().props.gtk_button_images = True
     gtk.rc_parse('blacs.gtkrc')
+    
+    splash.update_text('Starting HTTP server for the queue...')
     http_server = HTTPServer(('', port),RequestHandler)
     serverthread = threading.Thread(target = http_server.serve_forever)
     serverthread.daemon = True
     serverthread.start()
+    #app.window.maximize()            
+    #app.window.show()
+    # Try putting a time.sleep(10) here!!
+    #time.sleep(10)
+    splash.destroy()
     with gtk.gdk.lock:
         gtk.main()
         
