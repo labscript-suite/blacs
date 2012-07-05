@@ -14,7 +14,7 @@ class rfblaster(Tab):
     
     base_units = {'freq':'Hz',        'amp':'%', 'phase':'Degrees'}
     base_min =   {'freq':500000,         'amp':0.0,   'phase':0}
-    base_max =   {'freq':350000000.0, 'amp':100.0,   'phase':360}
+    base_max =   {'freq':350000000.0, 'amp':99.993896,   'phase':360}
     base_step =  {'freq':1000000,           'amp':1.0,  'phase':1}
     
         
@@ -24,6 +24,8 @@ class rfblaster(Tab):
         self.device_name = settings['device_name']
         self.address = "http://" + str(self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection) + ":8080"
         self.static_mode = True
+        self.static_updates_queued = 0
+        self.finished_buffered = True
         self.destroy_complete = False
         
         # PyGTK stuff:
@@ -119,7 +121,6 @@ class rfblaster(Tab):
     @define_state
     def initialise_rfblaster(self):
         self.queue_work('initialise_rfblaster',self.device_name,self.address,self.num_DDS)
-        self.status_monitor()
         
     @define_state
     def destroy(self):        
@@ -143,22 +144,31 @@ class rfblaster(Tab):
     
     @define_state
     def status_monitor(self):
-        front_panel = self.get_front_panel_state()
-        self.queue_work('read_status',front_panel)
-        self.do_after('status_monitor_leave')
+        if self.static_updates_queued == 0 and self.static_mode == True:
+            
+            # If we've just come out of buffered mode, and haven't reprogrammed the device since,
+            # then we should compare the web values with the values they had when we programmed
+            # the buffered sequence. This is a bit of a hack, and misses occasions where someone
+            # goes onto the webpage and just hits "Set device" without changing any numbers, but
+            # will warn the user about any other interfering events on the website
+            if self.finished_buffered == True:
+                front_panel = self.post_buffered_web_vals
+            else:
+                front_panel = self.get_front_panel_state()
+            
+            self.queue_work('compare_web_values',front_panel)
+            self.do_after('status_monitor_leave')
         
     def status_monitor_leave(self,_results):
         changed,self.new_values = _results
         if changed:
             #Time to warn the user that someone's been playing with the webserver!
-            self.static_mode = False
             self.main_view.set_sensitive(False)
             self.changed_view.set_visible(True)
             [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['f'],self.new_values['f'])]
             [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['a'],self.new_values['a'])]
             [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['p'],self.new_values['p'])]
         else:
-            self.static_mode = True
             self.main_view.set_sensitive(True)
             self.changed_view.set_visible(False)
     
@@ -175,17 +185,43 @@ class rfblaster(Tab):
                 dds.phase.set_value(self.new_values['p'][i],program=False)
                 dds.gate.set_state(True,program=False)
         self.queue_work('program_static',self.get_front_panel_state())
-    
+        self.do_after('leave_program_static')
     
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
     # ** This method is an internal method, registered as a callback with each AO/DO/RF channel **
     # Static update of hardware (unbuffered)
-    @define_state
+    
     def program_static(self,widget=None):
+        # Don't allow events to pile up; only two allowed in the queue at a time.
+        # self.get_front_panel_state() is only called when program_static_state() runs, and so
+        # the effect of clicking many times quickly is that only the first and last updates happen.
+        # This is usually what you want, if you click n times, the result is that the last click you
+        # made is the one which is programmed.
+        if self.static_updates_queued < 2:
+            self.static_updates_queued += 1
+            self.program_static_state()
+    
+    @define_state
+    def program_static_state(self,widget=None):
         # Skip if in buffered mode:
         if self.static_mode:
             self.queue_work('program_static',self.get_front_panel_state())
-
+        self.do_after('leave_program_static')
+        
+    def leave_program_static(self,_results):
+        actual_values = _results
+        self.finished_buffered = False
+        self.static_updates_queued -= 1
+        if self.static_updates_queued <0:
+            self.static_updates_queued = 0
+        if self.static_updates_queued == 0:
+            for i, dds in enumerate(self.dds_outputs):
+                dds.freq.set_value(actual_values['f'][i],program=False)#Front panel needs Hz
+                if dds.gate.state:
+                    dds.amp.set_value(actual_values['a'][i],program=False)
+                dds.phase.set_value(actual_values['p'][i],program=False)
+        
+        
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
         self.static_mode = False 
@@ -197,32 +233,38 @@ class rfblaster(Tab):
         # These are the final values that the rfblaster will be in
         # at the end of the run. Store them so that we can use them
         # in transition_to_static:
-        self.final_values = _results
+        self.final_values,self.post_buffered_web_vals = _results
+        
         # Notify the queue manager thread that we've finished
         # transitioning to buffered:
         notify_queue.put(self.device_name)
        
+    @define_state
     def abort_buffered(self):
         # Might want to transition to static here...
         self.static_mode = True
-        self.queue_work('transition_to_static',abort=True)
+        self.queue_work('abort_buffered')
         
         
     @define_state
     def transition_to_static(self,notify_queue):
         self.static_mode = True
-        self.queue_work('transition_to_static')
-        self.do_after('leave_transition_to_static',notify_queue)
-        # Update the GUI with the final values of the run:
-        for i, dds in enumerate(self.dds_outputs):
-            dds.freq.set_value(self.final_values['f'][i],program=False)#Front panel needs Hz
-            dds.amp.set_value(self.final_values['a'][i],program=False)
-            dds.phase.set_value(self.final_values['p'][i],program=False)
-    
-    def leave_transition_to_static(self,notify_queue,_results):    
-        # Tell the queue manager that we're done:
+        self.finished_buffered = True
         if notify_queue is not None:
             notify_queue.put(self.device_name)
+        #self.queue_work('program_static',self.final_values)
+        #self.do_after('leave_transition_to_static',notify_queue)
+        # Update the GUI with the final values of the run:
+        #for i, dds in enumerate(self.dds_outputs):
+        #    dds.freq.set_value(self.final_values['f'][i],program=False)#Front panel needs Hz
+        #    dds.amp.set_value(self.final_values['a'][i],program=False)
+        #    dds.phase.set_value(self.final_values['p'][i],program=False)
+    
+    #def leave_transition_to_static(self,notify_queue,_results):    
+        # Tell the queue manager that we're done:
+     #   if notify_queue is not None:
+      #      notify_queue.put(self.device_name)
+       # self.leave_program_static(_results)
 
 
             
@@ -252,54 +294,36 @@ class RFBlasterWorker(Worker):
         
 
     def program_static(self,values):
-        # Program the DDS registers:
+        
         form = MultiPartForm()
-        #raise Exception(values)
-        form_values = {}
         for i in range(self.num_DDS):
             # Program the frequency, amplitude and phase
             form.add_field("a_ch%d_in"%i,str(values['a'][i]*values['e'][i]))
             form.add_field("f_ch%d_in"%i,str(values['f'][i]*1e-6)) # method expects MHz
             form.add_field("p_ch%d_in"%i,str(values['p'][i]))
-            form.add_field("f_ch%d_wr"%i,"False")
-            form.add_field("a_ch%d_wr"%i,"False")
-            form.add_field("p_ch%d_wr"%i,"False")
-            
-            form_values["a_ch%d_in"%i] = str(values['a'][i]*values['e'][i])
-            form_values["f_ch%d_in"%i] = str(values['f'][i]*1e-6) # method expects MHz
-            form_values["p_ch%d_in"%i] = str(values['p'][i])
-            form_values["f_ch%d_wr"%i] = "0"
-            form_values["a_ch%d_wr"%i] = "0"
-            form_values["p_ch%d_wr"%i] = "0"
             
         form.add_field("set_dds","Set device")
-        form_values['set_dds'] = "Set device"
         # Build the request
         req = urllib2.Request(self.address)
         #raise Exception(form_values)
         body = str(form)
-        #req.add_header('Content-type', form.get_content_type())
-        #req.add_header('Content-length', len(body))
-        #req.add_data(body)
-        
-
-        data = urllib.urlencode(form_values)
-        data = data.replace("+","%20")
-        #raise Exception(data)
-        req = urllib2.Request(self.address, data)
-        a = str(urllib2.urlopen(req,timeout=self.timeout).readlines())
-        #raise Exception(a)
+        req.add_header('Content-type', form.get_content_type())
+        req.add_header('Content-length', len(body))
+        req.add_data(body)
+        response = str(urllib2.urlopen(req,timeout=self.timeout).readlines())
+        webvalues = self.get_web_values(response)
+        return webvalues
         
     def program_buffered(self,h5file):
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices'][self.device_name]
             #Strip out the binary files and submit to the webserver
-            form = mpf.MultiPartForm()
+            form = MultiPartForm()
             finalfreq = zeros(self.num_DDS)
             finalamp = zeros(self.num_DDS)
             finalphase = zeros(self.num_DDS)
             for i in range(self.num_DDS):
-                data = group['/BINARY_CODE/DDS%d'%i].value
+                data = group['BINARY_CODE/DDS%d'%i].value
                 form.add_file_content("pulse_ch0","output_ch%d.bin"%i,data)
                 finalfreq[i]=group['TABLE_DATA']["freq%d"%i][-1]
                 finalamp[i]=group['TABLE_DATA']["amp%d"%i][-1]
@@ -311,37 +335,21 @@ class RFBlasterWorker(Worker):
             req.add_header('Content-type', form.get_content_type())
             req.add_header('Content-length', len(body))
             req.add_data(body)
-            print req
-            urllib2.urlopen(req)
+            post_buffered_web_vals = self.get_web_values(str(urllib2.urlopen(req,timeout = self.timeout).readlines()))
             #Find the final value from the human-readable part of the h5 file to use for
             #the front panel values at the end
             
             
             # Now we build a dictionary of the final state to send back to the GUI:
-            self.final_values = {"f":finalfreq*1e6,"a":finalamp,"p":finalphase} #note, GUI wants Hz
-            return self.final_values
-    def transition_to_static(self,abort=False,updated=False):
-        form = MultiPartForm()
-        if abort:
-            #tell the rfblaster to stop
-            form.add_field("halt","Halt execution")
+            self.final_values = {"f":finalfreq*1e6,"a":finalamp,"p":finalphase,"e": ones(self.num_DDS)} #note, GUI wants Hz
+            return self.final_values, post_buffered_web_vals
             
-        else:
-            #program final_values
-            vals = self.final_values
-                
-            for i in range(self.num_DDS):
-                # Program the frequency, amplitude and phase
-                form.add_field("f_ch%d_in"%i,str(vals['f'][i]*1e-6)) #MHz rather than Hz!
-                form.add_field("a_ch%d_in"%i,str(vals['a'][i]))
-                form.add_field("p_ch%d_in"%i,str(vals['p'][i]))
-                form.add_field("f_ch%d_wr"%i,"False")
-                form.add_field("a_ch%d_wr"%i,"False")
-                form.add_field("p_ch%d_wr"%i,"False")
-            form.add_field("set_dds","Set device")
-        # Build the request
+            
+    def abort_buffered(self):
+        form = MultiPartForm()
+        #tell the rfblaster to stop
+        form.add_field("halt","Halt execution")
         req = urllib2.Request(self.address)
-
         body = str(form)
         req.add_header('Content-type', form.get_content_type())
         req.add_header('Content-length', len(body))
@@ -349,27 +357,25 @@ class RFBlasterWorker(Worker):
         urllib2.urlopen(req,timeout=self.timeout)
         
         
-    def read_status(self,front_panel):
-        #read the webserver page to see what values it puts in the form
-        page = str(urllib2.urlopen(self.address,timeout=self.timeout).readlines())
+    def get_web_values(self,page):
+        
         #prepare regular expressions for finding the values:
         search = re.compile(r'name="([fap])_ch(\d+?)_in"\s*?value="([0-9.]+?)"')
         
         webvalues = re.findall(search,page)
-        front_panel['f'] = [val*1e-6 for val in front_panel['f']]
-        front_panel['a'] = [val*enable for val,enable in zip(front_panel['a'],front_panel['e'])]
-        changed = False
-        newvals = {'f':zeros(self.num_DDS),'a':zeros(self.num_DDS),'p':zeros(self.num_DDS)}
-        e= ""
+        newvals = {'f':zeros(self.num_DDS),'a':zeros(self.num_DDS),'p':zeros(self.num_DDS),'e':ones(self.num_DDS)}
         for register,channel,value in webvalues:
-            if str(float(front_panel[register][int(channel)])) != str(float(value)):
-                e += register+channel+str(float(value))+str(float(front_panel[register][int(channel)]))+' '
-                changed = True
             newvals[register][int(channel)] = float(value)
-        if e:
-            raise Exception(e)
-        newvals['e']=ones(self.num_DDS)
-        newvals['f'] = [val*1e6 for val in newvals['f']]
-        return changed,newvals
+        newvals['f'] = array([val*1e6 for val in newvals['f']])
+        return newvals
+    
+    def compare_web_values(self,front_panel):
+        #read the webserver page to see what values it puts in the form
+        page = str(urllib2.urlopen(self.address,timeout=self.timeout).readlines())
+        webvalues = self.get_web_values(page)
+        front_panel['a'] = array([val*enable for val,enable in zip(front_panel['a'],front_panel['e'])])
+        #raise Exception((webvalues,front_panel))
+        changed = not array([(a==b).all() for a,b in [(webvalues[key],front_panel[key]) for key in ['f','a','p']]]).all()
         
-#ASK VLAD ABOUT GATES FOR RF BLASTER CHANNELS
+        return changed,webvalues
+        
