@@ -70,7 +70,8 @@ class Tab(object):
         
         tablabelbuilder = gtk.Builder()
         tablabelbuilder.add_from_file('tab_label.glade')
-        tablabel = tablabelbuilder.get_object('toplevel')
+        tablabel = tablabelbuilder.get_object('eventbox')
+        tablabel.connect('button-release-event',self.btn_release)
         self.tab_label_widgets = {"working": tablabelbuilder.get_object('working'),
                                   "ready": tablabelbuilder.get_object('ready'),
                                   "error": tablabelbuilder.get_object('error'),
@@ -88,7 +89,17 @@ class Tab(object):
     def gobject_timeout_add(self,*args,**kwargs):
         """A wrapper around gobject_timeout_add so that it can be queued in our state machine"""
         gobject.timeout_add(*args,**kwargs)
+    
+    def btn_release(self,widget,event):
+        if event.button == 3:
+            menu = gtk.Menu()
+            menu_item = gtk.MenuItem("Restart device tab")
+            menu_item.connect("activate",self.restart)
+            menu_item.show()
+            menu.append(menu_item)
+            menu.popup(None,None,None,event.button,event.time)
         
+    
     def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
         # Add the timeout to our set of registered timeouts. Timeouts
         # can thus be removed by the user at ay time by calling
@@ -156,7 +167,8 @@ class Tab(object):
         self.notebook = self._toplevel.get_parent()
         currentpage = None
         if self.notebook:
-            currentpage = self.notebook.get_current_page()
+            #currentpage = self.notebook.get_current_page()
+            currentpage = self.notebook.page_num(self._toplevel)
             self.notebook.remove_page(currentpage)       
         return currentpage
         
