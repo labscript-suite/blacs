@@ -283,7 +283,7 @@ class RFBlasterWorker(Worker):
         global h5py; import h5py
         global urllib2; import urllib2
         global re; import re
-        self.timeout = 5 #How long do we wait until we assume that the RFBlaster is dead? (in seconds)
+        self.timeout = 30 #How long do we wait until we assume that the RFBlaster is dead? (in seconds)
     
     def initialise_rfblaster(self, device_name,address,num_DDS):
         self.address = address
@@ -326,7 +326,7 @@ class RFBlasterWorker(Worker):
                 data = group['BINARY_CODE/DDS%d'%i].value
                 form.add_file_content("pulse_ch0","output_ch%d.bin"%i,data)
                 finalfreq[i]=group['TABLE_DATA']["freq%d"%i][-1]
-                finalamp[i]=group['TABLE_DATA']["amp%d"%i][-1]
+                finalamp[i]=group['TABLE_DATA']["amp%d"%i][-1]*100
                 finalphase[i]=group['TABLE_DATA']["phase%d"%i][-1]
             form.add_field("upload_and_run","Upload and start")
             req = urllib2.Request(self.address)
