@@ -255,11 +255,11 @@ class rfblaster(Tab):
         #self.queue_work('program_static',self.final_values)
         #self.do_after('leave_transition_to_static',notify_queue)
         # Update the GUI with the final values of the run:
-        #for i, dds in enumerate(self.dds_outputs):
-        #    dds.freq.set_value(self.final_values['f'][i],program=False)#Front panel needs Hz
-        #    dds.amp.set_value(self.final_values['a'][i],program=False)
-        #    dds.phase.set_value(self.final_values['p'][i],program=False)
-    
+        for i, dds in enumerate(self.dds_outputs):
+           dds.freq.set_value(self.final_values['f'][i],program=False)#Front panel needs Hz
+           dds.amp.set_value(self.final_values['a'][i],program=False)
+           dds.phase.set_value(self.final_values['p'][i],program=False)
+           dds.gate.set_state(self.final_values['e'][i],program=False)
     #def leave_transition_to_static(self,notify_queue,_results):    
         # Tell the queue manager that we're done:
      #   if notify_queue is not None:
@@ -341,7 +341,7 @@ class RFBlasterWorker(Worker):
             
             
             # Now we build a dictionary of the final state to send back to the GUI:
-            self.final_values = {"f":finalfreq*1e6,"a":finalamp,"p":finalphase,"e": ones(self.num_DDS)} #note, GUI wants Hz
+            self.final_values = {"f":finalfreq,"a":finalamp,"p":finalphase,"e": ones(self.num_DDS)} #note, GUI wants Hz
             return self.final_values, post_buffered_web_vals
             
             
