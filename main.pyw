@@ -250,7 +250,7 @@ if __name__ == "__main__":
             # Start the analysis submission thread:
             splash.update_text('Starting the analysis submission thread...')
             self.analysis_queue = Queue.Queue()
-            self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue)
+            self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue,self.settings_path)
             
             
             # setup the BLACS preferences system
@@ -764,7 +764,7 @@ if __name__ == "__main__":
     class AnalysisSubmission(object):
         port = 42519
         
-        def __init__(self, container, inqueue):
+        def __init__(self, container, inqueue,blacs_settings_path):
             self.inqueue = inqueue
             
             builder = gtk.Builder()
@@ -785,7 +785,7 @@ if __name__ == "__main__":
             
             # load settings:
             try:
-                with h5py.File(os.path.join("connectiontables", socket.gethostname()+"_settings.h5"),'r') as hdf5_file:
+                with h5py.File(blacs_settings_path,'r') as hdf5_file:
                     dataset = hdf5_file["/front_panel/analysis_server"]
                     self.toggle_analysis.set_active(dataset.attrs['send_for_analysis'])
                     self.analysis_host.set_text(dataset.attrs['server']) 
