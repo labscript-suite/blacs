@@ -368,6 +368,7 @@ if __name__ == "__main__":
                         new_file['/'].copy(old_file['/script'],"script")
                         new_file['/'].copy(old_file['/globals'],"globals")
                         new_file['/'].copy(old_file['/connection table'],"connection table")
+                        new_file['/'].copy(old_file['/labscriptlib'],"labscriptlib")
                         new_file.attrs['sequence_id'] = old_file.attrs['sequence_id']
             except Exception as e:
                 raise
