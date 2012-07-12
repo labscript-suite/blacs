@@ -235,8 +235,8 @@ if __name__ == "__main__":
             # Load Virtual Devices
             
 
-            self.window.maximize()            
-            self.window.show()
+            #self.window.maximize()            
+            #self.window.show()
             
             # Start Queue Manager
             splash.update_text('Starting the queue manager thread...')
@@ -368,6 +368,8 @@ if __name__ == "__main__":
                         new_file['/'].copy(old_file['/script'],"script")
                         new_file['/'].copy(old_file['/globals'],"globals")
                         new_file['/'].copy(old_file['/connection table'],"connection table")
+                        new_file['/'].copy(old_file['/connection table'],"connection table")
+                        new_file.attrs['sequence_id'] = old_file.attrs['sequence_id']
             except Exception as e:
                 raise
                 logger.error('Clean H5 File Error: %s' %str(e))
@@ -996,8 +998,10 @@ if __name__ == "__main__":
     serverthread = threading.Thread(target = http_server.serve_forever)
     serverthread.daemon = True
     serverthread.start()
-    #app.window.maximize()            
-    #app.window.show()
+    splash.update_text('Done!')
+    
+    app.window.maximize()            
+    app.window.show()
     # Try putting a time.sleep(10) here!!
     #time.sleep(10)
     splash.destroy()
