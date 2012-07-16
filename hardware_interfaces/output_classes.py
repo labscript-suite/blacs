@@ -64,7 +64,7 @@ class AO(object):
             else:
                 settings['front_panel_settings'][self.channel] = {'base_value':self.value,
                                                                   'current_units':self.current_units,
-                                                                  'base_step_size':self.adjustment.get_step_increment(),
+                                                                  'base_step_size':self.get_step_in_base_units(),
                                                                   'locked':self.locked,
                                                                   }
         else:
@@ -73,7 +73,7 @@ class AO(object):
             settings['front_panel_settings'] = {}
             settings['front_panel_settings'][self.channel] = {'base_value':self.value,
                                                               'current_units':self.current_units,
-                                                              'base_step_size':self.adjustment.get_step_increment(),
+                                                              'base_step_size':self.get_step_in_base_units(),
                                                               'locked':self.locked,
                                                               }
             
