@@ -6,7 +6,7 @@ class novatechdds9m(Tab):
     # Capabilities
     num_DDS = 4
     
-    freq_min = 0.1   # In MHz
+    freq_min = 0.0   # In MHz
     freq_max = 170.0*10.0**6
     freq_step = 10**6
     amp_min = 0            # In Vpp
@@ -15,6 +15,12 @@ class novatechdds9m(Tab):
     phase_min = 0          # In Degrees
     phase_max = 360
     phase_step = 1
+    
+    # Need to switch the code over to these!
+    base_units = {'freq':'Hz',          'amp':'Arb.', 'phase':'Degrees'}
+    base_min =   {'freq':0.0,           'amp':0,      'phase':0}
+    base_max =   {'freq':170.0*10.0**6, 'amp':1023,   'phase':360}
+    base_step =  {'freq':10**6,         'amp':1,      'phase':1}
         
     def __init__(self,BLACS,notebook,settings,restart=False):
         Tab.__init__(self,BLACS,NovatechDDS9mWorker,notebook,settings)
@@ -31,14 +37,39 @@ class novatechdds9m(Tab):
         self.builder.connect_signals(self)
         
         self.toplevel = self.builder.get_object('toplevel')
+        self.main_view = self.builder.get_object('main_vbox')
         self.checkbutton_fresh = self.builder.get_object('force_fresh_program')
         self.smart_disabled = self.builder.get_object('hbox_fresh_program')
         self.smart_enabled = self.builder.get_object('hbox_smart_in_use')
         self.builder.get_object('title').set_text(self.settings["device_name"]+" - Port: "+self.com_port)
                 
+        # Get the widgets needed for showing the prompt to push/pull values to/from the Novatech
+        self.changed_widgets = {'changed_vbox':self.builder.get_object('changed_vbox')}                
+                
         self.dds_outputs = []
         self.outputs_by_widget = {}
         for i in range(self.num_DDS):
+        
+            # get the widgets for the changed values detection (push/pull to/from device)
+            self.changed_widgets['ch_%d_vbox'%i] = self.builder.get_object('changed_vbox_ch_%d'%i)
+            self.changed_widgets['ch_%d_label'%i] = self.builder.get_object('new_ch_label_%d'%i)
+            self.changed_widgets['ch_%d_push_radio'%i] = self.builder.get_object('radiobutton_push_BLACS_%d'%i)
+            self.changed_widgets['ch_%d_pull_radio'%i] = self.builder.get_object('radiobutton_pull_remote_%d'%i)
+            self.changed_widgets['ch_%d_new_freq'%i] = self.builder.get_object('new_freq_%d'%i)
+            self.changed_widgets['ch_%d_new_freq_unit'%i] = self.builder.get_object('new_freq_unit_%d'%i)
+            self.changed_widgets['ch_%d_old_freq'%i] = self.builder.get_object('old_freq_%d'%i)
+            self.changed_widgets['ch_%d_old_freq_unit'%i] = self.builder.get_object('old_freq_unit_%d'%i)
+            self.changed_widgets['ch_%d_new_amp'%i] = self.builder.get_object('new_amp_%d'%i)
+            self.changed_widgets['ch_%d_new_amp_unit'%i] = self.builder.get_object('new_amp_unit_%d'%i)
+            self.changed_widgets['ch_%d_old_amp'%i] = self.builder.get_object('old_amp_%d'%i)
+            self.changed_widgets['ch_%d_old_amp_unit'%i] = self.builder.get_object('old_amp_unit_%d'%i)
+            self.changed_widgets['ch_%d_new_phase'%i] = self.builder.get_object('new_phase_%d'%i)
+            self.changed_widgets['ch_%d_new_phase_unit'%i] = self.builder.get_object('new_phase_unit_%d'%i)
+            self.changed_widgets['ch_%d_old_phase'%i] = self.builder.get_object('old_phase_%d'%i)
+            self.changed_widgets['ch_%d_old_phase_unit'%i] = self.builder.get_object('old_phase_unit_%d'%i)
+        
+        
+        
             # Get the widgets for the DDS:
             freq_spinbutton = self.builder.get_object('freq_chnl_%d'%i)
             freq_unit_selection = self.builder.get_object('freq_unit_chnl_%d'%i)
@@ -85,9 +116,14 @@ class novatechdds9m(Tab):
             freq = AO(name+'_freq', channel+'_freq', freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
             amp = AO(name+'_amp', channel+'_amp', amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
             phase = AO(name+'_phase', channel+'_phase', phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
-            gate = DO(name+'_gate', channel+'_gate', gate_checkbutton, self.program_static)
+            #gate = DO(name+'_gate', channel+'_gate', gate_checkbutton, self.program_static)
+            freq.update(settings) 
+            amp.update(settings) 
+            phase.update(settings) 
             
-            dds = DDS(freq,amp,phase, gate)
+            gate_checkbutton.hide()
+            
+            dds = DDS(freq,amp,phase, None)
             
             # Store for later access:
             self.dds_outputs.append(dds)
@@ -96,10 +132,13 @@ class novatechdds9m(Tab):
             self.outputs_by_widget[freq_spinbutton.get_adjustment()] = i, 'freq', freq
             self.outputs_by_widget[amp_spinbutton.get_adjustment()] = i, 'amp', amp
             self.outputs_by_widget[phase_spinbutton.get_adjustment()] = i, 'phase', phase
-            self.outputs_by_widget[gate.action] = i, 'gate', gate
+            #self.outputs_by_widget[gate.action] = i, 'gate', gate
             
         # Insert our GUI into the viewport provided by BLACS:    
         self.viewport.add(self.toplevel)
+        
+        # add the status check timeout
+        self.statemachine_timeout_add(5000,self.status_monitor)
         
         # Initialise the Novatech DDS9M
         self.initialise_novatech()
@@ -107,16 +146,88 @@ class novatechdds9m(Tab):
     @define_state
     def initialise_novatech(self):
         self.queue_work('initialise_novatech', self.com_port, 115200)
-        self.do_after('leave_initialise')
+        self.do_after('leave_status_monitor')
     
-    def leave_initialise(self,_results):
+    @define_state
+    def status_monitor(self):
+        # don't query the device if we are in buffered mode
+        if self.static_mode == True:
+            self.queue_work('get_current_values')        
+            self.do_after('leave_status_monitor')
+        else:
+            self.main_view.set_sensitive(True)
+            self.changed_widgets['changed_vbox'].hide()
+            
+    def leave_status_monitor(self,_results=None):
+        self.new_values = _results    
+        fpv = self.get_front_panel_state()
+        # Do the values match the front panel?
+        changed = False
+        for i in range(self.num_DDS):
+            if 'freq%d'%i not in _results or 'freq%d'%i not in _results or 'freq%d'%i not in _results:
+                # There is a problem! What do we do here??                
+                continue
+            if _results['freq%d'%i] != fpv['freq%d'%i] or _results['amp%d'%i] != fpv['amp%d'%i] or _results['phase%d'%i] != fpv['phase%d'%i]:
+                # freeze the front panel
+                self.main_view.set_sensitive(False)
+                
+                # show changed vbox
+                self.changed_widgets['changed_vbox'].show()
+                self.changed_widgets['ch_%d_vbox'%i].show()
+                self.changed_widgets['ch_%d_label'%i].set_text(self.builder.get_object("channel_%d_label"%i).get_text())
+                changed = True
+                
+                # populate the labels with the values
+                list1 = ['new','old']
+                list2 = ['freq','amp','phase']
+                
+                for name in list1:
+                    for subchnl in list2:
+                        new_name = name+'_'+subchnl
+                        self.changed_widgets['ch_%d_'%i+new_name].set_text(str(_results[subchnl+str(i)] if name == 'new' else fpv[subchnl+str(i)]))
+                        self.changed_widgets['ch_%d_'%i+new_name+'_unit'].set_text(self.base_units[subchnl])                       
+                                
+            else:                
+                self.changed_widgets['ch_%d_vbox'%i].hide()
+                
+        if not changed:
+            self.changed_widgets['changed_vbox'].hide()
+    
         # Update the GUI to reflect the current hardware values:
         # The novatech doesn't have anything to say about the checkboxes;
         # turn them on:
-        for i in range(4):
-            _results['en%d'%i] = True
-        self.set_front_panel_state(_results)
-                    
+        #for i in range(4):
+        #    _results['en%d'%i] = True
+        #self.set_front_panel_state(_results)
+    
+    @define_state
+    def continue_after_change(self,widget=None):
+        # The basis for the values to be programmed to the novatech are the values just read from the novatech. This provides the greatest level of robustness!
+        values = self.new_values
+        fpv = self.get_front_panel_state()
+        for i, dds in enumerate(self.dds_outputs):
+            # do we want to use the front panel values (only applies to channels we showed changed values for)?
+            if not self.changed_widgets['ch_%d_pull_radio'%i].get_active() and self.changed_widgets['ch_%d_vbox'%i].get_visible():
+                values['freq%d'%i] = fpv['freq%d'%i]
+                values['amp%d'%i] = fpv['amp%d'%i]
+                values['phase%d'%i] = fpv['phase%d'%i]
+                
+                # actually make it program.
+                # we explicitly do this because setting the widget to the value it is already set to, will never trigger a program call, 
+                # since we deliberately ignore such calls to limit possible recursion due to programming errors
+                self.program_channel(i, 'freq', fpv['freq%d'%i])
+                self.program_channel(i, 'amp', fpv['amp%d'%i])
+                self.program_channel(i, 'phase', fpv['phase%d'%i])
+                            
+        self.main_view.set_sensitive(True)
+        self.changed_widgets['changed_vbox'].hide()     
+        self.set_front_panel_state(values,program=True)
+    
+    @define_state
+    def program_channel(self,channel,type,value):
+        self.queue_work('program_static',channel, type, value)
+        self.do_after('leave_program_static',channel,type)
+    
     @define_state
     def destroy(self):
         self.queue_work('close_connection')
@@ -127,22 +238,22 @@ class novatechdds9m(Tab):
         self.close_tab()
     
     def get_front_panel_state(self):
-        return {"freq0":self.dds_outputs[0].freq.value, "amp0":self.dds_outputs[0].amp.value, "phase0":self.dds_outputs[0].phase.value, "en0":self.dds_outputs[0].gate.state,
-                "freq1":self.dds_outputs[1].freq.value, "amp1":self.dds_outputs[1].amp.value, "phase1":self.dds_outputs[1].phase.value, "en1":self.dds_outputs[1].gate.state,
-                "freq2":self.dds_outputs[2].freq.value, "amp2":self.dds_outputs[2].amp.value, "phase2":self.dds_outputs[2].phase.value, "en2":self.dds_outputs[2].gate.state,
-                "freq3":self.dds_outputs[3].freq.value, "amp3":self.dds_outputs[3].amp.value, "phase3":self.dds_outputs[3].phase.value, "en3":self.dds_outputs[3].gate.state}
+        return {"freq0":self.dds_outputs[0].freq.value, "amp0":self.dds_outputs[0].amp.value, "phase0":self.dds_outputs[0].phase.value, 
+                "freq1":self.dds_outputs[1].freq.value, "amp1":self.dds_outputs[1].amp.value, "phase1":self.dds_outputs[1].phase.value, 
+                "freq2":self.dds_outputs[2].freq.value, "amp2":self.dds_outputs[2].amp.value, "phase2":self.dds_outputs[2].phase.value, 
+                "freq3":self.dds_outputs[3].freq.value, "amp3":self.dds_outputs[3].amp.value, "phase3":self.dds_outputs[3].phase.value, }
     
-    def set_front_panel_state(self, values):
+    def set_front_panel_state(self, values, program=False):
         """Updates the gui without reprogramming the hardware"""
         for i, dds in enumerate(self.dds_outputs):
             if 'freq%d'%i in values:
-                dds.freq.set_value(values['freq%d'%i],program=False)
+                dds.freq.set_value(values['freq%d'%i],program)
             if 'amp%d'%i in values:
-                dds.amp.set_value(values['amp%d'%i],program=False)
+                dds.amp.set_value(values['amp%d'%i],program)
             if 'phase%d'%i in values:    
-                dds.phase.set_value(values['phase%d'%i],program=False)
-            if 'en%d'%i in values:
-                dds.gate.set_state(values['en%d'%i],program=False)
+                dds.phase.set_value(values['phase%d'%i],program)
+            #if 'en%d'%i in values:
+            #    dds.gate.set_state(values['en%d'%i],program=False)
         
     @define_state
     def program_static(self,widget):
@@ -160,6 +271,11 @@ class novatechdds9m(Tab):
             else:
                 value = output.value
             self.queue_work('program_static',channel, type, value)
+            self.do_after('leave_program_static',channel,type)
+            
+    def leave_program_static(self,channel,type,_results):
+        # update the front panel value to what it actually is in the device
+        self.set_front_panel_state({type+str(channel):_results})
     
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
@@ -195,8 +311,8 @@ class novatechdds9m(Tab):
         if not abort:
             # The final results don't say anything about the checkboxes;
             # turn them on:
-            for i in range(4):
-                self.final_values['en%d'%i] = True
+            #for i in range(4):
+                #self.final_values['en%d'%i] = True
             self.set_front_panel_state(self.final_values)
         self.static_mode=True
     
@@ -204,6 +320,8 @@ class novatechdds9m(Tab):
         # Tell the queue manager that we're done:
         if notify_queue is not None:
             notify_queue.put(self.device_name)
+            
+        self.set_front_panel_state(_results)
             
     @define_state
     def toggle_fresh(self,button):
@@ -240,7 +358,7 @@ class NovatechDDS9mWorker(Worker):
             # if echo was enabled, then the command to disable it echos back at us!
             response = self.connection.readline()
         if response != "OK\r\n":
-            raise Exception('Error: Failed to execute command: "e d"')
+            raise Exception('Error: Failed to execute command: "e d". Cannot connect to the device.')
         
         self.connection.write('I a\r\n')
         if self.connection.readline() != "OK\r\n":
@@ -250,12 +368,15 @@ class NovatechDDS9mWorker(Worker):
         if self.connection.readline() != "OK\r\n":
             raise Exception('Error: Failed to execute command: "m 0"')
         
+        return self.get_current_values()
+        
+    def get_current_values(self):
         # Get the currently output values:
         self.connection.write('QUE\r\n')
         try:
             response = [self.connection.readline() for i in range(5)]
         except socket.timeout:
-            raise Exception('Failed to execute QUE')
+            raise Exception('Failed to execute command "QUE". Cannot connect to device.')
         results = {}
         for i, line in enumerate(response[:4]):
             freq, phase, amp, ignore, ignore, ignore, ignore = line.split()
@@ -269,21 +390,26 @@ class NovatechDDS9mWorker(Worker):
         
     def program_static(self,channel,type,value):
         if type == 'freq':
-            self.connection.write('F%d %f\r\n'%(channel,value/10.0**6))
+            command = 'F%d %.7f\r\n'%(channel,value/10.0**6)
+            self.connection.write(command)
             if self.connection.readline() != "OK\r\n":
-                raise Exception('Error: Failed to execute command: '+'F%d %f\r\n'%(channel,value))
+                raise Exception('Error: Failed to execute command: %s'%command)
         elif type == 'amp':
-            self.connection.write('V%d %u\r\n'%(channel,value))
+            command = 'V%d %u\r\n'%(channel,value)
+            self.connection.write(command)
             if self.connection.readline() != "OK\r\n":
-                raise Exception('Error: Failed to execute command: '+'V%d %u\r\n'%(channel,value))
+                raise Exception('Error: Failed to execute command: %s'%command)
         elif type == 'phase':
-            self.connection.write('P%d %u\r\n'%(channel,value*16384/360))
+            command = 'P%d %u\r\n'%(channel,value*16384/360)
+            self.connection.write(command)
             if self.connection.readline() != "OK\r\n":
-                raise Exception('Error: Failed to execute command: '+'P%d %u\r\n'%(channel,value*16384/360))
+                raise Exception('Error: Failed to execute command: %s'%command)
         else:
             raise TypeError(type)
         # Now that a static update has been done, we'd better invalidate the saved STATIC_DATA:
         self.smart_cache['STATIC_DATA'] = None
+        
+        return self.get_current_values()[type+str(channel)]
        
     def program_buffered(self,device_name,h5file,initial_values,fresh):
         # Store the initial values in case we have to abort and restore them:
@@ -380,23 +506,14 @@ class NovatechDDS9mWorker(Worker):
             values = self.final_values
             DDSs = [0,1]
             
+        # only program the channels that we need to
         for ddsnumber in DDSs:
-            if 'freq%d'%ddsnumber in values:
-                 command = 'F%d %f\r\n' %(ddsnumber, values['freq%d'%ddsnumber]/10.0**6)
-                 self.connection.write(command)
-                 if self.connection.readline() != "OK\r\n":
-                     raise Exception('Error: Failed to execute %s'%command)
-            if 'amp%d'%ddsnumber in values:
-                 gate_factor = values['en%d'%ddsnumber] if 'en%d'%ddsnumber in values else 1
-                 command = 'V%d %d\r\n' %(ddsnumber, values['amp%d'%ddsnumber]*gate_factor)
-                 self.connection.write(command)
-                 if self.connection.readline() != "OK\r\n":
-                     raise Exception('Error: Failed to execute %s'%command)
-            if 'phase%d'%ddsnumber in values:
-                 command = 'P%d %d\r\n' %(ddsnumber, values['phase%d'%ddsnumber]*16384/360)
-                 self.connection.write(command)
-                 if self.connection.readline() != "OK\r\n":
-                     raise Exception('Error: Failed to execute %s'%command)
+            for subchnl in ['freq','amp','phase']:            
+                self.program_static(ddsnumber,subchnl,values[subchnl+'%d'%ddsnumber])
+            
+        # return the current values in the novatech
+        return self.get_current_values()
                      
     def close_connection(self):
         self.connection.close()
+        
