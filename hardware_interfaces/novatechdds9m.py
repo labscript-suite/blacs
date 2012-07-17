@@ -5,18 +5,7 @@ from time import time
 class novatechdds9m(Tab):
     # Capabilities
     num_DDS = 4
-    
-    freq_min = 0.0   # In MHz
-    freq_max = 170.0*10.0**6
-    freq_step = 10**6
-    amp_min = 0            # In Vpp
-    amp_max = 1023
-    amp_step = 1
-    phase_min = 0          # In Degrees
-    phase_max = 360
-    phase_step = 1
-    
-    # Need to switch the code over to these!
+       
     base_units = {'freq':'Hz',          'amp':'Arb.', 'phase':'Degrees'}
     base_min =   {'freq':0.0,           'amp':0,      'phase':0}
     base_max =   {'freq':170.0*10.0**6, 'amp':1023,   'phase':360}
@@ -31,6 +20,9 @@ class novatechdds9m(Tab):
         self.destroy_complete = False
         self.com_port = self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection
 
+        
+        self.queued_static_updates = 0
+        
         # PyGTK stuff:
         self.builder = gtk.Builder()
         self.builder.add_from_file('hardware_interfaces/novatechdds9m.glade')
@@ -48,91 +40,75 @@ class novatechdds9m(Tab):
                 
         self.dds_outputs = []
         self.outputs_by_widget = {}
-        for i in range(self.num_DDS):
-        
+        for i in range(self.num_DDS):        
             # get the widgets for the changed values detection (push/pull to/from device)
             self.changed_widgets['ch_%d_vbox'%i] = self.builder.get_object('changed_vbox_ch_%d'%i)
             self.changed_widgets['ch_%d_label'%i] = self.builder.get_object('new_ch_label_%d'%i)
             self.changed_widgets['ch_%d_push_radio'%i] = self.builder.get_object('radiobutton_push_BLACS_%d'%i)
             self.changed_widgets['ch_%d_pull_radio'%i] = self.builder.get_object('radiobutton_pull_remote_%d'%i)
-            self.changed_widgets['ch_%d_new_freq'%i] = self.builder.get_object('new_freq_%d'%i)
-            self.changed_widgets['ch_%d_new_freq_unit'%i] = self.builder.get_object('new_freq_unit_%d'%i)
-            self.changed_widgets['ch_%d_old_freq'%i] = self.builder.get_object('old_freq_%d'%i)
-            self.changed_widgets['ch_%d_old_freq_unit'%i] = self.builder.get_object('old_freq_unit_%d'%i)
-            self.changed_widgets['ch_%d_new_amp'%i] = self.builder.get_object('new_amp_%d'%i)
-            self.changed_widgets['ch_%d_new_amp_unit'%i] = self.builder.get_object('new_amp_unit_%d'%i)
-            self.changed_widgets['ch_%d_old_amp'%i] = self.builder.get_object('old_amp_%d'%i)
-            self.changed_widgets['ch_%d_old_amp_unit'%i] = self.builder.get_object('old_amp_unit_%d'%i)
-            self.changed_widgets['ch_%d_new_phase'%i] = self.builder.get_object('new_phase_%d'%i)
-            self.changed_widgets['ch_%d_new_phase_unit'%i] = self.builder.get_object('new_phase_unit_%d'%i)
-            self.changed_widgets['ch_%d_old_phase'%i] = self.builder.get_object('old_phase_%d'%i)
-            self.changed_widgets['ch_%d_old_phase_unit'%i] = self.builder.get_object('old_phase_unit_%d'%i)
         
-        
-        
+            # Generate a unique channel name (unique to the device instance,
+            # it does not need to be unique to BLACS)
+            channel = 'Channel %d'%i
+            # Get the connection table entry object
+            conn_table_entry = self.settings['connection_table'].find_child(self.settings['device_name'],'channel %d'%i)
+            # Get the name of the channel
+            # If no name exists, it MUST be set to '-'
+            name = conn_table_entry.name if conn_table_entry else '-'
+            
+            # Set the label to reflect the connected channels name:
+            self.builder.get_object('channel_%d_label'%i).set_text(channel + ' - ' + name)
+            
+            # Loop over freq,amp,phase and create AO objects for each
+            ao_objects = {}
+            sub_chnl_list = ['freq','amp','phase']
+            for sub_chnl in sub_chnl_list:
+                # get the widgets for the changed values detection (push/pull to/from device)
+                for age in ['old','new']:
+                    self.changed_widgets['ch_%d_%s_%s'%(i,age,sub_chnl)] = self.builder.get_object('%s_%s_%d'%(age,sub_chnl,i))
+                    self.changed_widgets['ch_%d_%s_%s_unit'%(i,age,sub_chnl)] = self.builder.get_object('%s_%s_unit_%d'%(age,sub_chnl,i))
+                
+                
+                calib = None
+                calib_params = {}
+                
+                # find the calibration details for this subchannel
+                # TODO: Also get their min/max values
+                if conn_table_entry:
+                    if (conn_table_entry.name+'_'+sub_chnl) in conn_table_entry.child_list:
+                        sub_chnl_entry = conn_table_entry.child_list[conn_table_entry.name+'_'+sub_chnl]
+                        if sub_chnl_entry != "None":
+                            calib = sub_chnl_entry.unit_conversion_class
+                            calib_params = eval(sub_chnl_entry.unit_conversion_params)
+                
+                # Get the widgets from the glade file
+                spinbutton = self.builder.get_object(sub_chnl+'_chnl_%d'%i)
+                unit_selection = self.builder.get_object(sub_chnl+'_unit_chnl_%d'%i)
+                        
+                # Make output object:
+                ao_objects[sub_chnl] = AO(name+'_'+sub_chnl, 
+                                          channel+'_'+sub_chnl, 
+                                          spinbutton, 
+                                          unit_selection, 
+                                          calib, 
+                                          calib_params, 
+                                          self.base_units[sub_chnl], 
+                                          self.program_static, 
+                                          self.base_min[sub_chnl], 
+                                          self.base_max[sub_chnl], 
+                                          self.base_step[sub_chnl])
+                # Set default values:
+                ao_objects[sub_chnl].update(settings)            
+                
+                # Store outputs keyed by widget, so that we can look them up in gtk callbacks:
+                self.outputs_by_widget[spinbutton.get_adjustment()] = i, sub_chnl, ao_objects[sub_chnl]
             # Get the widgets for the DDS:
-            freq_spinbutton = self.builder.get_object('freq_chnl_%d'%i)
-            freq_unit_selection = self.builder.get_object('freq_unit_chnl_%d'%i)
-            amp_spinbutton = self.builder.get_object('amp_chnl_%d'%i)
-            amp_unit_selection = self.builder.get_object('amp_unit_chnl_%d'%i)
-            phase_spinbutton = self.builder.get_object('phase_chnl_%d'%i)
-            phase_unit_selection = self.builder.get_object('phase_unit_chnl_%d'%i)
-            gate_checkbutton = self.builder.get_object("amp_switch_%d"%i)
-            label = self.builder.get_object("channel_%d_label"%i) 
             
-            # Find out the name of the connected device (if there is a device connected)
-            channel = "Channel %d"%i
-            device = self.settings["connection_table"].find_child(self.settings["device_name"],"channel %d"%i)
-            name = device.name if device else '-'
-
-            # Set the label to reflect the connected device's name:
-            label.set_text(channel + ' - ' + name)
-
-            freq_calib = None
-            freq_calib_params = {}
-            def_freq_calib_params = "Hz"
-            amp_calib = None
-            amp_calib_params = {}
-            def_amp_calib_params = "Arb."
-            phase_calib = None
-            phase_calib_params = {}
-            def_phase_calib_params = "Degrees"
-            if device:
-                # get the 3 AO children from the connection table, find their calibration details
-                if (device.name+'_freq') in device.child_list:
-                    if device.child_list[device.name+'_freq'] != "None":
-                        freq_calib = device.child_list[device.name+'_freq'].unit_conversion_class
-                        freq_calib_params = eval(device.child_list[device.name+'_freq'].unit_conversion_params)
-                if (device.name+'_amp') in device.child_list:
-                    if device.child_list[device.name+'_amp'] != "None":
-                        amp_calib = device.child_list[device.name+'_amp'].unit_conversion_class
-                        amp_calib_params = eval(device.child_list[device.name+'_amp'].unit_conversion_params)
-                if (device.name+'_phase') in device.child_list:
-                    if device.child_list[device.name+'_phase'] != "None":
-                        phase_calib = device.child_list[device.name+'_phase'].unit_conversion_class
-                        phase_calib_params = eval(device.child_list[device.name+'_phase'].unit_conversion_params)   
-            
-            # Make output objects:
-            freq = AO(name+'_freq', channel+'_freq', freq_spinbutton, freq_unit_selection, freq_calib, freq_calib_params, def_freq_calib_params, self.program_static, self.freq_min, self.freq_max, self.freq_step)
-            amp = AO(name+'_amp', channel+'_amp', amp_spinbutton, amp_unit_selection, amp_calib, amp_calib_params, def_amp_calib_params, self.program_static, self.amp_min, self.amp_max, self.amp_step)
-            phase = AO(name+'_phase', channel+'_phase', phase_spinbutton, phase_unit_selection, phase_calib, phase_calib_params, def_phase_calib_params, self.program_static, self.phase_min, self.phase_max, self.phase_step)
-            #gate = DO(name+'_gate', channel+'_gate', gate_checkbutton, self.program_static)
-            freq.update(settings) 
-            amp.update(settings) 
-            phase.update(settings) 
-            
+            gate_checkbutton = self.builder.get_object("amp_switch_%d"%i)       
+            #gate = DO(name+'_gate', channel+'_gate', gate_checkbutton, self.program_static)     
+            #self.outputs_by_widget[gate.action] = i, 'gate', gate       
             gate_checkbutton.hide()
-            
-            dds = DDS(freq,amp,phase, None)
-            
-            # Store for later access:
-            self.dds_outputs.append(dds)
-         
-            # Store outputs keyed by widget, so that we can look them up in gtk callbacks:
-            self.outputs_by_widget[freq_spinbutton.get_adjustment()] = i, 'freq', freq
-            self.outputs_by_widget[amp_spinbutton.get_adjustment()] = i, 'amp', amp
-            self.outputs_by_widget[phase_spinbutton.get_adjustment()] = i, 'phase', phase
-            #self.outputs_by_widget[gate.action] = i, 'gate', gate
+            self.dds_outputs.append(DDS(ao_objects['freq'],ao_objects['amp'],ao_objects['phase'],None))     
             
         # Insert our GUI into the viewport provided by BLACS:    
         self.viewport.add(self.toplevel)
@@ -159,6 +135,12 @@ class novatechdds9m(Tab):
             self.changed_widgets['changed_vbox'].hide()
             
     def leave_status_monitor(self,_results=None):
+        # If a static_update is already queued up, ignore this as it's soon to be obsolete!
+        if self.queued_static_updates > 0:
+            self.changed_widgets['changed_vbox'].hide()            
+            self.main_view.set_sensitive(True)
+            return
+    
         self.new_values = _results    
         fpv = self.get_front_panel_state()
         # Do the values match the front panel?
@@ -191,7 +173,9 @@ class novatechdds9m(Tab):
                 self.changed_widgets['ch_%d_vbox'%i].hide()
                 
         if not changed:
-            self.changed_widgets['changed_vbox'].hide()
+            self.changed_widgets['changed_vbox'].hide()            
+            self.main_view.set_sensitive(True)
+            
     
         # Update the GUI to reflect the current hardware values:
         # The novatech doesn't have anything to say about the checkboxes;
@@ -223,10 +207,9 @@ class novatechdds9m(Tab):
         self.changed_widgets['changed_vbox'].hide()     
         self.set_front_panel_state(values,program=True)
     
-    @define_state
+    #@define_state
     def program_channel(self,channel,type,value):
-        self.queue_work('program_static',channel, type, value)
-        self.do_after('leave_program_static',channel,type)
+        self.program_static_channel(channel,type,value)
     
     @define_state
     def destroy(self):
@@ -255,7 +238,7 @@ class novatechdds9m(Tab):
             #if 'en%d'%i in values:
             #    dds.gate.set_state(values['en%d'%i],program=False)
         
-    @define_state
+    #@define_state
     def program_static(self,widget):
         # Skip if in buffered mode:
         if self.static_mode:
@@ -265,17 +248,27 @@ class novatechdds9m(Tab):
             channel, type, output = self.outputs_by_widget[widget]
             # If its the user clicking a checkbutton, then really what
             # we're doing is an amplitude change:
-            if type == 'gate':
-                value = output.state*self.dds_outputs[channel].amp.value
-                type = 'amp'
-            else:
-                value = output.value
-            self.queue_work('program_static',channel, type, value)
-            self.do_after('leave_program_static',channel,type)
+            #if type == 'gate':
+            #    value = output.state*self.dds_outputs[channel].amp.value
+            #    type = 'amp'
+            #else:
+            value = output.value
+                
+            self.queued_static_updates += 1
+            self.program_static_channel(channel,type,value)
+            
+    @define_state
+    def program_static_channel(self,channel,type,value):
+        self.queue_work('program_static',channel, type, value)
+        self.do_after('leave_program_static',channel,type)
             
     def leave_program_static(self,channel,type,_results):
         # update the front panel value to what it actually is in the device
-        self.set_front_panel_state({type+str(channel):_results})
+        if self.queued_static_updates < 2:
+            self.queued_static_updates -= 1
+            if self.queued_static_updates < 0:
+                self.queued_static_updates = 0
+            self.set_front_panel_state({type+str(channel):_results})
     
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
