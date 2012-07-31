@@ -389,9 +389,9 @@ class PulseblasterWorker(Worker):
                 self.smart_cache['initial_values'] = initial_values
                 pb_start_programming(PULSE_PROGRAM)
                 # Line zero is a wait on the final state of the program:
-                pb_inst_dds2(freqreg0,phasereg0,ampreg0,en0,0,freqreg1,phasereg1,ampreg1,en1,0,flags,WAIT,0,1*ms)
+                pb_inst_dds2(freqreg0,phasereg0,ampreg0,en0,0,freqreg1,phasereg1,ampreg1,en1,0,flags,WAIT,0,100)
                 # Line one is a continue with the current front panel values:
-                pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 1*ms)
+                pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 100)
                 # Now the rest of the program:
                 if fresh or len(self.smart_cache['pulse_program']) != len(pulse_program) or \
                 (self.smart_cache['pulse_program'] != pulse_program).any():
