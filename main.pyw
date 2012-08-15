@@ -21,8 +21,6 @@ if __name__ == "__main__":
     import cgi
     import time
     import socket
-    import urllib
-    import urllib2
     import Queue    
     import ctypes
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
@@ -34,6 +32,7 @@ if __name__ == "__main__":
     import h5py
     
     splash.update_text('Importing pythonlib modules')
+    from subproc_utils import zmq_get, ZMQServer
     from settings import Settings
     import settings_pages
     from filewatcher import FileWatcher
@@ -836,13 +835,10 @@ if __name__ == "__main__":
                        
         def check_connectivity(self):
             with gtk.gdk.lock:
-                server = self.analysis_host.get_text()
+                host = self.analysis_host.get_text()
             try:
-                # Workaround to force python not to use IPv6 for the request:
-                address  = socket.gethostbyname(server)
                 #print 'Submitting run file %s.\n'%os.path.basename(run_file)
-                params = urllib.urlencode({'filepath': 'hello'})
-                response = urllib2.urlopen('http://%s:%d'%(address,self.port), params, 2).read()
+                response = zmq_get(self.port, host, 'hello', timeout = 2)
                 if response == 'hello':
                     success = True
                 else:
@@ -863,13 +859,11 @@ if __name__ == "__main__":
             while self.waiting_for_submission:
                 path = self.waiting_for_submission.pop(0)
                 with gtk.gdk.lock:
-                    server = self.analysis_host.get_text()
+                    host = self.analysis_host.get_text()
                 try:
-                    # Workaround to force python not to use IPv6 for the request:
-                    address  = socket.gethostbyname(server)
                     #print 'Submitting run file %s.\n'%os.path.basename(run_file)
-                    params = urllib.urlencode({'filepath': path})
-                    response = urllib2.urlopen('http://%s:%d'%(address,self.port), params, 2).read()
+                    data = {'filepath': path}
+                    response = zmq_get(self.port, host, data, timeout = 2)
                     if response != 'added successfully':
                         raise Exception
                 except:
