@@ -315,7 +315,7 @@ class NiPCIe6363Worker(Worker):
             if h5_data:
                 self.buffered_digital = True
                 do_channels = group.attrs['digital_lines']
-                do_bitfield = numpy.array(h5_data,dtype=int32)
+                do_bitfield = numpy.array(h5_data,dtype=numpy.uint32)
                 # Expand each bitfield int into self.num_buffered_DO
                 # (32) individual ones and zeros:
                 do_write_data = numpy.zeros((do_bitfield.shape[0],self.num_buffered_DO),dtype=numpy.uint8)
