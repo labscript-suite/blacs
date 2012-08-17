@@ -324,7 +324,7 @@ class RFBlasterWorker(Worker):
             finalphase = zeros(self.num_DDS)
             for i in range(self.num_DDS):
                 data = group['BINARY_CODE/DDS%d'%i].value
-                form.add_file_content("pulse_ch0","output_ch%d.bin"%i,data)
+                form.add_file_content("pulse_ch%d"%i,"output_ch%d.bin"%i,data)
                 finalfreq[i]=group['TABLE_DATA']["freq%d"%i][-1]
                 finalamp[i]=group['TABLE_DATA']["amp%d"%i][-1]*100
                 finalphase[i]=group['TABLE_DATA']["phase%d"%i][-1]
