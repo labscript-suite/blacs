@@ -49,12 +49,13 @@ class AO(object):
         if 'front_panel_settings' in settings:
             if self.channel in settings['front_panel_settings']:
                 saved_data = settings['front_panel_settings'][self.channel]
-                # Update the unit selection
-                self.change_units(saved_data['current_units'])
                 
                 # Update the value
                 self.set_value(saved_data['base_value'],program=False)
 
+                # Update the unit selection
+                self.change_units(saved_data['current_units'])
+                
                 # Update the step size
                 self.set_step_size_in_base_units(saved_data['base_step_size'])
                 
