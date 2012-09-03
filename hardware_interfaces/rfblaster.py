@@ -33,7 +33,7 @@ class rfblaster(Tab):
         self.builder.add_from_file(os.path.join(os.path.dirname(os.path.realpath(__file__)),'rfblaster.glade'))
         self.builder.connect_signals(self)
         self.toplevel = self.builder.get_object('toplevel')
-        self.builder.get_object('title').set_text(self.settings['device_name'])
+        self.builder.get_object('title').set_text('%s - %s'%(self.settings['device_name'],self.address))
         self.changed_view = self.builder.get_object('changed_vbox')
         self.resolve_changes = self.builder.get_object('resolve_changes')
         self.main_view = self.builder.get_object('main_vbox')
