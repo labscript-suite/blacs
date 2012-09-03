@@ -14,7 +14,7 @@ class rfblaster(Tab):
     
     base_units = {'freq':'Hz',        'amp':'%', 'phase':'Degrees'}
     base_min =   {'freq':500000,         'amp':0.0,   'phase':0}
-    base_max =   {'freq':350000000.0, 'amp':99.993896,   'phase':360}
+    base_max =   {'freq':350000000.0, 'amp':99.99389648,   'phase':360}
     base_step =  {'freq':1000000,           'amp':1.0,  'phase':1}
     
         
