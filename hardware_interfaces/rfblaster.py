@@ -38,8 +38,10 @@ class rfblaster(Tab):
         self.resolve_changes = self.builder.get_object('resolve_changes')
         self.main_view = self.builder.get_object('main_vbox')
         self.dds_outputs = []
-        self.changed_outputs = {'f':[],'a':[],'p':[]}
-        self.radio_widgets = {}
+        #self.changed_outputs = {'f':[],'a':[],'p':[]}
+        # Get the widgets needed for showing the prompt to push/pull values to/from the Novatech
+        self.changed_widgets = {'changed_vbox':self.builder.get_object('changed_vbox')}   
+        #self.radio_widgets = {}
         
         for i in range(self.num_DDS):
             # Generate a unique channel name (unique to the device instance,
@@ -54,19 +56,29 @@ class rfblaster(Tab):
             # Set the label to reflect the connected channels name:
             self.builder.get_object('channel_%d_label'%i).set_text(channel + ' - ' + name)
             gate_checkbutton = self.builder.get_object("amp_switch_%d"%i)
-            # Add the label widgets which will display the new webserver values if changed remotely
-            self.changed_outputs['f'].append(self.builder.get_object('new_freq_%d'%i))
-            self.changed_outputs['a'].append(self.builder.get_object('new_amp_%d'%i))
-            self.changed_outputs['p'].append(self.builder.get_object('new_phase_%d'%i))
+            
+            # get the widgets for the changed values detection (push/pull to/from device)
+            self.changed_widgets['ch_%d_vbox'%i] = self.builder.get_object('changed_vbox_ch_%d'%i)
+            self.changed_widgets['ch_%d_label'%i] = self.builder.get_object('new_ch_label_%d'%i)
+            self.changed_widgets['ch_%d_push_radio'%i] = self.builder.get_object('radiobutton_push_BLACS_%d'%i)
+            self.changed_widgets['ch_%d_pull_radio'%i] = self.builder.get_object('radiobutton_pull_remote_%d'%i)
+            #self.changed_outputs['f'].append(self.builder.get_object('new_freq_%d'%i))
+            #self.changed_outputs['a'].append(self.builder.get_object('new_amp_%d'%i))
+            #self.changed_outputs['p'].append(self.builder.get_object('new_phase_%d'%i))
             
             # Save the radio widgets for when values on the RfBlaster change without the tabs knowledge
-            self.radio_widgets['%d_push_BLACS'%i] = self.builder.get_object('radiobutton_push_BLACS_%d'%i)
-            self.radio_widgets['%d_pull_remote'%i] = self.builder.get_object('radiobutton_pull_remote_%d'%i)
+            #self.radio_widgets['%d_push_BLACS'%i] = self.builder.get_object('radiobutton_push_BLACS_%d'%i)
+            #self.radio_widgets['%d_pull_remote'%i] = self.builder.get_object('radiobutton_pull_remote_%d'%i)
             
             # Loop over freq,amp,phase and create AO objects for each
             ao_objects = {}
             sub_chnl_list = ['freq','amp','phase']
             for sub_chnl in sub_chnl_list:
+                # get the widgets for the changed values detection (push/pull to/from device)
+                for age in ['old','new']:
+                    self.changed_widgets['ch_%d_%s_%s'%(i,age,sub_chnl)] = self.builder.get_object('%s_%s_%d'%(age,sub_chnl,i))
+                    self.changed_widgets['ch_%d_%s_%s_unit'%(i,age,sub_chnl)] = self.builder.get_object('%s_%s_unit_%d'%(age,sub_chnl,i))
+                    
                 calib = None
                 calib_params = {}
                 
@@ -112,6 +124,8 @@ class rfblaster(Tab):
         # Insert our GUI into the viewport provided by BLACS:
         self.viewport.add(self.toplevel)
         
+        #self.last_programmed_values = self.get_front_panel_state()
+        
         # Initialise the RFblaster:
         self.initialise_rfblaster()
         
@@ -155,37 +169,83 @@ class rfblaster(Tab):
                 front_panel = self.post_buffered_web_vals
             else:
                 front_panel = self.get_front_panel_state()
+                #front_panel = self.last_programmed_values
             
             self.queue_work('compare_web_values',front_panel)
             self.do_after('status_monitor_leave')
+        else:
+            self.main_view.set_sensitive(True)
+            self.changed_widgets['changed_vbox'].hide()
         
     def status_monitor_leave(self,_results):
         changed,self.new_values = _results
-        if changed:
-            #Time to warn the user that someone's been playing with the webserver!
-            self.main_view.set_sensitive(False)
-            self.changed_view.set_visible(True)
-            [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['f'],self.new_values['f'])]
-            [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['a'],self.new_values['a'])]
-            [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['p'],self.new_values['p'])]
-        else:
+        
+        fpv = self.get_front_panel_state()
+        # Do the values match the front panel?
+        show_changed = False
+        for i in range(self.num_DDS):
+            # The changed array has an entry for f,a,p (0,1,2) where each entry is an array of True/False for each channel
+            if changed[0][i] or changed[1][i] or changed[2][i]:
+                # freeze the front panel
+                self.main_view.set_sensitive(False)
+                
+                # show changed vbox
+                self.changed_widgets['changed_vbox'].show()
+                self.changed_widgets['ch_%d_vbox'%i].show()
+                self.changed_widgets['ch_%d_label'%i].set_text(self.builder.get_object("channel_%d_label"%i).get_text())
+                show_changed = True
+                
+                # populate the labels with the values
+                list1 = ['new','old']
+                list2 = ['freq','amp','phase']
+                list3 = ['f','a','p']
+                
+                for name in list1:
+                    for subchnl,subchnl2 in zip(list2,list3):
+                        new_name = name+'_'+subchnl
+                        self.changed_widgets['ch_%d_'%i+new_name].set_text(str(self.new_values[subchnl2][i] if name == 'new' else fpv[subchnl2][i]))
+                        self.changed_widgets['ch_%d_'%i+new_name+'_unit'].set_text(self.base_units[subchnl])                       
+                                
+            else:                
+                self.changed_widgets['ch_%d_vbox'%i].hide()
+                
+        if not show_changed:
+            self.changed_widgets['changed_vbox'].hide()            
             self.main_view.set_sensitive(True)
-            self.changed_view.set_visible(False)
+        
+        # if changed:
+            # #Time to warn the user that someone's been playing with the webserver!
+            # self.main_view.set_sensitive(False)
+            # self.changed_view.set_visible(True)
+            # [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['f'],self.new_values['f'])]
+            # [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['a'],self.new_values['a'])]
+            # [widget.set_text(str(value)) for widget,value in zip(self.changed_outputs['p'],self.new_values['p'])]
+        # else:
+            # self.main_view.set_sensitive(True)
+            # self.changed_view.set_visible(False)
     
     @define_state
     def continue_after_change(self,widget=None):
-        self.static_mode = True
-        self.main_view.set_sensitive(True)
-        self.changed_view.set_visible(False)
+        self.static_mode = True   
+        do_program = False
         for i, dds in enumerate(self.dds_outputs):
             # do we want to use the remote values?
-            if self.radio_widgets['%d_pull_remote'%i].get_active():
+            if self.changed_widgets['ch_%d_pull_radio'%i].get_active() and self.changed_widgets['ch_%d_vbox'%i].get_visible():
                 dds.freq.set_value(self.new_values['f'][i],program=False)
                 dds.amp.set_value(self.new_values['a'][i],program=False)
                 dds.phase.set_value(self.new_values['p'][i],program=False)
                 dds.gate.set_state(True,program=False)
-        self.queue_work('program_static',self.get_front_panel_state())
-        self.do_after('leave_program_static')
+            elif self.changed_widgets['ch_%d_vbox'%i].get_visible():
+                # we are using front panel values, so program!
+                do_program = True
+                
+        self.main_view.set_sensitive(True)
+        self.changed_widgets['changed_vbox'].hide() 
+        if do_program:
+            self.queue_work('program_static',self.get_front_panel_state())
+            self.do_after('leave_program_static')
+        
+        
     
     # ** This method should be in all hardware_interfaces, but it does not need to be named the same **
     # ** This method is an internal method, registered as a callback with each AO/DO/RF channel **
@@ -375,7 +435,10 @@ class RFBlasterWorker(Worker):
         webvalues = self.get_web_values(page)
         front_panel['a'] = array([val*enable for val,enable in zip(front_panel['a'],front_panel['e'])])
         #raise Exception((webvalues,front_panel))
-        changed = not array([(a==b).all() for a,b in [(webvalues[key],front_panel[key]) for key in ['f','a','p']]]).all()
+        changed = array([(a==b) for a,b in [(webvalues[key],front_panel[key]) for key in ['f','a','p']]])
+        for i,row in enumerate(changed):
+            for j,element in enumerate(row):
+                changed[i][j] = not element
         
         return changed,webvalues
         
