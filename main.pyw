@@ -891,9 +891,10 @@ if __name__ == "__main__":
             postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
             h5_filepath =  postvars['filepath'][0]
             with gtk.gdk.lock:
-                # Get the share drive prefix
-                app.exp_config.get('paths','shared_drive')                
-                # TODO: prepend the share drive prefix to the path
+                # Convert path to local slashes and shared drive prefix:
+                shared_drive_prefix = app.exp_config.get('paths','shared_drive')     
+                h5_filepath = h5_filepath.replace('\\', os.path.sep).replace('Z:', shared_drive_prefix)
+                logger.info('local filepath: %s'%h5_filepath)
                 message = process_request(h5_filepath)
             logger.info('Request handler: %s ' % message.strip())
             self.wfile.write(message)
@@ -911,6 +912,7 @@ if __name__ == "__main__":
         try:
             new_conn = ConnectionTable(h5_filepath)
         except:
+            raise
             return "H5 file not accessible to Control PC\n"
         result,error = app.connection_table.compare_to(new_conn)
         if result:
