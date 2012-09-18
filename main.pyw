@@ -368,7 +368,8 @@ if __name__ == "__main__":
                         new_file['/'].copy(old_file['/globals'],"globals")
                         new_file['/'].copy(old_file['/connection table'],"connection table")
                         new_file['/'].copy(old_file['/labscriptlib'],"labscriptlib")
-                        new_file.attrs['sequence_id'] = old_file.attrs['sequence_id']
+                        for name in old_file.attrs:
+                            new_file.attrs[name] = old_file.attrs[name]
             except Exception as e:
                 raise
                 logger.error('Clean H5 File Error: %s' %str(e))
@@ -693,14 +694,14 @@ if __name__ == "__main__":
                 # Tell the Pulseblaster to start the run and to let us know when the it's finished:
                 
                 logger.debug('About to start the PulseBlaster')
-                self.tablist["pulseblaster_0"].start_run(self.current_queue)
-                
-                # Science!
-                
-                # Wait for notification of the end of run:
-                result = self.current_queue.get()
-                if result == 'abort':
-                    pass # not implemented
+#                self.tablist["pulseblaster_0"].start_run(self.current_queue)
+#                
+#                # Science!
+#                
+#                # Wait for notification of the end of run:
+#                result = self.current_queue.get()
+#                if result == 'abort':
+#                    pass # not implemented
                 logger.info('Run complete')
                 
                 
@@ -861,7 +862,7 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     host = self.analysis_host.get_text()
                 try:
-                    #print 'Submitting run file %s.\n'%os.path.basename(run_file)
+                    logger.info('Submitting run file %s.\n'%os.path.basename(path))
                     data = {'filepath': path}
                     response = zmq_get(self.port, host, data, timeout = 2)
                     if response != 'added successfully':
