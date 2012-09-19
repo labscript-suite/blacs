@@ -694,14 +694,14 @@ if __name__ == "__main__":
                 # Tell the Pulseblaster to start the run and to let us know when the it's finished:
                 
                 logger.debug('About to start the PulseBlaster')
-#                self.tablist["pulseblaster_0"].start_run(self.current_queue)
-#                
-#                # Science!
-#                
-#                # Wait for notification of the end of run:
-#                result = self.current_queue.get()
-#                if result == 'abort':
-#                    pass # not implemented
+                self.tablist["pulseblaster_0"].start_run(self.current_queue)
+
+                # Science!
+
+                # Wait for notification of the end of run:
+                result = self.current_queue.get()
+                if result == 'abort':
+                   pass # not implemented
                 logger.info('Run complete')
                 
                 
