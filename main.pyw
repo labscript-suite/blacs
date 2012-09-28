@@ -321,15 +321,19 @@ if __name__ == "__main__":
                                 buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
                                            gtk.STOCK_OPEN,gtk.RESPONSE_OK))
             chooser.set_default_response(gtk.RESPONSE_OK)
+            # TODO, change over to labconfig path
             chooser.set_current_folder(r'Z:\\Experiments')
+            chooser.set_select_multiple(True)
             response = chooser.run()
             if response == gtk.RESPONSE_OK:
-                filename = chooser.get_filename()
-                result = process_request(filename)
+                filename = chooser.get_filenames()
+                for f in filename:                
+                    result = process_request(f)
             else:
                 chooser.destroy()
                 return
             chooser.destroy()
+            # TODO: update this so that it handles multiple file selections properly
             if not 'added successfully' in result:
                 message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_OK, result) 
                 message.run()  
