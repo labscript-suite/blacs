@@ -338,7 +338,7 @@ class novatechdds9m(Tab):
 class NovatechDDS9mWorker(Worker):
     def init(self):
         global serial; import serial
-        global h5py; import h5py
+        global h5py; import h5_lock, h5py
         self.smart_cache = {'STATIC_DATA': None, 'TABLE_DATA': ''}
         
     def initialise_novatech(self,port,baud_rate):

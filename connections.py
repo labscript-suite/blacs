@@ -1,4 +1,4 @@
-import h5py
+import h5_lock, h5py
 import logging
 import excepthook
 import numpy as np

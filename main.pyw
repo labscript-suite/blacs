@@ -29,7 +29,7 @@ if __name__ == "__main__":
     import gtk
     import gobject
     import numpy
-    import h5py
+    import h5_lock, h5py
     
     splash.update_text('Importing pythonlib modules')
     from subproc_utils import zmq_get, ZMQServer

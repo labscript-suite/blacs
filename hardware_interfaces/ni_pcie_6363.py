@@ -7,7 +7,7 @@ import logging
 import numpy
 import time
 import os
-import h5py
+import h5_lock, h5py
 import excepthook
 
 from tab_base_classes import Tab, Worker, define_state

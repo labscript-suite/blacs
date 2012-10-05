@@ -5,7 +5,7 @@ import logging
 import excepthook
 import gtk
 import numpy
-import h5py
+import h5_lock, h5py
 
 
 # Connection Table Code

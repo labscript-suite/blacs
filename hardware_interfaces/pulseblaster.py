@@ -293,7 +293,7 @@ class pulseblaster(Tab):
 class PulseblasterWorker(Worker):
     def init(self):
         exec 'from spinapi import *' in globals()
-        global h5py; import h5py
+        global h5py; import h5_lock, h5py
         self.pb_start = pb_start
         self.pb_stop = pb_stop
         self.pb_reset = pb_reset

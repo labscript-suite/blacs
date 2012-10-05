@@ -158,7 +158,7 @@ class zaberstagecontroller(Tab):
 class ZaberWorker(Worker):
     def init(self):
         global serial; import serial
-        global h5py; import h5py
+        global h5py; import h5_lock, h5py
         global zaberapi; import zaberapi
         
     def initialise_zaber_worker(self,ports,types,COM):

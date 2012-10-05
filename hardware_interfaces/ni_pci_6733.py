@@ -1,7 +1,6 @@
 import gtk
 
 import numpy
-import h5py
 import excepthook
 
 from tab_base_classes import Tab, Worker, define_state
@@ -136,7 +135,8 @@ class NiPCI6733Worker(Worker):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
-        global pylab; import pylab 
+        global pylab; import pylab
+        global h5py; import h5_lock, h5py
         
     def initialise(self, device_name, limits):
         # Create task

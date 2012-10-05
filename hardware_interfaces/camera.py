@@ -1,7 +1,6 @@
 import os
 import socket
 import gtk
-import h5py
 
 from tab_base_classes import Tab, Worker, define_state
 
