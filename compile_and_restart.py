@@ -31,7 +31,7 @@ class CompileAndRestart(object):
 
         output_parent = builder.get_object('output_parent')
         
-        self.output_box = OutputBox(output_parent, Queue())
+        self.output_box = OutputBox(output_parent)
         
         self.toplevel.show()
 
@@ -66,7 +66,7 @@ class CompileAndRestart(object):
         self.label_failure.set_visible(False)
         self.button_restart.set_sensitive(False)
         runmanager.compile_labscript_with_globals_files_async(self.labscript_file,
-            self.globals_files, self.tempfilename, self.output_box.queue, self.finished_compiling)
+            self.globals_files, self.tempfilename, self.output_box.port, self.finished_compiling)
             
     def finished_compiling(self, success):
         with gtk.gdk.lock:
@@ -105,8 +105,8 @@ class CompileAndRestart(object):
         
 if __name__ == '__main__':
     gtk.threads_init()
-    globals_file = '/home/bilbo/Desktop/pythonlib/BLACS/connectiontables/bilbo-laptop_calibrations.h5'
-    labscript_file = '/home/bilbo/Desktop/pythonlib/BLACS/connectiontables/bilbo-laptop.py'
+    globals_file = '/home/bilbo/labconfig/bilbo-laptop_calibrations.h5'
+    labscript_file = '/home/bilbo/labconfig/bilbo-laptop.py'
     output_path = '/home/bilbo/Desktop/pythonlib/BLACS/connectiontables/bilbo-laptop.h5'
-    compile_and_restart = CompileAndRestart(None,globals_file, labscript_file, output_path)
+    compile_and_restart = CompileAndRestart(None, [], labscript_file, output_path)
     gtk.main()
