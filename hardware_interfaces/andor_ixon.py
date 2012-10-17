@@ -3,7 +3,7 @@ import pygtk
 import gtk
 import time
 import pyandor
-import h5py
+import h5_lock, h5py
 import numpy
 from hardware_programming import andor_ixon as ixon_programming
 
