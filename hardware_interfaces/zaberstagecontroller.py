@@ -16,6 +16,7 @@ class zaberstagecontroller(Tab):
         self.device_name = settings['device_name']
         self.device = self.settings['connection_table'].find_by_name(self.device_name)
         self.num_stages = len(self.device.child_list)
+        self.com_port = self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection
         
         self.static_mode = True
         self.destroy_complete = False
@@ -97,7 +98,7 @@ class zaberstagecontroller(Tab):
     @define_state
     def initialise_zaber(self):
         print "*******transition to initialise zaber*******"
-        self.queue_work('initialise_zaber_worker',self.ports,self.types, self.settings["COM"])
+        self.queue_work('initialise_zaber_worker',self.ports,self.types, self.com_port)
         
     def get_front_panel_position_state(self):
         returndict = {}
