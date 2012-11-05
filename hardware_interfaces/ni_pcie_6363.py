@@ -609,21 +609,21 @@ class Worker2(multiprocessing.Process):
         if not abort:
             with h5py.File(self.h5_file,'a') as hdf5_file:
                 data_group = hdf5_file['data']
-                ni_group = data_group.create_group(device_name)
+                data_group.create_group(device_name)
 
-                dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
+            dtypes = [(chan.split('/')[-1],numpy.float32) for chan in sorted(self.buffered_channels)]
 
-                start_time = time.time()
-                if self.buffered_data_list:
-                    self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
-                    for i, data in enumerate(self.buffered_data_list):
-                        data.shape = (len(self.buffered_channels),self.ai_read.value)              
-                        for j, (chan, dtype) in enumerate(dtypes):
-                            self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
-                        if i % 100 == 0:
-                            self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
-                    self.extract_measurements(device_name)
-                    self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
+            start_time = time.time()
+            if self.buffered_data_list:
+                self.buffered_data = numpy.zeros(len(self.buffered_data_list)*1000,dtype=dtypes)
+                for i, data in enumerate(self.buffered_data_list):
+                    data.shape = (len(self.buffered_channels),self.ai_read.value)              
+                    for j, (chan, dtype) in enumerate(dtypes):
+                        self.buffered_data[chan][i*1000:(i*1000)+1000] = data[j,:]
+                    if i % 100 == 0:
+                        self.logger.debug( str(i/100) + " time: "+str(time.time()-start_time))
+                self.extract_measurements(device_name)
+                self.logger.info('data written, time taken: %ss' % str(time.time()-start_time))
             
             self.buffered_data = None
             self.buffered_data_list = []
