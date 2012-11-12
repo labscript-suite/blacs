@@ -64,11 +64,11 @@ class PineBlasterWorker(Worker):
     
     def initialise_pineblaster(self, name, usbport):
         self.device_name = name
-        self.pineblaster = serial.Serial(usbport, 115200)
+        self.pineblaster = serial.Serial(usbport, 115200, timeout=1)
         for i in range(10):
             self.pineblaster.write('hello\r\n')
-            result = self.pineblaster.read(timeout=1)
-            assert result == 'hello\r\n'
+            result = self.pineblaster.readline()
+            assert result == 'hello\r\n', result
     
     def close(self):
         self.pineblaster.close()
