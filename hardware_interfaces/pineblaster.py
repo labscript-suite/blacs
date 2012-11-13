@@ -51,30 +51,91 @@ class pineblaster(Tab):
         self.destroy_complete = True
         self.close_tab() 
     
+    @define_state
+    def toggle_fresh(self, button):
+        # When the user clicks the checkbutton to enable and disable
+        # smart programming:
+        if button.get_active():
+            self.smart_enabled.hide()
+            self.smart_disabled.show()
+            self.fresh = True
+        else:
+            self.smart_enabled.show()
+            self.smart_disabled.hide()
+            self.fresh = False
+            
     @define_state    
     def program_static(self, widget=None):
-        pass
-        
-        
+        if self.static_mode:
+            self.queue_work('program_static', self.digital_outs[0].state)
+    
+    @define_state
+    def transition_to_buffered(self,h5file,notify_queue):
+        self.static_mode = False
+        self.digital_outs[0].set_state(0,program=False)
+        self.queue_work('program_buffered', h5file, self.fresh)
+        self.do_after('leave_program_buffered', notify_queue)
+    
+    def leave_program_buffered(self, notify_queue, _results):
+        # Enable smart programming:
+        self.checkbutton_fresh.show() 
+        self.checkbutton_fresh.set_active(False) 
+        self.checkbutton_fresh.toggled()
+        # Notify the queue manager thread that we've finished
+        # transitioning to buffered:
+        notify_queue.put(self.device_name)
+    
 class PineBlasterWorker(Worker):
     def init(self):
         global h5py; import h5_lock, h5py
         global serial; import serial
-        self.smart_cache = None
+        self.smart_cache = []
     
     def initialise_pineblaster(self, name, usbport):
         self.device_name = name
         self.pineblaster = serial.Serial(usbport, 115200, timeout=1)
-        for i in range(10):
-            self.pineblaster.write('hello\r\n')
-            result = self.pineblaster.readline()
-            assert result == 'hello\r\n', result
-    
+        self.pineblaster.write('hello\r\n')
+        response = self.pineblaster.readline()
+        print repr(response)
+        if response == 'hello\r\n':
+            return
+        elif response:
+            raise Exception('PineBlaster is confused: saying %s instead of hello'%(repr(response)))
+        else:
+            raise Exception('PineBlaster is not saying hello back when greeted politely. How rude. Maybe it needs a reboot.')
+            
     def close(self):
         self.pineblaster.close()
         
-    def program_static(self, values):
-        pass
+    def program_static(self, value):
+        self.pineblaster.write('go high\r\n' if value else 'go low\r\n')
+        response = self.pineblaster.readline()
+        assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
         
-    def program_buffered(self):
-        pass
+    def program_buffered(self, h5file, fresh):
+        if fresh:
+            self.smart_cache = []
+        self.program_static(0)
+        with h5py.File(h5file,'r') as hdf5_file:
+            group = hdf5_file['devices/%s'%self.device_name]
+            pulse_program = group['PULSE_PROGRAM'][:]
+        for i, instruction in enumerate(pulse_program):
+            if i == len(self.smart_cache):
+                # Pad the smart cache out to be as long as the program:
+                self.smart_cache.append(None)
+            # Only program instructions that differ from what's in the smart cache:
+            if self.smart_cache[i] != instruction:
+                self.pineblaster.write('set %d %d %d\r\n'%(i, instruction['period'], instruction['reps']))
+                assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
+                self.smart_cache[i] = instruction 
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
