@@ -92,7 +92,10 @@ class CompileAndRestart(object):
             else:
                 self.label_failure.set_visible(True)
                 self.button_restart.set_sensitive(False)
-                os.remove(self.tempfilename)
+                try:
+                    os.remove(self.tempfilename)
+                except Exception:
+                    pass
                 
     def restart(self):
         gobject.timeout_add(100, self.blacs.destroy)
