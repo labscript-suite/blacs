@@ -75,7 +75,7 @@ class ni_pci_6733(Tab):
      
     @define_state
     def initialise_device(self):
-        self.queue_work('initialise',self.MAX_name,[self.min_ao_voltage,self.max_ao_voltage])
+        self.queue_work('initialise', self.device_name, self.MAX_name,[self.min_ao_voltage,self.max_ao_voltage])
         
     def get_front_panel_state(self):
         state = {}
@@ -139,12 +139,13 @@ class NiPCI6733Worker(Worker):
         global pylab; import pylab
         global h5py; import h5_lock, h5py
         
-    def initialise(self, device_name, limits):
+    def initialise(self, device_name, MAX_name, limits):
         # Create task
         self.ao_task = Task()
         self.ao_read = int32()
         self.ao_data = numpy.zeros((self.num_AO,), dtype=numpy.float64)
         self.device_name = device_name
+        self.MAX_name = MAX_name
         self.limits = limits
         self.setup_static_channels()            
         
@@ -154,7 +155,7 @@ class NiPCI6733Worker(Worker):
     def setup_static_channels(self):
         #setup AO channels
         for i in range(self.num_AO): 
-            self.ao_task.CreateAOVoltageChan(self.device_name+"/ao%d"%i,"",self.limits[0],self.limits[1],DAQmx_Val_Volts,None)
+            self.ao_task.CreateAOVoltageChan(self.MAX_name+"/ao%d"%i,"",self.limits[0],self.limits[1],DAQmx_Val_Volts,None)
         
     def close_device(self):        
         self.ao_task.StopTask()

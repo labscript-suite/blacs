@@ -34,7 +34,7 @@ class ni_pcie_6363(Tab):
         self.result_queue = multiprocessing.Queue()
         
         # All the arguments that the acquisition worker will require:
-        acq_args = [self.MAX_name, self.write_queue, self.read_queue, self.result_queue]
+        acq_args = [self.device_name, self.MAX_name, self.write_queue, self.read_queue, self.result_queue]
         
         Tab.__init__(self,BLACS,NiPCIe6363Worker,notebook,settings,workerargs={'acq_args':acq_args})
         
@@ -128,7 +128,7 @@ class ni_pcie_6363(Tab):
      
     @define_state
     def initialise_device(self):
-        self.queue_work('initialise',self.MAX_name,[self.min_ao_voltage,self.max_ao_voltage])
+        self.queue_work('initialise',self.device_name, self.MAX_name, [self.min_ao_voltage,self.max_ao_voltage])
         self.do_after('leave_initialise_device')
         
     def leave_initialise_device(self,_results):        
@@ -226,7 +226,7 @@ class NiPCIe6363Worker(Worker):
     def init(self):
         # Start the data acquisition subprocess:
         self.acquisition_worker = Worker2(args=self.acq_args)
-        ignore, self.to_child, self.from_child, ignore = self.acq_args
+        ignore, ignore, self.to_child, self.from_child, ignore = self.acq_args
         self.acquisition_worker.daemon = True
         self.acquisition_worker.start()
         
@@ -234,7 +234,7 @@ class NiPCIe6363Worker(Worker):
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
     
-    def initialise(self, device_name, limits):
+    def initialise(self, device_name, MAX_name, limits):
         # Create AO task
         self.ao_task = Task()
         self.ao_read = int32()
@@ -246,21 +246,22 @@ class NiPCIe6363Worker(Worker):
         self.do_data = numpy.zeros(48,dtype=numpy.uint8)
         
         self.device_name = device_name
+        self.MAX_name = MAX_name
         self.limits = limits
         self.setup_static_channels()  
         
     def setup_static_channels(self):
         #setup AO channels
         for i in range(self.num_AO): 
-            self.ao_task.CreateAOVoltageChan(self.device_name+"/ao"+str(i),"",self.limits[0],self.limits[1],DAQmx_Val_Volts,None)
+            self.ao_task.CreateAOVoltageChan(self.MAX_name+"/ao"+str(i),"",self.limits[0],self.limits[1],DAQmx_Val_Volts,None)
         
         #setup DO ports
-        self.do_task.CreateDOChan(self.device_name+"/port0/line0:7","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan(self.device_name+"/port0/line8:15","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan(self.device_name+"/port0/line16:23","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan(self.device_name+"/port0/line24:31","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan(self.device_name+"/port1/line0:7","",DAQmx_Val_ChanForAllLines)
-        self.do_task.CreateDOChan(self.device_name+"/port2/line0:7","",DAQmx_Val_ChanForAllLines)  
+        self.do_task.CreateDOChan(self.MAX_name+"/port0/line0:7","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.MAX_name+"/port0/line8:15","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.MAX_name+"/port0/line16:23","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.MAX_name+"/port0/line24:31","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.MAX_name+"/port1/line0:7","",DAQmx_Val_ChanForAllLines)
+        self.do_task.CreateDOChan(self.MAX_name+"/port2/line0:7","",DAQmx_Val_ChanForAllLines)  
         
         # Start!  
         self.ao_task.StartTask()  
@@ -375,8 +376,8 @@ class Worker2(multiprocessing.Process):
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         
-        self.name, self.from_parent, self.to_parent, self.result_queue = self._args
-        self.logger = logging.getLogger('BLACS.%s.acquisition'%self.name)
+        self.device_name, self.MAX_name, self.from_parent, self.to_parent, self.result_queue = self._args
+        self.logger = logging.getLogger('BLACS.%s.acquisition'%self.device_name)
         self.task_running = False
         self.daqlock = threading.Condition()
         # Channel details
@@ -400,7 +401,7 @@ class Worker2(multiprocessing.Process):
         self.mainloop()
         
     def mainloop(self):
-        logger = logging.getLogger('BLACS.%s.acquisition.mainloop'%self.name)  
+        logger = logging.getLogger('BLACS.%s.acquisition.mainloop'%self.device_name)  
         logger.info('Starting')
         while True:
             logger.debug('Waiting for instructions')
@@ -439,7 +440,7 @@ class Worker2(multiprocessing.Process):
         self.to_parent.put(['done',None])
         
     def daqmx_read(self):
-        logger = logging.getLogger('BLACS.%s.acquisition.daqmxread'%self.name)
+        logger = logging.getLogger('BLACS.%s.acquisition.daqmxread'%self.device_name)
         logger.info('Starting')
         #first_read = True
         try:
