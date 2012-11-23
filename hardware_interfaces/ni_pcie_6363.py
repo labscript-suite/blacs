@@ -25,6 +25,7 @@ class ni_pcie_6363(Tab):
     def __init__(self,BLACS,notebook,settings,restart=False):
         self.settings = settings
         self.device_name = self.settings['device_name']
+        self.MAX_name = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
         
         # Queues that need to be passed to the worker process, which in
         # turn passes them to the acquisition process: AI worker thread
@@ -33,7 +34,7 @@ class ni_pcie_6363(Tab):
         self.result_queue = multiprocessing.Queue()
         
         # All the arguments that the acquisition worker will require:
-        acq_args = [self.settings['device_name'], self.write_queue, self.read_queue, self.result_queue]
+        acq_args = [self.MAX_name, self.write_queue, self.read_queue, self.result_queue]
         
         Tab.__init__(self,BLACS,NiPCIe6363Worker,notebook,settings,workerargs={'acq_args':acq_args})
         
@@ -127,7 +128,7 @@ class ni_pcie_6363(Tab):
      
     @define_state
     def initialise_device(self):
-        self.queue_work('initialise',self.settings["device_name"],[self.min_ao_voltage,self.max_ao_voltage])
+        self.queue_work('initialise',self.MAX_name,[self.min_ao_voltage,self.max_ao_voltage])
         self.do_after('leave_initialise_device')
         
     def leave_initialise_device(self,_results):        

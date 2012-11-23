@@ -20,6 +20,7 @@ class ni_pci_6733(Tab):
         Tab.__init__(self,BLACS,NiPCI6733Worker,notebook,settings)
         self.settings = settings
         self.device_name = settings['device_name']
+        self.MAX_name = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
         self.static_mode = True
         self.destroy_complete = False
         
@@ -74,7 +75,7 @@ class ni_pci_6733(Tab):
      
     @define_state
     def initialise_device(self):
-        self.queue_work('initialise',self.settings["device_name"],[self.min_ao_voltage,self.max_ao_voltage])
+        self.queue_work('initialise',self.MAX_name,[self.min_ao_voltage,self.max_ao_voltage])
         
     def get_front_panel_state(self):
         state = {}
