@@ -365,7 +365,8 @@ class FrontPanelSettings(object):
         if hasattr(tab,'num_DDS') and tab.num_DDS > 0:            
             for i in range(tab.num_DDS):
                 for ao_chnl in [tab.dds_outputs[i].freq,tab.dds_outputs[i].amp,tab.dds_outputs[i].phase]:
-                    dds_dict[ao_chnl.channel] = self.get_ao_dict(ao_chnl)
+                    if ao_chnl:
+                        dds_dict[ao_chnl.channel] = self.get_ao_dict(ao_chnl)
                 
                 if hasattr(tab.dds_outputs[i].gate,'channel'):
                     dds_dict[tab.dds_outputs[i].gate.channel] = self.get_do_dict(tab.dds_outputs[i].gate)
