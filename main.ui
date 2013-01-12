@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>947</width>
-    <height>873</height>
+    <width>568</width>
+    <height>551</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -297,7 +297,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>947</width>
+     <width>568</width>
      <height>21</height>
     </rect>
    </property>
@@ -328,6 +328,16 @@
    </property>
   </action>
  </widget>
+ <tabstops>
+  <tabstop>queue_pause_button</tabstop>
+  <tabstop>queue_repeat_button</tabstop>
+  <tabstop>queue_delete_button</tabstop>
+  <tabstop>treeview</tabstop>
+  <tabstop>queue_push_to_top</tabstop>
+  <tabstop>queue_push_up</tabstop>
+  <tabstop>queue_push_down</tabstop>
+  <tabstop>queue_push_to_bottom</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
