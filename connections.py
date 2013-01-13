@@ -184,7 +184,7 @@ class Connection(object):
             if v.parent.name == device_name and v.parent_port == parent_port:
                 return v
         
-        # This is done separately to the above iteration for speed. 
+        # This is done separately to the above iteration for speed.
         # We search for all children first, before going down another layer.
         for k,v in self.child_list.items():
             val = v.find_child(device_name,parent_port)
