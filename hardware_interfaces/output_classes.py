@@ -1,390 +1,423 @@
-import gtk
+import logging
+import math
+
+from PySide.QtCore import *
+from PySide.QtGui import *
 from unitconversions import *
 
 class AO(object):
-    def __init__(self, name, channel, widget, combobox, calib_class, calib_params, default_units, static_update_function, min, max, step, value = 0, current_units = None):
-        self.adjustment = gtk.Adjustment(value,min,max,step,10*step,0)
-        self.handler_id = self.adjustment.connect('value-changed',static_update_function)
-        self.adjustment.connect('value-changed',self.update_saved_settings)
-        self.name = name
-        self.channel = channel
-        self.locked = False
-        self.comboboxmodel = combobox.get_model()
-        self.comboboxes = []
-        self.comboboxhandlerids = []
-        self.current_units = default_units
-        self.base_unit = default_units
-        self.limits = [min,max]
+    def __init__(self, hardware_name, connection_name, device_name, program_function, settings, calib_class, calib_params, default_units, min, max, step, decimals):
+        self._connection_name = connection_name
+        self._hardware_name = hardware_name
+        self._device_name = device_name
         
+        self._locked = False
+        self._comboboxmodel = QStandardItemModel()
+        self._widgets = []
+        self._current_units = default_units
+        self._base_unit = default_units
+        self._program_device = program_function
+        
+        # All of these are in base units ALWAYS
+        self._current_value = 0
+        self._current_step_size = step
+        self._limits = [min,max]
+        self._decimals = decimals
+                
+        self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name)) 
         
         # Initialise Calibrations
         if calib_class is not None:
             if calib_class not in globals() or not isinstance(calib_params,dict) or globals()[calib_class].base_unit != default_units:
-                # Throw an error:
+                # log an error:  
+                reason = ''
+                if calib_class not in globals():
+                    reason = 'The unit conversion class was not imported. Is it in the correct folder? Is it imported when you call "from unitconversions import *" from a python terminal?'
+                elif not isinstance(calib_params,dict):
+                    reason = 'The parameters for the unit conversion class are not a dictionary. Check your connection table code for errors and recompile it'
+                elif globals()[calib_class].base_unit != default_units:
+                    reason = 'The base unit of your unit conversion class does not match this hardware channel. The hardware channel has base units %s while your unit conversion class uses %s'%(globals()[calib_class].base_unit,default_units)
+                self._logger.error('The unit conversion class (%s) could not be loaded. Reason: %s'%(calib_class,reason))   
                 # Use default units
-                self.calibration = None
-                self.comboboxmodel.append([default_units])
+                self._calibration = None
+                self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
             else:
                 # initialise calibration class
-                self.calibration = globals()[calib_class](calib_params)                
-                self.comboboxmodel.append([self.calibration.base_unit])
+                self._calibration = globals()[calib_class](calib_params)    
+                self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
                         
-                for unit in self.calibration.derived_units:
-                    self.comboboxmodel.append([unit])
+                for unit in self._calibration.derived_units:
+                    self._comboboxmodel.appendRow(QStandardItem(unit))
                     
-                combobox.set_active(0)
         else:
             # use default units
-            self.calibration = None
-            self.comboboxmodel.append([default_units])
+            self._calibration = None
+            self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
         
-        self.add_widget(widget,combobox)
+        self._update_from_settings(settings)
     
-    def update(self,settings):
-        # save the settings so we can update the dictionary with new values
-        # This provides continuity when restarting the tab
-        self.settings = settings
-        
-        # restore the settings
-        if 'front_panel_settings' in settings:
-            if self.channel in settings['front_panel_settings']:
-                saved_data = settings['front_panel_settings'][self.channel]
-                
-                # Update the value
-                self.set_value(saved_data['base_value'],program=False)
-
-                # Update the unit selection
-                self.change_units(saved_data['current_units'])
-                
-                # Update the step size
-                self.set_step_size_in_base_units(saved_data['base_step_size'])
-                
-                # Update the Lock
-                self.locked = saved_data['locked']
-                self.update_lock()
-            else:
-                settings['front_panel_settings'][self.channel] = {'base_value':self.value,
-                                                                  'current_units':self.current_units,
-                                                                  'base_step_size':self.get_step_in_base_units(),
-                                                                  'locked':self.locked,
-                                                                  }
-        else:
-            if not isinstance(settings,dict):
-                settings = {}                
+    def _update_from_settings(self,settings):
+        # Build up the settings dictionary if it isn't already
+        if not isinstance(settings,dict):
+            settings = {}
+        if 'front_panel_settings' not in settings or not isinstance(settings['front_panel_settings'],dict):
             settings['front_panel_settings'] = {}
-            settings['front_panel_settings'][self.channel] = {'base_value':self.value,
-                                                              'current_units':self.current_units,
-                                                              'base_step_size':self.get_step_in_base_units(),
-                                                              'locked':self.locked,
-                                                              }
-            
+        if self._hardware_name not in settings['front_panel_settings'] or not isinstance(settings['front_panel_settings'][self._hardware_name],dict):
+            settings['front_panel_settings'][self._hardware_name] = {}
+        # Set default values if they are not already saved in the settings dictionary
+        if 'base_value' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['base_value'] = False
+        if 'locked' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['locked'] = False
+        if 'base_step_size' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['base_step_size'] = 0.1
+        if 'current_units' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['current_units'] = self._base_unit
     
-    def add_widget(self,widget, combobox):
-        widget.set_adjustment(self.adjustment)
-        # Set the model to match the other comboboxes
-        combobox.set_model(self.comboboxmodel)
-        # set the active item to match the active item of one of the comboboxes
-        if self.comboboxes:
-            combobox.set_active(self.comboboxes[0].get_active())
-        else:
-            combobox.set_active(0)
-        self.comboboxes.append(combobox)
-        self.comboboxhandlerids.append(combobox.connect('changed',self.on_selection_changed))
+        # only keep a reference to the part of the settings dictionary relevant to this DO
+        self._settings = settings['front_panel_settings'][self._hardware_name]
+    
+        # Update the state of the button
+        self.set_value(self._settings['base_value'],program=False)
+
+        # Update the lock state
+        self._update_lock(self._settings['locked'])
         
-        # Add signal to populate the right click context menu with our own things!
-        widget.connect("populate-popup", self.populate_context_menu)
-        widget.connect("button-release-event",self.on_button_release)
+        # Update the step size
+        self.set_step_size(self._settings['base_step_size'],self._base_unit)
+    
+        # Update the unit selection
+        self.change_units(self._settings['current_units'])
      
-    def on_selection_changed(self,combobox):
-        for box, id in zip(self.comboboxes,self.comboboxhandlerids):
-            if box is not combobox:
-                box.handler_block(id)
-                box.set_selection(combobox.get_selection())
-                box.handler_unblock(id)
-                
-        # Update the parameters of the Adjustment to match the new calibration!
-        new_units = self.comboboxmodel.get(combobox.get_active_iter(),0)[0]
+    def convert_value_to_base(self, value, unit):
+        if self._calibration and unit in self._calibration.derived_units:
+            return getattr(self._calibration,unit+"_to_base")(value)
+         
+        # TODO: include device name somehow, and also the calibration class name
+        raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
+    
+    def convert_value_from_base(self, value, unit):  
+        if self._calibration and unit in self._calibration.derived_units:
+            getattr(self._calibration,unit+"_from_base")(value)
+    
+        # TODO: include device name somehow, and also the calibration class name
+        raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
+    
+    # handles the conversion of a range centered on value in units to base units
+    # In other words, how big is "range" in base units assuming that you care about what range is
+    # between value-range/2 and value+range/2
+    #
+    # If value+range/2 or value-range/2 is outside of the limits, then we will shift the fraction of range
+    # used on the offending side of value
+    # If range is greater than the difference of the limits, we will return the difference between the limits
+    def convert_range_to_base(self,value,range,unit):
+        # Do we need to convert the limits?
+        if unit != self._base_unit:
+            limits = [self.convert_value_from_base(self._limits[0],unit),self.convert_value_from_base(self._limits[1],unit)]
+            if limits[0] > limits[1]:
+                limits[0],limits[1] = limits[1],limits[0]
+        else:
+            limits = self._limits
         
-        # do derivative on step size after conversion to get a correct conversion
-        step_lower = self.adjustment.get_value()
-        step_upper = self.adjustment.get_value() + self.adjustment.get_step_increment()
+        # limits are now in the units given to the function!
+        # (As are range and value)
+            
+        # If range is bigger than the difference of the limits, return the difference of the limits
+        # in base units
+        if range >= abs(limits[0]-limits[1]):
+            limits = [self.convert_value_to_base(limits[0],unit),self.convert_value_to_base(limits[1],unit)]
+            return abs(limits[0]-limits[1])
+          
+        # At this point, the range must fit inside the limits, so if we find we are out of bounds on one side, 
+        # we can be certain shifting the fractions will not cause us to go out of bounds on the other side
+        positive_fraction = range/2.0
+        negative_fraction = range/2.0
+        # If the value+range/2 is greater than the upper limit, shift the fraction 
+        if value+positive_fraction > self._limits[1]:
+            positive_fraction = abs(self._limits[1]-value)
+            negative_fraction = abs(range-positive_fraction)
+        # Similarly if value-range/2 is less than the lower limit, shift the fraction
+        elif value-negative_fraction < self._limits[0]:    
+            negative_fraction = abs(self._limits[0]-value)        
+            positive_fraction = abs(range-negative_fraction)
         
-        parameter_list = [self.adjustment.get_value(),self.adjustment.get_lower(),self.adjustment.get_upper(),step_lower,step_upper,
-                          self.limits[0],self.limits[1]]
+        # Now do the conversion!
+        bound1 = self.convert_value_to_base(value+positive_fraction,unit)
+        bound2 = self.convert_value_to_base(value-negative_fraction,unit)
         
-        # If we aren't alreay in base units, convert to base units
-        if self.current_units != self.calibration.base_unit:
-            # get the conversion function
-            convert = getattr(self.calibration,self.current_units+"_to_base")
-            for index,param in enumerate(parameter_list):
-                #convert each to base units
-                parameter_list[index] = convert(param)
+        return abs(bound1-bound2)
+    
+    # This does the reverse of teh above function, with the same rules
+    def convert_range_from_base(self,value,range,unit):
+        # limits are always in base units
+        limits = self._limits
+        
+        # limits are now in base units!
+        # (As are range and value)
+            
+        # If range is bigger than the difference of the limits, return the difference of the limits
+        # in the specified units units
+        if range >= abs(limits[0]-limits[1]):
+            limits = [self.convert_value_from_base(limits[0],unit),self.convert_value_from_base(limits[1],unit)]
+            return abs(limits[0]-limits[1])
+          
+        # At this point, the range must fit inside the limits, so if we find we are out of bounds on one side, 
+        # we can be certain shifting the fractions will not cause us to go out of bounds on the other side
+        positive_fraction = range/2.0
+        negative_fraction = range/2.0
+        # If the value+range/2 is greater than the upper limit, shift the fraction 
+        if value+positive_fraction > self._limits[1]:
+            positive_fraction = abs(self._limits[1]-value)
+            negative_fraction = abs(range-positive_fraction)
+        # Similarly if value-range/2 is less than the lower limit, shift the fraction
+        elif value-negative_fraction < self._limits[0]:    
+            negative_fraction = abs(self._limits[0]-value)        
+            positive_fraction = abs(range-negative_fraction)
+        
+        # Now do the conversion!
+        bound1 = self.convert_value_from_base(value+positive_fraction,unit)
+        bound2 = self.convert_value_from_base(value-negative_fraction,unit)
+        
+        return abs(bound1-bound2)
+    
+    def add_widget(self, widget):
+        if widget in self._widgets:
+            return
+            
+        self._widgets.append(widget)
+    
+        # make sure the widget knows about this AO. 
+        widget.set_AO(self,notify_old_AO=True,notify_new_AO=False)
+        
+        # Now connect this widgets signal to the AO slot
+        widget.connect_value_change(self.set_value)
+        
+        # set the properties of the widgets...
+        # set comboboxmodel
+        widget.set_combobox_model(self._comboboxmodel)
+        # This will set the min/max/value/num.decimals/stepsie and current_unit of ALL widgets
+        # including the one just added!
+        self.change_unit(self._current_unit)
+        # This will update the lock state of ALL widgets, including the one just added!
+        self._update_lock(self._locked)
+    
+    # If calling this method directly from outside the set_AO function in the analog widget
+    # you should NOT specify a value for new_AO.
+    def remove_widget(self,widget,call_set_AO = True,new_AO = None):
+        if widget not in self._widgets:
+            raise RuntimeError('The widget cannot be removed because it is not registered with this AO object')
+            #TODO: Make the above error message better!
+         
+        self._widgets.remove(widget)  
+        
+        if call_set_AO:
+            widget.set_AO(new_AO,True,True)
+            
+        # Further cleanup
+        widget.disconnect_value_change()
+        widget.set_combobox_model(QStandardItemModel())
+        
+    def change_units(self,unit):     
+        # These values are always stored in base units!
+        property_value_list = [self._current_value,self._limits[0],self._limits[1]]
+        property_range_list = [self._current_step_size]
         
         # Now convert to the new unit
-        if new_units != self.calibration.base_unit:
-            convert = getattr(self.calibration,new_units+"_from_base")
-            for index,param in enumerate(parameter_list):
+        if unit != self._calibration.base_unit:
+            for index,param in enumerate(property_value_list):
                 #convert each to base units
-                parameter_list[index] = convert(param)
+                property_value_list[index] = self.convert_value_from_base(param,unit)
+            for index,param in enumerate(property_range_list):
+                #convert each to base units
+                property_range_list[index] = self.convert_range_from_base(property_value_list[0],param,unit)
+                
+            # figure out how many decimal points we need in the new unit
+            trial1 = 10**(-self._decimals)
+            derived_trial1 = self.convert_value_fram_base(trial1,unit)
+            derived_trial2 = self.convert_value_fram_base(2*trial1,unit)
+            difference = abs(derived_trial1-derived_trial2)
+            if difference > 1:
+                if difference > 10:
+                    num_decimals = 0
+                else:
+                    num_decimals = 1
+            else:
+                num_decimals = abs(math.ceil(math.log10(difference))-2)
+        else:
+            num_decimals = self._decimals
         
         # Store the current units
-        self.current_units = new_units      
+        self.current_units = unit  
+        self._settings['current_units'] = unit    
         
         # Check to see if the upper/lower bound has switched
-        if parameter_list[1] > parameter_list[2]:
-            parameter_list[1], parameter_list[2] = parameter_list[2], parameter_list[1]
+        if property_value_list[1] > property_value_list[2]:
+            property_value_list[1], property_value_list[2] = property_value_list[2], property_value_list[1]
         
-        # Block the signal (nothing has actually changed in the value to program)
-        self.adjustment.handler_block(self.handler_id)            
-        # Update the Adjustment
-        self.adjustment.configure(parameter_list[0],parameter_list[1],parameter_list[2],abs(parameter_list[3]-parameter_list[4]),abs(parameter_list[3]-parameter_list[4])*10,0)
-        #Unblock the handler
-        self.adjustment.handler_unblock(self.handler_id)
-        
-        # update the settings dictionary if it exists, to maintain continuity on tab restarts
-        if hasattr(self,'settings'):
-            if 'front_panel_settings' in self.settings:
-                if self.channel in self.settings['front_panel_settings']:
-                    self.settings['front_panel_settings'][self.channel]['current_units'] = self.current_units
-                    self.settings['front_panel_settings'][self.channel]['base_step_size'] = self.get_step_in_base_units()
-        
-        # update saved limits
-        if parameter_list[5] > parameter_list[6]:
-            parameter_list[5], parameter_list[6] = parameter_list[6], parameter_list[5] 
-        self.limits = [parameter_list[5], parameter_list[6]]
-     
-    def change_units(self,unit):
-        # default to base units
-        unit_index = 0
-        
-        if self.calibration:
-            i = 1
-            for unit_choice in self.calibration.derived_units:
-                if unit_choice == unit:
-                    unit_index = i
-                i += 1
-            
-        # Set one of the comboboxes to the correct unit (the rest will be updated automatically)
-        self.comboboxes[0].set_active(unit_index)
-    
+        # Now update all the widgets
+        for widget in self._widgets:
+            # Update the combo box
+            widget.block_combobox_signals()
+            widget.set_selected_unit(unit)
+            widget.unblock_combobox_signals()
+            # Update the value
+            widget.block_spinbox_signals()
+            widget.set_spinbox_value(property_value_list[0])
+            widget.unblock_spinbox_signals()
+            # Update the limits
+            widget.set_limits(property_value_list[1],property_value_list[2])
+            # Update the step size
+            widget.set_step_sSize(property_range_list[0])
+            # Update the decimals
+            widget.set_num_decimals(num_decimals)
+      
     @property
     def value(self):
-        value = self.adjustment.get_value()
-        # If we aren't already in base units, convert to base units
-        if self.current_units != self.base_unit: 
-            convert = getattr(self.calibration,self.current_units+"_to_base")
-            value = convert(value)
-        return value
+        return self._current_value
         
     def set_value(self, value, program=True):
         # conversion to float means a string can be passed in too:
         value = float(value)
                
-        # update the settings dictionary if it exists, to maintain continuity on tab restarts
-        # May not be neccessary, this set_value function probably triggers a call to update_saved_settings through the adjustment changed event
-        self.update_saved_settings()
-               
-        # If we aren't in base units, convert to the new units!
-        if self.current_units != self.base_unit: 
-            convert = getattr(self.calibration,self.current_units+"_from_base")
-            value = convert(value)
+        # If we aren't in base units, convert to them!
+        if self._current_units != self._base_unit: 
+            convert = getattr(self._calibration,self._current_units+"_to_base")            
+            # convert and store the value
+            self._current_value = convert(value)
+        else:    
+            # store the value
+            self._current_value = value
+        
+        # Update the saved value in the settings dictionary
+        self._settings['base_value'] = self._current_value
             
-        if not program:
-            self.adjustment.handler_block(self.handler_id)
-        if value != self.value:            
-            self.adjustment.set_value(value)
-        if not program:
-            self.adjustment.handler_unblock(self.handler_id)
-    
-    def update_saved_settings(self,*args,**kwargs):
-        # update the settings dictionary if it exists, to maintain continuity on tab restarts
-        if hasattr(self,'settings'):
-            if 'front_panel_settings' in self.settings:
-                if self.channel in self.settings['front_panel_settings']:    
-                    self.settings['front_panel_settings'][self.channel]['base_value'] = self.value
-    
-    def set_limits(self, menu_item):
-        pass
-        
-    def change_step(self, menu_item):
-        def handle_entry(widget,dialog):
-            dialog.response(gtk.RESPONSE_ACCEPT)
-        
-        dialog = gtk.Dialog("My dialog",
-                     None,
-                     gtk.DIALOG_MODAL,
-                     (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-                      gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
-        
-        label = gtk.Label("Set the step size for the up/down controls on the spinbutton in %s"%self.current_units)
-        dialog.vbox.pack_start(label, expand = False, fill = False)
-        label.show()
-        entry = gtk.Entry()
-        entry.connect("activate",handle_entry,dialog)
-        dialog.get_content_area().pack_end(entry)
-        entry.show()
-        response = dialog.run()
-        value_str = entry.get_text()
-        dialog.destroy()
-        
-        if response == gtk.RESPONSE_ACCEPT:
+        if program:
+            self._program_device()
             
-            try:
-                # Get the value from the entry
-                value = float(value_str)
-                
-                # Check if the value is valid
-                if value > (self.limits[1] - self.limits[0]):
-                    raise Exception("The step size specified is greater than the difference between the current limits")
-                
-                self.adjustment.set_step_increment(value)
-                self.adjustment.set_page_increment(value*10)
-                
-                # update the settings dictionary if it exists, to maintain continuity on tab restarts
-                if hasattr(self,'settings'):
-                    if 'front_panel_settings' in self.settings:
-                        if self.channel in self.settings['front_panel_settings']:
-                            self.settings['front_panel_settings'][self.channel]['base_step_size'] = self.get_step_in_base_units()
-                
-            except Exception, e:
-                # Make a message dialog with an error in
-                dialog = gtk.MessageDialog(None,
-                     gtk.DIALOG_MODAL,
-                     gtk.MESSAGE_ERROR,
-                     gtk.BUTTONS_NONE,
-                     "An error occurred while updating the step size:\n\n%s"%e.message)
-                     
-                dialog.run()
-                dialog.destroy()
+        for widget in self._widgets:
+            # block signals
+            widget.block_spinbox_signals()
+            # update widget
+            widget.set_spinbox_value(value)
+            # unblock signals            
+            widget.unblock_spinbox_signals()
     
-    def set_step_size_in_base_units(self,step_size):
-        # convert to current units
-        step_size_upper = self.adjustment.get_value()+step_size
-        step_size_lower = self.adjustment.get_value()
-        if self.current_units != self.base_unit: 
-            convert = getattr(self.calibration,self.current_units+"_from_base")
-            step_size_lower = convert(step_size_lower)
-            step_size_upper = convert(step_size_upper)
-        
-        self.adjustment.set_step_increment(abs(step_size_lower-step_size_upper))
-        self.adjustment.set_page_increment(abs(step_size_lower-step_size_upper)*10)
-    
-    def get_step_in_base_units(self):
-        value = self.adjustment.get_step_increment() + self.adjustment.get_value()
-        value2 = self.adjustment.get_value()
-        
-        if self.current_units != self.base_unit: 
-            convert = getattr(self.calibration,self.current_units+"_to_base")
-            value = convert(value)
-            value2 = convert(value2)
-        return abs(value - value2)
-    
-    def lock(self, menu_item):
-        self.locked = not self.locked
-        
-        if hasattr(self,'settings'):
-            if 'front_panel_settings' in self.settings:
-                if self.channel in self.settings['front_panel_settings']:
-                    self.settings['front_panel_settings'][self.channel]['locked'] = self.locked
-        
-        self.update_lock()
-    
-    def update_lock(self):    
-        if self.locked:
-            # Save the limits (this will be inneccessary once we implement software limits)
-            self.limits = [self.adjustment.get_lower(),self.adjustment.get_upper()]
-            
-            # Set the limits equal to the value
-            value = self.adjustment.get_value()
-            self.adjustment.set_lower(value)
-            self.adjustment.set_upper(value)
+    def set_step_size(self,step_size,unit):
+        if unit != self._base_unit:
+            # convert and store!
+            value = self.convert_value_from_base(self._current_value,unit)
+            self._step_size = self.convert_range_to_base(value,step_size,unit)
         else:
-            # Restore the limits
-            self.adjustment.set_lower(self.limits[0])
-            self.adjustment.set_upper(self.limits[1])
+            # This check is usually performed when converting the range to base units
+            # But since we are already in base units we should od it here
+            if abs(self._limits[0]-self._limits[1])< step_size):
+                step_size = abs(self._limits[0]-self._limits[1])
+            self._step_size = step_size
         
-    def populate_context_menu(self,widget,menu):
-        # is it a right click?
-        menu_item2 = gtk.MenuItem("Unlock Widget" if self.locked else "Lock Widget")
-        menu_item2.connect("activate",self.lock)
-        menu_item2.show()
-        menu.append(menu_item2)
-        menu_item3 = gtk.MenuItem("Change step size")
-        menu_item3.connect("activate",self.change_step)
-        menu_item3.show()
-        menu.append(menu_item3)
-        sep = gtk.SeparatorMenuItem()
-        sep.show()
-        menu.append(sep)
-        # reorder children
-        menu.reorder_child(menu_item2,0)
-        menu.reorder_child(menu_item3,1)
-        menu.reorder_child(sep,2)
+        self._settings['base_step_size'] = self._step_size
         
-    def on_button_release(self,widget,event):
-        if event.button == 3:
-            menu = gtk.Menu()
-            self.populate_context_menu(widget,menu)
-            menu.popup(None,None,None,event.button,event.time)
+        # now convert to current units
+        converted_step_size = self.get_step_size(self._current_units)
+    
+        # Update the step size for all widgets
+        for widget in self._widgets:
+            widget.set_step_Size(converted_step_size)
+    
+    def get_step_size(self,unit):
+        if unit != self._base_unit:
+            # we should convert it
+            return self.convert_range_from_base(self._current_value,self._step_size,unit)
+        else:
+            return self._step_size
+    
+    def lock(self):
+        self._update_lock(True)
+        
+    def unlock(self):
+        self._update_lock(False)
+    
+    def _update_lock(self, locked):    
+        self._locked = locked        
+        self._settings['locked'] = locked
+        
+        # Lock all widgets if they are not already locked
+        for widget in self._widgets:
+            if locked:
+                widget.lock(False)
+            else:
+                widget.unlock(False)
+
             
 class DO(object):
-    def __init__(self, name, channel, widget, static_update_function):
-        self.action = gtk.ToggleAction('%s\n%s'%(channel,name), '%s\n%s'%(channel,name), "", 0)
-        self.handler_id0 = self.action.connect('toggled',self.check_lock)
-        self.handler_id = self.action.connect('toggled',static_update_function)
-        self.handler_id2 = self.action.connect('toggled',self.update_style)
-        self.name = name
-        self.channel = channel
-        self.widget_list = []
-        self.add_widget(widget)
-        self.locked = False
-        self.current_state = self.action.get_active()
-        self.update_style()
+    def __init__(self, hardware_name, connection_name, program_function, settings):
+        self._hardware_name = hardware_name
+        self._connection_name = connection_name
+        self._widget_list = []
+        # Note that while we could store self._current_state and self._locked in the
+        # settings dictionary, this dictionary is available to other parts of BLACS
+        # and using separate variables avoids those parts from being able to directly
+        # influence behaviour (the worst they can do is change the value used on initialisation)
+        self._locked = False
+        self._current_state = self.action.get_active()
+        self._program_device = program_function
+        self._update_from_settings(settings)
     
-    def update(self,settings):
-        # Save the settings so we can update them when things chnage to maintain continuity between tab restarts
-        self.settings = settings
-        if 'front_panel_settings' in settings:
-            if self.channel in settings['front_panel_settings']:
-                saved_data = settings['front_panel_settings'][self.channel]
-                # Update the value
-                self.set_state(saved_data['base_value'],program=False)
-
-                # Update the Lock
-                self.locked = saved_data['locked']
-                self.update_style()
-            else:
-                settings['front_panel_settings'][self.channel] = {'base_value':self.state,                                                                  
-                                                                  'locked':self.locked,
-                                                                  }
-        else:
-            if not isinstance(settings,dict):
-                settings = {}                
+    def _update_from_settings(self,settings):
+        # Build up the settings dictionary if it isn't already
+        if not isinstance(settings,dict):
+            settings = {}
+        if 'front_panel_settings' not in settings or not isinstance(settings['front_panel_settings'],dict):
             settings['front_panel_settings'] = {}
-            settings['front_panel_settings'][self.channel] = {'base_value':self.state,                                                                  
-                                                              'locked':self.locked,
-                                                              }
+        if self._hardware_name not in settings['front_panel_settings'] or not isinstance(settings['front_panel_settings'][self._hardware_name],dict):
+            settings['front_panel_settings'][self._hardware_name] = {}
+        # Set default values if they are not already saved in the settings dictionary
+        if 'base_value' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['base_value'] = False
+        if 'locked' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['locked'] = False
+    
+        # only keep a reference to the part of the settings dictionary relevant to this DO
+        self._settings = settings['front_panel_settings'][self._hardware_name]
+    
+        # Update the state of the button
+        self.set_state(self._settings['base_value'],program=False)
+
+        # Update the lock state
+        self._update_lock(self._settings['locked'])
     
     def add_widget(self,widget):
-        self.action.connect_proxy(widget)
-        widget.connect('button-release-event',self.btn_release)
-        self.widget_list.append(widget)
+        if widget not in self._widget_list:
+            widget.clicked.connect(self.set_state)
+            self._widget_list.append(widget)
         
-    @property   
+    def remove_widget(self,widget):
+        if widget not in self._widget_list:
+            # TODO: Make this error better!
+            raise RuntimeError('The widget specified was not part of the DO object')
+        widget.clicked.disconnect(self.set_state)
+        self._widget_list.remove(widget)
+        
+    @property  
     def state(self):
-        return bool(self.action.get_active())
+        return bool(self._current_state)
     
-    def lock(self,menuitem):
-        self.locked = not self.locked
+    def lock(self):
+        self._update_lock(True)
+        
+    def unlock(self):
+        self._update_lock(False)
+    
+    def _update_lock(self,locked):
+        self._locked = locked
+        
+        for widget in widget_list:
+            if locked:
+                widget.lock(False)
+            else:
+                widget.unlock(False)
         
         # update the settings dictionary if it exists, to maintain continuity on tab restarts
-        if hasattr(self,'settings'):
-            if 'front_panel_settings' in self.settings:
-                if self.channel in self.settings['front_panel_settings']:    
-                    self.settings['front_panel_settings'][self.channel]['locked'] = self.locked
-        
-        #self.action.set_sensitive(not self.locked)
-        self.update_style()
+        self._settings['locked'] = locked
             
     def set_state(self,state,program=True):
         # conversion to integer, then bool means we can safely pass in
@@ -392,57 +425,21 @@ class DO(object):
         state = bool(int(state))    
         
         # We are programatically setting the state, so break the check lock function logic
-        self.current_state = state
+        self._current_state = state
         
         # update the settings dictionary if it exists, to maintain continuity on tab restarts
-        if hasattr(self,'settings'):
-            if 'front_panel_settings' in self.settings:
-                if self.channel in self.settings['front_panel_settings']:    
-                    self.settings['front_panel_settings'][self.channel]['base_value'] = self.current_state
+        self._settings['base_value'] = state
         
-        if not program:
-            self.action.handler_block(self.handler_id)
-        if state != self.state:
-            self.action.set_active(state)
-        if not program:
-            self.action.handler_unblock(self.handler_id)
+        if program:
+            self._program_device()
+            
+        for widget in self._widget_list:
+            if state != widget.state:
+                widget.blockSignals(True)
+                widget.state = state
+                widget.blockSignals(False)
    
-    def btn_release(self,widget,event):
-        if event.button == 3:
-            menu = gtk.Menu()
-            menu_item = gtk.MenuItem("Unlock Widget" if self.locked else "Lock Widget")
-            menu_item.connect("activate",self.lock)
-            menu_item.show()
-            menu.append(menu_item)
-            menu.popup(None,None,None,event.button,event.time)
-    
-    def check_lock(self,widget):    
-        if self.locked and self.current_state != self.action.get_active():
-            #Don't update the self.current_state variable 
-            self.action.stop_emission('toggled')    
-            self.action.handler_block(self.handler_id)
-            self.action.set_active(self.current_state)
-            self.action.handler_unblock(self.handler_id)
-            return            
-        else:
-            self.current_state = self.action.get_active()
-            
-        # This function is called everytime the widget is toggled. 
-        # If we get this far, the button is not locked, so update the state in the settings dictionary to maintain continuity
-        # update the settings dictionary if it exists, to maintain continuity on tab restarts
-        if hasattr(self,'settings'):
-            if 'front_panel_settings' in self.settings:
-                if self.channel in self.settings['front_panel_settings']:    
-                    self.settings['front_panel_settings'][self.channel]['base_value'] = self.current_state
-    
-    def update_style(self,widget=None):
-        for widget in self.widget_list:
-            if self.state:
-                widget.set_name('pressed_%stoggle_widget'%('disabled_' if self.locked else ''))
-            else:
-                widget.set_name('normal_%stoggle_widget'%('disabled_' if self.locked else ''))
-            
-        
+
 class DDS(object):
     def __init__(self, freq, amp, phase, gate):
         self.amp = amp

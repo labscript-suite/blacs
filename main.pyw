@@ -191,7 +191,7 @@ if __name__ == '__main__':
     serverthread.daemon = True
     serverthread.start()
 
-    qapplication = QApplication([])
+    qapplication = QApplication(sys.argv)
     app = BLACS()
     
     def execute_program():
