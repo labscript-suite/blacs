@@ -87,7 +87,7 @@ class AO(object):
         self.set_step_size(self._settings['base_step_size'],self._base_unit)
     
         # Update the unit selection
-        self.change_units(self._settings['current_units'])
+        self.change_unit(self._settings['current_units'])
      
     def convert_value_to_base(self, value, unit):
         if self._calibration and unit in self._calibration.derived_units:
@@ -197,7 +197,7 @@ class AO(object):
         widget.set_combobox_model(self._comboboxmodel)
         # This will set the min/max/value/num.decimals/stepsie and current_unit of ALL widgets
         # including the one just added!
-        self.change_unit(self._current_unit)
+        self.change_unit(self._current_units)
         # This will update the lock state of ALL widgets, including the one just added!
         self._update_lock(self._locked)
     
@@ -217,13 +217,13 @@ class AO(object):
         widget.disconnect_value_change()
         widget.set_combobox_model(QStandardItemModel())
         
-    def change_units(self,unit):     
+    def change_unit(self,unit):     
         # These values are always stored in base units!
         property_value_list = [self._current_value,self._limits[0],self._limits[1]]
         property_range_list = [self._current_step_size]
         
         # Now convert to the new unit
-        if unit != self._calibration.base_unit:
+        if unit != self._base_unit:
             for index,param in enumerate(property_value_list):
                 #convert each to base units
                 property_value_list[index] = self.convert_value_from_base(param,unit)
@@ -247,7 +247,7 @@ class AO(object):
             num_decimals = self._decimals
         
         # Store the current units
-        self.current_units = unit  
+        self._current_units = unit  
         self._settings['current_units'] = unit    
         
         # Check to see if the upper/lower bound has switched
@@ -256,6 +256,7 @@ class AO(object):
         
         # Now update all the widgets
         for widget in self._widgets:
+            pass
             # Update the combo box
             widget.block_combobox_signals()
             widget.set_selected_unit(unit)
@@ -267,7 +268,7 @@ class AO(object):
             # Update the limits
             widget.set_limits(property_value_list[1],property_value_list[2])
             # Update the step size
-            widget.set_step_sSize(property_range_list[0])
+            widget.set_step_size(property_range_list[0])
             # Update the decimals
             widget.set_num_decimals(num_decimals)
       
@@ -275,17 +276,13 @@ class AO(object):
     def value(self):
         return self._current_value
         
-    def set_value(self, value, program=True):
+    def set_value(self, value, unit=None, program=True):
         # conversion to float means a string can be passed in too:
         value = float(value)
-               
-        # If we aren't in base units, convert to them!
-        if self._current_units != self._base_unit: 
-            convert = getattr(self._calibration,self._current_units+"_to_base")            
-            # convert and store the value
-            self._current_value = convert(value)
-        else:    
-            # store the value
+        
+        if unit is not None and unit != self._base_unit:
+            self._current_value = self.convert_value_to_base(value,unit)
+        else:
             self._current_value = value
         
         # Update the saved value in the settings dictionary
@@ -309,8 +306,8 @@ class AO(object):
             self._step_size = self.convert_range_to_base(value,step_size,unit)
         else:
             # This check is usually performed when converting the range to base units
-            # But since we are already in base units we should od it here
-            if abs(self._limits[0]-self._limits[1])< step_size):
+            # But since we are already in base units we should do it here
+            if abs(self._limits[0]-self._limits[1]) <= step_size:
                 step_size = abs(self._limits[0]-self._limits[1])
             self._step_size = step_size
         
@@ -358,7 +355,7 @@ class DO(object):
         # and using separate variables avoids those parts from being able to directly
         # influence behaviour (the worst they can do is change the value used on initialisation)
         self._locked = False
-        self._current_state = self.action.get_active()
+        self._current_state = False
         self._program_device = program_function
         self._update_from_settings(settings)
     
@@ -387,14 +384,17 @@ class DO(object):
     
     def add_widget(self,widget):
         if widget not in self._widget_list:
-            widget.clicked.connect(self.set_state)
+            widget.set_DO(self,True,False)
+            widget.toggled.connect(self.set_state)
             self._widget_list.append(widget)
+            self.set_state(self._current_state,False)
+            self._update_lock(self._locked)
         
     def remove_widget(self,widget):
         if widget not in self._widget_list:
             # TODO: Make this error better!
             raise RuntimeError('The widget specified was not part of the DO object')
-        widget.clicked.disconnect(self.set_state)
+        widget.toggled.disconnect(self.set_state)
         self._widget_list.remove(widget)
         
     @property  
@@ -409,8 +409,7 @@ class DO(object):
     
     def _update_lock(self,locked):
         self._locked = locked
-        
-        for widget in widget_list:
+        for widget in self._widget_list:
             if locked:
                 widget.lock(False)
             else:
@@ -447,3 +446,67 @@ class DDS(object):
         self.phase = phase
         self.gate = gate
         
+if __name__ == '__main__':
+    from qtutils.widgets.analogoutput import AnalogOutput
+    from qtutils.widgets.digitaloutput import DigitalOutput
+    from qtutils.widgets.toolpalette import ToolPaletteGroup
+    import sys
+    
+    qapplication = QApplication(sys.argv)
+    
+    window = QWidget()
+    layout = QVBoxLayout(window)
+    widget = QWidget()
+    layout.addWidget(widget)
+    tpg = ToolPaletteGroup(widget)
+    toolpalette = tpg.append_new_palette('Digital Outputs')    
+    toolpalette2 = tpg.append_new_palette('Analog Outputs')    
+    layout.addItem(QSpacerItem(0,0,QSizePolicy.Minimum,QSizePolicy.MinimumExpanding))
+    
+    # create settings dictionary
+    settings = {'front_panel_settings':{
+                    'do0':{
+                        'base_value':False,
+                        'locked':False,
+                        },
+                    'ao0':{
+                        'base_value':3.0,
+                        'locked':False,
+                        'base_step_size':0.1,
+                        'current_units':'V',
+                        }
+                }
+        }
+    
+    def print_something():
+        print 'program_function called'
+    
+    # Create a DO object
+    my_DO = DO(hardware_name='do0', connection_name='my first digital output', program_function=print_something, settings=settings)
+    
+    # Link in two DO widgets
+    button1 = DigitalOutput('do0\nmy first digital output')
+    button2 = DigitalOutput('a linked do0')
+    toolpalette.addWidget(button1)
+    toolpalette.addWidget(button2)
+    my_DO.add_widget(button1)
+    my_DO.add_widget(button2)
+    
+    # Create an AO object
+    my_AO = AO(hardware_name = 'ao0', connection_name='my ao', device_name='ni_blah',
+                program_function=print_something, settings=settings, 
+                calib_class=None, calib_params=None, default_units='V', 
+                min=-10.0, max=10.0, step=0.01, decimals=3)
+    
+    # link in two AO widgets
+    analog1 = AnalogOutput('AO1')
+    analog2 = AnalogOutput('AO1 copy')
+    my_AO.add_widget(analog1)
+    my_AO.add_widget(analog2)
+    toolpalette2.addWidget(analog1)
+    toolpalette2.addWidget(analog2)
+    
+    
+    window.show()
+    sys.exit(qapplication.exec_())
+    
