@@ -3,7 +3,11 @@ import math
 
 from PySide.QtCore import *
 from PySide.QtGui import *
+
+from qtutils.widgets.analogoutput import AnalogOutput
+from qtutils.widgets.digitaloutput import DigitalOutput
 from unitconversions import *
+
 
 class AO(object):
     def __init__(self, hardware_name, connection_name, device_name, program_function, settings, calib_class, calib_params, default_units, min, max, step, decimals):
@@ -179,7 +183,12 @@ class AO(object):
         bound2 = self.convert_value_from_base(value-negative_fraction,unit)
         
         return abs(bound1-bound2)
-    
+
+    def create_widget(self,display_name=None, horizontal_alignment=False, parent=None):
+        widget = AnalogOutput(self._hardware_name,self_connection_name,display_name, horizontal_alignment, parent)
+        self.add_widget(widget)
+        return widget
+        
     def add_widget(self, widget):
         if widget in self._widgets:
             return
@@ -382,6 +391,11 @@ class DO(object):
         # Update the lock state
         self._update_lock(self._settings['locked'])
     
+    def create_widget(self,*args,**kwargs):
+        widget = DigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
+        self.add_widget(widget)
+        return widget
+    
     def add_widget(self,widget):
         if widget not in self._widget_list:
             widget.set_DO(self,True,False)
@@ -440,15 +454,29 @@ class DO(object):
    
 
 class DDS(object):
-    def __init__(self, freq, amp, phase, gate):
-        self.amp = amp
-        self.freq = freq
-        self.phase = phase
-        self.gate = gate
+    def __init__(self, output_list):
+        self._sub_channel_list = ['freq','amp','phase','gate']
+        for subchnl in self._sub_channel_list:
+            value = None
+            if subchnl in output_list:
+                value = output_list[subchnl]
+            
+            setattr(self,subchnl,value)
+            
+    def add_sub_channel(self,type,output):
+        if type not in self._sub_channel_list:
+            raise RuntimeError('Invalid output type sepcified when adding a sub channel to a DDS. It must be either freq, amp, phase or gate')
+        
+        setattr(self,type,output)
+        #TODO update all widgets to now show this!
+        
+    def add_widget(self, widget):
+        # TODO create a DDS output widget class for people to use.
+        # Link the output objects (sub channels) to the relevant widgets
+        # show/hide output widgets if the object is not set (eg hide gate button)
+        pass
         
 if __name__ == '__main__':
-    from qtutils.widgets.analogoutput import AnalogOutput
-    from qtutils.widgets.digitaloutput import DigitalOutput
     from qtutils.widgets.toolpalette import ToolPaletteGroup
     import sys
     

@@ -24,8 +24,6 @@ class Counter(object):
         self.i += 1
         return self.i
         
-
-from IPython import embed
         
 STATE_MANUAL = 1
 STATE_TRANSITION_TO_BUFFERED = 2
