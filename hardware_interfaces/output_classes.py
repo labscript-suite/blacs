@@ -256,7 +256,6 @@ class AO(object):
         
         # Now update all the widgets
         for widget in self._widgets:
-            pass
             # Update the combo box
             widget.block_combobox_signals()
             widget.set_selected_unit(unit)
@@ -319,7 +318,7 @@ class AO(object):
     
         # Update the step size for all widgets
         for widget in self._widgets:
-            widget.set_step_Size(converted_step_size)
+            widget.set_step_size(converted_step_size)
     
     def get_step_size(self,unit):
         if unit != self._base_unit:
