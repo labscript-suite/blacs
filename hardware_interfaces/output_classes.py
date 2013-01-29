@@ -70,7 +70,7 @@ class AO(object):
         if 'locked' not in settings['front_panel_settings'][self._hardware_name]:
             settings['front_panel_settings'][self._hardware_name]['locked'] = False
         if 'base_step_size' not in settings['front_panel_settings'][self._hardware_name]:
-            settings['front_panel_settings'][self._hardware_name]['base_step_size'] = 0.1
+            settings['front_panel_settings'][self._hardware_name]['base_step_size'] = self._current_step_size
         if 'current_units' not in settings['front_panel_settings'][self._hardware_name]:
             settings['front_panel_settings'][self._hardware_name]['current_units'] = self._base_unit
     
@@ -311,6 +311,7 @@ class AO(object):
                 step_size = abs(self._limits[0]-self._limits[1])
             self._step_size = step_size
         
+        self._current_step_size = self._step_size
         self._settings['base_step_size'] = self._step_size
         
         # now convert to current units
