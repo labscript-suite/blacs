@@ -7,7 +7,9 @@ import cPickle
 import traceback
 import logging
 import cgi
-import excepthook
+from types import GeneratorType
+
+#import excepthook
 
 from PySide.QtCore import *
 from PySide.QtGui import *
@@ -212,6 +214,8 @@ class Tab(object):
     def create_worker(self,name,WorkerClass,workerargs={}):
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
+        if name == 'GUI':
+            raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         to_worker = Queue()
         from_worker = Queue()
         worker = WorkerClass(args = ['%s_%s'%(self.settings['device_name'],name), to_worker, from_worker, workerargs])
@@ -318,14 +322,9 @@ class Tab(object):
         # If BLACS is waiting on this tab for something, tell it to abort!
         # self.BLACS.current_queue.put('abort')
     
-    def queue_work(self,worker_name,funcname,*args,**kwargs):
-        if worker_name not in self.workers:
-            raise RuntimeError('queue_work was called in device %s with an invalid worker name (%s). Did you forget to include the worker name as the first argument?'%(self.device_name,str(worker_name)))
-        self._work = (worker_name,(funcname,args,kwargs))
-        
-    def do_after(self,funcname,*args,**kwargs):
-        self._finalisation = (funcname,args,kwargs)   
-    
+    def queue_work(self,worker_process,worker_function,*args,**kwargs):
+        return worker_process,worker_function,args,kwargs
+            
     def hide_error(self):
         # dont show the error again until the not responding time has doubled:
         self.hide_not_responding_error_until = 2*self.not_responding_for
@@ -369,86 +368,92 @@ class Tab(object):
                     logger.debug('Received quit signal')
                     break
                 args,kwargs = data
-                if self._work is not None or self._finalisation is not None:
-                    message = ('There has been work queued up for the subprocess, '
-                               'or a finalisation queued up, even though no initial event'
-                               ' has been processed that could have done this! Did someone '
-                               'forget to decorate an earlier event callback with @define_state?\n'
-                               'Details:\n'
-                               'queue_work: ' + str(self._work) + '\n'
-                               'do_after: ' + str(self._finalisation))  
-                    raise RuntimeError(message)    
                 logger.debug('Processing event %s' % funcname)
                 self.state = '%s (GUI)'%funcname
                 # Run the task with the GUI lock, catching any exceptions:
                 func = getattr(self,funcname)
                 # run the function in the Qt main thread
-                #print args
-                #args.insert(0,self)
-                inmain(func,self,*args,**kwargs)
-                # Do any work that was queued up:
-                results = None
-                if self._work is not None:
-                    logger.debug('Instructing worker %s to do job %s'%(self._work[0],self._work[1][0]) )
-                    # This line is to catch if you try to pass unpickleable objects.
-                    try:
-                        cPickle.dumps(self._work[1])
-                    except:
-                        self.error += 'Attempt to pass unserialisable object to child process:'
-                        raise
-                    to_worker = self.workers[self._work[0]][1]
-                    from_worker = self.workers[self._work[0]][2]
-                    to_worker.put(self._work[1])
-                    self.state = '%s (Worker %s)'%(self._work[1][0],self._work[0])
-                    self._work = None
-                    # Confirm that the worker got the message:
-                    logger.debug('Waiting for worker to acknowledge job request')
-                    success, message, results = from_worker.get()
-                    if not success:
-                        if message == 'quit':
-                            # The user has requested a restart:
-                            logger.debug('Received quit signal')
-                            break
-                        logger.info('Worker reported failure to start job')
-                        raise Exception(message)
-                    # Wait for and get the results of the work:
-                    logger.debug('Worker reported job started, waiting for completion')
-                    success,message,results = from_worker.get()
-                    if not success and message == 'quit':
-                        # The user has requested a restart:
-                        logger.debug('Received quit signal')
+                generator = inmain(func,self,*args,**kwargs)
+                # Do any work that was queued up:(we only talk to the worker if work has been queued up through the yield command)
+                if type(generator) == GeneratorType:
+                    # We need to call next recursively, queue up work and send the results back until we get a StopIteration exception
+                    generator_running = True
+                    break_main_loop = False
+                    # get the data from the first yield function
+                    worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
+                    # Continue until we get a StopIteration exception, or the user requests a restart
+                    while generator_running:
+                        try:
+                            logger.debug('Instructing worker %s to do job %s'%(worker_process,worker_function) )
+                            worker_arg_list = (worker_function,worker_args,worker_kwargs)
+                            # This line is to catch if you try to pass unpickleable objects.
+                            try:
+                                cPickle.dumps(worker_arg_list)
+                            except:
+                                self.error += 'Attempt to pass unserialisable object to child process:'
+                                raise
+                            # Send the command to the worker
+                            to_worker = self.workers[worker_process][1]
+                            from_worker = self.workers[worker_process][2]
+                            to_worker.put(worker_arg_list)
+                            self.state = '%s (%s)'%(worker_function,worker_process)
+                            self._work = None
+                            # Confirm that the worker got the message:
+                            logger.debug('Waiting for worker to acknowledge job request')
+                            success, message, results = from_worker.get()
+                            if not success:
+                                if message == 'quit':
+                                    # The user has requested a restart:
+                                    logger.debug('Received quit signal')
+                                    # This variable is set so we also break out of the toplevel main loop
+                                    break_main_loop = True
+                                    break
+                                logger.info('Worker reported failure to start job')
+                                raise Exception(message)
+                            # Wait for and get the results of the work:
+                            logger.debug('Worker reported job started, waiting for completion')
+                            success,message,results = from_worker.get()
+                            if not success and message == 'quit':
+                                # The user has requested a restart:
+                                logger.debug('Received quit signal')
+                                # This variable is set so we also break out of the toplevel main loop
+                                break_main_loop = True
+                                break
+                            if not success:
+                                logger.info('Worker reported exception during job')
+                                now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+                                self.error += ('\nException in worker - %s:\n' % now +
+                                               '<FONT COLOR=\'#ff0000\'>%s</FONT>'%cgi.escape(message))
+                                while self.error.startswith('\n'):
+                                    self.error = self.error[1:]
+                                
+                                def show_error():
+                                    self._ui.error_message.setText(self.error)
+                                    self._ui.notresponding.show()
+                                # do the contents of the above function in the Qt main thread
+                                inmain(show_error)
+                            else:
+                                logger.debug('Job completed')
+                                                    
+                            # do the GUI stuff in the Qt main thread
+                            if not self.error:
+                                inmain(self._ui.notresponding.hide)
+                            self.hide_not_responding_error_until = 0
+                                
+                            # Send the results back to the GUI function
+                            logger.debug('returning worker results to function %s' % funcname)
+                            self.state = '%s (GUI)'%funcname
+                            next_yield = inmain(generator.send,results) 
+                            # If there is another yield command, put the data in the required variables for the next loop iteration
+                            if next_yield:
+                                worker_process,worker_function,worker_args,worker_kwargs = next_yield
+                        except StopIteration:
+                            # The generator has finished. Ignore the error, but stop the loop
+                            logger.debug('Finalising function')
+                            generator_running = False
+                    # Break out of the main loop if the user requests a restart
+                    if break_main_loop:
                         break
-                    if not success:
-                        logger.info('Worker reported exception during job')
-                        now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-                        self.error += ('\nException in worker - %s:\n' % now +
-                                       '<FONT COLOR=\'#ff0000\'>%s</FONT>'%cgi.escape(message))
-                        while self.error.startswith('\n'):
-                            self.error = self.error[1:]
-                        
-                        def show_error():
-                            self._ui.error_message.setText(self.error)
-                            self._ui.notresponding.show()
-                        # do the contents of the above function in the Qt main thread
-                        inmain(show_error)
-                    else:
-                        logger.debug('Job completed')
-                                            
-                    # do the GUI stuff in the Qt main thread
-                    if not self.error:
-                        inmain(self._ui.notresponding.hide)
-                    self.hide_not_responding_error_until = 0
-                            
-                # Do any finalisation that was queued up, with the GUI lock:
-                if self._finalisation is not None:
-                    logger.debug('doing finalisation function %s' % self._finalisation[0])
-                    funcname, args, kwargs = self._finalisation
-                    func = getattr(self,funcname)
-                    
-                    kwargs['_results'] = results
-                    self.state = '%s (GUI)'%funcname
-                    inmain(func,args,**kwargs)
-                    self._finalisation = None        
                 self.state = 'idle'
         except:
             # Some unhandled error happened. Inform the user, and give the option to restart
@@ -630,12 +635,8 @@ class MyTab(Tab):
         # be processed until that work is done. Once the work is
         # done, whatever has been set with do_after will be executed
         # (in this case self.leave_foo(1,2,3,bar=baz) ).
-        self.queue_work('My worker','foo', 5,6,7,x='x')
-        self.do_after('leave_foo', 1,2,3,bar='baz')
-    
-    # So this function will get executed when the worker process is
-    # finished with foo():
-    def leave_foo(self,*args,**kwargs):
+        results = yield(self.queue_work('My worker','foo', 5,6,7,x='x'))
+
         #self.toplevel.set_sensitive(True)
         self.logger.debug('leaving foo')
     
@@ -652,28 +653,29 @@ class MyTab(Tab):
     @define_state(STATE_MANUAL,True)  
     def bar(self):
         self.logger.debug('entered bar')
-        self.queue_work('My worker','bar', 5,6,7,x=5)
-        self.do_after('leave_bar', 1,2,3,bar='baz')
-        
-    def leave_bar(self,*args,**kwargs):
+        results = yield(self.queue_work('My worker','bar', 5,6,7,x=5))
+      
         self.logger.debug('leaving bar')
         
     @define_state(STATE_MANUAL,True)  
     def baz(self, button=None):
+        print threading.current_thread().name
         self.logger.debug('entered baz')
-        self.queue_work('My worker','baz', 5,6,7,x='x',return_queue=self.checkbutton.isChecked())
-        self.do_after('leave_baz', 1,2,3,bar='baz')
-    
+        results = yield(self.queue_work('My worker','baz', 5,6,7,x='x',return_queue=self.checkbutton.isChecked()))
+        print results
+        print threading.current_thread().name
+        results = yield(self.queue_work('My worker','baz', 4,6,7,x='x',return_queue=self.checkbutton.isChecked()))
+        print results
+        print threading.current_thread().name
+        self.logger.debug('leaving baz')
+        
     # This event shows what happens if you try to send a unpickleable
     # event through a queue to the subprocess:
     @define_state(STATE_MANUAL,True)  
     def baz_unpickleable(self):
-        self.logger.debug('entered bar')
-        self.queue_work('My worker','baz', 5,6,7,x=Lock())
-        self.do_after('leave_bar', 1,2,3,bar='baz')
-        
-    def leave_baz(self,*args,**kwargs):
-        self.logger.debug('leaving baz')
+        self.logger.debug('entered baz_unpickleable')
+        results = yield(self.queue_work('My worker','baz', 5,6,7,x=Lock()))
+        self.logger.debug('leaving baz_unpickleable')
     
     # You don't need to decorate with @define_state if all you're
     # doing is adding a timeout -- adding a timeout can safely be done
@@ -719,12 +721,12 @@ class MyWorker(Worker):
         raise Exception('error!')
         return 'results!!!'
         
-    def baz(self,*args,**kwargs):
+    def baz(self,zzz,*args,**kwargs):
         self.logger.debug('working on baz: time is %s'%repr(time.time()))
         time.sleep(0.5)
         if kwargs['return_queue']:
             return Queue()
-        return 'results!!!'
+        return 'results%d!!!'%zzz
 
 if __name__ == '__main__':
     import sys
@@ -744,7 +746,7 @@ if __name__ == '__main__':
     else:
         sys.stdout = sys.stderr = open(os.devnull)
     logger.setLevel(logging.DEBUG)
-    excepthook.set_logger(logger)
+    #excepthook.set_logger(logger)
     logger.info('\n\n===============starting===============\n')
 
 if __name__ == '__main__':
