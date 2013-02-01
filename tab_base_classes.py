@@ -119,56 +119,94 @@ def define_state(allowed_states,queue_state_indefinitely):
     
         
 class Tab(object):
-    def __init__(self,notebook,settings,restart=False):        
+    def __init__(self,notebook,settings,restart=False):  
+        # Store important parameters
         self.notebook = notebook
         self.settings = settings
         self._device_name = self.settings["device_name"]
         
-        self._ui = QUiLoader().load('tab_frame.ui')
-        self.device_widget = self._ui.device_controls
-        self._ui.notresponding.hide()  
+        # Setup logging
+        self.logger = logging.getLogger('BLACS.%s'%self.device_name)   
+        self.logger.debug('Started')          
         
-        self.error = ''
+        # Create instance variables
+        self._not_responding_error_message = ''
+        self._error = ''
         self._state = ''
         self._time_of_last_state_change = time.time()
         self.not_responding_for = 0
         self.hide_not_responding_error_until = 0
         self.timeouts = set()
-        self.timeout_ids = {}
-        
-        self._work = None
-        self._finalisation = None
-        
-        self.logger = logging.getLogger('BLACS.%s'%self.device_name)   
-        self.logger.debug('Started')     
-        
+        self._timeout_ids = {}        
+        self._force_full_buffered_reprogram = True
         self.event_queue = StateQueue()
         self.workers = {}
+
+        # Load the UI
+        self._ui = QUiLoader().load('tab_frame.ui')
+        self._layout = self._ui.device_layout
+        self._ui.device_name.setText("<u><b>"+str(self._device_name)+"</b></u>")
+        # connect signals
+        self._ui.smart_programming.toggled.connect(self.on_force_full_buffered_reprogram)
+        self._ui.button_close.clicked.connect(self.hide_error)
+        self._ui.button_restart.clicked.connect(self.restart)        
+        self._update_error()
         
-        #self.timeout = gobject.timeout_add(1000,self.check_time)
-        self.timeout = QTimer()
-        self.timeout.timeout.connect(self.check_time)
-        self.timeout.start(1000)
+        # Setup the not responding timeout
+        self._timeout = QTimer()
+        self._timeout.timeout.connect(self.check_time)
+        self._timeout.start(1000)
         
-        self.mainloop_thread = threading.Thread(target = self.mainloop)
-        self.mainloop_thread.daemon = True
-        self.mainloop_thread.start()
+        # Launch the mainloop
+        self._mainloop_thread = threading.Thread(target = self.mainloop)
+        self._mainloop_thread.daemon = True
+        self._mainloop_thread.start()
         
         self.mode = STATE_MANUAL
         self.state = 'idle'
-        
-        
-        
-        
-        # connect signals
-        self._ui.button_close.clicked.connect(self.hide_error)
-        self._ui.button_restart.clicked.connect(self.restart)
-        
+                
         # Add the tab to the notebook
         self.notebook.addTab(self._ui,self.device_name)
         self._ui.show()
+    
+    def on_force_full_buffered_reprogram(self,toggled):
+        self.force_full_buffered_reprogram = toggled
+    
+    @property
+    def force_full_buffered_reprogram(self):
+        return self._force_full_buffered_reprogram
         
-
+    @force_full_buffered_reprogram.setter
+    def force_full_buffered_reprogram(self,value):
+        self._force_full_buffered_reprogram = bool(value)
+    
+    @property
+    @inmain_decorator(True)
+    def error_message(self):
+        return self._error
+    
+    @error_message.setter
+    @inmain_decorator(True)
+    def error_message(self,message):
+        #print message
+        #print self._error
+        if message != self._error:
+            self._error = message
+            self._update_error()
+    
+    @inmain_decorator(True)
+    def _update_error(self):
+        prefix = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:"MS Shell Dlg 2"; font-size:7.8pt; font-weight:400; font-style:normal;">'
+        suffix = '</body></html>'
+        #print threading.current_thread().name
+        self._ui.error_message.setHtml(prefix+self._not_responding_error_message+self._error+suffix)
+        if self._error or self._not_responding_error_message:
+            self._ui.notresponding.show()
+        else:
+            self._ui.notresponding.hide()
+            
+    def get_tab_layout(self):
+        return self._layout
     
     @property
     def device_name(self):
@@ -245,7 +283,7 @@ class Tab(object):
         def execute_timeout():
             # queue up the state function, but only if it hasn't been
             # removed from self.timeouts:
-            if statefunction in self.timeouts and self.timeout_ids[statefunction] == unique_id:
+            if statefunction in self.timeouts and self._timeout_ids[statefunction] == unique_id:
                 statefunction(*args, **kwargs)
                 # queue up another call to this function (execute_timeout)
                 # after the delay time:
@@ -257,7 +295,7 @@ class Tab(object):
         # other timeouts for this one when checking to see that this
         # timeout hasn't been removed:
         unique_id = get_unique_id()
-        self.timeout_ids[statefunction] = unique_id
+        self._timeout_ids[statefunction] = unique_id
         
     # def set_state(self,state):
         # ready = self.tab_label_widgets['ready']
@@ -284,7 +322,7 @@ class Tab(object):
     
     def close_tab(self,*args):
         self.logger.info('close_tab called')
-        self.timeout.stop()
+        self._timeout.stop()
         for name,worker_data in self.workers.items():            
             worker_data[0].terminate()
             # The mainloop is blocking waiting for something out of the
@@ -295,7 +333,7 @@ class Tab(object):
             # we can instruct it to quit by telling it to do so through the
             # queue itself. That way we don't leave extra threads running
             # (albeit doing nothing) that we don't need:
-            if self.mainloop_thread.is_alive():
+            if self._mainloop_thread.is_alive():
                 worker_data[2].put((False,'quit',None))
                 self.event_queue.put(STATE_MANUAL|STATE_BUFFERED|STATE_TRANSITION_TO_BUFFERED|STATE_TRANSITION_TO_MANUAL,True,['_quit',None])
         self.notebook = self._ui.parentWidget().parentWidget()
@@ -329,7 +367,7 @@ class Tab(object):
         # dont show the error again until the not responding time has doubled:
         self.hide_not_responding_error_until = 2*self.not_responding_for
         self._ui.notresponding.hide()  
-        self.error = '' 
+        self.error_message = '' 
         #self.tab_label_widgets['error'].hide()
         #if self.state == 'idle':
         #    self.tab_label_widgets['ready'].show()
@@ -337,7 +375,9 @@ class Tab(object):
     def check_time(self):
         if self.state in ['idle','fatal error']:
             self.not_responding_for = 0
-            self._ui.error_message.setText(self.error)
+            if self._not_responding_error_message:
+                self._not_responding_error_message = ''
+                self._update_error()
         else:
             self.not_responding_for = time.time() - self._time_of_last_state_change
         if self.not_responding_for > 5 + self.hide_not_responding_error_until:
@@ -351,8 +391,8 @@ class Tab(object):
                 s = '%s minutes'%minutes
             else:
                 s = '%s seconds'%seconds
-            self._ui.error_message.setText('The hardware process has not responded for %s.\n\n'%s
-                                      + self.error)
+            self._not_responding_error_message = 'The hardware process has not responded for %s.<br /><br />'%s
+            self._update_error()
         return True
         
     def mainloop(self):
@@ -390,14 +430,13 @@ class Tab(object):
                             try:
                                 cPickle.dumps(worker_arg_list)
                             except:
-                                self.error += 'Attempt to pass unserialisable object to child process:'
+                                self.error_message += 'Attempt to pass unserialisable object to child process:'
                                 raise
                             # Send the command to the worker
                             to_worker = self.workers[worker_process][1]
                             from_worker = self.workers[worker_process][2]
                             to_worker.put(worker_arg_list)
                             self.state = '%s (%s)'%(worker_function,worker_process)
-                            self._work = None
                             # Confirm that the worker got the message:
                             logger.debug('Waiting for worker to acknowledge job request')
                             success, message, results = from_worker.get()
@@ -422,22 +461,12 @@ class Tab(object):
                             if not success:
                                 logger.info('Worker reported exception during job')
                                 now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-                                self.error += ('\nException in worker - %s:\n' % now +
-                                               '<FONT COLOR=\'#ff0000\'>%s</FONT>'%cgi.escape(message))
-                                while self.error.startswith('\n'):
-                                    self.error = self.error[1:]
-                                
-                                def show_error():
-                                    self._ui.error_message.setText(self.error)
-                                    self._ui.notresponding.show()
-                                # do the contents of the above function in the Qt main thread
-                                inmain(show_error)
+                                self.error_message += ('Exception in worker - %s:<br />' % now +
+                                               '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             else:
                                 logger.debug('Job completed')
-                                                    
-                            # do the GUI stuff in the Qt main thread
-                            if not self.error:
-                                inmain(self._ui.notresponding.hide)
+                            
+                            # Reset the hide_not_responding_error_until, since we have now heard from the child                        
                             self.hide_not_responding_error_until = 0
                                 
                             # Send the results back to the GUI function
@@ -460,19 +489,12 @@ class Tab(object):
             message = traceback.format_exc()
             logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-            self.error += ('\nFatal exception in main process - %s:\n '%now +
-                           '<FONT COLOR=\'#ff0000\'>%s</FONT>'%cgi.escape(message))
-            while self.error.startswith('\n'):
-                self.error = self.error[1:]
-            
-            def show_fatal_error():
-                self._ui.error_message.setText(self.error)
-                self._ui.button_close.setEnabled(False)
-                self._ui.notresponding.show()
-                
+            self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
+                           '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
+                            
             self.state = 'fatal error'
             # do the contents of the above function in the Qt main thread
-            inmain(show_fatal_error)
+            inmain(self._ui.button_close.setEnabled,False)
         logger.info('Exiting')
         
         
@@ -584,8 +606,8 @@ class MyTab(Tab):
         self.initUI()
         
     def initUI(self):
-        self.layout = QVBoxLayout(self.device_widget)
-
+        self.layout = self.get_tab_layout()
+        
         foobutton = QPushButton('foo, 10 seconds!')
         barbutton = QPushButton('bar, 10 seconds, then error!')
         bazbutton = QPushButton('baz, 0.5 seconds!')

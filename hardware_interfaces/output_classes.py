@@ -386,7 +386,7 @@ class DO(object):
         self._settings = settings['front_panel_settings'][self._hardware_name]
     
         # Update the state of the button
-        self.set_state(self._settings['base_value'],program=False)
+        self.set_value(self._settings['base_value'],program=False)
 
         # Update the lock state
         self._update_lock(self._settings['locked'])
@@ -399,20 +399,20 @@ class DO(object):
     def add_widget(self,widget):
         if widget not in self._widget_list:
             widget.set_DO(self,True,False)
-            widget.toggled.connect(self.set_state)
+            widget.toggled.connect(self.set_value)
             self._widget_list.append(widget)
-            self.set_state(self._current_state,False)
+            self.set_value(self._current_state,False)
             self._update_lock(self._locked)
         
     def remove_widget(self,widget):
         if widget not in self._widget_list:
             # TODO: Make this error better!
             raise RuntimeError('The widget specified was not part of the DO object')
-        widget.toggled.disconnect(self.set_state)
+        widget.toggled.disconnect(self.set_value)
         self._widget_list.remove(widget)
         
     @property  
-    def state(self):
+    def value(self):
         return bool(self._current_state)
     
     def lock(self):
@@ -432,7 +432,7 @@ class DO(object):
         # update the settings dictionary if it exists, to maintain continuity on tab restarts
         self._settings['locked'] = locked
             
-    def set_state(self,state,program=True):
+    def set_value(self,state,program=True):
         # conversion to integer, then bool means we can safely pass in
         # either a string '1' or '0', True or False or 1 or 0
         state = bool(int(state))    
@@ -475,6 +475,20 @@ class DDS(object):
         # Link the output objects (sub channels) to the relevant widgets
         # show/hide output widgets if the object is not set (eg hide gate button)
         pass
+        
+    @property
+    def value(self):
+        value = {}
+        for subchnl in self._sub_channel_list:
+            if hasattr(self,subchnl):
+                value[subchnl] = getattr(self,subchnl).value
+        return value
+        
+    def set_value(self,value,program=True):
+        for subchnl in self._sub_channel_list:
+            if subchnl in value:
+                if hasattr(self,subchnl):
+                    getattr(self,subchnl).set_value(value[subchnl],program=program)
         
 if __name__ == '__main__':
     from qtutils.widgets.toolpalette import ToolPaletteGroup
