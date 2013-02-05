@@ -101,7 +101,6 @@ class StateQueue(object):
 # Make this function available globally:       
 get_unique_id = Counter().get
 
-
 def define_state(allowed_states,queue_state_indefinitely):
     def wrap(function):
         unescaped_name = function.__name__
@@ -141,16 +140,21 @@ class Tab(object):
         self._force_full_buffered_reprogram = True
         self.event_queue = StateQueue()
         self.workers = {}
+        self._supports_smart_programming = False
 
         # Load the UI
         self._ui = QUiLoader().load('tab_frame.ui')
         self._layout = self._ui.device_layout
+        self._changed_widget = self._ui.changed_widget
+        self._changed_layout = self._ui.changed_layout
+        self._changed_widget.hide()        
         self._ui.device_name.setText("<u><b>"+str(self._device_name)+"</b></u>")
         # connect signals
         self._ui.smart_programming.toggled.connect(self.on_force_full_buffered_reprogram)
         self._ui.button_close.clicked.connect(self.hide_error)
         self._ui.button_restart.clicked.connect(self.restart)        
         self._update_error()
+        self.supports_smart_programming(False)
         
         # Setup the not responding timeout
         self._timeout = QTimer()
@@ -168,6 +172,13 @@ class Tab(object):
         # Add the tab to the notebook
         self.notebook.addTab(self._ui,self.device_name)
         self._ui.show()
+    
+    def supports_smart_programming(self,support):
+        self._supports_smart_programming = bool(support)
+        if self._supports_smart_programming:
+            self._ui.smart_programming.show()
+        else:
+            self._ui.smart_programming.hide()
     
     def on_force_full_buffered_reprogram(self,toggled):
         self.force_full_buffered_reprogram = toggled
@@ -273,30 +284,88 @@ class Tab(object):
     def _timeout_add(self,delay,execute_timeout):
         QTimer.singleShot(delay,execute_timeout)
     
-    def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
-        # Add the timeout to our set of registered timeouts. Timeouts
-        # can thus be removed by the user at ay time by calling
-        # self.timeouts.remove(function)
-        self.timeouts.add(statefunction)
-        # Here's a function which executes the timeout once, then queues
-        # itself up again after a delay:
-        def execute_timeout():
-            # queue up the state function, but only if it hasn't been
-            # removed from self.timeouts:
-            if statefunction in self.timeouts and self._timeout_ids[statefunction] == unique_id:
-                statefunction(*args, **kwargs)
-                # queue up another call to this function (execute_timeout)
-                # after the delay time:
-                self._timeout_add(delay,execute_timeout)
+    # def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
+        # # Add the timeout to our set of registered timeouts. Timeouts
+        # # can thus be removed by the user at ay time by calling
+        # # self.timeouts.remove(function)
+        # self.timeouts.add(statefunction)
+        # # Here's a function which executes the timeout once, then queues
+        # # itself up again after a delay:
+        # def execute_timeout():
+            # # queue up the state function, but only if it hasn't been
+            # # removed from self.timeouts:
+            # if statefunction in self.timeouts and self._timeout_ids[statefunction] == unique_id:
+                # statefunction(*args, **kwargs)
+                # # queue up another call to this function (execute_timeout)
+                # # after the delay time:
+                # self._timeout_add(delay,execute_timeout)
             
-        # queue the first run:
-        self._timeout_add(delay,execute_timeout)        
+        # # queue the first run:
+        # self._timeout_add(delay,execute_timeout)        
+        # # Store a unique ID for this timeout so that we don't confuse 
+        # # other timeouts for this one when checking to see that this
+        # # timeout hasn't been removed:
+        # unique_id = get_unique_id()
+        # self._timeout_ids[statefunction] = unique_id
+        
+    def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):  
         # Store a unique ID for this timeout so that we don't confuse 
         # other timeouts for this one when checking to see that this
         # timeout hasn't been removed:
         unique_id = get_unique_id()
-        self._timeout_ids[statefunction] = unique_id
+        self._timeouts.append((statefunction,unique_id))
+        def execute_timeout():
+            # queue up the state function, but only if it hasn't been
+            # removed from self._timeouts:
+            if (statefunction,unique_id) in self._timeouts:
+                statefunction(*args, **kwargs)
+                # queue up another call to this function (execute_timeout)
+                # after the delay time:
+                self._timeout_add(delay,execute_timeout)
         
+        # queue the first run:
+        self._timeout_add(delay,execute_timeout)    
+        return unique_id
+        
+    # Returns True if the timeout was removed
+    def statemachine_timeout_remove(self,unique_id):
+        for function, id in self._timeouts:
+            if id == unique_id:
+                self._timeouts.remove((function,id))
+                return True
+        return False
+    
+    # returns True if at least one timeout was removed, else returns False
+    def statemachine_timeout_remove_all(self,function=None):
+        # If no function has been specified, remove all timeouts by resetting the list
+        if function is None:
+            # This function could be called when there are no timeouts, so reinitialise in both cases and return the correct value
+            # DO NOT REFACTOR THIS CODE to move the self._timeouts = [] to outside the if/else. Hopefully you can see why that would
+            # thus always return True!
+            if self._timeouts:
+                self._timeouts = []
+                return True
+            else:
+                self._timeouts = []
+                return False
+                
+        # Remove all timeouts for this function
+        else:
+            # Some variables to keep track of whether we have removed anything and what is to be removed
+            # (removing from a list while iterating over said list is ALWAYS a bad idea)
+            something_is_removed = False
+            to_remove = []
+            # Find the entries in the list to remove
+            for f,id in self._timeouts:
+                if f == function:
+                    to_remove.append((f,id))
+            # Remove the entries in the list
+            for f_id in to_remove:
+                self._timeouts.remove(f_id)
+                something_is_removed = True
+            # Return True if at least one entry was removed
+            return something_is_removed
+    
     # def set_state(self,state):
         # ready = self.tab_label_widgets['ready']
         # working = self.tab_label_widgets['working']

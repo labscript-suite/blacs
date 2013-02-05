@@ -198,7 +198,7 @@
       <property name="widgetResizable">
        <bool>true</bool>
       </property>
-      <widget class="QWidget" name="device_controls">
+      <widget class="QWidget" name="scrollarea_widget">
        <property name="geometry">
         <rect>
          <x>0</x>
@@ -207,16 +207,36 @@
          <height>279</height>
         </rect>
        </property>
-       <layout class="QVBoxLayout" name="verticalLayout_5">
+       <layout class="QVBoxLayout" name="verticalLayout_3">
         <property name="margin">
-         <number>0</number>
+         <number>11</number>
         </property>
         <item>
-         <layout class="QVBoxLayout" name="device_layout">
-          <property name="rightMargin">
-           <number>0</number>
+         <widget class="QWidget" name="changed_widget" native="true">
+          <property name="enabled">
+           <bool>true</bool>
           </property>
-         </layout>
+          <layout class="QVBoxLayout" name="verticalLayout_6">
+           <property name="margin">
+            <number>0</number>
+           </property>
+           <item>
+            <layout class="QVBoxLayout" name="changed_layout"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="device_controls" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_8">
+           <property name="margin">
+            <number>0</number>
+           </property>
+           <item>
+            <layout class="QVBoxLayout" name="device_layout"/>
+           </item>
+          </layout>
+         </widget>
         </item>
        </layout>
       </widget>

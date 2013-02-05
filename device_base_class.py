@@ -21,7 +21,10 @@ class DeviceTab(Tab):
         self._DDS = {}
         
         self._final_values = {}
+        self._last_programmed_values = {}
         self._primary_worker = None
+        self._can_check_remote_values = False
+        self._check_remote_value_id = None
         
         # Call the initialise GUI function
         self.initialise_GUI()
@@ -32,6 +35,11 @@ class DeviceTab(Tab):
         # Override this function
         # set the primary worker at this time
         pass
+    
+    @define_state(STATE_MANUAL,True)
+    def initialise_device(self):
+        self._last_programmed_values = self.get_front_panel_values()
+        pass
         
     @property
     def primary_worker(self):
@@ -40,7 +48,14 @@ class DeviceTab(Tab):
     @primary_worker.setter
     def primary_worker(self,worker):
         self._primary_worker = worker
-            
+    
+    def supports_remote_value_check(self,support)
+        self._can_check_remote_values = bool(support)
+        if self._can_check_remote_values:
+            self._check_remote_value_id = self.statemachine_timeout_add(30,self.check_remote_values)
+        else:
+            self.statemachine_timeout_remove(self._check_remote_value_id)
+    
     ############################################################
     # What do the properties dictionaries need to look like?   #
     ############################################################
@@ -250,8 +265,24 @@ class DeviceTab(Tab):
     # Only allow this to be called when we are in STATE_MANUAL and keep it queued up if we are not
     @define_state(STATE_MANUAL,True)
     def program_device(self):
-        yield(self.queue_work(self._primary_worker,'program_manual',self.get_front_panel_values()))
+        self._last_programmed_values = self.get_front_panel_values()
+        yield(self.queue_work(self._primary_worker,'program_manual',self._last_programmed_values))
+    
+    @define_state(STATE_MANUAL,True)
+    def check_remote_values(self):
+        results = yield(self.queue_work(self._primary_worker,'check_remote_values'))
+        # TODO: compare to current front panel values and prompt the user if they don't match
         
+        # If no results were returned, raise an exception so that we don't keep calling this function over and over again, 
+        # filling up the text box with the same error, eventually consuming all CPU/memory of the PC
+        if not results:
+            raise Exception('Failed to get remote values from device. Is it still connected?')
+            
+        current_values = 
+        # We expect a dictionary of channel:value pairs
+        for channel,remote_value in results.items():
+            
+    
     @define_state(STATE_MANUAL,True)
     def transition_to_buffered(self,h5_file,notify_queue): 
         self.mode = STATE_TRANSITION_TO_BUFFERED
