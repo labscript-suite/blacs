@@ -89,6 +89,7 @@ class PineBlasterWorker(Worker):
     def init(self):
         global h5py; import h5_lock, h5py
         global serial; import serial
+        global time; import time
         self.smart_cache = []
     
     def initialise_pineblaster(self, name, usbport):
@@ -119,6 +120,7 @@ class PineBlasterWorker(Worker):
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/%s'%self.device_name]
             pulse_program = group['PULSE_PROGRAM'][:]
+            is_master_pseudoclock = group.attrs['is_master_pseudoclock']
         for i, instruction in enumerate(pulse_program):
             if i == len(self.smart_cache):
                 # Pad the smart cache out to be as long as the program:
@@ -126,12 +128,29 @@ class PineBlasterWorker(Worker):
             # Only program instructions that differ from what's in the smart cache:
             if self.smart_cache[i] != instruction:
                 self.pineblaster.write('set %d %d %d\r\n'%(i, instruction['period'], instruction['reps']))
+                response = self.pineblaster.readline()
                 assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
-                self.smart_cache[i] = instruction 
+                self.smart_cache[i] = instruction
+        if not is_master_pseudoclock:
+            # Get ready for a hardware trigger:
+            self.pineblaster.write('hwstart\r\n')
+            response = self.pineblaster.readline()
+            assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
             
+        def start(self):
+            # Start in software:
+            self.pineblaster.write('start\r\n')
+            response = self.pineblaster.readline()
+            assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
             
+        def wait_until_done(self):
+            # Wait until the pineblaster says it's done:
+            response = self.pineblaster.readline()
+            assert response == 'done\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
             
-            
+        def abort(self):
+            self.pineblaster.write('restart\r\n')
+            time.sleep(5)
             
             
             
