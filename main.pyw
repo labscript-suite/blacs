@@ -176,6 +176,7 @@ if __name__ == "__main__":
             
             # Instantiate Devices from Connection Table, Place in Array        
             self.attached_devices = self.connection_table.find_devices(device_list)
+            self.master_pseudoclock = self.connection_table.master_pseudoclock
             
             self.settings_dict = {
                                   #"zaber_stages":{"device_name":"zaber_stages","COM":"com1"},
@@ -697,8 +698,8 @@ if __name__ == "__main__":
                 
                 # Tell the Pulseblaster to start the run and to let us know when the it's finished:
                 
-                logger.debug('About to start the PulseBlaster')
-                self.tablist["pulseblaster_0"].start_run(self.current_queue)
+                logger.debug('About to start the master pseudoclock')
+                self.tablist[self.master_pseudoclock].start_run(self.current_queue)
 
                 # Science!
 

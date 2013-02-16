@@ -18,11 +18,11 @@ class ConnectionTable(object):
                 for row in self.table:
                     if row[3] == "None":
                         self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],self.table)
-                
+                self.master_pseudoclock = table.attrs['master_pseudoclock']
             except:
                 self.logger.error('Unable to get connection table  %s'%h5file)
                 raise
-                
+    
     def assert_superset(self,other):
         # let's check that we're a superset of the connection table in "other"
         if not isinstance(other,ConnectionTable):
