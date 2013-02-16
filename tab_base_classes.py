@@ -8,6 +8,7 @@ import traceback
 import logging
 import cgi
 import gtk, gobject
+import subproc_utils
 import excepthook
 
 class Counter(object):
@@ -43,7 +44,13 @@ class Tab(object):
         self.event_queue = NormalQueue()
         self.to_worker = Queue()
         self.from_worker = Queue()
-        self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker,workerargs])
+        # We have to pass the broker's ports into the child process,
+        # so that it can post and receive events.  This would happen
+        # automatically if BLACS used zmq via subproc_utils for its
+        # multiprocessing, and so should be removed if and when it is
+        # ported to do so.
+        self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker, workerargs,
+                                  subproc_utils.Broker.server_ports])
         self.worker.start()
         self.not_responding_for = 0
         self.hide_not_responding_error_until = 0
@@ -327,7 +334,12 @@ class Worker(Process):
         pass
     
     def run(self):
-        self.name, self.from_parent, self.to_parent, extraargs = self._args
+        # Once again, passing in the broker ports as below and setting them in the subproc_utils
+        # module would happen automatically if we were creating this process with the subproc_utils
+        # module instead of the multiprocessing library. So don't duplicate this when porting, if that ever happens.
+        self.name, self.from_parent, self.to_parent, extraargs, broker_ports = self._args
+        subproc_utils.Broker.set_server_ports(*broker_ports)
+        
         for argname in extraargs:
             setattr(self,argname,extraargs[argname])
         self.logger = logging.getLogger('BLACS.%s.worker'%self.name)
