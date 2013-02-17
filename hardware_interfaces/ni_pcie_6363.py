@@ -1,7 +1,7 @@
 import gtk
 
 import Queue
-import multiprocessing
+import subproc_utils
 import threading
 import logging
 import numpy
