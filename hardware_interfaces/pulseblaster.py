@@ -424,4 +424,4 @@ class PulseblasterWorker(Worker):
                 all_waits_finished = False
         else:
             all_waits_finished = True
-        return pb_status(), all_waits_finished
+        return pb_read_status(), all_waits_finished

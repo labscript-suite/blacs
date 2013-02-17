@@ -107,7 +107,7 @@ class ni_pcie_6363(Tab):
         
     @define_state
     def destroy(self):
-        self.result_queue.put([None,None,None,None,'shutdown'])
+        # self.result_queue.put([None,None,None,None,'shutdown'])
         self.queue_work('close_device')
         self.do_after('leave_destroy')
         
@@ -195,7 +195,7 @@ class NiPCIe6363Worker(Worker):
     def init(self):
         # Start the data acquisition subprocess:
         self.acquisition_worker = Worker2()
-        self.acquisition_worker.start(*self.acq_args)
+        self.acquisition_worker.start(self.acq_args)
         
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
