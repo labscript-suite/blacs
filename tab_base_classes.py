@@ -1,5 +1,5 @@
-from multiprocessing import Process, Queue, Lock
-from Queue import Queue as NormalQueue
+from subproc_utils import Process
+from Queue import Queue
 import time
 import sys
 import threading
@@ -41,17 +41,9 @@ class Tab(object):
         self.settings = settings
         self.logger = logging.getLogger('BLACS.%s'%settings['device_name'])   
         self.logger.debug('Started')     
-        self.event_queue = NormalQueue()
-        self.to_worker = Queue()
-        self.from_worker = Queue()
-        # We have to pass the broker's ports into the child process,
-        # so that it can post and receive events.  This would happen
-        # automatically if BLACS used zmq via subproc_utils for its
-        # multiprocessing, and so should be removed if and when it is
-        # ported to do so.
-        self.worker = WorkerClass(args = [settings['device_name'], self.to_worker, self.from_worker, workerargs,
-                                  subproc_utils.Broker.server_ports])
-        self.worker.start()
+        self.event_queue = Queue()
+        self.worker = WorkerClass()
+        self.to_worker, self.from_worker = self.worker.start(settings['device_name'], workerargs)
         self.not_responding_for = 0
         self.hide_not_responding_error_until = 0
         self.timeout = gobject.timeout_add(1000,self.check_time)
@@ -189,7 +181,9 @@ class Tab(object):
         self.notebook.reorder_child(self._toplevel,currentpage)
         self.notebook.set_current_page(currentpage)
         # If BLACS is waiting on this tab for something, tell it to abort!
-        self.BLACS.current_queue.put('abort')
+        if self.BLACS is not None:
+            # If this is a stand-alone tab, like in the example code, there is no BLACS
+            self.BLACS.current_queue.put('abort')
     
     def queue_work(self,funcname,*args,**kwargs):
         self._work = (funcname,args,kwargs)
@@ -333,12 +327,8 @@ class Worker(Process):
         # To be overridden by subclasses
         pass
     
-    def run(self):
-        # Once again, passing in the broker ports as below and setting them in the subproc_utils
-        # module would happen automatically if we were creating this process with the subproc_utils
-        # module instead of the multiprocessing library. So don't duplicate this when porting, if that ever happens.
-        self.name, self.from_parent, self.to_parent, extraargs, broker_ports = self._args
-        subproc_utils.Broker.set_server_ports(*broker_ports)
+    def run(self, name, extraargs):
+        self.name = name
         
         for argname in extraargs:
             setattr(self,argname,extraargs[argname])
@@ -400,14 +390,14 @@ class Worker(Process):
 # and a Worker class, and get the Tab to request work to be done by
 # the worker in response to GUI events.
 class MyTab(Tab):
-    def __init__(self,notebook,settings,restart=False): # restart will be true if __init__ was called due to a restart
-        Tab.__init__(self,MyWorker,notebook,settings,{'x':7}) # Make sure to call this first in your __init__!
+    def __init__(self, BLACS,notebook,settings,restart=False): # restart will be true if __init__ was called due to a restart
+        Tab.__init__(self, BLACS,MyWorker,notebook,settings,{'x':7}) # Make sure to call this first in your __init__!
         foobutton = gtk.Button('foo, 10 seconds!')
         barbutton = gtk.Button('bar, 10 seconds, then error!')
         bazbutton = gtk.Button('baz, 0.5 seconds!')
         addbazbutton = gtk.Button('add 2 second timeout to baz')
         removebazbutton = gtk.Button('remove baz timeout')
-        bazunpickleable= gtk.Button('try to pass baz a multiprocessing.Lock()')
+        bazunpickleable= gtk.Button('try to pass baz a threading.Lock()')
         fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
         self.checkbutton=gtk.CheckButton('have baz\nreturn a Queue')
         self.toplevel = gtk.VBox()
@@ -493,7 +483,7 @@ class MyTab(Tab):
     @define_state    
     def baz_unpickleable(self, button):
         self.logger.debug('entered bar')
-        self.queue_work('baz', 5,6,7,x=Lock())
+        self.queue_work('baz', 5,6,7,x=threading.Lock())
         self.do_after('leave_bar', 1,2,3,bar='baz')
         
     def leave_baz(self,*args,**kwargs):
@@ -581,7 +571,7 @@ if __name__ == '__main__':
     notebook.show()
     window.show()  
     window.resize(800,600)
-    tab1 = MyTab(notebook,settings = {'device_name': 'Example'})
-    tab2 = MyTab(notebook,settings = {'device_name': 'Example2'})
+    tab1 = MyTab(None, notebook,settings = {'device_name': 'Example'})
+    tab2 = MyTab(None, notebook,settings = {'device_name': 'Example2'})
     with gtk.gdk.lock:
         gtk.main()

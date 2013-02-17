@@ -27,14 +27,8 @@ class ni_pcie_6363(Tab):
         self.device_name = self.settings['device_name']
         self.MAX_name = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
         
-        # Queues that need to be passed to the worker process, which in
-        # turn passes them to the acquisition process: AI worker thread
-        self.write_queue = multiprocessing.Queue()
-        self.read_queue = multiprocessing.Queue()
-        self.result_queue = multiprocessing.Queue()
-        
         # All the arguments that the acquisition worker will require:
-        acq_args = [self.device_name, self.MAX_name, self.write_queue, self.read_queue, self.result_queue]
+        acq_args = [self.device_name, self.MAX_name]
         
         Tab.__init__(self,BLACS,NiPCIe6363Worker,notebook,settings,workerargs={'acq_args':acq_args})
         
@@ -111,11 +105,6 @@ class ni_pcie_6363(Tab):
         self.initialise_device()
         self.program_static()
         
-        # Start acquisition thread which distributes newly acquired data to registered methods
-        self.get_data_thread = threading.Thread(target = self.get_acquisition_data)
-        self.get_data_thread.daemon = True
-        self.get_data_thread.start()
-        
     @define_state
     def destroy(self):
         self.result_queue.put([None,None,None,None,'shutdown'])
@@ -136,26 +125,6 @@ class ni_pcie_6363(Tab):
         self.init_done = True
         self.toplevel.show()
     
-    def get_acquisition_data(self):
-        # This function is called in a separate thread. It collects acquisition data 
-        # from the acquisition subprocess, and calls the callbacks that have requested data."""
-        logger = logging.getLogger('BLACS.%s.get_data_thread'%self.settings['device_name'])   
-        logger.info('Starting')
-        # read subprocess queue. Send data to relevant callback functions
-        while True:
-            logger.debug('Waiting for data')
-            time, rate, samples, channels, data = self.result_queue.get()
-            if data == 'shutdown':
-                logger.info('Quitting')
-                break
-            logger.debug('Got some data')
-            div = 1/rate
-            times = numpy.arange(time,time+samples*div,div)
-            #TODO will need to split up the array. (single channel is assumed -- will need to extend for multiple channels)
-            with gtk.gdk.lock:
-                logger.debug('Calling callbacks')
-                #TODO
-                
     def get_front_panel_state(self):
         state = {}
         for i in range(self.num_AO):
@@ -225,10 +194,8 @@ class NiPCIe6363Worker(Worker):
         
     def init(self):
         # Start the data acquisition subprocess:
-        self.acquisition_worker = Worker2(args=self.acq_args)
-        ignore, ignore, self.to_child, self.from_child, ignore = self.acq_args
-        self.acquisition_worker.daemon = True
-        self.acquisition_worker.start()
+        self.acquisition_worker = Worker2()
+        self.acquisition_worker.start(*self.acq_args)
         
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
@@ -369,14 +336,14 @@ class NiPCIe6363Worker(Worker):
             raise Exception(message)
         
 # Worker class for AI input:
-class Worker2(multiprocessing.Process):
-    def run(self):
+class Worker2(subproc_utils.Process):
+    def run(self, args):
         exec 'import traceback' in globals()
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         
-        self.device_name, self.MAX_name, self.from_parent, self.to_parent, self.result_queue = self._args
+        self.device_name, self.MAX_name = args
         self.logger = logging.getLogger('BLACS.%s.acquisition'%self.device_name)
         self.task_running = False
         self.daqlock = threading.Condition()
@@ -494,8 +461,13 @@ class Worker2(multiprocessing.Process):
                     #    data = data.transpose()
                     #self.buffered_data = numpy.append(self.buffered_data,data,axis=0)
                 else:
-                    self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
-                    self.t0 = self.t0 + self.samples_per_channel/self.rate
+                    pass
+                    # Todo: replace this with zmq pub plus a broker somewhere so things can subscribe to channels
+                    # and get their data without caring what process it came from. For the sake of speed, this
+                    # should use the numpy buffer interface and raw zmq messages, and not the existing event system
+                    # that subproc_utils has.
+                    # self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
+                    # self.t0 = self.t0 + self.samples_per_channel/self.rate
         except:
             message = traceback.format_exc()
             logger.error('An exception happened:\n %s'%message)
