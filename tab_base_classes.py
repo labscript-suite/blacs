@@ -110,9 +110,10 @@ def define_state(allowed_states,queue_state_indefinitely):
             'STATE_TRANSITION_TO_BUFFERED, STATE_TRANSITION_TO_MANUAL and STATE_BUFFERED (or-ed together using the | symbol, eg STATE_MANUAL|STATE_BUFFERED')
         def f(self,*args,**kwargs):
             function.__name__ = escapedname
-            setattr(self,escapedname,function)
-            self.event_queue.put(allowed_states,queue_state_indefinitely,[escapedname,[args,kwargs]])
+            #setattr(self,escapedname,function)
+            self.event_queue.put(allowed_states,queue_state_indefinitely,[function,[args,kwargs]])
         f.__name__ = unescaped_name
+        f._allowed_states = allowed_states
         return f        
     return wrap
     
@@ -135,8 +136,8 @@ class Tab(object):
         self._time_of_last_state_change = time.time()
         self.not_responding_for = 0
         self.hide_not_responding_error_until = 0
-        self.timeouts = set()
-        self._timeout_ids = {}        
+        self._timeouts = set()
+        self._timeout_ids = {}
         self._force_full_buffered_reprogram = True
         self.event_queue = StateQueue()
         self.workers = {}
@@ -145,10 +146,11 @@ class Tab(object):
         # Load the UI
         self._ui = QUiLoader().load('tab_frame.ui')
         self._layout = self._ui.device_layout
+        self._device_widget = self._ui.device_controls
         self._changed_widget = self._ui.changed_widget
         self._changed_layout = self._ui.changed_layout
         self._changed_widget.hide()        
-        self._ui.device_name.setText("<u><b>"+str(self._device_name)+"</b></u>")
+        self._ui.device_name.setText("<u><b>"+str(self.device_name)+"</b></u>")
         # connect signals
         self._ui.smart_programming.toggled.connect(self.on_force_full_buffered_reprogram)
         self._ui.button_close.clicked.connect(self.hide_error)
@@ -284,87 +286,50 @@ class Tab(object):
     def _timeout_add(self,delay,execute_timeout):
         QTimer.singleShot(delay,execute_timeout)
     
-    # def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
-        # # Add the timeout to our set of registered timeouts. Timeouts
-        # # can thus be removed by the user at ay time by calling
-        # # self.timeouts.remove(function)
-        # self.timeouts.add(statefunction)
-        # # Here's a function which executes the timeout once, then queues
-        # # itself up again after a delay:
-        # def execute_timeout():
-            # # queue up the state function, but only if it hasn't been
-            # # removed from self.timeouts:
-            # if statefunction in self.timeouts and self._timeout_ids[statefunction] == unique_id:
-                # statefunction(*args, **kwargs)
-                # # queue up another call to this function (execute_timeout)
-                # # after the delay time:
-                # self._timeout_add(delay,execute_timeout)
+    def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):
+        # Add the timeout to our set of registered timeouts. Timeouts
+        # can thus be removed by the user at ay time by calling
+        # self.timeouts.remove(function)
+        self._timeouts.add(statefunction)
+        # Here's a function which executes the timeout once, then queues
+        # itself up again after a delay:
+        def execute_timeout():
+            # queue up the state function, but only if it hasn't been
+            # removed from self.timeouts:
+            if statefunction in self._timeouts and self._timeout_ids[statefunction] == unique_id:
+                # Only queue up the state if we are in an allowed mode
+                if statefunction._allowed_states&self.mode:
+                    statefunction(*args, **kwargs)
+                # queue up another call to this function (execute_timeout)
+                # after the delay time:
+                self._timeout_add(delay,execute_timeout)
             
-        # # queue the first run:
-        # self._timeout_add(delay,execute_timeout)        
-        # # Store a unique ID for this timeout so that we don't confuse 
-        # # other timeouts for this one when checking to see that this
-        # # timeout hasn't been removed:
-        # unique_id = get_unique_id()
-        # self._timeout_ids[statefunction] = unique_id
-        
-    def statemachine_timeout_add(self,delay,statefunction,*args,**kwargs):  
         # Store a unique ID for this timeout so that we don't confuse 
         # other timeouts for this one when checking to see that this
         # timeout hasn't been removed:
         unique_id = get_unique_id()
-        self._timeouts.append((statefunction,unique_id))
-        def execute_timeout():
-            # queue up the state function, but only if it hasn't been
-            # removed from self._timeouts:
-            if (statefunction,unique_id) in self._timeouts:
-                statefunction(*args, **kwargs)
-                # queue up another call to this function (execute_timeout)
-                # after the delay time:
-                self._timeout_add(delay,execute_timeout)
-        
+        self._timeout_ids[statefunction] = unique_id
         # queue the first run:
-        self._timeout_add(delay,execute_timeout)    
-        return unique_id
+        #QTimer.singleShot(delay,execute_timeout)    
+        execute_timeout()
         
     # Returns True if the timeout was removed
-    def statemachine_timeout_remove(self,unique_id):
-        for function, id in self._timeouts:
-            if id == unique_id:
-                self._timeouts.remove((function,id))
-                return True
+    def statemachine_timeout_remove(self,statefunction):
+        if statefunction in self._timeouts:
+            self._timeouts.remove(statefunction)
+            return True
         return False
     
     # returns True if at least one timeout was removed, else returns False
-    def statemachine_timeout_remove_all(self,function=None):
-        # If no function has been specified, remove all timeouts by resetting the list
-        if function is None:
-            # This function could be called when there are no timeouts, so reinitialise in both cases and return the correct value
-            # DO NOT REFACTOR THIS CODE to move the self._timeouts = [] to outside the if/else. Hopefully you can see why that would
-            # thus always return True!
-            if self._timeouts:
-                self._timeouts = []
-                return True
-            else:
-                self._timeouts = []
-                return False
-                
-        # Remove all timeouts for this function
+    def statemachine_timeout_remove_all(self):
+        # As a consistency check, we overwrite self._timeouts to an empty set always
+        # This must be done after the check to see if it is empty (if self._timeouts) so do not refactor this code!
+        if self._timeouts:
+            self._timeouts = set()
+            return True
         else:
-            # Some variables to keep track of whether we have removed anything and what is to be removed
-            # (removing from a list while iterating over said list is ALWAYS a bad idea)
-            something_is_removed = False
-            to_remove = []
-            # Find the entries in the list to remove
-            for f,id in self._timeouts:
-                if f == function:
-                    to_remove.append((f,id))
-            # Remove the entries in the list
-            for f_id in to_remove:
-                self._timeouts.remove(f_id)
-                something_is_removed = True
-            # Return True if at least one entry was removed
-            return something_is_removed
+            self._timeouts = set()
+            return False        
     
     # def set_state(self,state):
         # ready = self.tab_label_widgets['ready']
@@ -421,6 +386,8 @@ class Tab(object):
         # make sure you do that!
         self.__init__(self.notebook, self.settings,restart=True)
         
+        # The init method is going to place this device tab at the end of the notebook specified
+        # Let's remove it from there, and place it the poition it used to be!
         self.notebook = self._ui.parentWidget().parentWidget()
         self.notebook.removeTab(self.notebook.indexOf(self._ui))
         self.notebook.insertTab(currentpage,self._ui,self.device_name)
@@ -471,16 +438,16 @@ class Tab(object):
             while True:
                 # Get the next task from the event queue:
                 logger.debug('Waiting for next event')
-                funcname, data = self.event_queue.get(self.mode)
-                if funcname == '_quit':
+                func, data = self.event_queue.get(self.mode)
+                if func == '_quit':
                     # The user has requested a restart:
                     logger.debug('Received quit signal')
                     break
                 args,kwargs = data
-                logger.debug('Processing event %s' % funcname)
-                self.state = '%s (GUI)'%funcname
+                logger.debug('Processing event %s' % func.__name__)
+                self.state = '%s (GUI)'%func.__name__
                 # Run the task with the GUI lock, catching any exceptions:
-                func = getattr(self,funcname)
+                #func = getattr(self,funcname)
                 # run the function in the Qt main thread
                 generator = inmain(func,self,*args,**kwargs)
                 # Do any work that was queued up:(we only talk to the worker if work has been queued up through the yield command)
@@ -539,8 +506,8 @@ class Tab(object):
                             self.hide_not_responding_error_until = 0
                                 
                             # Send the results back to the GUI function
-                            logger.debug('returning worker results to function %s' % funcname)
-                            self.state = '%s (GUI)'%funcname
+                            logger.debug('returning worker results to function %s' % func.__name__)
+                            self.state = '%s (GUI)'%func.__name__
                             next_yield = inmain(generator.send,results) 
                             # If there is another yield command, put the data in the required variables for the next loop iteration
                             if next_yield:
@@ -778,7 +745,7 @@ class MyTab(Tab):
     
     # Similarly, no @define_state is required here -- same applies as above.    
     def remove_baz_timeout(self):
-        self.timeouts.remove(self.baz)
+        self.statemachine_timeout_remove(self.baz)
     
         
 class MyWorker(Worker):
