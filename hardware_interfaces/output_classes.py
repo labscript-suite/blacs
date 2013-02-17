@@ -353,6 +353,9 @@ class AO(object):
             else:
                 widget.unlock(False)
 
+    @property
+    def name(self):
+        return self._hardware_name + ' - ' + self._connection_name
             
 class DO(object):
     def __init__(self, hardware_name, connection_name, program_function, settings):
@@ -452,9 +455,14 @@ class DO(object):
                 widget.state = state
                 widget.blockSignals(False)
    
-
+    @property
+    def name(self):
+        return self._hardware_name + ' - ' + self._connection_name
+   
 class DDS(object):
-    def __init__(self, output_list):
+    def __init__(self, hardware_name, connection_name, output_list):
+        self._hardware_name = hardware_name
+        self._connection_name = connection_name
         self._sub_channel_list = ['freq','amp','phase','gate']
         for subchnl in self._sub_channel_list:
             value = None
@@ -489,6 +497,10 @@ class DDS(object):
             if subchnl in value:
                 if hasattr(self,subchnl):
                     getattr(self,subchnl).set_value(value[subchnl],program=program)
+                    
+    @property
+    def name(self):
+        return self._hardware_name + ' - ' + self._connection_name
         
 if __name__ == '__main__':
     from qtutils.widgets.toolpalette import ToolPaletteGroup
