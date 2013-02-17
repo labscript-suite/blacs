@@ -27,10 +27,10 @@ class Counter(object):
         return self.i
         
         
-STATE_MANUAL = 1
-STATE_TRANSITION_TO_BUFFERED = 2
-STATE_TRANSITION_TO_MANUAL = 4
-STATE_BUFFERED = 8  
+MODE_MANUAL = 1
+MODE_TRANSITION_TO_BUFFERED = 2
+MODE_TRANSITION_TO_MANUAL = 4
+MODE_BUFFERED = 8  
       
 class StateQueue(object):
     def __init__(self):
@@ -41,8 +41,8 @@ class StateQueue(object):
     
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)   
-    def put(self,allowed_states,queue_state_indefinitely,data):
-        self.list.append([allowed_states,queue_state_indefinitely,data]) 
+    def put(self,allowed_states,queue_state_indefinitely,delete_stale_states,data):
+        self.list.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
         # if this state is one the get command is waiting for, notify it!
         if self.last_requested_state and allowed_states&self.last_requested_state:
             self.get_blocking_queue.put('new item')
@@ -60,9 +60,22 @@ class StateQueue(object):
         delete_index_list = []
         success = False
         for i,item in enumerate(self.list):
-            allowed_states,queue_state_indefinitely,data = item
+            allowed_states,queue_state_indefinitely,delete_stale_states,data = item
             if allowed_states&state:
+                # We have found one! Remove it from the list
                 delete_index_list.append(i)
+                
+                # If we are to delete stale states, see if the next state is the same statefunction.
+                # If it is, use that one, or whichever is the latest entry without encountering a different statefunction,
+                # and delete the rest
+                if delete_stale_states:
+                    state_function = data[0]
+                    i+=1
+                    while i < len(self.list) and state_function == self.list[i][3][0]:
+                        allowed_states,queue_state_indefinitely,delete_stale_states,data = self.list[i]
+                        delete_index_list.append(i)
+                        i+=1
+                
                 success = True
                 break
             elif not queue_state_indefinitely:
@@ -101,19 +114,19 @@ class StateQueue(object):
 # Make this function available globally:       
 get_unique_id = Counter().get
 
-def define_state(allowed_states,queue_state_indefinitely):
+def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
     def wrap(function):
         unescaped_name = function.__name__
         escapedname = '_' + function.__name__
-        if allowed_states < 1 or allowed_states > 15:
-            raise RuntimeError('Function %s has been set to run in unknown states. Please make sure allowed states is one or more of STATE_MANUAL,'%unescaped_name+
-            'STATE_TRANSITION_TO_BUFFERED, STATE_TRANSITION_TO_MANUAL and STATE_BUFFERED (or-ed together using the | symbol, eg STATE_MANUAL|STATE_BUFFERED')
+        if allowed_modes < 1 or allowed_modes > 15:
+            raise RuntimeError('Function %s has been set to run in unknown states. Please make sure allowed states is one or more of MODE_MANUAL,'%unescaped_name+
+            'MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL and MODE_BUFFERED (or-ed together using the | symbol, eg MODE_MANUAL|MODE_BUFFERED')
         def f(self,*args,**kwargs):
             function.__name__ = escapedname
             #setattr(self,escapedname,function)
-            self.event_queue.put(allowed_states,queue_state_indefinitely,[function,[args,kwargs]])
+            self.event_queue.put(allowed_modes,queue_state_indefinitely,delete_stale_states,[function,[args,kwargs]])
         f.__name__ = unescaped_name
-        f._allowed_states = allowed_states
+        f._allowed_modes = allowed_modes
         return f        
     return wrap
     
@@ -168,7 +181,7 @@ class Tab(object):
         self._mainloop_thread.daemon = True
         self._mainloop_thread.start()
         
-        self.mode = STATE_MANUAL
+        self.mode = MODE_MANUAL
         self.state = 'idle'
                 
         # Add the tab to the notebook
@@ -256,7 +269,7 @@ class Tab(object):
         elif self.mode == 8:
             mode = 'Buffered'
         else:
-            raise RuntimeError('self.mode for device %s is invalid. It must be one of STATE_MANUAL, STATE_TRANSITION_TO_BUFFERED, STATE_TRANSITION_TO_MANUAL or STATE_BUFFERED'%(self.device_name))
+            raise RuntimeError('self.mode for device %s is invalid. It must be one of MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL or MODE_BUFFERED'%(self.device_name))
     
         self._ui.state_label.setText('<b>%s mode</b> - State: %s'%(mode,self.state))
         
@@ -282,7 +295,7 @@ class Tab(object):
             # menu.append(menu_item)
             # menu.popup(None,None,None,event.button,event.time)
         
-    @define_state(STATE_MANUAL|STATE_BUFFERED|STATE_TRANSITION_TO_BUFFERED|STATE_TRANSITION_TO_MANUAL,True)  
+    @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)  
     def _timeout_add(self,delay,execute_timeout):
         QTimer.singleShot(delay,execute_timeout)
     
@@ -298,7 +311,7 @@ class Tab(object):
             # removed from self.timeouts:
             if statefunction in self._timeouts and self._timeout_ids[statefunction] == unique_id:
                 # Only queue up the state if we are in an allowed mode
-                if statefunction._allowed_states&self.mode:
+                if statefunction._allowed_modes&self.mode:
                     statefunction(*args, **kwargs)
                 # queue up another call to this function (execute_timeout)
                 # after the delay time:
@@ -369,7 +382,7 @@ class Tab(object):
             # (albeit doing nothing) that we don't need:
             if self._mainloop_thread.is_alive():
                 worker_data[2].put((False,'quit',None))
-                self.event_queue.put(STATE_MANUAL|STATE_BUFFERED|STATE_TRANSITION_TO_BUFFERED|STATE_TRANSITION_TO_MANUAL,True,['_quit',None])
+                self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,['_quit',None])
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
@@ -682,7 +695,7 @@ class MyTab(Tab):
     # in (for example, adjusting the axis range of a plot, or other
     # appearance settings). You should never be calling queue_work
     # or do_after from un undecorated callback.
-    @define_state(STATE_MANUAL,True)  
+    @define_state(MODE_MANUAL,True)  
     def foo(self):
         self.logger.debug('entered foo')
         #self.toplevel.set_sensitive(False)
@@ -708,14 +721,14 @@ class MyTab(Tab):
         # something is wrong. So don't make this mistake!
         self.queue_work('My worker','foo', 5,6,7,x='x')
         
-    @define_state(STATE_MANUAL,True)  
+    @define_state(MODE_MANUAL,True)  
     def bar(self):
         self.logger.debug('entered bar')
         results = yield(self.queue_work('My worker','bar', 5,6,7,x=5))
       
         self.logger.debug('leaving bar')
         
-    @define_state(STATE_MANUAL,True)  
+    @define_state(MODE_MANUAL,True)  
     def baz(self, button=None):
         print threading.current_thread().name
         self.logger.debug('entered baz')
@@ -729,7 +742,7 @@ class MyTab(Tab):
         
     # This event shows what happens if you try to send a unpickleable
     # event through a queue to the subprocess:
-    @define_state(STATE_MANUAL,True)  
+    @define_state(MODE_MANUAL,True)  
     def baz_unpickleable(self):
         self.logger.debug('entered baz_unpickleable')
         results = yield(self.queue_work('My worker','baz', 5,6,7,x=Lock()))
