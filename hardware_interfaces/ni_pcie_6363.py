@@ -195,7 +195,7 @@ class NiPCIe6363Worker(Worker):
     def init(self):
         # Start the data acquisition subprocess:
         self.acquisition_worker = Worker2()
-        self.acquisition_worker.start(self.acq_args)
+        self.to_child, self.from_child = self.acquisition_worker.start(self.acq_args)
         
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
