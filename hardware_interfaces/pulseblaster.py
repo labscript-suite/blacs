@@ -308,7 +308,7 @@ class PulseblasterWorker(Worker):
         # we can tell the difference between a wait and the end of an experiment.
         # The wait monitor device is expected to post such events, which we'll wait on:
         self.all_waits_finished = Event('all_waits_finished')
-        
+        self.waits_in_use = False
     
     def initialise_pulseblaster(self, name, pb_num):
         self.device_name = name
