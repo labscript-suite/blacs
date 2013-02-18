@@ -650,11 +650,6 @@ class AcquisitionWorker(subproc_utils.Process):
             # determined their durations before we proceed:
             self.wait_durations_analysed.wait(self.h5_file)
         with h5py.File(self.h5_file,'a') as hdf5_file:
-            waits = hdf5_file['waits']
-            if len(waits) > 0:
-                # There were waits in this shot. Better wait until the other subprocess knows how long
-                # they went for:
-                self.waits_
             try:
                 acquisitions = hdf5_file['/devices/'+device_name+'/ACQUISITIONS']
             except:
