@@ -349,12 +349,12 @@ class NiPCIe6363Worker(Worker):
         if abort:
             # Reprogram the initial states:
             self.program_static(self.ao_data, self.do_data)
-            
+        # Tell both children to transition to static:    
         self.to_acq_child.put(["transition to static",(self.device_name,abort)])
+        self.to_wait_child.put(["transition to static",(self.device_name,abort)])
         result,message = self.from_acq_child.get()
         if result == 'error':
             raise Exception(message)
-        self.to_wait_child.put(["transition to static",(self.device_name,abort)])
         result,message = self.from_wait_child.get()
         if result == 'error':
             raise Exception(message)
@@ -390,6 +390,10 @@ class AcquisitionWorker(subproc_utils.Process):
         
         self.task = None
         self.abort = False
+        
+        # And event for knowing when the wait durations are known, so that we may use them
+        # to chunk up acquisition data:
+        self.wait_durations_analysed = subproc_utils.Event('wait_durations_analysed')
         
         self.daqmx_read_thread = threading.Thread(target=self.daqmx_read)
         self.daqmx_read_thread.daemon = True
@@ -640,6 +644,17 @@ class AcquisitionWorker(subproc_utils.Process):
     def extract_measurements(self, device_name):
         self.logger.debug('extract_measurements')
         with h5py.File(self.h5_file,'a') as hdf5_file:
+            waits_in_use = len(hdf5_file['waits']) > 0
+        if waits_in_use:
+            # There were waits in this shot. We need to wait until the other process has
+            # determined their durations before we proceed:
+            self.wait_durations_analysed.wait(self.h5_file)
+        with h5py.File(self.h5_file,'a') as hdf5_file:
+            waits = hdf5_file['waits']
+            if len(waits) > 0:
+                # There were waits in this shot. Better wait until the other subprocess knows how long
+                # they went for:
+                self.waits_
             try:
                 acquisitions = hdf5_file['/devices/'+device_name+'/ACQUISITIONS']
             except:
@@ -692,6 +707,7 @@ class WaitMonitorWorker(subproc_utils.Process):
         self.task = None
         self.abort = False
         self.all_waits_finished = subproc_utils.Event('all_waits_finished',type='post')
+        self.wait_durations_analysed = subproc_utils.Event('wait_durations_analysed',type='post')
         self.mainloop()
         
     def mainloop(self):
@@ -780,15 +796,15 @@ class WaitMonitorWorker(subproc_utils.Process):
                 raise
     
     def send_resume_trigger(self, pulse_width):
-        written = uint8()
+        written = int32()
         # go high:
-        self.timeout_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,numpy.ones(1),byref(written),None)
-        assert written == 1
+        self.timeout_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,numpy.ones(1, dtype=numpy.uint8),byref(written),None)
+        assert written.value == 1
         # Wait however long we observed the first pulse of the experiment to be:
         time.sleep(pulse_width)
         # go low:
-        self.timeout_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,numpy.zeros(1),byref(written),None)
-        assert written == 1
+        self.timeout_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,numpy.zeros(1, dtype=numpy.uint8),byref(written),None)
+        assert written.value == 1
         
     def stop_task(self):
         self.logger.debug('stop_task')
@@ -873,9 +889,15 @@ class WaitMonitorWorker(subproc_utils.Process):
                 run_periods = numpy.diff(resume_times)
                 wait_durations = periods - run_periods
                 waits_timed_out = wait_durations > self.wait_table['timeout']
-                print 'wait durations:', wait_durations
-                print 'timeouts:', waits_timed_out
             with h5py.File(self.h5_file,'a') as hdf5_file:
-                # Work out how long the waits were, save em, post an event saying so            
-                pass
+                # Work out how long the waits were, save em, post an event saying so 
+                dtypes = [('time',float),('timeout',float),('duration',float),('timed_out',bool)]
+                data = numpy.empty(len(self.wait_table), dtype=dtypes)
+                if self.waits_in_use:
+                    data['time'] = self.wait_table['time']
+                    data['timeout'] = self.wait_table['timeout']
+                    data['duration'] = wait_durations
+                    data['timed_out'] = waits_timed_out
+                hdf5_file.create_dataset('/data/waits', data=data)
+            self.wait_durations_analysed.post(self.h5_file)
             

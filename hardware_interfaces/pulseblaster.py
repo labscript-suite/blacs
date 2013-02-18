@@ -174,7 +174,6 @@ class pulseblaster(Tab):
         # an experimental run.
         self.status, waits_pending = _results
         if notify_queue is not None and self.status['waiting'] and not waits_pending:
-            print 'experiment over!'
             # Experiment is over. Tell the queue manager about it, then
             # set the status checking timeout back to every 2 seconds
             # with no queue.
