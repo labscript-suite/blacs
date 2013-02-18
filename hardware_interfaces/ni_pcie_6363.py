@@ -665,7 +665,7 @@ class AcquisitionWorker(subproc_utils.Process):
             except:
                 # Group doesn't exist yet, create it:
                 measurements = hdf5_file.create_group('/data/traces')
-            for connection,label,start_time,end_time,scale_factor,units in acquisitions:
+            for connection,label,start_time,end_time,wait_name,scale_factor,units in acquisitions:
                 start_index = numpy.ceil(self.buffered_rate*(start_time-self.ai_start_delay))
                 end_index = numpy.floor(self.buffered_rate*(end_time-self.ai_start_delay))
                 # numpy.ceil does what we want above, but float errors can miss the equality
@@ -891,9 +891,10 @@ class WaitMonitorWorker(subproc_utils.Process):
                 waits_timed_out = wait_durations > self.wait_table['timeout']
             with h5py.File(self.h5_file,'a') as hdf5_file:
                 # Work out how long the waits were, save em, post an event saying so 
-                dtypes = [('time',float),('timeout',float),('duration',float),('timed_out',bool)]
+                dtypes = [('label','a256'),('time',float),('timeout',float),('duration',float),('timed_out',bool)]
                 data = numpy.empty(len(self.wait_table), dtype=dtypes)
                 if self.waits_in_use:
+                    data['label'] = self.wait_table['label']
                     data['time'] = self.wait_table['time']
                     data['timeout'] = self.wait_table['timeout']
                     data['duration'] = wait_durations
