@@ -1,7 +1,7 @@
 import gtk
 from output_classes import AO, DO, DDS
 from tab_base_classes import Tab, Worker, define_state
-from subproc_utils import Event
+import subproc_utils
 
 class pulseblaster(Tab):
     # Capabilities
@@ -172,8 +172,9 @@ class pulseblaster(Tab):
         # When called with a queue, this function writes to the queue
         # when the pulseblaster is waiting. This indicates the end of
         # an experimental run.
-        self.status, all_waits_finished = _results
-        if notify_queue is not None and self.status['waiting'] and all_waits_finished:
+        self.status, waits_pending = _results
+        if notify_queue is not None and self.status['waiting'] and not waits_pending:
+            print 'experiment over!'
             # Experiment is over. Tell the queue manager about it, then
             # set the status checking timeout back to every 2 seconds
             # with no queue.
@@ -307,8 +308,8 @@ class PulseblasterWorker(Worker):
         # An event for checking when all waits (if any) have completed, so that
         # we can tell the difference between a wait and the end of an experiment.
         # The wait monitor device is expected to post such events, which we'll wait on:
-        self.all_waits_finished = Event('all_waits_finished')
-        self.waits_in_use = False
+        self.all_waits_finished = subproc_utils.Event('all_waits_finished')
+        self.waits_pending = False
     
     def initialise_pulseblaster(self, name, pb_num):
         self.device_name = name
@@ -410,7 +411,7 @@ class PulseblasterWorker(Worker):
             
             # Are there waits in use in this experiment? The monitor waiting for the end of
             # the experiment will need to know:
-            self.waits_in_use =  bool(len(hdf5_file['waits']))
+            self.waits_pending =  bool(len(hdf5_file['waits']))
             
             # Now we build a dictionary of the final state to send back to the GUI:
             return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,
@@ -418,11 +419,10 @@ class PulseblasterWorker(Worker):
                     'flags':bin(flags)[2:].rjust(12,'0')[::-1]}
     
     def check_status(self):
-        if self.waits_in_use:
+        if self.waits_pending:
             try:
                 self.all_waits_finished.wait(self.h5file, timeout=0)
+                self.waits_pending = False
             except subproc_utils.TimeoutError:
-                all_waits_finished = False
-        else:
-            all_waits_finished = True
-        return pb_read_status(), all_waits_finished
+                pass
+        return pb_read_status(), self.waits_pending

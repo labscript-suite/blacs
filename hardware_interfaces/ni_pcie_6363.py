@@ -720,44 +720,86 @@ class WaitMonitorWorker(subproc_utils.Process):
                 logger.error('An exception happened:\n %s'%message)
                 self.to_parent.put(['error', message])
         self.to_parent.put(['done',None])
-        
-    def daqmx_read(self, wait_table):
+    
+    def read_one_half_period(self, timeout, readarray = numpy.empty(1)):
+        try:
+            with self.daqlock:
+                self.acquisition_task.ReadCounterF64(1, timeout, readarray, len(readarray), ctypes.c_long(1), None)
+                self.half_periods.append(readarray[0])
+            return readarray[0]
+        except Exception:
+            if self.abort:
+                raise
+            # otherwise, it's a timeout:
+            return None
+    
+    def wait_for_edge(self, timeout=None):
+        if timeout is None:
+            while True:
+                half_period = self.read_one_half_period(1)
+                if half_period is not None:
+                    return half_period
+        else:
+            return self.read_one_half_period(timeout)
+                
+    def daqmx_read(self):
         logger = logging.getLogger('BLACS.%s.wait_monitor.read_thread'%self.device_name)
         logger.info('Starting')
+        try:
+            # Wait for the end of the first pulse indicating the start of the experiment:
+            current_time = pulse_width = self.wait_for_edge()
+            # alright, we're now a short way into the experiment.
+            for wait in self.wait_table:
+                # How long until this wait should time out?
+                timeout = wait['time'] + wait['timeout'] - current_time
+                timeout = max(timeout, 0) # ensure non-negative
+                # Wait that long for the next pulse:
+                half_period = self.wait_for_edge(timeout)
+                # Did the wait finish of its own accord?
+                if half_period is not None:
+                    # It did, we are now at the end of that wait:
+                    current_time = wait['time']
+                    # Wait for the end of the pulse:
+                    current_time += self.wait_for_edge()
+                else:
+                    # It timed out. Better trigger the clock to resume!.
+                    self.send_resume_trigger(pulse_width)
+                    # Wait for it to respond to that:
+                    self.wait_for_edge()
+                    # Alright, *now* we're at the end of the wait.
+                    current_time = wait['time']
+                    # And wait for the end of the pulse:
+                    current_time += self.wait_for_edge()
+
+            # Inform any interested parties that waits have all finished:
+            self.all_waits_finished.post(self.h5_file)
+        except Exception:
+            if self.abort:
+                return
+            else:
+                raise
+    
+    def send_resume_trigger(self, pulse_width):
+        written = uint8()
+        # go high:
+        self.timeout_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,numpy.ones(1),byref(written),None)
+        assert written == 1
+        # Wait however long we observed the first pulse of the experiment to be:
+        time.sleep(pulse_width)
+        # go low:
+        self.timeout_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,numpy.zeros(1),byref(written),None)
+        assert written == 1
         
-        numsampsperchan = 1
-        readarray = numpy.empty(numsampsperchan)
-        timeout = 1
-        i = 0  
-        while i < len(wait_table) -1:
-            with self.daqlock:
-                logger.debug('Reading data from counter')
-                try:
-                    error = retcode = task.ReadCounterF64(numsampsperchan, timeout, readarray, len(readarray), 
-                                                          ctypes.c_long(numsampsperchan), None)
-                    print i, readarray
-                except Exception as e:
-                    logger.error('acquisition error: %s' %str(e))
-                    if is_a_timeout: #todo
-                        continue
-                    elif self.abort:
-                        return
-                    else:
-                        message = traceback.format_exc()
-                        logger.error('An exception happened:\n %s'%message)
-                        self.to_parent.put(['error', message])
-                        return
-                i += 1
-        self.all_waits_finished.post(self.h5_file)
-                
     def stop_task(self):
         self.logger.debug('stop_task')
         with self.daqlock:
             self.logger.debug('stop_task got daqlock')
             if self.task_running:
                 self.task_running = False
-                self.task.StopTask()
-                self.task.ClearTask()
+                self.acquisition_task.StopTask()
+                self.acquisition_task.ClearTask()
+                self.timeout_task.StopTask()
+                self.timeout_task.ClearTask()
         self.logger.debug('finished stop_task')
         
     def transition_to_buffered(self,h5file,device_name):
@@ -770,12 +812,14 @@ class WaitMonitorWorker(subproc_utils.Process):
             if len(dataset) == 0:
                 # There are no waits. Do nothing.
                 self.logger.debug('There are no waits, not transitioning to buffered')
+                self.waits_in_use = False
                 return
+            self.waits_in_use = True
             acquisition_device = dataset.attrs['wait_monitor_acquisition_device']
             acquisition_connection = dataset.attrs['wait_monitor_acquisition_connection']
             timeout_device = dataset.attrs['wait_monitor_timeout_device']
-            timeout_connection = dataset.attrs['wait_monitor_acquisition_connection']
-            wait_table = dataset[:]
+            timeout_connection = dataset.attrs['wait_monitor_timeout_connection']
+            self.wait_table = dataset[:]
         # Only do anything if we are in fact the wait_monitor device:
         if timeout_device == device_name or acquisition_device == device_name:
             if not timeout_device == device_name and acquisition_device == device_name:
@@ -784,17 +828,19 @@ class WaitMonitorWorker(subproc_utils.Process):
             
             # The counter acquisition task:
             self.acquisition_task = Task()
-            acquisition_chan = '/'.join(self.MAX_name,acquisition_connection)
+            acquisition_chan = '/'.join([self.MAX_name,acquisition_connection])
             self.acquisition_task.CreateCISemiPeriodChan(acquisition_chan, '', 100e-9, 200, DAQmx_Val_Seconds, "")    
             self.acquisition_task.CfgImplicitTiming(DAQmx_Val_ContSamps, 1000)
             self.acquisition_task.StartTask()
             # The timeout task:
             self.timeout_task = Task()
-            timeout_chan = '/'.join(self.MAX_name,timeout_connection)
+            timeout_chan = '/'.join([self.MAX_name,timeout_connection])
             self.timeout_task.CreateDOChan(timeout_chan,"",DAQmx_Val_ChanForAllLines)
             self.task_running = True
                 
-            self.read_thread = threading.Thread(self.daqmx_read)
+            # An array to store the results of counter acquisition:
+            self.half_periods = []
+            self.read_thread = threading.Thread(target=self.daqmx_read)
             # Not a daemon thread, as it implements wait timeouts - we need it to stay alive if other things die.
             self.read_thread.start()
             self.logger.debug('finished transition to buffered')
@@ -808,6 +854,27 @@ class WaitMonitorWorker(subproc_utils.Process):
         self.logger.info('transitioning to static, task stopped')
         # save the data acquired to the h5 file
         if not abort:
+            if self.waits_in_use:
+                # Let's work out how long the waits were. The absolute times of each edge on the wait
+                # monitor were:
+                edge_times = numpy.cumsum(self.half_periods)
+                # Now there was also a rising edge at t=0 that we didn't measure:
+                edge_times = numpy.insert(edge_times,0,0)
+                # Ok, and the even-indexed ones of these were rising edges.
+                rising_edge_times = edge_times[::2]
+                # Now what were the times between rising edges?
+                periods = numpy.diff(rising_edge_times)
+                # How does this compare to how long we expected there to be between the start
+                # of the experiment and the first wait, and then between each pair of waits?
+                # The difference will give us the waits' durations.
+                resume_times = self.wait_table['time']
+                # Again, include the start of the experiment, t=0:
+                resume_times =  numpy.insert(resume_times,0,0)
+                run_periods = numpy.diff(resume_times)
+                wait_durations = periods - run_periods
+                waits_timed_out = wait_durations > self.wait_table['timeout']
+                print 'wait durations:', wait_durations
+                print 'timeouts:', waits_timed_out
             with h5py.File(self.h5_file,'a') as hdf5_file:
                 # Work out how long the waits were, save em, post an event saying so            
                 pass

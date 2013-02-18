@@ -24,7 +24,6 @@ if __name__ == "__main__":
     import socket
     import Queue    
     import ctypes
-    from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
     splash.update_text('Importing gtk/numpy/h5py...')
     import gtk
@@ -355,6 +354,7 @@ if __name__ == "__main__":
                         new_file['/'].copy(old_file['/globals'],"globals")
                         new_file['/'].copy(old_file['/connection table'],"connection table")
                         new_file['/'].copy(old_file['/labscriptlib'],"labscriptlib")
+                        new_file['/'].copy(old_file['/waits'],"waits")
                         for name in old_file.attrs:
                             new_file.attrs[name] = old_file.attrs[name]
             except Exception as e:
@@ -406,9 +406,7 @@ if __name__ == "__main__":
                 self.filewatcher.stop()
                 self.settings.close()
                 self.notifications.close_all()
-                http_server.shutdown()
-                http_server.server_close()
-                http_server.socket.close()
+                experiment_server.shutdown()
                 
                 gobject.idle_add(self.on_save_exit)
                 
@@ -870,14 +868,8 @@ if __name__ == "__main__":
                 self.server_is_not_responding.hide()
                 self.analysis_error.hide()
                 
-    class RequestHandler(BaseHTTPRequestHandler):
-        def do_POST(self):
-            self.send_response(200)
-            self.end_headers()
-            ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
-            length = int(self.headers.getheader('content-length'))
-            postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
-            h5_filepath =  postvars['filepath'][0]
+    class ExperimentServer(ZMQServer):
+        def handler(self, h5_filepath):
             with gtk.gdk.lock:
                 # Convert path to local slashes and shared drive prefix:
                 shared_drive_prefix = app.exp_config.get('paths','shared_drive')     
@@ -885,8 +877,7 @@ if __name__ == "__main__":
                 logger.info('local filepath: %s'%h5_filepath)
                 message = process_request(h5_filepath)
             logger.info('Request handler: %s ' % message.strip())
-            self.wfile.write(message)
-            self.wfile.close()
+            return message
 
     def new_rep_name(h5_filepath):
         basename = os.path.basename(h5_filepath).split('.h5')[0]
@@ -977,11 +968,8 @@ if __name__ == "__main__":
     gtk.settings_get_default().props.gtk_button_images = True
     gtk.rc_parse('blacs.gtkrc')
     
-    splash.update_text('Starting HTTP server for the queue...')
-    http_server = HTTPServer(('', port),RequestHandler)
-    serverthread = threading.Thread(target = http_server.serve_forever)
-    serverthread.daemon = True
-    serverthread.start()
+    splash.update_text('Starting web server for the queue...')
+    experiment_server = ExperimentServer(port)
     splash.update_text('Done!')
     
     app.window.maximize()            
