@@ -344,6 +344,7 @@ class PulseblasterWorker(Worker):
         self.smart_cache['ready_to_go'] = False
         
     def program_buffered(self,h5file,initial_values,fresh):
+        self.h5file = h5file
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/%s'%self.device_name]
             # Program the DDS registers:
@@ -419,7 +420,7 @@ class PulseblasterWorker(Worker):
     def check_status(self):
         if self.waits_in_use:
             try:
-                self.all_waits_finished.wait(timeout=0)
+                self.all_waits_finished.wait(self.h5file, timeout=0)
             except subproc_utils.TimeoutError:
                 all_waits_finished = False
         else:

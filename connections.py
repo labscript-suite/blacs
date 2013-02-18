@@ -11,6 +11,9 @@ class ConnectionTable(object):
         with h5py.File(h5file,'r') as hdf5_file:
             try:
                 table = hdf5_file['connection table']
+            except:
+                raise
+            try:
                 if len(table):
                     self.table = np.array(table)
                 else:
@@ -18,7 +21,10 @@ class ConnectionTable(object):
                 for row in self.table:
                     if row[3] == "None":
                         self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],self.table)
-                self.master_pseudoclock = table.attrs['master_pseudoclock']
+                try:
+                    self.master_pseudoclock = table.attrs['master_pseudoclock']
+                except:
+                    self.master_pseudoclock = None
             except:
                 self.logger.error('Unable to get connection table  %s'%h5file)
                 raise

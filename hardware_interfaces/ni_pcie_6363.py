@@ -147,6 +147,10 @@ class ni_pcie_6363(Tab):
         self.do_after('leave_program_buffered',notify_queue)
     
     def leave_program_buffered(self,notify_queue,_results):
+        if _results is None:
+            # The worker process failed and may be in an inconsistent state,
+            # better raise a fatal exception so that it cannot continue without a restart:
+            raise Exception('Transition to buffered failed')
         # The final values of the run, to update the GUI with at the
         # end of the run:
         self.final_analog_values, self.final_digital_values = _results
@@ -157,6 +161,7 @@ class ni_pcie_6363(Tab):
     def abort_buffered(self):
         self.static_mode = True
         self.queue_work('transition_to_static',abort=True)
+        self.do_after('leave_transition_to_static',None)
         
     @define_state        
     def transition_to_static(self,notify_queue):
@@ -169,7 +174,11 @@ class ni_pcie_6363(Tab):
         for channel, state in self.final_digital_values.items():
             self.digital_outs_by_channel[channel].set_state(state,program=False)
             
-    def leave_transition_to_static(self,notify_queue,_results):    
+    def leave_transition_to_static(self,notify_queue,_results):
+        if _results is None:
+            # The worker process failed and may be in an inconsistent state,
+            # better raise a fatal exception so that it cannot continue without a restart:
+            raise Exception('Transition to static failed')
         # Tell the queue manager that we're done:
         if notify_queue is not None:
             notify_queue.put(self.device_name)
@@ -194,9 +203,12 @@ class NiPCIe6363Worker(Worker):
         
     def init(self):
         # Start the data acquisition subprocess:
-        self.acquisition_worker = Worker2()
-        self.to_child, self.from_child = self.acquisition_worker.start(self.acq_args)
-        
+
+        self.acquisition_worker = AcquisitionWorker()
+        self.wait_monitor_worker = WaitMonitorWorker()
+        self.to_acq_child, self.from_acq_child = self.acquisition_worker.start(self.acq_args)
+        self.to_wait_child, self.from_wait_child = self.wait_monitor_worker.start(self.acq_args)
+
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
@@ -239,9 +251,13 @@ class NiPCIe6363Worker(Worker):
         self.ao_task.ClearTask()
         self.do_task.StopTask()
         self.do_task.ClearTask()
-        # Kill the acquisition subprocess:
-        self.to_child.put(["shutdown"])
-        result, message = self.from_child.get()
+        # Kill the acquisition and wait monitor subprocesses:
+        self.to_acq_child.put(["shutdown", None])
+        result, message = self.from_acq_child.get()
+        if result == 'error':
+            raise Exception(message)
+        self.to_wait_child.put(["shutdown", None])
+        result, message = self.from_wait_child.get()
         if result == 'error':
             raise Exception(message)
             
@@ -251,11 +267,7 @@ class NiPCIe6363Worker(Worker):
         self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
         self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
     
-    def program_buffered(self,h5file):        
-        self.to_child.put(["transition to buffered",h5file,self.device_name])
-        result, message = self.from_child.get()
-        if result == 'error':
-            raise Exception(message)
+    def program_buffered(self,h5file):
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/'][self.device_name]
             clock_terminal = group.attrs['clock_terminal']
@@ -308,8 +320,16 @@ class NiPCIe6363Worker(Worker):
                 self.do_task.StopTask()
                 self.do_task.ClearTask()
                 final_digital_values = {}
-            
-            return final_analog_values, final_digital_values
+        # Tell the child processes to transition to buffered:
+        self.to_acq_child.put(["transition to buffered",h5file,self.device_name])
+        result, message = self.from_acq_child.get()
+        if result == 'error':
+            raise Exception(message)
+        self.to_wait_child.put(["transition to buffered",(h5file,self.device_name)])
+        result, message = self.from_wait_child.get()
+        if result == 'error':
+            raise Exception(message)
+        return final_analog_values, final_digital_values
             
     def transition_to_static(self,abort=False):
         if not abort:
@@ -330,20 +350,29 @@ class NiPCIe6363Worker(Worker):
             # Reprogram the initial states:
             self.program_static(self.ao_data, self.do_data)
             
-        self.to_child.put(["transition to static",(self.device_name,abort)])
-        result,message = self.from_child.get()
+        self.to_acq_child.put(["transition to static",(self.device_name,abort)])
+        result,message = self.from_acq_child.get()
         if result == 'error':
             raise Exception(message)
+        self.to_wait_child.put(["transition to static",(self.device_name,abort)])
+        result,message = self.from_wait_child.get()
+        if result == 'error':
+            raise Exception(message)
+        # Indicate success to the parent:
+        return True
         
 # Worker class for AI input:
-class Worker2(subproc_utils.Process):
+class AcquisitionWorker(subproc_utils.Process):
     def run(self, args):
         exec 'import traceback' in globals()
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
-        
+
         self.device_name, self.MAX_name = args
+        
+        from setup_logging import setup_logging
+        setup_logging()
         self.logger = logging.getLogger('BLACS.%s.acquisition'%self.device_name)
         self.task_running = False
         self.daqlock = threading.Condition()
@@ -542,14 +571,13 @@ class Worker2(subproc_utils.Process):
         # read channels, acquisition rate, etc from H5 file
         h5_chnls = []
         with h5py.File(h5file,'r') as hdf5_file:
-            try:
-                group =  hdf5_file['/devices/'+device_name]
-                self.clock_terminal = group.attrs['clock_terminal']
+            group =  hdf5_file['/devices/'+device_name]
+            self.clock_terminal = group.attrs['clock_terminal']
+            if 'analog_in_channels' in group.attrs:
                 h5_chnls = group.attrs['analog_in_channels'].split(', ')
                 self.buffered_rate = float(group.attrs['acquisition_rate'])
-            except:
-                self.logger.error("couldn't get the channel list from h5 file. Skipping...")
-        
+            else:
+               self.logger.debug("no input channels")
         # combine static channels with h5 channels (using a set to avoid duplicates)
         self.buffered_channels = set(h5_chnls)
         self.buffered_channels.update(self.channels)
@@ -648,18 +676,22 @@ class Worker2(subproc_utils.Process):
 class WaitMonitorWorker(subproc_utils.Process):
     def run(self, args):
         exec 'import traceback' in globals()
+        exec 'import ctypes' in globals()
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         
         self.device_name, self.MAX_name = args
+        
+        from setup_logging import setup_logging
+        setup_logging()
         self.logger = logging.getLogger('BLACS.%s.wait_monitor'%self.device_name)
         self.task_running = False
         self.daqlock = threading.Lock() # not sure if needed, access should be serialised already
         self.h5_file = None
         self.task = None
         self.abort = False
-
+        self.all_waits_finished = subproc_utils.Event('all_waits_finished',type='post')
         self.mainloop()
         
     def mainloop(self):
@@ -689,14 +721,21 @@ class WaitMonitorWorker(subproc_utils.Process):
                 self.to_parent.put(['error', message])
         self.to_parent.put(['done',None])
         
-    def daqmx_read(self):
+    def daqmx_read(self, wait_table):
         logger = logging.getLogger('BLACS.%s.wait_monitor.read_thread'%self.device_name)
         logger.info('Starting')
-        while True:
+        
+        numsampsperchan = 1
+        readarray = numpy.empty(numsampsperchan)
+        timeout = 1
+        i = 0  
+        while i < len(wait_table) -1:
             with self.daqlock:
                 logger.debug('Reading data from counter')
                 try:
-                    error = self.task.ReadAnalogF64(self.samples_per_channel,acquisition_timeout,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
+                    error = retcode = task.ReadCounterF64(numsampsperchan, timeout, readarray, len(readarray), 
+                                                          ctypes.c_long(numsampsperchan), None)
+                    print i, readarray
                 except Exception as e:
                     logger.error('acquisition error: %s' %str(e))
                     if is_a_timeout: #todo
@@ -708,7 +747,9 @@ class WaitMonitorWorker(subproc_utils.Process):
                         logger.error('An exception happened:\n %s'%message)
                         self.to_parent.put(['error', message])
                         return
-            
+                i += 1
+        self.all_waits_finished.post(self.h5_file)
+                
     def stop_task(self):
         self.logger.debug('stop_task')
         with self.daqlock:
@@ -725,26 +766,38 @@ class WaitMonitorWorker(subproc_utils.Process):
         self.h5_file = h5file
         self.logger.debug('setup_task')
         with h5py.File(h5file, 'r') as hdf5_file:
-            dataset = hdf5_file('waits')
+            dataset = hdf5_file['waits']
+            if len(dataset) == 0:
+                # There are no waits. Do nothing.
+                self.logger.debug('There are no waits, not transitioning to buffered')
+                return
             acquisition_device = dataset.attrs['wait_monitor_acquisition_device']
             acquisition_connection = dataset.attrs['wait_monitor_acquisition_connection']
             timeout_device = dataset.attrs['wait_monitor_timeout_device']
             timeout_connection = dataset.attrs['wait_monitor_acquisition_connection']
             wait_table = dataset[:]
+        # Only do anything if we are in fact the wait_monitor device:
         if timeout_device == device_name or acquisition_device == device_name:
             if not timeout_device == device_name and acquisition_device == device_name:
                 raise NotImplementedError("ni-PCIe-6363 worker must be both the wait monitor timeout device and acquisition device." +
                                           "Being only one could be implemented if there's a need for it, but it isn't at the moment")
+            
+            # The counter acquisition task:
             self.acquisition_task = Task()
-            self.timeout_task = Task()
-            # configure task
+            acquisition_chan = '/'.join(self.MAX_name,acquisition_connection)
+            self.acquisition_task.CreateCISemiPeriodChan(acquisition_chan, '', 100e-9, 200, DAQmx_Val_Seconds, "")    
+            self.acquisition_task.CfgImplicitTiming(DAQmx_Val_ContSamps, 1000)
             self.acquisition_task.StartTask()
+            # The timeout task:
+            self.timeout_task = Task()
+            timeout_chan = '/'.join(self.MAX_name,timeout_connection)
+            self.timeout_task.CreateDOChan(timeout_chan,"",DAQmx_Val_ChanForAllLines)
             self.task_running = True
                 
-        self.read_thread = threading.Thread(self.daqmx_read)
-        # Not a daemon thread, as it implements wait timeouts - we need it to stay alive if other things die.
-        self.read_thread.start()
-        self.logger.debug('finished transition to buffered')
+            self.read_thread = threading.Thread(self.daqmx_read)
+            # Not a daemon thread, as it implements wait timeouts - we need it to stay alive if other things die.
+            self.read_thread.start()
+            self.logger.debug('finished transition to buffered')
     
     def transition_to_static(self,device_name,abort):
         self.logger.debug('transition_to_static')
