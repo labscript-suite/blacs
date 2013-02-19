@@ -756,39 +756,40 @@ class WaitMonitorWorker(subproc_utils.Process):
     def daqmx_read(self):
         logger = logging.getLogger('BLACS.%s.wait_monitor.read_thread'%self.device_name)
         logger.info('Starting')
-        try:
-            # Wait for the end of the first pulse indicating the start of the experiment:
-            current_time = pulse_width = self.wait_for_edge()
-            # alright, we're now a short way into the experiment.
-            for wait in self.wait_table:
-                # How long until this wait should time out?
-                timeout = wait['time'] + wait['timeout'] - current_time
-                timeout = max(timeout, 0) # ensure non-negative
-                # Wait that long for the next pulse:
-                half_period = self.wait_for_edge(timeout)
-                # Did the wait finish of its own accord?
-                if half_period is not None:
-                    # It did, we are now at the end of that wait:
-                    current_time = wait['time']
-                    # Wait for the end of the pulse:
-                    current_time += self.wait_for_edge()
-                else:
-                    # It timed out. Better trigger the clock to resume!.
-                    self.send_resume_trigger(pulse_width)
-                    # Wait for it to respond to that:
-                    self.wait_for_edge()
-                    # Alright, *now* we're at the end of the wait.
-                    current_time = wait['time']
-                    # And wait for the end of the pulse:
-                    current_time += self.wait_for_edge()
+        with self.kill_lock:
+            try:
+                # Wait for the end of the first pulse indicating the start of the experiment:
+                current_time = pulse_width = self.wait_for_edge()
+                # alright, we're now a short way into the experiment.
+                for wait in self.wait_table:
+                    # How long until this wait should time out?
+                    timeout = wait['time'] + wait['timeout'] - current_time
+                    timeout = max(timeout, 0) # ensure non-negative
+                    # Wait that long for the next pulse:
+                    half_period = self.wait_for_edge(timeout)
+                    # Did the wait finish of its own accord?
+                    if half_period is not None:
+                        # It did, we are now at the end of that wait:
+                        current_time = wait['time']
+                        # Wait for the end of the pulse:
+                        current_time += self.wait_for_edge()
+                    else:
+                        # It timed out. Better trigger the clock to resume!.
+                        self.send_resume_trigger(pulse_width)
+                        # Wait for it to respond to that:
+                        self.wait_for_edge()
+                        # Alright, *now* we're at the end of the wait.
+                        current_time = wait['time']
+                        # And wait for the end of the pulse:
+                        current_time += self.wait_for_edge()
 
-            # Inform any interested parties that waits have all finished:
-            self.all_waits_finished.post(self.h5_file)
-        except Exception:
-            if self.abort:
-                return
-            else:
-                raise
+                # Inform any interested parties that waits have all finished:
+                self.all_waits_finished.post(self.h5_file)
+            except Exception:
+                if self.abort:
+                    return
+                else:
+                    raise
     
     def send_resume_trigger(self, pulse_width):
         written = int32()
