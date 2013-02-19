@@ -660,7 +660,7 @@ class AcquisitionWorker(subproc_utils.Process):
             except:
                 # Group doesn't exist yet, create it:
                 measurements = hdf5_file.create_group('/data/traces')
-            for connection,label,start_time,end_time,wait_name,scale_factor,units in acquisitions:
+            for connection,label,start_time,end_time,wait_label,scale_factor,units in acquisitions:
                 start_index = numpy.ceil(self.buffered_rate*(start_time-self.ai_start_delay))
                 end_index = numpy.floor(self.buffered_rate*(end_time-self.ai_start_delay))
                 # numpy.ceil does what we want above, but float errors can miss the equality
