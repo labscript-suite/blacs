@@ -85,6 +85,13 @@ class pineblaster(Tab):
         # transitioning to buffered:
         notify_queue.put(self.device_name)
     
+    @define_state
+    def abort_buffered(self):
+        self.queue_work('abort')
+        self.checkbutton_fresh.set_active(False) 
+        self.checkbutton_fresh.hide()
+        self.checkbutton_fresh.toggled()
+        
 class PineBlasterWorker(Worker):
     def init(self):
         global h5py; import h5_lock, h5py
@@ -95,9 +102,10 @@ class PineBlasterWorker(Worker):
     def initialise_pineblaster(self, name, usbport):
         self.device_name = name
         self.pineblaster = serial.Serial(usbport, 115200, timeout=1)
+        # Device has a finite startup time:
+        time.sleep(5)
         self.pineblaster.write('hello\r\n')
         response = self.pineblaster.readline()
-        print repr(response)
         if response == 'hello\r\n':
             return
         elif response:
@@ -127,6 +135,7 @@ class PineBlasterWorker(Worker):
                 self.smart_cache.append(None)
             # Only program instructions that differ from what's in the smart cache:
             if self.smart_cache[i] != instruction:
+                print 'set %d %d %d\r\n'%(i, instruction['period'], instruction['reps'])
                 self.pineblaster.write('set %d %d %d\r\n'%(i, instruction['period'], instruction['reps']))
                 response = self.pineblaster.readline()
                 assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
@@ -137,24 +146,24 @@ class PineBlasterWorker(Worker):
             response = self.pineblaster.readline()
             assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
             
-        def start(self):
-            # Start in software:
-            self.pineblaster.write('start\r\n')
-            response = self.pineblaster.readline()
-            assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
-            
-        def wait_until_done(self):
-            # Wait until the pineblaster says it's done:
-            response = self.pineblaster.readline()
-            assert response == 'done\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
-            
-        def abort(self):
-            self.pineblaster.write('restart\r\n')
-            time.sleep(5)
-            
-            
-            
-            
-            
-            
+    def start(self):
+        # Start in software:
+        self.pineblaster.write('start\r\n')
+        response = self.pineblaster.readline()
+        assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
+        
+    def wait_until_done(self):
+        # Wait until the pineblaster says it's done:
+        response = self.pineblaster.readline()
+        assert response == 'done\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
+        
+    def abort(self):
+        self.pineblaster.write('restart\r\n')
+        time.sleep(5)
+        
+        
+        
+        
+        
+        
             
