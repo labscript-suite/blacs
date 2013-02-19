@@ -91,7 +91,34 @@ class pineblaster(Tab):
         self.checkbutton_fresh.set_active(False) 
         self.checkbutton_fresh.hide()
         self.checkbutton_fresh.toggled()
+    
+    @define_state
+    def transition_to_static(self,notify_queue):
+        self.static_mode = True
+        self.queue_work('transition_to_static')
+        self.do_after('leave_transition_to_static', notify_queue)
         
+    def leave_transition_to_static(self,notify_queue, _results):
+        self.static_mode = True
+        self.digital_outs[0].set_state(0)
+        notify_queue.put(self.device_name)
+    
+    @define_state
+    def start_run(self, notify_queue):
+        self.queue_work('start_run')
+        self.statemachine_timeout_add(1,self.status_monitor, notify_queue)
+    
+    @define_state
+    def status_monitor(self, notify_queue):
+        self.queue_work('status_monitor')
+        self.do_after('leave_status_monitor', notify_queue)
+        
+    def leave_status_monitor(self, notify_queue, _results):
+        if _results:
+            # experiment is over:
+            self.timeouts.remove(self.status_monitor)
+            notify_queue.put(self.device_name)
+            
 class PineBlasterWorker(Worker):
     def init(self):
         global h5py; import h5_lock, h5py
@@ -128,34 +155,45 @@ class PineBlasterWorker(Worker):
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/%s'%self.device_name]
             pulse_program = group['PULSE_PROGRAM'][:]
-            is_master_pseudoclock = group.attrs['is_master_pseudoclock']
+            self.is_master_pseudoclock = group.attrs['is_master_pseudoclock']
         for i, instruction in enumerate(pulse_program):
             if i == len(self.smart_cache):
                 # Pad the smart cache out to be as long as the program:
                 self.smart_cache.append(None)
             # Only program instructions that differ from what's in the smart cache:
             if self.smart_cache[i] != instruction:
-                print 'set %d %d %d\r\n'%(i, instruction['period'], instruction['reps'])
                 self.pineblaster.write('set %d %d %d\r\n'%(i, instruction['period'], instruction['reps']))
                 response = self.pineblaster.readline()
                 assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
                 self.smart_cache[i] = instruction
-        if not is_master_pseudoclock:
+        if not self.is_master_pseudoclock:
             # Get ready for a hardware trigger:
             self.pineblaster.write('hwstart\r\n')
             response = self.pineblaster.readline()
             assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
             
-    def start(self):
+    def start_run(self):
         # Start in software:
         self.pineblaster.write('start\r\n')
         response = self.pineblaster.readline()
         assert response == 'ok\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
-        
-    def wait_until_done(self):
-        # Wait until the pineblaster says it's done:
+    
+    def status_monitor(self):
+        # Wait to see if it's done within the timeout:
         response = self.pineblaster.readline()
-        assert response == 'done\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
+        if response:
+            assert response == 'done\r\n'
+            return True
+        return False
+        
+    def transition_to_static(self):
+        # Wait until the pineblaster says it's done:
+        if not self.is_master_pseudoclock:
+            # If we're the master pseudoclock then this already happened
+            # in status_monitor, so we don't need to do it again
+            response = self.pineblaster.readline()
+            assert response == 'done\r\n', 'PineBlaster said \'%s\', expected \'ok\''%repr(response)
+            print 'done!'
         
     def abort(self):
         self.pineblaster.write('restart\r\n')
