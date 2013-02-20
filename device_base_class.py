@@ -217,10 +217,14 @@ class DeviceTab(Tab):
         widget = QWidget()
         toolpalettegroup = ToolPaletteGroup(widget)
         for arg in args:
-            if type(arg) == type(()):
+            # A default sort algorithm that just returns the object (this is equivalent to not specifying the sort gorithm)
+            sort_algorithm = lambda x: x
+            if type(arg) == type(()) and len(arg) > 1 and type(arg[1]) == type({}) and len(arg[1].keys()) > 0:
                 # we have a name, use it!
                 name = arg[0]
                 widget_dict = arg[1]
+                if len(arg) > 2:
+                    sort_algorithm = arg[2]
             else:
                 # ignore things that are not dictionaries or empty dictionaries
                 if type(arg) != type({}) or len(arg.keys()) < 1:
@@ -241,7 +245,7 @@ class DeviceTab(Tab):
             else:
                 toolpalette = toolpalettegroup.append_new_palette(name)
                 
-            for channel in sorted(widget_dict.keys()):
+            for channel in sorted(widget_dict.keys(),key=sort_algorithm):
                 toolpalette.addWidget(widget_dict[channel])
          
         # Add the widget containing the toolpalettegroup to the tab layout
@@ -413,7 +417,7 @@ class DeviceTab(Tab):
     @define_state(MODE_TRANSITION_TO_BUFFERED,False)
     def abort_transition_to_buffered(self):
         abort_success = yield(self.queue_work(self._primary_worker,'abort_transition_to_buffered'))
-        if abort:
+        if abort_success:
             self.mode = MODE_MANUAL
             self.program_device()
         else:
@@ -470,6 +474,7 @@ class DeviceWorker(Worker):
         # import module; self.module = module. Up to you, I prefer
         # the former.
         global serial; import serial
+        global time; import time
     
     def initialise(self):
         pass
@@ -478,13 +483,20 @@ class DeviceWorker(Worker):
         pass
         
     def program_manual(self,front_panel_values):
-        pass
+        for channel,value in front_panel_values.items():
+            if type(value) != type(True):
+                front_panel_values[channel] += 0.001
+        return front_panel_values
         
     def check_remote_values(self):
         pass
         
     def transition_to_buffered(self,h5file,front_panel_values,refresh):
-        pass
+        time.sleep(3)
+        for channel,value in front_panel_values.items():
+            if type(value) != type(True):
+                front_panel_values[channel] += 0.003
+        return front_panel_values
         
     def abort_transition_to_buffered(self):
         pass
@@ -493,7 +505,7 @@ class DeviceWorker(Worker):
         pass
         
     def transition_to_manual(self):
-        pass
+        return True
         
             
 if __name__ == '__main__':
@@ -546,14 +558,27 @@ if __name__ == '__main__':
             # Create widgets for output objects and auto place them in the UI
             # The * here unpacks the returned tuple into sequential arguments
             # this is equivalent to called a,b,c = self.auto_create_widgets(); self.auto_place_widgets(a,b,c)
-            a,b,c = self.auto_create_widgets()
-            self.auto_place_widgets(a,b,c)
+            dds_widgets,ao_widgets,do_widgets = self.auto_create_widgets()
+            
+            def sort(channel):
+                port,line = channel.replace('port','').replace('line','').split('/')
+                port,line = int(port),int(line)
+                return '%02d/%02d'%(port,line)
+            
+            self.auto_place_widgets(("DDS Outputs",dds_widgets),("Analog Outputs",ao_widgets),("Digital Outputs - Port 0",do_widgets,sort))
             
             # Set the primary worker
             self.create_worker("my_worker_name",DeviceWorker,{})
             self.primary_worker = "my_worker_name"
     
-    
+            # Create buttons to test things!
+            button1 = QPushButton("Transition to Buffered")
+            from Queue import Queue
+            button1.clicked.connect(lambda: self.transition_to_buffered('',Queue()))
+            self.get_tab_layout().addWidget(button1)
+            button2 = QPushButton("Transition to Manual")
+            button2.clicked.connect(lambda: self.transition_to_manual(Queue()))
+            self.get_tab_layout().addWidget(button2)
     
     connection_table = ConnectionTable(r'example_connection_table.h5')
     
