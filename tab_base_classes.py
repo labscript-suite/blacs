@@ -34,15 +34,15 @@ MODE_BUFFERED = 8
       
 class StateQueue(object):
     def __init__(self):
-        self.list = []
+        self.list_of_states = []
         self.last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
-        self.get_blocking_queue = NormalQueue()
-    
+        self.get_blocking_queue = NormalQueue()  
+            
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)   
     def put(self,allowed_states,queue_state_indefinitely,delete_stale_states,data):
-        self.list.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
+        self.list_of_states.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
         # if this state is one the get command is waiting for, notify it!
         if self.last_requested_state and allowed_states&self.last_requested_state:
             self.get_blocking_queue.put('new item')
@@ -59,7 +59,7 @@ class StateQueue(object):
         # traverse the list
         delete_index_list = []
         success = False
-        for i,item in enumerate(self.list):
+        for i,item in enumerate(self.list_of_states):
             allowed_states,queue_state_indefinitely,delete_stale_states,data = item
             if allowed_states&state:
                 # We have found one! Remove it from the list
@@ -71,8 +71,8 @@ class StateQueue(object):
                 if delete_stale_states:
                     state_function = data[0]
                     i+=1
-                    while i < len(self.list) and state_function == self.list[i][3][0]:
-                        allowed_states,queue_state_indefinitely,delete_stale_states,data = self.list[i]
+                    while i < len(self.list_of_states) and state_function == self.list_of_states[i][3][0]:
+                        allowed_states,queue_state_indefinitely,delete_stale_states,data = self.list_of_states[i]
                         delete_index_list.append(i)
                         i+=1
                 
@@ -83,11 +83,10 @@ class StateQueue(object):
         
         # do this in reverse order so that the first delete operation doesn't mess up the indices of subsequent ones
         for index in reversed(sorted(delete_index_list)):
-            del self.list[index]
+            del self.list_of_states[index]
             
         if not success:
             data = None
-            
         return success,data    
         
     # this method should not be called in the main thread, because it will block until something is found...
@@ -279,6 +278,8 @@ class Tab(object):
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
         if name == 'GUI':
+            # This is here so that we can display "(GUI)" in the status bar and have the user confident this is actually happening in the GUI,
+            # not in a worker process named GUI
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         to_worker = Queue()
         from_worker = Queue()
@@ -382,7 +383,7 @@ class Tab(object):
             # (albeit doing nothing) that we don't need:
             if self._mainloop_thread.is_alive():
                 worker_data[2].put((False,'quit',None))
-                self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,['_quit',None])
+                self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None])
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:

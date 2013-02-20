@@ -1,4 +1,6 @@
+import logging
 import sys
+import time
 
 from PySide.QtCore import *
 from PySide.QtGui import *
@@ -6,14 +8,13 @@ from PySide.QtUiTools import QUiLoader
 
 from tab_base_classes import Tab, Worker, define_state
 from tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
-from output_classes import AO, DO, DDS
+from hardware_interfaces.output_classes import AO, DO, DDS
 from qtutils.widgets.toolpalette import ToolPaletteGroup
+
 
 class DeviceTab(Tab):
     def __init__(self,notebook,settings,restart=False):
         Tab.__init__(self,notebook,settings,restart)
-        self._settings = settings
-        self._device_name = settings['device_name']
         self._connection_table = settings['connection_table']
         
         # Create the variables we need
@@ -27,6 +28,7 @@ class DeviceTab(Tab):
         self._primary_worker = None
         self._can_check_remote_values = False
         self._changed_radio_buttons = {}
+        self.destroy_complete = False
         
         # Call the initialise GUI function
         self.initialise_GUI()        
@@ -42,8 +44,7 @@ class DeviceTab(Tab):
     
     @define_state(MODE_MANUAL,True)
     def initialise_device(self):
-        pass
-        
+        yield(self.queue_work(self._primary_worker,'initialise'))
         
     @property
     def primary_worker(self):
@@ -53,7 +54,7 @@ class DeviceTab(Tab):
     def primary_worker(self,worker):
         self._primary_worker = worker
     
-    def supports_remote_value_check(self,support)
+    def supports_remote_value_check(self,support):
         self._can_check_remote_values = bool(support)
     
     ############################################################
@@ -123,7 +124,7 @@ class DeviceTab(Tab):
     def create_digital_outputs(self,digital_properties):
         for hardware_name,properties in digital_properties.items():
             # Save the DO object
-            self._DO[hardware_name] = self._create_DO_object(self._device_name,hardware_name,properties)
+            self._DO[hardware_name] = self._create_DO_object(self.device_name,hardware_name,properties)
     
     def _create_DO_object(self,parent_device,hardware_name,properties):
         # Find the connection name
@@ -131,7 +132,7 @@ class DeviceTab(Tab):
         connection_name = device.name if device else '-'
         
         # Instantiate the DO object
-        return DO(hardware_name, connection_name, self.program_device, self._settings)
+        return DO(hardware_name, connection_name, self.program_device, self.settings)
     
     def create_analog_outputs(self,analog_properties):
         for hardware_name,properties in analog_properties.items():                    
@@ -152,7 +153,7 @@ class DeviceTab(Tab):
             calib_params = eval(device.unit_conversion_params)
         
         # Instantiate the AO object
-        return AO(hardware_name, connection_name, self.device_name, self.program_device, self._settings, calib_class, calib_params,
+        return AO(hardware_name, connection_name, self.device_name, self.program_device, self.settings, calib_class, calib_params,
                 properties['base_unit'], properties['min'], properties['max'], properties['step'], properties['decimals'])
             
     def create_dds_outputs(self,dds_properties):
@@ -178,7 +179,7 @@ class DeviceTab(Tab):
             properties.setdefault('args',[])
             properties.setdefault('kwargs',{})
             if hardware_name in self._DO:
-                widgets[hardware_name] = self._DO[hardware_name].create_widget(properties['args'],properties['kwargs'])
+                widgets[hardware_name] = self._DO[hardware_name].create_widget(*properties['args'],**properties['kwargs'])
         
         return widgets
         
@@ -215,20 +216,20 @@ class DeviceTab(Tab):
     def auto_place_widgets(self,*args):
         widget = QWidget()
         toolpalettegroup = ToolPaletteGroup(widget)
-        for arg in *args:
+        for arg in args:
             if type(arg) == type(()):
                 # we have a name, use it!
                 name = arg[0]
                 widget_dict = arg[1]
             else:
                 # ignore things that are not dictionaries or empty dictionaries
-                if if type(arg) != type({}) or len(arg.keys()) < 1:
+                if type(arg) != type({}) or len(arg.keys()) < 1:
                     continue
-                if type(arg[arg.keys()[0]]) == type(AO):
+                if isinstance(self.get_channel(arg.keys()[0]),AO):
                     name = 'Analog Outputs'
-                elif type(arg[arg.keys()[0]]) == type(DO):
+                elif isinstance(self.get_channel(arg.keys()[0]),DO):
                     name = 'Digital Outputs'
-                elif type(arg[arg.keys()[0]]) == type(DDS):
+                elif isinstance(self.get_channel(arg.keys()[0]),DDS):
                     name = 'DDS Outputs'
                 else:
                     # If it isn't DO, DDS or AO, we should forget about them and move on to the next argument
@@ -241,10 +242,11 @@ class DeviceTab(Tab):
                 toolpalette = toolpalettegroup.append_new_palette(name)
                 
             for channel in sorted(widget_dict.keys()):
-                toolpalette.addWidget(widget_dict[key])
-            
+                toolpalette.addWidget(widget_dict[channel])
+         
         # Add the widget containing the toolpalettegroup to the tab layout
         self.get_tab_layout().addWidget(widget)
+        self.get_tab_layout().addItem(QSpacerItem(0,0,QSizePolicy.Minimum,QSizePolicy.MinimumExpanding))
                            
     def get_front_panel_values(self):
         return {channel:item.value for output in [self._AO,self._DO,self._DDS] for channel,item in output.items()}
@@ -261,9 +263,9 @@ class DeviceTab(Tab):
             
     @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)
     def destroy(self):
-        self.queue_work('shutdown')
-        self.destroy_complete = True
+        yield(self.queue_work(self._primary_worker,'shutdown'))
         self.close_tab()
+        self.destroy_complete = True
     
     # Only allow this to be called when we are in MODE_MANUAL and keep it queued up if we are not
     # When pulling out the state from the state queue, we check to see if there is an adjacent state that is more recent, and use that one
@@ -287,16 +289,20 @@ class DeviceTab(Tab):
                 output = self.get_channel(channel)
                 if output is None:
                     raise RuntimeError('The channel %s on device %s is in the last programmed values, but is not in the AO, DO or DDS output store. Something has gone badly wrong!'%(channel,self.device_name))
-                else:
-                    output.set_value(remote_value,program=False)
+                else:                    
+                    # TODO: Only do this if the front panel values match what we asked to program (eg, the user hasn't changed the value since)
+                    if output.value == self._last_programmed_values[channel]:
+                        output.set_value(remote_value,program=False)
             
-            # Update the last_programmed_values            
-            self._last_programmed_values = self.get_front_panel_values()
+                        # Update the last_programmed_values            
+                        self._last_programmed_values[channel] = remote_value
     
     @define_state(MODE_MANUAL,True)
     def check_remote_values(self):
         self._last_remote_values = yield(self.queue_work(self._primary_worker,'check_remote_values'))
-        # TODO: compare to current front panel values and prompt the user if they don't match
+        # compare to current front panel values and prompt the user if they don't match
+        # We compare to the last_programmed values so that it doesn't get confused if the user has changed the value on the front panel
+        # and the program_manual command is still queued up
         
         # If no results were returned, raise an exception so that we don't keep calling this function over and over again, 
         # filling up the text box with the same error, eventually consuming all CPU/memory of the PC
@@ -393,7 +399,7 @@ class DeviceTab(Tab):
     
         self.mode = MODE_TRANSITION_TO_BUFFERED
         # The final values of the run, to update the GUI with at the end of the run:
-        self._final_values = yield(self.queue_work(self._primary_worker,'transition_to_buffered',self.get_front_panel_values(),self._force_full_buffered_reprogram))
+        self._final_values = yield(self.queue_work(self._primary_worker,'transition_to_buffered',h5_file,self.get_front_panel_values(),self._force_full_buffered_reprogram))
         
         # If we get None back, then the worker process did not finish properly
         if self._final_values is None:
@@ -428,7 +434,7 @@ class DeviceTab(Tab):
     def transition_to_manual(self,notify_queue,program=True):
         self.mode = MODE_TRANSITION_TO_MANUAL
         
-        success = yield(self.queue_work(self._primary_worker,'transition_to_static'))
+        success = yield(self.queue_work(self._primary_worker,'transition_to_manual'))
         
         # Update the GUI with the final values of the run:
         for channel, value in self._final_values.items():
@@ -448,4 +454,140 @@ class DeviceTab(Tab):
             
         if program:
             self.program_device()
+
+            
+class DeviceWorker(Worker):
+    def init(self):
+        # You read correctly, this isn't __init__, it's init. It's the
+        # first thing that will be called in the new process. You should
+        # do imports here, define instance variables, that sort of thing. You
+        # shouldn't import the hardware modules at the top of your file,
+        # because then they will be imported in both the parent and
+        # the child processes and wont be cleanly restarted when the subprocess
+        # is restarted. Since we're inside a method call though, you'll
+        # have to use global statements for the module imports, as shown
+        # below. Either that or you can make them instance variables, ie:
+        # import module; self.module = module. Up to you, I prefer
+        # the former.
+        global serial; import serial
     
+    def initialise(self):
+        pass
+        
+    def shutdown(self):
+        pass
+        
+    def program_manual(self,front_panel_values):
+        pass
+        
+    def check_remote_values(self):
+        pass
+        
+    def transition_to_buffered(self,h5file,front_panel_values,refresh):
+        pass
+        
+    def abort_transition_to_buffered(self):
+        pass
+        
+    def abort_buffered(self):
+        pass
+        
+    def transition_to_manual(self):
+        pass
+        
+            
+if __name__ == '__main__':
+    import sys
+    import logging.handlers
+    # Setup logging:
+    logger = logging.getLogger('BLACS')
+    handler = logging.handlers.RotatingFileHandler('BLACS.log', maxBytes=1024**2, backupCount=0)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    if sys.stdout.isatty():
+        terminalhandler = logging.StreamHandler(sys.stdout)
+        terminalhandler.setFormatter(formatter)
+        terminalhandler.setLevel(logging.DEBUG)
+        logger.addHandler(terminalhandler)
+    else:
+        sys.stdout = sys.stderr = open(os.devnull)
+    logger.setLevel(logging.DEBUG)
+    #excepthook.set_logger(logger)
+    logger.info('\n\n===============starting===============\n')
+            
+if __name__ == '__main__':
+    # Test case!
+    
+    from connections import ConnectionTable
+    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    
+    class MyTab(DeviceTab):
+        
+        def initialise_GUI(self):
+            # Create Digital Output Objects
+            do_prop = {}
+            for i in range(32):
+                do_prop['port0/line%d'%i] = {}
+            self.create_digital_outputs(do_prop)
+                
+            # Create Analog Output objects
+            ao_prop = {}
+            for i in range(4):
+                ao_prop['ao%d'%i] = {'base_unit':'V',
+                                     'min':-10.0,
+                                     'max':10.0,
+                                     'step':0.01,
+                                     'decimals':3
+                                    }            
+            self.create_analog_outputs(ao_prop)
+            
+            # Create widgets for output objects and auto place them in the UI
+            # The * here unpacks the returned tuple into sequential arguments
+            # this is equivalent to called a,b,c = self.auto_create_widgets(); self.auto_place_widgets(a,b,c)
+            a,b,c = self.auto_create_widgets()
+            self.auto_place_widgets(a,b,c)
+            
+            # Set the primary worker
+            self.create_worker("my_worker_name",DeviceWorker,{})
+            self.primary_worker = "my_worker_name"
+    
+    
+    
+    connection_table = ConnectionTable(r'example_connection_table.h5')
+    
+    class MyWindow(QWidget):
+        
+        def __init__(self,*args,**kwargs):
+            QWidget.__init__(self,*args,**kwargs)
+            self.are_we_closed = False
+        
+        def closeEvent(self,event):
+            if not self.are_we_closed:        
+                event.ignore()
+                self.my_tab.destroy()
+                self.are_we_closed = True
+                QTimer.singleShot(1000,self.close)
+            else:
+                if not self.my_tab.destroy_complete: 
+                    QTimer.singleShot(1000,self.close)                    
+                else:
+                    event.accept()
+    
+        def add_my_tab(self,tab):
+            self.my_tab = tab
+    
+    app = QApplication(sys.argv)
+    window = MyWindow()
+    layout = QVBoxLayout(window)
+    notebook = DragDropTabWidget()
+    layout.addWidget(notebook)
+    
+    tab1 = MyTab(notebook,settings = {'device_name': 'ni_pcie_6363_0', 'connection_table':connection_table})
+    window.add_my_tab(tab1)
+    window.show()
+    def run():
+        app.exec_()
+        
+    sys.exit(run())

@@ -185,7 +185,7 @@ class AO(object):
         return abs(bound1-bound2)
 
     def create_widget(self,display_name=None, horizontal_alignment=False, parent=None):
-        widget = AnalogOutput(self._hardware_name,self_connection_name,display_name, horizontal_alignment, parent)
+        widget = AnalogOutput(self._hardware_name,self._connection_name,display_name, horizontal_alignment, parent)
         self.add_widget(widget)
         return widget
         
