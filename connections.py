@@ -11,6 +11,9 @@ class ConnectionTable(object):
         with h5py.File(h5file,'r') as hdf5_file:
             try:
                 table = hdf5_file['connection table']
+            except:
+                raise
+            try:
                 if len(table):
                     self.table = np.array(table)
                 else:
@@ -18,11 +21,14 @@ class ConnectionTable(object):
                 for row in self.table:
                     if row[3] == "None":
                         self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],self.table)
-                
+                try:
+                    self.master_pseudoclock = table.attrs['master_pseudoclock']
+                except:
+                    self.master_pseudoclock = None
             except:
                 self.logger.error('Unable to get connection table  %s'%h5file)
                 raise
-                
+    
     def assert_superset(self,other):
         # let's check that we're a superset of the connection table in "other"
         if not isinstance(other,ConnectionTable):
@@ -184,7 +190,7 @@ class Connection(object):
             if v.parent.name == device_name and v.parent_port == parent_port:
                 return v
         
-        # This is done separately to the above iteration for speed.
+        # This is done separately to the above iteration for speed. 
         # We search for all children first, before going down another layer.
         for k,v in self.child_list.items():
             val = v.find_child(device_name,parent_port)

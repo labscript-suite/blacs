@@ -1,6 +1,7 @@
 import gtk
 from output_classes import AO, DO, DDS
 from tab_base_classes import Tab, Worker, define_state
+import subproc_utils
 
 class pulseblaster(Tab):
     # Capabilities
@@ -164,15 +165,15 @@ class pulseblaster(Tab):
     # and updates the front panel widgets!
     @define_state
     def status_monitor(self,notify_queue=None):
-        self.queue_work('pb_read_status')
+        self.queue_work('check_status')
         self.do_after('status_monitor_leave', notify_queue)
         
     def status_monitor_leave(self,notify_queue,_results):
         # When called with a queue, this function writes to the queue
         # when the pulseblaster is waiting. This indicates the end of
         # an experimental run.
-        self.status = _results
-        if notify_queue is not None and self.status['waiting']:
+        self.status, waits_pending = _results
+        if notify_queue is not None and self.status['waiting'] and not waits_pending:
             # Experiment is over. Tell the queue manager about it, then
             # set the status checking timeout back to every 2 seconds
             # with no queue.
@@ -302,6 +303,12 @@ class PulseblasterWorker(Worker):
         self.smart_cache = {'amps0':None,'freqs0':None,'phases0':None,
                             'amps1':None,'freqs1':None,'phases1':None,
                             'pulse_program':None,'ready_to_go':False}
+                            
+        # An event for checking when all waits (if any) have completed, so that
+        # we can tell the difference between a wait and the end of an experiment.
+        # The wait monitor device is expected to post such events, which we'll wait on:
+        self.all_waits_finished = subproc_utils.Event('all_waits_finished')
+        self.waits_pending = False
     
     def initialise_pulseblaster(self, name, pb_num):
         self.device_name = name
@@ -337,6 +344,7 @@ class PulseblasterWorker(Worker):
         self.smart_cache['ready_to_go'] = False
         
     def program_buffered(self,h5file,initial_values,fresh):
+        self.h5file = h5file
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/%s'%self.device_name]
             # Program the DDS registers:
@@ -400,8 +408,20 @@ class PulseblasterWorker(Worker):
                         pb_inst_dds2(*args)
                 pb_stop_programming()
             
+            # Are there waits in use in this experiment? The monitor waiting for the end of
+            # the experiment will need to know:
+            self.waits_pending =  bool(len(hdf5_file['waits']))
+            
             # Now we build a dictionary of the final state to send back to the GUI:
             return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,
                     'freq1':finalfreq1, 'amp1':finalamp1, 'phase1':finalphase1, 'en1':en1,
                     'flags':bin(flags)[2:].rjust(12,'0')[::-1]}
     
+    def check_status(self):
+        if self.waits_pending:
+            try:
+                self.all_waits_finished.wait(self.h5file, timeout=0)
+                self.waits_pending = False
+            except subproc_utils.TimeoutError:
+                pass
+        return pb_read_status(), self.waits_pending
