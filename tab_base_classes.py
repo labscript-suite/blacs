@@ -1,5 +1,5 @@
-from multiprocessing import Process, Queue, Lock
-from Queue import Queue as NormalQueue
+from subproc_utils import Process
+from Queue import Queue as Queue
 import time
 import sys
 import threading
@@ -9,6 +9,7 @@ import logging
 import cgi
 from types import GeneratorType
 
+import subproc_utils
 #import excepthook
 
 from PySide.QtCore import *
@@ -37,7 +38,7 @@ class StateQueue(object):
         self.list_of_states = []
         self.last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
-        self.get_blocking_queue = NormalQueue()  
+        self.get_blocking_queue = Queue()  
             
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)   
@@ -54,7 +55,7 @@ class StateQueue(object):
         # are described in messages in this queue, so let's not keep those messages around anymore.
         # Put another way, we want to block until a new item is added, if we don't find an item in this function
         # So it's best if the queue is empty now!
-        self.get_blocking_queue = NormalQueue()
+        self.get_blocking_queue = Queue()
         
         # traverse the list
         delete_index_list = []
@@ -281,10 +282,9 @@ class Tab(object):
             # This is here so that we can display "(GUI)" in the status bar and have the user confident this is actually happening in the GUI,
             # not in a worker process named GUI
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
-        to_worker = Queue()
-        from_worker = Queue()
-        worker = WorkerClass(args = ['%s_%s'%(self.settings['device_name'],name), to_worker, from_worker, workerargs])
-        worker.start()
+        
+        worker = WorkerClass()
+        to_worker, from_worker = worker.start('%s_%s'%(self.device_name,name), workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
        
     # def btn_release(self,widget,event):
@@ -553,15 +553,19 @@ class Worker(Process):
         # To be overridden by subclasses
         pass
     
-    def run(self):
-        self.name, self.from_parent, self.to_parent, extraargs = self._args
+    def run(self, name, extraargs):
+        self.name = name
+        
         for argname in extraargs:
             setattr(self,argname,extraargs[argname])
+        # Total fudge, should be replaced with zmq logging in future:
+        from setup_logging import setup_logging
+        setup_logging()
         self.logger = logging.getLogger('BLACS.%s.worker'%self.name)
         self.logger.debug('Starting')
         self.init()
         self.mainloop()
-        
+
     def mainloop(self):
         while True:
             # Get the next task to be done:
@@ -663,7 +667,7 @@ class MyTab(Tab):
         bazbutton = QPushButton('baz, 0.5 seconds!')
         addbazbutton = QPushButton('add 2 second timeout to baz')
         removebazbutton = QPushButton('remove baz timeout')
-        bazunpickleable= QPushButton('try to pass baz a multiprocessing.Lock()')
+        bazunpickleable= QPushButton('try to pass baz a threading.Lock()')
         fatalbutton = QPushButton('fatal error, forgot to add @define_state to callback!')
         
         self.checkbutton = QPushButton('have baz\nreturn a Queue')
@@ -746,7 +750,7 @@ class MyTab(Tab):
     @define_state(MODE_MANUAL,True)  
     def baz_unpickleable(self):
         self.logger.debug('entered baz_unpickleable')
-        results = yield(self.queue_work('My worker','baz', 5,6,7,x=Lock()))
+        results = yield(self.queue_work('My worker','baz', 5,6,7,x=threading.Lock()))
         self.logger.debug('leaving baz_unpickleable')
     
     # You don't need to decorate with @define_state if all you're
