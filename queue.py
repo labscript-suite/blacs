@@ -170,10 +170,11 @@ class QueueManager(object):
                     new_file['/'].copy(old_file['/globals'],"globals")
                     new_file['/'].copy(old_file['/connection table'],"connection table")
                     new_file['/'].copy(old_file['/labscriptlib'],"labscriptlib")
+                    new_file['/'].copy(old_file['/waits'],"waits")
                     for name in old_file.attrs:
                         new_file.attrs[name] = old_file.attrs[name]
         except Exception as e:
-            raise
+            #raise
             self._logger.error('Clean H5 File Error: %s' %str(e))
             return False
             
