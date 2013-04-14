@@ -195,8 +195,14 @@ class DeviceTab(Tab):
         return widgets
         
     def create_dds_widgets(self,dds_properties):
-        # TODO: IMplement this along with a DDS Qt widget
-        pass
+        widgets = {}
+        for hardware_name,properties in channel_properties.items():
+            properties.setdefault('args',[])
+            properties.setdefault('kwargs',{})
+            if hardware_name in self._DDS:
+                widgets[hardware_name] = self._DDS[hardware_name].create_widget(*properties['args'],**properties['kwargs'])
+        
+        return widgets
     
     def auto_create_widgets(self):
         dds_properties = {}
@@ -579,16 +585,21 @@ if __name__ == '__main__':
                                     }            
             self.create_analog_outputs(ao_prop)
             
-            # Create widgets for output objects and auto place them in the UI
-            # The * here unpacks the returned tuple into sequential arguments
-            # this is equivalent to called a,b,c = self.auto_create_widgets(); self.auto_place_widgets(a,b,c)
+            # Create widgets for output objects
             dds_widgets,ao_widgets,do_widgets = self.auto_create_widgets()
             
+            # This function allows you do sort the order of widgets by hardware name.
+            # it is pass to the Python 'sorted' function as key=sort when passed in as 
+            # the 3rd item of a tuple p(the tuple being an argument of self.auto_place_widgets()
+            #
+            # This function takes the channel name (hardware name) and returns a string (or whatever) 
+            # that when sorted alphabetically, returns the correct order
             def sort(channel):
                 port,line = channel.replace('port','').replace('line','').split('/')
                 port,line = int(port),int(line)
                 return '%02d/%02d'%(port,line)
             
+            # and auto place them in the UI
             self.auto_place_widgets(("DDS Outputs",dds_widgets),("Analog Outputs",ao_widgets),("Digital Outputs - Port 0",do_widgets,sort))
             
             # Set the primary worker

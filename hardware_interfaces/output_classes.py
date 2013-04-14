@@ -191,7 +191,7 @@ class AO(object):
         
     def add_widget(self, widget):
         if widget in self._widgets:
-            return
+            return False
             
         self._widgets.append(widget)
     
@@ -209,6 +209,8 @@ class AO(object):
         self.change_unit(self._current_units)
         # This will update the lock state of ALL widgets, including the one just added!
         self._update_lock(self._locked)
+        
+        return True
     
     # If calling this method directly from outside the set_AO function in the analog widget
     # you should NOT specify a value for new_AO.
@@ -406,6 +408,8 @@ class DO(object):
             self._widget_list.append(widget)
             self.set_value(self._current_state,False)
             self._update_lock(self._locked)
+            return True
+        return False
         
     def remove_widget(self,widget):
         if widget not in self._widget_list:
@@ -464,6 +468,7 @@ class DDS(object):
         self._hardware_name = hardware_name
         self._connection_name = connection_name
         self._sub_channel_list = ['freq','amp','phase','gate']
+        self._widget_list = []
         for subchnl in self._sub_channel_list:
             value = None
             if subchnl in output_list:
@@ -471,19 +476,47 @@ class DDS(object):
             
             setattr(self,subchnl,value)
             
-    def add_sub_channel(self,type,output):
-        if type not in self._sub_channel_list:
-            raise RuntimeError('Invalid output type sepcified when adding a sub channel to a DDS. It must be either freq, amp, phase or gate')
-        
-        setattr(self,type,output)
-        #TODO update all widgets to now show this!
-        
+    
+    def create_widget(self,*args,**kwargs):
+        widget = DDSOutput(self._hardware_name,self._connection_name,*args,**kwargs)
+        self.add_widget(widget)
+        return widget
+    
     def add_widget(self, widget):
-        # TODO create a DDS output widget class for people to use.
-        # Link the output objects (sub channels) to the relevant widgets
-        # show/hide output widgets if the object is not set (eg hide gate button)
-        pass
+        if widget in self._widget_list:
+            return False
+            
+        # Check that the widget has a method for getting/showin/hiding subwidgets        
+        try:
+            for subchnl in self._sub_channel_list:
+                widget.get_sub_widget(subchnl)
+                widget.hide_sub_widget(subchnl)
+                widget.show_sub_widget(subchnl)
+        except:
+            return False
+            
+        self._widget_list.append(widget)
         
+        for subchnl in self._sub_channel_list:
+            if hasattr(self,subchnl):
+                getattr(self,subchnl).add_widget(widget.get_sub_widget(subchnl))            
+                widget.show_sub_widget(subchnl)
+            else:
+                widget.hide_sub_widget(subchnl)
+        
+        return True
+        
+    def remove_widget(self,widget):
+        if widget not in self._widget_list:
+            # TODO: Make this error better!
+            raise RuntimeError('The widget specified was not part of the DDS object')
+        
+        for subchnl in self._sub_channel_list:
+            if hasattr(self,subchnl):
+                getattr(self,subchnl).remove_widget(widget.get_sub_widget(subchnl))  
+        
+        self._widget_list.remove(widget)
+     
     @property
     def value(self):
         value = {}
@@ -559,6 +592,8 @@ if __name__ == '__main__':
     my_AO.add_widget(analog2)
     toolpalette2.addWidget(analog1)
     toolpalette2.addWidget(analog2)
+    
+    # TODO: Add in test case for DDS
     
     
     window.show()
