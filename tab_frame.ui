@@ -221,7 +221,11 @@
             <number>0</number>
            </property>
            <item>
-            <layout class="QVBoxLayout" name="changed_layout"/>
+            <layout class="QVBoxLayout" name="changed_layout">
+             <property name="spacing">
+              <number>0</number>
+             </property>
+            </layout>
            </item>
           </layout>
          </widget>

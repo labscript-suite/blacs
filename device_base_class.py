@@ -36,7 +36,7 @@ class DeviceTab(Tab):
         self._last_programmed_values = self.get_front_panel_values()
         if self._can_check_remote_values:
             self.statemachine_timeout_add(30000,self.check_remote_values)
-    
+            
     def initialise_GUI(self):
         # Override this function
         # set the primary worker at this time
@@ -195,6 +195,7 @@ class DeviceTab(Tab):
         return widgets
         
     def create_dds_widgets(self,dds_properties):
+        # TODO: IMplement this along with a DDS Qt widget
         pass
     
     def auto_create_widgets(self):
@@ -319,6 +320,16 @@ class DeviceTab(Tab):
         # A place to store radio buttons in
         self._changed_radio_buttons = {}
             
+        # Clean up the previously used layout
+        while not self._ui.changed_layout.isEmpty():
+            item = self._ui.changed_layout.itemAt(0)
+            # This is the only way I could make the widget actually be removed.
+            # using layout.removeItem/removeWidget causes the layout to still draw the old item in its original space, and
+            # then draw new items over the top of the old. Very odd behaviour, could be a windows 8 bug I suppose!
+            item.widget().setParent(None)
+            #TODO: somehow maintain the state of the radio buttons for specific channels between refreshes of this changed dialog.
+            
+        # TODO: Use the proper sort algorithm as defined for placing widgets to order this prompt
         # We expect a dictionary of channel:value pairs
         for channel in sorted(self._last_remote_values):
             remote_value = self._last_remote_values[channel]
@@ -329,7 +340,7 @@ class DeviceTab(Tab):
             changed = False
             
             if channel in self._DDS:
-                # This si a complicated case!
+                # TODO: This is a complicated case!
                 #ui = QUiLoader().load('tab_value_changed_dds.ui')
                 pass
             elif channel in self._DO:
@@ -339,7 +350,7 @@ class DeviceTab(Tab):
                 if front_value != remote_value:
                     changed = True
                     ui = QUiLoader().load('tab_value_changed.ui')
-                    ui.channel_label.setText(self._DO.name)
+                    ui.channel_label.setText(self._DO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)
             elif channel in self._AO:
@@ -349,7 +360,7 @@ class DeviceTab(Tab):
                 if front_value != remote_value:
                     changed = True
                     ui = QUiLoader().load('tab_value_changed.ui')
-                    ui.channel_label.setText(self._AO.name)
+                    ui.channel_label.setText(self._AO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)
             else:
@@ -373,7 +384,7 @@ class DeviceTab(Tab):
             self._changed_widget.show()
         
             # Add an "apply" button and link to on_resolve_value_inconsistency
-            button = QButton("Apply")
+            button = QPushButton("Apply")
             button.clicked.connect(self.on_resolve_value_inconsistency)
             self._ui.changed_layout.addWidget(button)
               
@@ -475,6 +486,8 @@ class DeviceWorker(Worker):
         # the former.
         global serial; import serial
         global time; import time
+        
+        self.fpv = {}
     
     def initialise(self):
         pass
@@ -486,10 +499,21 @@ class DeviceWorker(Worker):
         for channel,value in front_panel_values.items():
             if type(value) != type(True):
                 front_panel_values[channel] += 0.001
+        self.fpv = front_panel_values
         return front_panel_values
         
     def check_remote_values(self):
-        pass
+        front_panel_values = {}
+        for channel,value in self.fpv.items():
+            if type(value) != type(True):
+                front_panel_values[channel] = value + 1.1
+            else:
+                front_panel_values[channel] = not value
+        
+        if not front_panel_values:
+            front_panel_values['ao0'] = 0
+        
+        return front_panel_values
         
     def transition_to_buffered(self,h5file,front_panel_values,refresh):
         time.sleep(3)
@@ -570,6 +594,8 @@ if __name__ == '__main__':
             # Set the primary worker
             self.create_worker("my_worker_name",DeviceWorker,{})
             self.primary_worker = "my_worker_name"
+    
+            self.supports_remote_value_check(True)
     
             # Create buttons to test things!
             button1 = QPushButton("Transition to Buffered")

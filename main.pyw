@@ -59,22 +59,11 @@ class BLACS(object):
     def __init__(self):
         self.ui = QUiLoader().load('main.ui')
         self.tab_widgets = []
-        self.exp_config = exp_config
-        
-        # load connection table
+        self.exp_config = exp_config # Global variable
+        self.connection_table = connection_table # Global variable
         self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
         self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
         
-        # Create Connection Table object
-        try:
-            self.connection_table = ConnectionTable(self.connection_table_h5file)
-        except:
-            # dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%self.connection_table_h5file)
-                 
-            # dialog.run()
-            # dialog.destroy()
-            sys.exit("Invalid Connection Table")
-            return
         
         for i in range(4):
             self.tab_widgets.append(DragDropTabWidget(self.tab_widget_ids))
@@ -191,6 +180,17 @@ if __name__ == '__main__':
     serverthread.daemon = True
     serverthread.start()
 
+    # Create Connection Table object
+    try:
+        connection_table = ConnectionTable(exp_config.get('paths','connection_table_h5'))
+    except:
+        # dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%self.connection_table_h5file)
+             
+        # dialog.run()
+        # dialog.destroy()
+        sys.exit("Invalid Connection Table")
+        return
+    
     qapplication = QApplication(sys.argv)
     app = BLACS()
     
