@@ -20,7 +20,7 @@ class ni_pci_6733(Tab):
         Tab.__init__(self,BLACS,NiPCI6733Worker,notebook,settings)
         self.settings = settings
         self.device_name = settings['device_name']
-        self.MAX_name = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
+        self.MAX_name = str(self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection)
         self.static_mode = True
         self.destroy_complete = False
         

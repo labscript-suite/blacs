@@ -25,7 +25,7 @@ class ni_pcie_6363(Tab):
     def __init__(self,BLACS,notebook,settings,restart=False):
         self.settings = settings
         self.device_name = self.settings['device_name']
-        self.MAX_name = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
+        self.MAX_name = str(self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection)
         
         # All the arguments that the acquisition worker will require:
         acq_args = [self.device_name, self.MAX_name]
