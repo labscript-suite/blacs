@@ -421,7 +421,7 @@ class DeviceTab(Tab):
     
         self.mode = MODE_TRANSITION_TO_BUFFERED
         # The final values of the run, to update the GUI with at the end of the run:
-        self._final_values = yield(self.queue_work(self._primary_worker,'transition_to_buffered',self._device_name,h5_file,self.get_front_panel_values(),self._force_full_buffered_reprogram))
+        self._final_values = yield(self.queue_work(self._primary_worker,'transition_to_buffered',self.device_name,h5_file,self.get_front_panel_values(),self._force_full_buffered_reprogram))
         
         # If we get None back, then the worker process did not finish properly
         if self._final_values is None:

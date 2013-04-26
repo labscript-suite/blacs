@@ -1,4 +1,3 @@
-#import gtk
 from time import time
 
 from BLACS.tab_base_classes import Worker, define_state
@@ -14,10 +13,11 @@ class novatechdds9m(DeviceTab):
         self.base_max =      {'freq':170.0*10.0**6, 'amp':1023,   'phase':360}
         self.base_step =     {'freq':10**6,         'amp':1,      'phase':1}
         self.base_decimals = {'freq':1,             'amp':0,      'phase':3} # TODO: find out what the phase precision is!
-
-       # Create DDS Output objects
+        self.num_DDS = 4
+        
+        # Create DDS Output objects
         dds_prop = {}
-        for i in range(4): # 4 is the number of DDS outputs on this device
+        for i in range(self.num_DDS): # 4 is the number of DDS outputs on this device
             dds_prop['channel %d'%i] = {}
             for subchnl in ['freq', 'amp', 'phase']:
                 dds_prop['channel %d'%i][subchnl] = {'base_unit':self.base_units[subchnl],
