@@ -6,6 +6,7 @@ from PySide.QtGui import *
 
 from qtutils.widgets.analogoutput import AnalogOutput
 from qtutils.widgets.digitaloutput import DigitalOutput
+from qtutils.widgets.ddsoutput import DDSOutput
 from unitconversions import *
 
 
@@ -474,9 +475,8 @@ class DDS(object):
             if subchnl in output_list:
                 value = output_list[subchnl]
             
-            setattr(self,subchnl,value)
+                setattr(self,subchnl,value)
             
-    
     def create_widget(self,*args,**kwargs):
         widget = DDSOutput(self._hardware_name,self._connection_name,*args,**kwargs)
         self.add_widget(widget)
@@ -493,6 +493,7 @@ class DDS(object):
                 widget.hide_sub_widget(subchnl)
                 widget.show_sub_widget(subchnl)
         except:
+            raise
             return False
             
         self._widget_list.append(widget)

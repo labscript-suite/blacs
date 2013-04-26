@@ -7,6 +7,7 @@ import cPickle
 import traceback
 import logging
 import cgi
+import os
 from types import GeneratorType
 
 import subproc_utils
@@ -157,7 +158,7 @@ class Tab(object):
         self._supports_smart_programming = False
 
         # Load the UI
-        self._ui = QUiLoader().load('tab_frame.ui')
+        self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
         self._layout = self._ui.device_layout
         self._device_widget = self._ui.device_controls
         self._changed_widget = self._ui.changed_widget

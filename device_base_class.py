@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 import time
 
 from PySide.QtCore import *
@@ -194,7 +195,7 @@ class DeviceTab(Tab):
         
         return widgets
         
-    def create_dds_widgets(self,dds_properties):
+    def create_dds_widgets(self,channel_properties):
         widgets = {}
         for hardware_name,properties in channel_properties.items():
             properties.setdefault('args',[])
@@ -253,7 +254,7 @@ class DeviceTab(Tab):
                 toolpalette = toolpalettegroup.append_new_palette(name)
                 
             for channel in sorted(widget_dict.keys(),key=sort_algorithm):
-                toolpalette.addWidget(widget_dict[channel])
+                toolpalette.addWidget(widget_dict[channel],True)
          
         # Add the widget containing the toolpalettegroup to the tab layout
         self.get_tab_layout().addWidget(widget)
@@ -347,7 +348,7 @@ class DeviceTab(Tab):
             
             if channel in self._DDS:
                 # TODO: This is a complicated case!
-                #ui = QUiLoader().load('tab_value_changed_dds.ui')
+                #ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
                 pass
             elif channel in self._DO:
                 # This is an easy case!
@@ -355,7 +356,7 @@ class DeviceTab(Tab):
                 remote_value = str(bool(int(remote_value)))
                 if front_value != remote_value:
                     changed = True
-                    ui = QUiLoader().load('tab_value_changed.ui')
+                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
                     ui.channel_label.setText(self._DO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)
@@ -420,7 +421,7 @@ class DeviceTab(Tab):
     
         self.mode = MODE_TRANSITION_TO_BUFFERED
         # The final values of the run, to update the GUI with at the end of the run:
-        self._final_values = yield(self.queue_work(self._primary_worker,'transition_to_buffered',h5_file,self.get_front_panel_values(),self._force_full_buffered_reprogram))
+        self._final_values = yield(self.queue_work(self._primary_worker,'transition_to_buffered',self._device_name,h5_file,self.get_front_panel_values(),self._force_full_buffered_reprogram))
         
         # If we get None back, then the worker process did not finish properly
         if self._final_values is None:
@@ -521,7 +522,7 @@ class DeviceWorker(Worker):
         
         return front_panel_values
         
-    def transition_to_buffered(self,h5file,front_panel_values,refresh):
+    def transition_to_buffered(self,device_name,h5file,front_panel_values,refresh):
         time.sleep(3)
         for channel,value in front_panel_values.items():
             if type(value) != type(True):
