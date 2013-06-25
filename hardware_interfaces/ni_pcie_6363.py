@@ -885,16 +885,16 @@ class WaitMonitorWorker(subproc_utils.Process):
                 run_periods = numpy.diff(resume_times)
                 wait_durations = periods - run_periods
                 waits_timed_out = wait_durations > self.wait_table['timeout']
-            with h5py.File(self.h5_file,'a') as hdf5_file:
-                # Work out how long the waits were, save em, post an event saying so 
-                dtypes = [('label','a256'),('time',float),('timeout',float),('duration',float),('timed_out',bool)]
-                data = numpy.empty(len(self.wait_table), dtype=dtypes)
-                if self.waits_in_use:
-                    data['label'] = self.wait_table['label']
-                    data['time'] = self.wait_table['time']
-                    data['timeout'] = self.wait_table['timeout']
-                    data['duration'] = wait_durations
-                    data['timed_out'] = waits_timed_out
-                hdf5_file.create_dataset('/data/waits', data=data)
-            self.wait_durations_analysed.post(self.h5_file)
+                with h5py.File(self.h5_file,'a') as hdf5_file:
+                    # Work out how long the waits were, save em, post an event saying so 
+                    dtypes = [('label','a256'),('time',float),('timeout',float),('duration',float),('timed_out',bool)]
+                    data = numpy.empty(len(self.wait_table), dtype=dtypes)
+                    if self.waits_in_use:
+                        data['label'] = self.wait_table['label']
+                        data['time'] = self.wait_table['time']
+                        data['timeout'] = self.wait_table['timeout']
+                        data['duration'] = wait_durations
+                        data['timed_out'] = waits_timed_out
+                    hdf5_file.create_dataset('/data/waits', data=data)
+                self.wait_durations_analysed.post(self.h5_file)
             
