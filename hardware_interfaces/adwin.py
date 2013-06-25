@@ -3,6 +3,9 @@ import threading
 from output_classes import AO
 from tab_base_classes import Tab, Worker, define_state
 import subproc_utils
+import h5py
+import numpy
+import time
 
 class adwin(Tab):
     def __init__(self,BLACS,notebook,settings,restart=False):
@@ -85,14 +88,19 @@ class adwin(Tab):
     def status_monitor(self, notify_queue):
         self.queue_work('status_monitor')
         self.do_after('leave_status_monitor', notify_queue)
-        raise Exception('fuck you, have an exception!')
         
     def leave_status_monitor(self, notify_queue, _results):
-        if _results:
-            # experiment is over:
+        if _results is True or _results is None:
+            # experiment is over or we got an exception:
             self.timeouts.remove(self.status_monitor)
             notify_queue.put(self.device_name)
-                                    
+     
+    @define_state
+    def transition_to_static(self, notify_queue):
+        self.static_mode = True
+        # We don't need to do anything:
+        notify_queue.put(self.device_name)
+                     
     @define_state
     def destroy(self):
         self.do_after('leave_destroy')
@@ -104,10 +112,15 @@ class adwin(Tab):
     
 class ADWinWorker(Worker):
 #class ADWinWorker(object):
-    ADWIN_TOTAL_CYCLE_TIME = 2
+
+    CPU_FREQ = 300e6 # Hz
+    
+    ADWIN_CURRENT_TIME = 1
+    ADWIN_TOTAL_TIME = 2
     ADWIN_CYCLE_DELAY = 4
     ADWIN_NEW_DATA = 5
-
+    ADWIN_RUN_NUMBER = 6
+    
     ANALOG_TIMEPOINT = 1
     ANALOG_DURATION = 2
     ANALOG_CARD_NUM = 3
@@ -166,7 +179,7 @@ class ADWinWorker(Worker):
         array_index += 1
         self.aw.SetData_Long([2147483647], self.ANALOG_TIMEPOINT, Startindex=array_index, Count=1)
         # Set the total cycle time, a small number:
-        self.aw.Set_Par(self.ADWIN_TOTAL_CYCLE_TIME, 2)
+        self.aw.Set_Par(self.ADWIN_TOTAL_TIME, 2)
         # Set the delay, large enough for all the channels to be programmed:
         self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 30000) # 100us
         # Tell the program that there is new data:
@@ -189,7 +202,7 @@ class ADWinWorker(Worker):
         # And now the stop instruction:
         self.aw.SetData_Long([2147483647], self.DIGITAL_TIMEPOINT, Startindex=2, Count=1)
         # Set the total cycle time, a small number:
-        self.aw.Set_Par(self.ADWIN_TOTAL_CYCLE_TIME, 2)
+        self.aw.Set_Par(self.ADWIN_TOTAL_TIME, 2)
         # Set the delay, some small value:
         self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 3000) # 10us
         # Tell the program that there is new data:
@@ -198,23 +211,53 @@ class ADWinWorker(Worker):
         
         
     def program_buffered(self, h5file):
-        print 'fake program buffered!', h5file
+        with h5py.File(h5file) as f:
+            # Get the instructions:
+            group = f['devices'][self.device_name]
+            analog_table = numpy.array(group['ANALOG_OUTS'])
+            digital_table = numpy.array(group['DIGITAL_OUTS'])
+            cycle_time = group.attrs['cycle_time']
+            stop_time = group.attrs['stop_time']
+        
+        # Program the analog out table:
+        self.aw.SetData_Long(list(analog_table['t']), self.ANALOG_TIMEPOINT, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['duration']), self.ANALOG_DURATION, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['card']), self.ANALOG_CHAN_NUM, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['channel']), self.ANALOG_CHAN_NUM, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['ramp_type']), self.ANALOG_RAMP_TYPE, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['A']), self.ANALOG_PAR_A, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['B']), self.ANALOG_PAR_B, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['C']), self.ANALOG_PAR_C, Startindex=1, Count=len(analog_table))
     
+        # Program the digital out table:
+        self.aw.SetData_Long(list(digital_table['t']), self.DIGITAL_TIMEPOINT, Startindex=1, Count=len(digital_table))
+        self.aw.SetData_Long(list(digital_table['card']), self.DIGITAL_CARD_NUM, Startindex=1, Count=len(digital_table))
+        self.aw.SetData_Long(list(digital_table['bitfield']), self.DIGITAL_VALUES, Startindex=1, Count=len(digital_table))
+        
+        # Set the total run time:
+        self.aw.Set_Par(self.ADWIN_TOTAL_TIME, int(stop_time))
+
+        # set the cycle delay in multiples of cpu ticks:
+        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, int(round(cycle_time*self.CPU_FREQ)))
+        
     def start_run(self):
-        print 'fake start_run!'
+        # Say go!
+        self.aw.Set_Par(self.ADWIN_NEW_DATA, 1)
             
     def status_monitor(self):
-        print 'status_monitor in subproc!'
-        import time
-        time.sleep(1)
+        # Are we done? Check every 0.1 seconds for 2 seconds:
+        start_time = time.time()
+        while time.time() < start_time + 2:
+            time.sleep(0.1)
+            current_time = self.aw.Get_Par(self.ADWIN_CURRENT_TIME)
+            total_time = self.aw.Get_Par(self.ADWIN_TOTAL_TIME)
+            has_started_this_run = not self.aw.Get_Par(self.ADWIN_NEW_DATA)
+            # We want to detect that the run has started (by looking at
+            # the new data field) and that it finished (by looking to see if
+            # the current time of the run equals the total time). If we
+            # only check the latter we get false positives due to the
+            # times remaining from the previous run.
+            if has_started_this_run and current_time == total_time:
+                return True
         return False
         
-#worker = ADWinWorker()
-#worker.init()
-#worker.initialise(1, '/home/bilbo/Desktop/current_work/ADwin/linux/adwin-lib-5.0.5/share/btl/adwin11.btl',
-#                     '/home/bilbo/Desktop/current_work/ADwin/V5-Rydberg/main.TB1',
-#                     '/home/bilbo/Desktop/current_work/ADwin/V5-Rydberg/copy_local.TB2')
-##worker.analog_static_update(9,[10]*8)
-#worker.digital_static_update(1,[True]*32)
-
-
