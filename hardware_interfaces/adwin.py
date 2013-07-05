@@ -15,10 +15,26 @@ class adwin(Tab):
         self.device_number = int(self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection)
         self.static_mode = True
         self.destroy_complete = False
-        self.boot_image_path = '/home/bilbo/Desktop/current_work/ADwin/linux/adwin-lib-5.0.5/share/btl/adwin11.btl'
-        self.process_1_image_path = '/home/bilbo/Desktop/current_work/ADwin/V5-Rydberg/main.TB1'
-        self.process_2_image_path = '/home/bilbo/Desktop/current_work/ADwin/V5-Rydberg/copy_local.TB2'
+        # A dict to store the last requested static update values for
+        # each card. This is so that this tab can set these values
+        # itself in the case of a reboot:
+        if 'last_seen_values' not in self.settings:
+            self.settings['last_seen_values'] = {}
         
+        # Gtk stuff:
+        self.builder = gtk.Builder()
+        self.builder.add_from_file('hardware_interfaces/adwin.glade')
+        self.toplevel = self.builder.get_object('toplevel')
+        self.builder.get_object('title').set_text('%s: device no %d'%(self.device_name, self.device_number))
+        self.device_responding = self.builder.get_object('responding')
+        self.device_notresponding = self.builder.get_object('notresponding')
+        self.device_working = self.builder.get_object('working')
+        self.entry_boot_image = self.builder.get_object('entry_boot_image')
+        self.entry_process_1 = self.builder.get_object('entry_process_1')
+        self.entry_process_2 = self.builder.get_object('entry_process_2')
+        self.viewport.add(self.toplevel)
+        self.restore_save_data()
+        self.builder.connect_signals(self)
         
         self.static_update_request = subproc_utils.Event('ADWin_static_update_request', type='wait')
         self.static_update_complete = subproc_utils.Event('ADWin_static_update_complete', type='post')
@@ -29,6 +45,29 @@ class adwin(Tab):
         request_handler_thread.start()
         
         self.initialise_device()
+
+    def get_save_data(self):
+        return {'boot image': self.entry_boot_image.get_text(),
+                'process 1': self.entry_process_1.get_text(),
+                'process 2': self.entry_process_2.get_text()}
+    
+    def restore_save_data(self):
+        save_data = self.settings['saved_data']
+        if save_data:
+            if save_data['boot image'] is not None:
+                self.entry_boot_image.set_text(save_data['boot image'])
+            if save_data['process 1'] is not None:
+                self.entry_process_1.set_text(save_data['process 1'])
+            if save_data['process 2'] is not None:
+                self.entry_process_2.set_text(save_data['process 2'])
+        else:
+            self.logger.warning('No previous front panel state to restore')
+    
+    @define_state
+    def on_change_firmware_paths(self, widget):
+        # Save settings so that a tab restart doesn't lose them:
+        self.settings['saved_data'] = self.get_save_data()
+    
         
     def request_handler_loop(self):
         """Simply collects static_update requests from other calling
@@ -37,16 +76,24 @@ class adwin(Tab):
         while True:
             data = self.static_update_request.wait(id=self.device_number)
             self.static_update(data)
+            # Cache this request so the latest request on each card can be re-executed in the case of a reboot:
+            self.settings['last_seen_values'][data['card']] = data
             
     @define_state
-    def static_update(self, data):
+    def static_update(self, data, response_required=True):
         if data['type'] == 'analog':
             self.queue_work('analog_static_update', data['card'], data['values'])
         elif data['type'] == 'digital':
             self.queue_work('digital_static_update', data['card'], data['values'])
-        self.do_after('post_update_done', data['card'])
+        if response_required:
+            # If this update was internally generated instead of being
+            # requested by another tab, we don't need to respond to
+            # the tab that originally requested it. In fact responding
+            # might confuse future requests from that tab (it shouldn't,
+            # as requests have unique numerical ids, but still).
+            self.do_after('post_update_done', data['card'], data['request_number'])
         
-    def post_update_done(self, card, _results):
+    def post_update_done(self, card, request_number, _results):
         """Tells the caller that their static update has been processed"""
         if _results is not None:
             response = True
@@ -54,14 +101,45 @@ class adwin(Tab):
             # The update did not complete properly:
             response = Exception('Setting the device output did not complete correctly.' +
                                  'Please see the corresponding ADWin tab for more info.')
-        self.static_update_complete.post(id=[self.device_number, card],data=response)
-        
+        self.static_update_complete.post(id=[self.device_number, card, request_number],data=response)
+    
+    def on_boot_button_clicked(self, button):
+        self.initialise_device()
             
     @define_state
     def initialise_device(self):
+        boot_image_path = self.entry_boot_image.get_text()
+        process_1_image_path = self.entry_process_1.get_text()
+        process_2_image_path = self.entry_process_2.get_text()
+        paths = [boot_image_path, process_1_image_path, process_2_image_path]
+        if any([path is None for path in [boot_image_path, process_1_image_path, process_2_image_path]]):
+            return
+        self.device_responding.hide()
+        self.device_notresponding.hide()
+        self.device_working.show()
         self.queue_work('initialise', self.device_name, self.device_number, 
-                        self.boot_image_path, self.process_1_image_path, self.process_2_image_path)
-
+                        boot_image_path, process_1_image_path, process_2_image_path)
+        self.do_after('after_initialise_device')
+        
+    def after_initialise_device(self, _results):
+        self.device_working.hide()
+        if _results:
+            self.restore_cached_output_values()
+            self.device_responding.show()
+            self.device_notresponding.hide()
+        else:
+            self.device_responding.hide()
+            self.device_notresponding.show()
+    
+    def restore_cached_output_values(self):
+        """In case of a restart of the tab or a reboot of the adwin, we
+        wish to restore the output values that the other tabs requested
+        in the past. Rather than communicate with the tabs, we have
+        stored the last request from each one. So this function simply
+        calls self.static_update for each one of these stored requests"""
+        for card, data in self.settings['last_seen_values'].items():
+            self.static_update(data, response_required=False)
+            
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
         self.static_mode = False
@@ -111,7 +189,6 @@ class adwin(Tab):
         
     
 class ADWinWorker(Worker):
-#class ADWinWorker(object):
 
     CPU_FREQ = 300e6 # Hz
     
@@ -148,7 +225,7 @@ class ADWinWorker(Worker):
         self.aw.Load_Process(process_2_image_path)
         self.aw.Start_Process(1)
         self.aw.Start_Process(2)
-
+        return True # indicates success
 
 
     def analog_static_update(self, card, voltages):
@@ -181,7 +258,7 @@ class ADWinWorker(Worker):
         # Set the total cycle time, a small number:
         self.aw.Set_Par(self.ADWIN_TOTAL_TIME, 2)
         # Set the delay, large enough for all the channels to be programmed:
-        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 30000) # 100us
+        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 3000) # 10us
         # Tell the program that there is new data:
         self.aw.Set_Par(self.ADWIN_NEW_DATA, 1)
         return True # indicates success
@@ -204,7 +281,7 @@ class ADWinWorker(Worker):
         # Set the total cycle time, a small number:
         self.aw.Set_Par(self.ADWIN_TOTAL_TIME, 2)
         # Set the delay, some small value:
-        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 3000) # 10us
+        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 3000)
         # Tell the program that there is new data:
         self.aw.Set_Par(self.ADWIN_NEW_DATA, 1)
         return True # indicates success
@@ -222,7 +299,7 @@ class ADWinWorker(Worker):
         # Program the analog out table:
         self.aw.SetData_Long(list(analog_table['t']), self.ANALOG_TIMEPOINT, Startindex=1, Count=len(analog_table))
         self.aw.SetData_Long(list(analog_table['duration']), self.ANALOG_DURATION, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['card']), self.ANALOG_CHAN_NUM, Startindex=1, Count=len(analog_table))
+        self.aw.SetData_Long(list(analog_table['card']), self.ANALOG_CARD_NUM, Startindex=1, Count=len(analog_table))
         self.aw.SetData_Long(list(analog_table['channel']), self.ANALOG_CHAN_NUM, Startindex=1, Count=len(analog_table))
         self.aw.SetData_Long(list(analog_table['ramp_type']), self.ANALOG_RAMP_TYPE, Startindex=1, Count=len(analog_table))
         self.aw.SetData_Long(list(analog_table['A']), self.ANALOG_PAR_A, Startindex=1, Count=len(analog_table))

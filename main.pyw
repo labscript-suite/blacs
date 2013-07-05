@@ -968,12 +968,16 @@ if __name__ == "__main__":
     gtk.settings_get_default().set_string_property('gtk-theme-name','Clearlooks','')
     gtk.settings_get_default().set_string_property('gtk-font-name','ubuntu 9','')
     gtk.settings_get_default().props.gtk_button_images = True
+    # I have no idea why but sometimes BLACS refuses to start and hangs on gtk.rc_parse line.
+    # For some reason a small sleep before it seems to fix this. I blame gtk.
+    time.sleep(1)
+    print 'going to parse gtkrc'
     gtk.rc_parse('blacs.gtkrc')
+    print 'finished parsing gtkrc'
     
     splash.update_text('Starting web server for the queue...')
     experiment_server = ExperimentServer(port)
     splash.update_text('Done!')
-    
     app.window.maximize()            
     app.window.show()
     # Try putting a time.sleep(10) here!!

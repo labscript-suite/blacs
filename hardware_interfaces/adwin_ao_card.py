@@ -2,6 +2,7 @@ import gtk
 from output_classes import AO
 from tab_base_classes import Tab, Worker, define_state
 import subproc_utils
+import itertools
 
 class adwin_ao_card(Tab):
     num_DO = 0
@@ -128,14 +129,20 @@ class ADWinAOCardWorker(Worker):
         self.card_number = card_number
         self.request_static_update = subproc_utils.Event('ADWin_static_update_request', type='post')
         self.static_update_complete = subproc_utils.Event('ADWin_static_update_complete', type='wait')
+        # We need a sequence number so that we don't respond to old
+        # events thinking they are new ones in the case that another tab
+        # is out of step with our requests (say in the case of this tab
+        # restarting while the parent adwin is still processing an event)
+        self.request_number_generator = itertools.count()
         
     def program_static(self, values):
         # Post an event asking for the server (running in the ADWin main
         # tab) to do a static update. Ensure it is directed only at the
         # adwin with the correct device number:
-        self.request_static_update.post(id=self.device_number, data={'type':'analog', 'card': self.card_number,'values':values})
+        request_number = self.request_number_generator.next()
+        self.request_static_update.post(id=self.device_number, data={'type':'analog', 'card': self.card_number,'values':values, 'request_number': request_number})
         # Wait for a response. id of event is the device and card number, so we don't respond to events directed at other cards/devices:
-        result = self.static_update_complete.wait(id=[self.device_number, self.card_number])
+        result = self.static_update_complete.wait(id=[self.device_number, self.card_number, request_number])
         if isinstance(result, Exception):
             raise result
         
