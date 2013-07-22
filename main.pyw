@@ -426,13 +426,15 @@ if __name__ == "__main__":
             gobject.timeout_add(100,self.finalise_quit,time.time())
         
         def finalise_quit(self,initial_time):
+            tab_close_timeout = 2 # seconds
             # Kill any tabs which didn't close themselves:
             for name, tab in self.tablist.items():
                 if tab.destroy_complete:
                     del self.tablist[name]
             if self.tablist:
-                if time.time() - initial_time > 2:
-                    for name, tab in self.tablist.items():
+                for name, tab in self.tablist.items():
+                    # If a tab has a fatal error or is taking too long to close, force close it:
+                    if (time.time() - initial_time > tab_close_timeout) or tab.state == 'fatal error':
                         try:
                             tab.close_tab() 
                         except Exception as e:
