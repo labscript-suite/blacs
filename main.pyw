@@ -953,8 +953,10 @@ if __name__ == "__main__":
     
     port = int(exp_config.get('ports','BLACS'))
     myappid = 'monashbec.BLACS' # arbitrary string
-    if os.name == 'nt': # please leave this in so I can test in linux!
+    try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except:
+        pass
     gtk.gdk.threads_init()
     
     
