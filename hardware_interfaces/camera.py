@@ -128,7 +128,7 @@ class CameraWorker(Worker):
         
     def finished_experiment(self,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(20)
+        s.settimeout(80)
         s.connect((host, int(port)))
         s.send('done\r\n')
         response = s.recv(1024)
