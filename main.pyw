@@ -666,12 +666,12 @@ if __name__ == "__main__":
                         self.now_running.hide()
                     continue
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
+                    self.status_bar.set_text("Preparing to start sequence...(program time: %.3fs)"%(time.time()- start_time))
                     # Get front panel data, but don't save it to the h5 file until the experiment ends:
                     states,tab_positions,window_data = self.front_panel_settings.get_save_data()
                 
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Running...(program time: "+str(time.time() - start_time)+"s")
+                    self.status_bar.set_text("Running...(program time: %.3fs)"%(time.time()- start_time))
                     
                 # A Queue for event-based notification of when the experiment has finished.
                 self.current_queue = Queue.Queue()   
