@@ -345,7 +345,9 @@ class PulseblasterWorker(Worker):
         
     def program_buffered(self,h5file,initial_values,fresh):
         self.h5file = h5file
+        self.logger.debug('Opening h5 file')
         with h5py.File(h5file,'r') as hdf5_file:
+            self.logger.debug('h5 file is now open')
             group = hdf5_file['devices/%s'%self.device_name]
             # Program the DDS registers:
             ampregs = []

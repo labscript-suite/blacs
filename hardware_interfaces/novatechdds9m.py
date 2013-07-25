@@ -409,7 +409,9 @@ class NovatechDDS9mWorker(Worker):
         self.initial_values = initial_values
         # Store the final values to for use during transition_to_static:
         self.final_values = {}
-        with h5py.File(h5file) as hdf5_file:
+        self.logger.debug('Opening h5 file')
+        with h5py.File(h5file,'r') as hdf5_file:
+            self.logger.debug('h5 file is now open')
             group = hdf5_file['/devices/'+device_name]
             # If there are values to set the unbuffered outputs to, set them now:
             if 'STATIC_DATA' in group:
