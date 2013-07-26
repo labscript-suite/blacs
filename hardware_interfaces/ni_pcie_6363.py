@@ -268,7 +268,9 @@ class NiPCIe6363Worker(Worker):
         self.do_task.WriteDigitalLines(1,True,1,DAQmx_Val_GroupByChannel,self.do_data,byref(self.do_read),None)
     
     def program_buffered(self,h5file):
+        self.logger.debug('Opening h5 file')
         with h5py.File(h5file,'r') as hdf5_file:
+            self.logger.debug('h5 file is now open')
             group = hdf5_file['devices/'][self.device_name]
             clock_terminal = group.attrs['clock_terminal']
             h5_data = group.get('ANALOG_OUTS')
@@ -320,6 +322,7 @@ class NiPCIe6363Worker(Worker):
                 self.do_task.StopTask()
                 self.do_task.ClearTask()
                 final_digital_values = {}
+               
         # Tell the child processes to transition to buffered:
         self.to_acq_child.put(["transition to buffered",h5file,self.device_name])
         result, message = self.from_acq_child.get()

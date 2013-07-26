@@ -24,12 +24,6 @@
     <property name="step_increment">0.01</property>
     <property name="page_increment">0.01</property>
   </object>
-  <object class="GtkListStore" id="phase_0_unit_liststore">
-    <columns>
-      <!-- column-name unit -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
   <object class="GtkListStore" id="freq_0_unit_liststore">
     <columns>
       <!-- column-name unit -->
@@ -54,7 +48,7 @@
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
   </object>
-  <object class="GtkListStore" id="phase_1_unit_liststore">
+  <object class="GtkListStore" id="phase_0_unit_liststore">
     <columns>
       <!-- column-name unit -->
       <column type="gchararray"/>
@@ -64,6 +58,12 @@
     <property name="upper">359.98000000000002</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
+  </object>
+  <object class="GtkListStore" id="phase_1_unit_liststore">
+    <columns>
+      <!-- column-name unit -->
+      <column type="gchararray"/>
+    </columns>
   </object>
   <object class="GtkAdjustment" id="phase_adj_1">
     <property name="upper">359.98000000000002</property>
@@ -92,6 +92,7 @@
                   <object class="GtkLabel" id="title">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="xalign">0</property>
                     <property name="label" translatable="yes">label</property>
                     <attributes>
                       <attribute name="style" value="italic"/>
@@ -232,6 +233,7 @@
               <object class="GtkLabel" id="channel_0_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="xalign">0</property>
                 <property name="yalign">0.30000001192092896</property>
                 <property name="label" translatable="yes">label</property>
                 <attributes>
@@ -251,7 +253,7 @@
                 <property name="can_focus">False</property>
                 <child>
                   <object class="GtkToggleButton" id="active_chnl_0">
-                    <property name="label" translatable="yes">Active</property>
+                    <property name="label">Active</property>
                     <property name="use_action_appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
@@ -273,8 +275,8 @@
                     <property name="label" translatable="yes">Frequency:</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
@@ -291,8 +293,8 @@
                     <property name="digits">2</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">2</property>
                   </packing>
                 </child>
@@ -309,8 +311,8 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">3</property>
                   </packing>
                 </child>
@@ -321,7 +323,7 @@
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">True</property>
+                    <property name="fill">False</property>
                     <property name="padding">5</property>
                     <property name="position">4</property>
                   </packing>
@@ -334,8 +336,8 @@
                     <property name="label" translatable="yes">Amplitude:</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">5</property>
                   </packing>
                 </child>
@@ -352,8 +354,8 @@
                     <property name="digits">11</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">6</property>
                   </packing>
                 </child>
@@ -370,8 +372,8 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">7</property>
                   </packing>
                 </child>
@@ -382,7 +384,7 @@
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">True</property>
+                    <property name="fill">False</property>
                     <property name="padding">5</property>
                     <property name="position">8</property>
                   </packing>
@@ -395,8 +397,8 @@
                     <property name="label" translatable="yes">Phase:</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">9</property>
                   </packing>
                 </child>
@@ -414,8 +416,8 @@
                     <property name="wrap">True</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">10</property>
                   </packing>
                 </child>
@@ -432,8 +434,8 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">11</property>
                   </packing>
                 </child>
@@ -460,6 +462,7 @@
               <object class="GtkLabel" id="channel_1_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="xalign">0</property>
                 <property name="label" translatable="yes">label</property>
                 <attributes>
                   <attribute name="underline" value="True"/>
@@ -500,8 +503,8 @@
                     <property name="label" translatable="yes">Frequency:</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
@@ -519,8 +522,8 @@
                     <property name="digits">2</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">2</property>
                   </packing>
                 </child>
@@ -537,8 +540,8 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">3</property>
                   </packing>
                 </child>
@@ -549,7 +552,7 @@
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">True</property>
+                    <property name="fill">False</property>
                     <property name="padding">5</property>
                     <property name="position">4</property>
                   </packing>
@@ -562,8 +565,8 @@
                     <property name="label" translatable="yes">Amplitude:</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">5</property>
                   </packing>
                 </child>
@@ -581,8 +584,8 @@
                     <property name="digits">11</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">6</property>
                   </packing>
                 </child>
@@ -599,8 +602,8 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">7</property>
                   </packing>
                 </child>
@@ -611,7 +614,7 @@
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">True</property>
+                    <property name="fill">False</property>
                     <property name="padding">5</property>
                     <property name="position">8</property>
                   </packing>
@@ -624,8 +627,8 @@
                     <property name="label" translatable="yes">Phase:</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">9</property>
                   </packing>
                 </child>
@@ -644,8 +647,8 @@
                     <property name="wrap">True</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">10</property>
                   </packing>
                 </child>
@@ -662,7 +665,7 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
+                    <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="position">11</property>
                   </packing>
@@ -690,6 +693,7 @@
               <object class="GtkLabel" id="flags_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="xalign">0</property>
                 <property name="label" translatable="yes">flags</property>
                 <attributes>
                   <attribute name="underline" value="True"/>
@@ -706,7 +710,6 @@
               <object class="GtkHBox" id="hbox1">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="homogeneous">True</property>
                 <child>
                   <object class="GtkToggleButton" id="flag_0">
                     <property name="use_action_appearance">False</property>

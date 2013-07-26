@@ -606,9 +606,13 @@ if __name__ == "__main__":
                 error_condition = False
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Transitioning to Buffered")
-                    for name,tab in self.tablist.items():
-                        # do we need to transition this device?
-                        with h5py.File(path,'r') as hdf5_file:
+                    
+                    logger.info('opening h5file')
+                    with h5py.File(path,'r') as hdf5_file:
+                        logger.info('h5 file opened')
+                    
+                        for name,tab in self.tablist.items():
+                            # do we need to transition this device?                        
                             if name in hdf5_file['devices/']:
                                 if tab.error:
                                     logger.error('%s has an error condition, aborting run' % name)
@@ -616,7 +620,7 @@ if __name__ == "__main__":
                                     break
                                 tab.transition_to_buffered(path,self.current_queue)
                                 transition_list[name] = tab
-                
+                    logger.info('h5file closed')
                 devices_in_use = transition_list.copy()
 
                 while transition_list and not error_condition:
@@ -668,12 +672,12 @@ if __name__ == "__main__":
                         self.now_running.hide()
                     continue
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Preparing to start sequence...(program time: "+str(time.time()- start_time)+"s")
+                    self.status_bar.set_text("Preparing to start sequence...(program time: %.3fs)"%(time.time()- start_time))
                     # Get front panel data, but don't save it to the h5 file until the experiment ends:
                     states,tab_positions,window_data = self.front_panel_settings.get_save_data()
                 
                 with gtk.gdk.lock:
-                    self.status_bar.set_text("Running...(program time: "+str(time.time() - start_time)+"s")
+                    self.status_bar.set_text("Running...(program time: %.3fs)"%(time.time()- start_time))
                     
                 # A Queue for event-based notification of when the experiment has finished.
                 self.current_queue = Queue.Queue()   
@@ -694,9 +698,13 @@ if __name__ == "__main__":
                 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
+                logger.info('opening h5file (front panel save)')
                 with h5py.File(path,'r+') as hdf5_file:
+                    logger.info('h5file opened')
                     self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
+                logger.info('opening h5file (data group creation)')
                 with h5py.File(path,'a') as hdf5_file:
+                    logger.info('h5file opened')
                     data_group = hdf5_file['/'].create_group('data')
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',time.localtime())
@@ -955,8 +963,10 @@ if __name__ == "__main__":
     
     port = int(exp_config.get('ports','BLACS'))
     myappid = 'monashbec.BLACS' # arbitrary string
-    if os.name == 'nt': # please leave this in so I can test in linux!
+    try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except:
+        pass
     gtk.gdk.threads_init()
     
     

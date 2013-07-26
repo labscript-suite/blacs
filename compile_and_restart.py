@@ -76,15 +76,20 @@ class CompileAndRestart(object):
             if success:
                 self.button_restart.set_sensitive(True)
                 self.label_success.set_visible(True)
+                
                 try:
                     os.remove(self.output_path)
                 except OSError:
                      # File doesn't exist, no need to delete then:
                     pass
+                
                 try:
+                    self.output_box.output('') #this makes the below message appear slightly more reliably (it only misses 1 in 8 times instead of only appearing 1 in 8 times)
                     os.rename(self.tempfilename,self.output_path)
+                    # This line is only printed sometimes after a successful compilation....why????
+                    self.output_box.output('Connection table successfully recompiled. Click the button below to restart BLACS\n\n')
                 except OSError:
-                    self.output_box.queue.put(['stderr','Couldn\'t replace existing connection table h5 file. Is it open in another process?'])
+                    self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?\n\n', red=True)
                     self.label_failure.set_visible(True)
                     self.label_success.set_visible(False)
                     self.button_restart.set_sensitive(False)
@@ -92,6 +97,7 @@ class CompileAndRestart(object):
             else:
                 self.label_failure.set_visible(True)
                 self.button_restart.set_sensitive(False)
+                self.output_box.output('Compilation failed. Check the above error message for details.\n\n', red=True)
                 try:
                     os.remove(self.tempfilename)
                 except Exception:
