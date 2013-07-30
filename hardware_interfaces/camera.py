@@ -114,7 +114,7 @@ class CameraWorker(Worker):
             
     def starting_experiment(self,h5file,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(10)
+        s.settimeout(120)
         s.connect((host, int(port)))
         s.send('%s\r\n'%h5file)
         response = s.recv(1024)
@@ -128,7 +128,7 @@ class CameraWorker(Worker):
         
     def finished_experiment(self,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(80)
+        s.settimeout(120)
         s.connect((host, int(port)))
         s.send('done\r\n')
         response = s.recv(1024)

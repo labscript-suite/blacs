@@ -231,7 +231,8 @@ if __name__ == "__main__":
             # Start the analysis submission thread:
             splash.update_text('Starting the analysis submission thread...')
             self.analysis_queue = Queue.Queue()
-            self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue,self.settings_path)
+            self.analysis_port = int(self.exp_config.get('ports', 'lyse'))
+            self.analysis_submission = AnalysisSubmission(self.analysis_container, self.analysis_queue, self.settings_path, self.analysis_port)
             
             
             # setup the BLACS preferences system
@@ -759,10 +760,10 @@ if __name__ == "__main__":
             logger.info('Stopping')
 
     class AnalysisSubmission(object):
-        port = 42519
         
-        def __init__(self, container, inqueue,blacs_settings_path):
+        def __init__(self, container, inqueue, blacs_settings_path, port):
             self.inqueue = inqueue
+            self.port = port
             
             builder = gtk.Builder()
             builder.add_from_file('analysis_submission.glade')
@@ -957,7 +958,7 @@ if __name__ == "__main__":
                                        "connection_table_h5",
                                        "connection_table_py",                                       
                                       ],
-                              "ports":["BLACS"],
+                              "ports":["BLACS", "lyse"],
                              }
     exp_config = LabConfig(config_path,required_config_params)        
     
