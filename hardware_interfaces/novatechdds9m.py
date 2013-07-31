@@ -34,7 +34,7 @@ class novatechdds9m(DeviceTab):
         self.auto_place_widgets(("DDS Outputs",dds_widgets))
         
         # Store the COM port to be used
-        self.com_port = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
+        self.com_port = str(self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection)
         
         # Create and set the primary worker
         self.create_worker("main_worker",NovatechDDS9mWorker,{'com_port':self.com_port, 'baud_rate': 115200})

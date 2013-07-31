@@ -1,137 +1,49 @@
-import gtk
+from time import time
 
-import numpy
-import excepthook
+from BLACS.tab_base_classes import Worker, define_state
+from BLACS.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
+from BLACS.device_base_class import DeviceTab
 
-from tab_base_classes import Tab, Worker, define_state
-from output_classes import AO, DO, DDS
-
-class ni_pci_6733(Tab):
-    # Capabilities
-    num_DO = 0
-    num_AO = 8
-    num_RF = 0
-    num_AI = 0
-    max_ao_voltage = 10.0
-    min_ao_voltage = -10.0
-    ao_voltage_step = 0.1
-    
-    def __init__(self,BLACS,notebook,settings,restart=False):
-        Tab.__init__(self,BLACS,NiPCI6733Worker,notebook,settings)
-        self.settings = settings
-        self.device_name = settings['device_name']
-        self.MAX_name = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
-        self.static_mode = True
-        self.destroy_complete = False
+class ni_pci_6733(DeviceTab):
+    def initialise_GUI(self):
+        # Capabilities
+        self.num_AO = 8
+        self.base_units = 'V'
+        self.base_min = -10.0
+        self.base_max = 10.0
+        self.base_step = 0.1
+        self.base_decimals = 3
         
-        # PyGTK stuff:
-        self.builder = gtk.Builder()
-        self.builder.add_from_file('hardware_interfaces/NI_6733.glade')
-        self.builder.connect_signals(self)   
-        self.toplevel = self.builder.get_object('toplevel')
-            
-        self.analog_outs = []
-        self.analog_outs_by_channel = {}
+        # Create the AO output objects
+        ao_prop = {}
         for i in range(self.num_AO):
-            # Get the widgets:
-            spinbutton = self.builder.get_object("AO_value_%d"%(i+1))
-            combobox = self.builder.get_object('ao_units_%d'%(i+1))
-            channel = "ao"+str(i)
-            device = self.settings["connection_table"].find_child(self.settings["device_name"],channel)
-            name = device.name if device else '-'
-                
-            # store widget objects
-            self.builder.get_object("AO_label_a"+str(i+1)).set_text("AO"+str(i))            
-            self.builder.get_object("AO_label_b"+str(i+1)).set_text(name)            
-            
-            # Setup unit calibration:
-            calib = None
-            calib_params = {}
-            def_calib_params = "V"
-            if device:
-                # get the AO from the connection table, find its calibration details
-                calib = device.unit_conversion_class
-                calib_params = eval(device.unit_conversion_params)
-            
-            output = AO(name, channel,spinbutton, combobox, calib, calib_params, def_calib_params, self.program_static, self.min_ao_voltage, self.max_ao_voltage, self.ao_voltage_step)
-            output.update(settings)
-                    
-            self.analog_outs.append(output)
-            self.analog_outs_by_channel[channel] = output
-            
-        self.viewport.add(self.toplevel)
-        self.initialise_device()
-        self.program_static()
-    
-    @define_state
-    def destroy(self):
-        self.init_done = False
-        self.queue_work('close_device')
-        self.do_after('leave_destroy')
+            ao_prop['ao%d'%i] = {'base_unit':self.base_units,
+                                 'min':self.base_min,
+                                 'max':self.base_max,
+                                 'step':self.base_step,
+                                 'decimals':self.base_decimals
+                                }
+                                
+        # Create the output objects    
+        self.create_analog_outputs(ao_prop)        
+        # Create widgets for output objects
+        dds_widgets,ao_widgets,do_widgets = self.auto_create_widgets()
+        # and auto place the widgets in the UI
+        self.auto_place_widgets(("Analog Outputs",ao_widgets))
         
-    def leave_destroy(self,_results):
-        self.destroy_complete = True
-        self.close_tab()
-     
-    @define_state
-    def initialise_device(self):
-        self.queue_work('initialise', self.device_name, self.MAX_name,[self.min_ao_voltage,self.max_ao_voltage])
+        # Store the Measurement and Automation Explorer (MAX) name
+        self.MAX_name = str(self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection)
         
-    def get_front_panel_state(self):
-        state = {}
-        for i in range(self.num_AO):
-            state["AO"+str(i)] = self.analog_outs[i].value
-        return state
-    
-    @define_state
-    def program_static(self,output=None):
-        if self.static_mode:
-            self.queue_work('program_static',[output.value for output in self.analog_outs])
+        # Create and set the primary worker
+        self.create_worker("main_worker",NiPCI6733Worker,{'MAX_name':self.MAX_name, 'limits': [self.base_min,self.base_max], 'num_AO':self.num_AO})
+        self.primary_worker = "main_worker"
 
-    @define_state
-    def transition_to_buffered(self,h5file,notify_queue):
-        self.static_mode = False      
-        self.queue_work('program_buffered',h5file)
-        self.do_after('leave_program_buffered',notify_queue)
+        # Set the capabilities of this device
+        self.supports_remote_value_check(False)
+        self.supports_smart_programming(False) 
     
-    def leave_program_buffered(self,notify_queue,_results):
-        # The final values of the run, to update the GUI with at the
-        # end of the run:
-        self.final_values = _results
-        # Tell the queue manager that we're done:
-        notify_queue.put(self.device_name)
-        
-    @define_state
-    def abort_buffered(self):        
-        self.queue_work('transition_to_static',abort=True)
-        
-    @define_state        
-    def transition_to_static(self,notify_queue):
-        self.static_mode = True
-        self.queue_work('transition_to_static')
-        self.do_after('leave_transition_to_static',notify_queue)
-        # Update the GUI with the final values of the run:
-        for channel, value in self.final_values.items():
-            self.analog_outs_by_channel[channel].set_value(value,program=False)
-        
-    def leave_transition_to_static(self,notify_queue,_results):    
-        # Tell the queue manager that we're done:
-        if notify_queue is not None:
-            notify_queue.put(self.device_name)
 
-    def get_child(self,type,channel):
-        if type == "AO":
-            if channel >= 0 and channel < self.num_AO:
-                return self.analog_outs[channel]
-		
-        # We don't have any of this type, or the channel number was invalid
-        return None
-    
-    
 class NiPCI6733Worker(Worker):
-
-    num_AO = 8
-    
     def init(self):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
@@ -139,14 +51,11 @@ class NiPCI6733Worker(Worker):
         global pylab; import pylab
         global h5py; import h5_lock, h5py
         
-    def initialise(self, device_name, MAX_name, limits):
+    def initialise(self):    
         # Create task
         self.ao_task = Task()
         self.ao_read = int32()
         self.ao_data = numpy.zeros((self.num_AO,), dtype=numpy.float64)
-        self.device_name = device_name
-        self.MAX_name = MAX_name
-        self.limits = limits
         self.setup_static_channels()            
         
         #DAQmx Start Code        
@@ -157,17 +66,21 @@ class NiPCI6733Worker(Worker):
         for i in range(self.num_AO): 
             self.ao_task.CreateAOVoltageChan(self.MAX_name+"/ao%d"%i,"",self.limits[0],self.limits[1],DAQmx_Val_Volts,None)
         
-    def close_device(self):        
+    def shutdown(self):        
         self.ao_task.StopTask()
         self.ao_task.ClearTask()
         
-    def program_static(self,analog_data):
-        self.ao_data[:] = analog_data
+    def program_manual(self,front_panel_values):
+        for i in range(self.num_AO):
+            self.ao_data[i] = front_panel_values['ao%d'%i]
         self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
           
-    def program_buffered(self,h5file):  
+    def transition_to_buffered(self,device_name,h5file,initial_values,fresh):
+        # Store the initial values in case we have to abort and restore them:
+        self.initial_values = initial_values
+            
         with h5py.File(h5file,'r') as hdf5_file:
-            group = hdf5_file['devices/'][self.device_name]
+            group = hdf5_file['devices/'][device_name]
             clock_terminal = group.attrs['clock_terminal']
             h5_data = group.get('ANALOG_OUTS')
             if h5_data:
@@ -196,7 +109,7 @@ class NiPCI6733Worker(Worker):
             else:
                 return {}
         
-    def transition_to_static(self,abort=False):
+    def transition_to_manual(self,abort=False):
         if not abort:
             # if aborting, don't call StopTask since this throws an
             # error if the task hasn't actually finished!
@@ -207,6 +120,56 @@ class NiPCI6733Worker(Worker):
         self.ao_task.StartTask()
         if abort:
             # Reprogram the initial states:
-            self.program_static(self.ao_data)
+            self.program_manual(self.initial_values)
         
+    def abort_transition_to_buffered(self):
+        # TODO: untested
+        return self.transition_to_manual(True)
         
+    def abort_buffered(self):
+        # TODO: untested
+        return self.transition_to_manual(True)    
+
+        
+if __name__ == '__main__':
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+    import sys,os
+    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from BLACS.connections import ConnectionTable
+    
+    
+    class MyWindow(QWidget):
+        
+        def __init__(self,*args,**kwargs):
+            QWidget.__init__(self,*args,**kwargs)
+            self.are_we_closed = False
+        
+        def closeEvent(self,event):
+            if not self.are_we_closed:        
+                event.ignore()
+                self.my_tab.destroy()
+                self.are_we_closed = True
+                QTimer.singleShot(1000,self.close)
+            else:
+                if not self.my_tab.destroy_complete: 
+                    QTimer.singleShot(1000,self.close)                    
+                else:
+                    event.accept()
+    
+        def add_my_tab(self,tab):
+            self.my_tab = tab
+    
+    app = QApplication(sys.argv)
+    window = MyWindow()
+    layout = QVBoxLayout(window)
+    notebook = DragDropTabWidget()
+    layout.addWidget(notebook)
+    connection_table = ConnectionTable(os.path.join(os.path.dirname(os.path.realpath(__file__)),r'../example_connection_table.h5'))
+    tab1 = ni_pci_6733(notebook,settings = {'device_name': 'ni_pci_6733_0', 'connection_table':connection_table})
+    window.add_my_tab(tab1)
+    window.show()
+    def run():
+        app.exec_()
+        
+    sys.exit(run())
