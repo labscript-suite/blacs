@@ -336,6 +336,8 @@ class Worker(Process):
         from setup_logging import setup_logging
         setup_logging()
         self.logger = logging.getLogger('BLACS.%s.worker'%self.name)
+        import zlock
+        zlock.set_client_process_name('BLACS.%s.worker'%self.name)
         self.logger.debug('Starting')
         self.init()
         self.mainloop()
