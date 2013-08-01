@@ -29,10 +29,7 @@ if __name__ == "__main__":
     import gtk
     import gobject
     import numpy
-    import zlock
-    # This must happen before importing h5_lock:
-    zlock.set_client_process_name('BLACS')
-    import h5_lock, h5py
+    import zlock, h5_lock, h5py
 
     splash.update_text('Importing pythonlib modules')
     from subproc_utils import zmq_get, ZMQServer
@@ -54,6 +51,9 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     splash.update_text('Setting up logging...')
+    # Set a meaningful name for zlock's client id:
+    zlock.set_client_process_name('BLACS')
+    
 logger = setup_logging()
 excepthook.set_logger(logger)
 if __name__ == "__main__":
