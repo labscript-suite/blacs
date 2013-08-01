@@ -373,7 +373,10 @@ class RFBlasterWorker(Worker):
         return webvalues
         
     def program_buffered(self,h5file):
+    
+        self.logger.debug('opening h5 file')
         with h5py.File(h5file,'r') as hdf5_file:
+            self.logger.debug('h5 file opened')
             group = hdf5_file['devices'][self.device_name]
             #Strip out the binary files and submit to the webserver
             form = MultiPartForm()
@@ -400,8 +403,8 @@ class RFBlasterWorker(Worker):
             
             # Now we build a dictionary of the final state to send back to the GUI:
             self.final_values = {"f":finalfreq,"a":finalamp,"p":finalphase,"e": ones(self.num_DDS)} #note, GUI wants Hz
+            self.logger.debug('h5 file closed')
             return self.final_values, post_buffered_web_vals
-            
             
     def abort_buffered(self):
         form = MultiPartForm()

@@ -611,7 +611,7 @@ if __name__ == "__main__":
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Transitioning to Buffered")
                     
-                    logger.info('opening h5file')
+                    logger.info('opening h5 file')
                     with h5py.File(path,'r') as hdf5_file:
                         logger.info('h5 file opened')
                     
@@ -624,7 +624,7 @@ if __name__ == "__main__":
                                     break
                                 tab.transition_to_buffered(path,self.current_queue)
                                 transition_list[name] = tab
-                    logger.info('h5file closed')
+                    logger.info('h5 file closed')
                 devices_in_use = transition_list.copy()
 
                 while transition_list and not error_condition:
@@ -702,16 +702,18 @@ if __name__ == "__main__":
                 
                 with gtk.gdk.lock:
                     self.status_bar.set_text("Sequence done, saving data...")
-                logger.info('opening h5file (front panel save)')
+                logger.info('opening h5 file (front panel save)')
                 with h5py.File(path,'r+') as hdf5_file:
-                    logger.info('h5file opened')
+                    logger.info('h5 file opened')
                     self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
-                logger.info('opening h5file (data group creation)')
+                logger.info('h5 file closed')
+                logger.info('opening h5 file (data group creation)')
                 with h5py.File(path,'a') as hdf5_file:
-                    logger.info('h5file opened')
+                    logger.info('h5 file opened')
                     data_group = hdf5_file['/'].create_group('data')
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',time.localtime())
+                logger.info('h5 file closed')
         
                 # A Queue for event-based notification of when the devices have transitioned to static mode:
                 self.current_queue = Queue.Queue()    

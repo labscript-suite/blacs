@@ -166,9 +166,9 @@ class NiPCI6733Worker(Worker):
         self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
           
     def program_buffered(self,h5file):  
-        self.logger.debug('Opening h5 file')
+        self.logger.debug('opening h5 file')
         with h5py.File(h5file,'r') as hdf5_file:
-            self.logger.debug('h5 file is now open')
+            self.logger.debug('h5 file opened')
             group = hdf5_file['devices/'][self.device_name]
             clock_terminal = group.attrs['clock_terminal']
             h5_data = group.get('ANALOG_OUTS')
@@ -194,10 +194,12 @@ class NiPCI6733Worker(Worker):
                 # Final values here are a dictionary of values, keyed by channel:
                 channel_list = [channel.split('/')[1] for channel in ao_channels.split(', ')]
                 final_values = {channel: value for channel, value in zip(channel_list, ao_data[-1,:])}
+                self.logger.debug('h5 file closed')
                 return final_values
             else:
+                self.logger.debug('h5 file closed')
                 return {}
-        
+
     def transition_to_static(self,abort=False):
         if not abort:
             # if aborting, don't call StopTask since this throws an

@@ -345,9 +345,9 @@ class PulseblasterWorker(Worker):
         
     def program_buffered(self,h5file,initial_values,fresh):
         self.h5file = h5file
-        self.logger.debug('Opening h5 file')
+        self.logger.debug('opening h5 file')
         with h5py.File(h5file,'r') as hdf5_file:
-            self.logger.debug('h5 file is now open')
+            self.logger.debug('h5 file opened')
             group = hdf5_file['devices/%s'%self.device_name]
             # Program the DDS registers:
             ampregs = []
@@ -415,10 +415,11 @@ class PulseblasterWorker(Worker):
             self.waits_pending =  bool(len(hdf5_file['waits']))
             
             # Now we build a dictionary of the final state to send back to the GUI:
+            self.logger.debug('h5 file closed')
             return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,
                     'freq1':finalfreq1, 'amp1':finalamp1, 'phase1':finalphase1, 'en1':en1,
                     'flags':bin(flags)[2:].rjust(12,'0')[::-1]}
-    
+        
     def check_status(self):
         if self.waits_pending:
             try:

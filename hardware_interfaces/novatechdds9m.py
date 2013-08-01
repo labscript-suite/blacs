@@ -409,9 +409,9 @@ class NovatechDDS9mWorker(Worker):
         self.initial_values = initial_values
         # Store the final values to for use during transition_to_static:
         self.final_values = {}
-        self.logger.debug('Opening h5 file')
+        self.logger.debug('opening h5 file')
         with h5py.File(h5file,'r') as hdf5_file:
-            self.logger.debug('h5 file is now open')
+            self.logger.debug('h5 file opened')
             group = hdf5_file['/devices/'+device_name]
             # If there are values to set the unbuffered outputs to, set them now:
             if 'STATIC_DATA' in group:
@@ -479,8 +479,9 @@ class NovatechDDS9mWorker(Worker):
             self.connection.readline()
             # We are now waiting for a rising edge to trigger the output
             # of the second table pair (first of the experiment)
+            self.logger.debug('h5 file closed') 
             return self.final_values
-            
+        
     def transition_to_static(self,abort = False):
         self.connection.write('m 0\r\n')
         if self.connection.readline() != "OK\r\n":
