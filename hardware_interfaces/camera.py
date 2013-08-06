@@ -1,6 +1,7 @@
 import os
 import socket
 import gtk
+import subproc_utils
 
 from tab_base_classes import Tab, Worker, define_state
 
@@ -18,6 +19,7 @@ class camera(Tab):
         self.camera_responding = self.builder.get_object('responding')
         self.camera_notresponding = self.builder.get_object('notresponding')
         self.camera_working = self.builder.get_object('working')
+        self.use_zmq = self.builder.get_object('checkbutton_use_zmq')
         self.host = self.builder.get_object('host')
         self.port = self.builder.get_object('port')
         self.viewport.add(self.toplevel)
@@ -29,16 +31,23 @@ class camera(Tab):
             self.initialise_camera()
         
     def get_save_data(self):
-        return {'host':str(self.host.get_text())}
+        return {'host': str(self.host.get_text()), 'use_zmq': bool(self.use_zmq.get_state())}
     
     def restore_save_data(self):
         save_data = self.settings['saved_data']
         if save_data:
             host = save_data['host']
             self.host.set_text(host)
+            use_zmq = save_data['use_zmq']
+            self.use_zmq.set_state(use_zmq)
         else:
             self.logger.warning('No previous front panel state to restore')
     
+    def on_checkbutton_use_zmq_toggled(self, checkbutton):
+        host, port = self.host.get_text(), self.port.get_text()
+        if host and port:
+            self.initialise_camera()
+        
     @define_state
     def on_change_host(self,widget):
         # Save host into settings
@@ -56,7 +65,7 @@ class camera(Tab):
         self.camera_notresponding.hide()
         self.camera_responding.hide()
         host, port = self.host.get_text(), self.port.get_text()
-        self.queue_work('initialise_camera', host, port)
+        self.queue_work('initialise_camera', host, port, self.use_zmq.get_state())
         self.do_after('after_initialise_camera')
         
     def after_initialise_camera(self,_results):
@@ -69,10 +78,10 @@ class camera(Tab):
     
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):       
-        self.queue_work('starting_experiment',h5file,self.host.get_text(),self.port.get_text())
+        self.queue_work('starting_experiment', h5file, self.host.get_text(), self.port.get_text(), self.use_zmq.get_state())
         self.do_after('leave_transition_to_buffered', notify_queue)
     
-    def leave_transition_to_buffered(self,notify_queue,_results):
+    def leave_transition_to_buffered(self, notify_queue, _results):
         self.static_mode = False
         # Notify the queue manager thread that we've finished transitioning to buffered:
         notify_queue.put(self.device_name)
@@ -83,8 +92,8 @@ class camera(Tab):
         
     @define_state    
     def transition_to_static(self,notify_queue):
-        self.queue_work('finished_experiment',self.host.get_text(),self.port.get_text())
-        self.do_after('leave_transition_to_static',notify_queue)
+        self.queue_work('finished_experiment', self.host.get_text(), self.port.get_text(), self.use_zmq.get_state())
+        self.do_after('leave_transition_to_static', notify_queue)
     
     def leave_transition_to_static(self,notify_queue,_results):
         self.static_mode = True
@@ -94,10 +103,17 @@ class camera(Tab):
         
 class CameraWorker(Worker):
 
-#    def init(self):
-#        global socket; import socket
-    
-    def initialise_camera(self, host, port):
+    def initialise_camera(self, host, port, use_zmq):
+        if not use_zmq:
+            return initialise_camera_sockets(self, host, port)
+        else:
+            response = subproc_utils.zmq_get_raw(port, host, data='hello')
+            if response == 'hello':
+                return True
+            else:
+                raise Exception('invalid response from server: ' + str(response))
+            
+    def initialise_camera_sockets(self, host, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         assert port, 'No port number supplied.'
         assert host, 'No hostname supplied.'
@@ -111,8 +127,19 @@ class CameraWorker(Worker):
             return True
         else:
             raise Exception('invalid response from server: ' + response)
-            
-    def starting_experiment(self,h5file,host,port):
+    
+    def starting_experiment(self, h5file, host, port, use_zmq):
+        if not use_zmq:
+            return starting_experiment_sockets(self, host, port)
+        else:
+            response = subproc_utils.zmq_get_raw(port, host, data=h5file)
+            if response != 'ok':
+                raise Exception('invalid response from server: ' + str(response))
+            response = subproc_utils.zmq_get_raw(port, host, timeout = 10)
+            if response != 'done':
+                raise Exception('invalid response from server: ' + str(response))
+                
+    def starting_experiment_sockets(self,h5file,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(120)
         s.connect((host, int(port)))
@@ -126,7 +153,18 @@ class CameraWorker(Worker):
             s.close()
             raise Exception(response)
         
-    def finished_experiment(self,host,port):
+    def finished_experiment(self, host, port, use_zmq):
+        if not use_zmq:
+            return finished_experiment_sockets(self, host, port)
+        else:
+            response = subproc_utils.zmq_get_raw(port, host, 'done')
+            if response != 'ok':
+                raise Exception('invalid response from server: ' + str(response))
+            response = subproc_utils.zmq_get_raw(port, host, timeout = 10)
+            if response != 'done':
+                raise Exception('invalid response from server: ' + str(response))
+                
+    def finished_experiment_sockets(self,host,port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(120)
         s.connect((host, int(port)))
