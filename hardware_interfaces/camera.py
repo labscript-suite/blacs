@@ -2,6 +2,7 @@ import os
 import socket
 import gtk
 import subproc_utils
+import shared_drive
 
 from tab_base_classes import Tab, Worker, define_state
 
@@ -105,7 +106,7 @@ class CameraWorker(Worker):
 
     def initialise_camera(self, host, port, use_zmq):
         if not use_zmq:
-            return initialise_camera_sockets(self, host, port)
+            return self.initialise_camera_sockets(host, port)
         else:
             response = subproc_utils.zmq_get_raw(port, host, data='hello')
             if response == 'hello':
@@ -129,8 +130,9 @@ class CameraWorker(Worker):
             raise Exception('invalid response from server: ' + response)
     
     def starting_experiment(self, h5file, host, port, use_zmq):
+        h5file = shared_drive.path_to_agnostic(h5file)
         if not use_zmq:
-            return starting_experiment_sockets(self, host, port)
+            return self.starting_experiment_sockets(host, port)
         else:
             response = subproc_utils.zmq_get_raw(port, host, data=h5file)
             if response != 'ok':
@@ -155,7 +157,7 @@ class CameraWorker(Worker):
         
     def finished_experiment(self, host, port, use_zmq):
         if not use_zmq:
-            return finished_experiment_sockets(self, host, port)
+            return self.finished_experiment_sockets(host, port)
         else:
             response = subproc_utils.zmq_get_raw(port, host, 'done')
             if response != 'ok':

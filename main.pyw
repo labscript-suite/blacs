@@ -34,6 +34,7 @@ if __name__ == "__main__":
     splash.update_text('Importing pythonlib modules')
     from subproc_utils import zmq_get, ZMQServer
     from settings import Settings
+    import shared_drive
     import settings_pages
     from filewatcher import FileWatcher
     from compile_and_restart import CompileAndRestart
@@ -862,7 +863,7 @@ if __name__ == "__main__":
                     host = self.analysis_host.get_text()
                 try:
                     logger.info('Submitting run file %s.\n'%os.path.basename(path))
-                    data = {'filepath': path}
+                    data = {'filepath': shared_drive.path_to_agnostic(path)}
                     response = zmq_get(self.port, host, data, timeout = 2)
                     if response != 'added successfully':
                         raise Exception
@@ -886,8 +887,8 @@ if __name__ == "__main__":
         def handler(self, h5_filepath):
             with gtk.gdk.lock:
                 # Convert path to local slashes and shared drive prefix:
-                shared_drive_prefix = app.exp_config.get('paths','shared_drive')     
-                h5_filepath = h5_filepath.replace('\\', os.path.sep).replace('Z:', shared_drive_prefix)
+                logger.info('received filepath: %s'%h5_filepath)        
+                h5_filepath = shared_drive.path_to_local(h5_filepath)
                 logger.info('local filepath: %s'%h5_filepath)
                 message = process_request(h5_filepath)
             logger.info('Request handler: %s ' % message.strip())
