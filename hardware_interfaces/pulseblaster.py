@@ -349,75 +349,81 @@ class PulseblasterWorker(Worker):
         with h5py.File(h5file,'r') as hdf5_file:
             self.logger.debug('h5 file is now open')
             group = hdf5_file['devices/%s'%self.device_name]
-            # Program the DDS registers:
-            ampregs = []
-            freqregs = []
-            phaseregs = []
-            for i in range(2):
-                amps = group['DDS%d/AMP_REGS'%i][:]
-                freqs = group['DDS%d/FREQ_REGS'%i][:]
-                phases = group['DDS%d/PHASE_REGS'%i][:]
-                
-                amps[0] = initial_values['amp%d'%i]
-                freqs[0] = initial_values['freq%d'%i]/10.0**6 # had better be in MHz!
-                phases[0] = initial_values['phase%d'%i]
-                
-                pb_select_dds(i)
-                # Only reprogram each thing if there's been a change:
-                if fresh or len(amps) != len(self.smart_cache['amps%d'%i]) or (amps != self.smart_cache['amps%d'%i]).any():   
-                    self.smart_cache['amps%d'%i] = amps
-                    program_amp_regs(*amps)
-                if fresh or len(freqs) != len(self.smart_cache['freqs%d'%i]) or (freqs != self.smart_cache['freqs%d'%i]).any():
-                    self.smart_cache['freqs%d'%i] = freqs
-                    program_freq_regs(*freqs)
-                if fresh or len(phases) != len(self.smart_cache['phases%d'%i]) or (phases != self.smart_cache['phases%d'%i]).any():      
-                    self.smart_cache['phases%d'%i] = phases
-                    program_phase_regs(*phases)
-                
-                ampregs.append(amps)
-                freqregs.append(freqs)
-                phaseregs.append(phases)
-                
-            # Now for the pulse program:
+            amp_table, freq_table, phase_table = {}, {}, {}
+            amp_table[0] = group['DDS0/AMP_REGS'][:]
+            freq_table[0] = group['DDS0/FREQ_REGS'][:]
+            phase_table[0] = group['DDS0/PHASE_REGS'][:]
+            amp_table[1] = group['DDS1/AMP_REGS'][:]
+            freq_table[1] = group['DDS1/FREQ_REGS'][:]
+            phase_table[1] = group['DDS1/PHASE_REGS'][:]
             pulse_program = group['PULSE_PROGRAM'][2:]
+        # Program the DDS registers:
+        ampregs = []
+        freqregs = []
+        phaseregs = []
+        for i in range(2):
+            amps = amp_table[i]
+            freqs = freq_table[i]
+            phases = phase_table[i]
             
-            #Let's get the final state of the pulseblaster. z's are the args we don't need:
-            freqreg0,phasereg0,ampreg0,en0,z,freqreg1,phasereg1,ampreg1,en1,z,flags,z,z,z = pulse_program[-1]
-            finalfreq0 = freqregs[0][freqreg0]*10.0**6 # Front panel expects frequency in Hz
-            finalfreq1 = freqregs[1][freqreg1]*10.0**6 # Front panel expects frequency in Hz
-            finalamp0 = ampregs[0][ampreg0]
-            finalamp1 = ampregs[1][ampreg1]
-            finalphase0 = phaseregs[0][phasereg0]
-            finalphase1 = phaseregs[1][phasereg1]
+            amps[0] = initial_values['amp%d'%i]
+            freqs[0] = initial_values['freq%d'%i]/10.0**6 # had better be in MHz!
+            phases[0] = initial_values['phase%d'%i]
+            
+            pb_select_dds(i)
+            # Only reprogram each thing if there's been a change:
+            if fresh or len(amps) != len(self.smart_cache['amps%d'%i]) or (amps != self.smart_cache['amps%d'%i]).any():   
+                self.smart_cache['amps%d'%i] = amps
+                program_amp_regs(*amps)
+            if fresh or len(freqs) != len(self.smart_cache['freqs%d'%i]) or (freqs != self.smart_cache['freqs%d'%i]).any():
+                self.smart_cache['freqs%d'%i] = freqs
+                program_freq_regs(*freqs)
+            if fresh or len(phases) != len(self.smart_cache['phases%d'%i]) or (phases != self.smart_cache['phases%d'%i]).any():      
+                self.smart_cache['phases%d'%i] = phases
+                program_phase_regs(*phases)
+            
+            ampregs.append(amps)
+            freqregs.append(freqs)
+            phaseregs.append(phases)
+            
+        # Now for the pulse program:
+        #Let's get the final state of the pulseblaster. z's are the args we don't need:
+        freqreg0,phasereg0,ampreg0,en0,z,freqreg1,phasereg1,ampreg1,en1,z,flags,z,z,z = pulse_program[-1]
+        finalfreq0 = freqregs[0][freqreg0]*10.0**6 # Front panel expects frequency in Hz
+        finalfreq1 = freqregs[1][freqreg1]*10.0**6 # Front panel expects frequency in Hz
+        finalamp0 = ampregs[0][ampreg0]
+        finalamp1 = ampregs[1][ampreg1]
+        finalphase0 = phaseregs[0][phasereg0]
+        finalphase1 = phaseregs[1][phasereg1]
 
-            if fresh or (self.smart_cache['initial_values'] != initial_values) or \
-            (len(self.smart_cache['pulse_program']) != len(pulse_program)) or \
-            (self.smart_cache['pulse_program'] != pulse_program).any() or \
-            not self.smart_cache['ready_to_go']:
-            
-                self.smart_cache['ready_to_go'] = True
-                self.smart_cache['initial_values'] = initial_values
-                pb_start_programming(PULSE_PROGRAM)
-                # Line zero is a wait on the final state of the program:
-                pb_inst_dds2(freqreg0,phasereg0,ampreg0,en0,0,freqreg1,phasereg1,ampreg1,en1,0,flags,WAIT,0,100)
-                # Line one is a continue with the current front panel values:
-                pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 100)
-                # Now the rest of the program:
-                if fresh or len(self.smart_cache['pulse_program']) != len(pulse_program) or \
-                (self.smart_cache['pulse_program'] != pulse_program).any():
-                    self.smart_cache['pulse_program'] = pulse_program
-                    for args in pulse_program:
-                        pb_inst_dds2(*args)
-                pb_stop_programming()
-            
-            # Are there waits in use in this experiment? The monitor waiting for the end of
-            # the experiment will need to know:
-            self.waits_pending =  bool(len(hdf5_file['waits']))
-            
-            # Now we build a dictionary of the final state to send back to the GUI:
-            return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,
-                    'freq1':finalfreq1, 'amp1':finalamp1, 'phase1':finalphase1, 'en1':en1,
-                    'flags':bin(flags)[2:].rjust(12,'0')[::-1]}
+        if fresh or (self.smart_cache['initial_values'] != initial_values) or \
+        (len(self.smart_cache['pulse_program']) != len(pulse_program)) or \
+        (self.smart_cache['pulse_program'] != pulse_program).any() or \
+        not self.smart_cache['ready_to_go']:
+        
+            self.smart_cache['ready_to_go'] = True
+            self.smart_cache['initial_values'] = initial_values
+            pb_start_programming(PULSE_PROGRAM)
+            # Line zero is a wait on the final state of the program:
+            pb_inst_dds2(freqreg0,phasereg0,ampreg0,en0,0,freqreg1,phasereg1,ampreg1,en1,0,flags,WAIT,0,100)
+            # Line one is a continue with the current front panel values:
+            pb_inst_dds2(0,0,0,initial_values['en0'],0,0,0,0,initial_values['en1'],0,initial_values['flags'], CONTINUE, 0, 100)
+            # Now the rest of the program:
+            if fresh or len(self.smart_cache['pulse_program']) != len(pulse_program) or \
+            (self.smart_cache['pulse_program'] != pulse_program).any():
+                self.smart_cache['pulse_program'] = pulse_program
+                for args in pulse_program:
+                    pb_inst_dds2(*args)
+            pb_stop_programming()
+        
+        # Are there waits in use in this experiment? The monitor waiting for the end of
+        # the experiment will need to know:
+        self.waits_pending =  bool(len(hdf5_file['waits']))
+        
+        # Now we build a dictionary of the final state to send back to the GUI:
+        return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,
+                'freq1':finalfreq1, 'amp1':finalamp1, 'phase1':finalphase1, 'en1':en1,
+                'flags':bin(flags)[2:].rjust(12,'0')[::-1]}
     
     def check_status(self):
         if self.waits_pending:
