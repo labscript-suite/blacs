@@ -119,26 +119,20 @@ class BLACS(object):
         
         # splash.update_text('restoring tab positions...')
         # # Now that all the pages are created, reorder them!
-        # for device_name,device_class in self.attached_devices.items():
-            # if device_name in tab_data:
-                # notebook_num = tab_data[device_name]["notebook"]
-                # if notebook_num in self.notebook:                                        
-                    # self.notebook[notebook_num].reorder_child(self.tablist[device_name]._toplevel,tab_data[device_name]["page"])
-                
+        for device_name,device_class in self.attached_devices.items():
+            if device_name in tab_data:
+                notebook_num = int(tab_data[device_name]["notebook"])
+                if notebook_num in self.tab_widgets:  
+                    self.tab_widgets[notebook_num].tab_bar.moveTab(self.tab_widgets[notebook_num].indexOf(self.tablist[device_name]._ui),int(tab_data[device_name]["page"]))
+        
         # # Now that they are in the correct order, set the correct one visible
-        # for device_name,device_data in tab_data.items():
-            # if device_name == 'BLACS settings':
-                # continue
-            # # if the notebook still exists and we are on the entry that is visible
-            # if device_data["visible"] and device_data["notebook"] in self.notebook:
-                # self.notebook[device_data["notebook"]].set_current_page(device_data["page"])
-            
-        
-        # for i in range(4):
-            # self.tab_widgets.append(DragDropTabWidget(self.tab_widget_ids))
-            # self.tab_widgets[i].addTab(QLabel("tab %d"%i),"tab %d"%i)
-            # getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
-        
+        for device_name,device_data in tab_data.items():
+            if device_name == 'BLACS settings':
+                continue
+            # if the notebook still exists and we are on the entry that is visible
+            if bool(device_data["visible"]) and int(device_data["notebook"]) in self.tab_widgets:
+                self.tab_widgets[int(device_data["notebook"])].tab_bar.setCurrentIndex(int(device_data["page"]))
+                    
         # Setup the QueueManager
         self.queue = QueueManager(self.ui)
             
