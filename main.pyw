@@ -28,7 +28,12 @@ from LabConfig import LabConfig, config_prefix
 from qtutils import *
 # Queue Manager Code
 from queue import QueueManager
-
+# Hardware Interface Imports
+from hardware_interfaces import *
+for device in device_list:    
+    exec("from hardware_interfaces."+device+" import "+device)
+ # Save/restore frontpanel code
+from front_panel_settings import FrontPanelSettings
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -58,17 +63,81 @@ class BLACS(object):
     
     def __init__(self):
         self.ui = QUiLoader().load('main.ui')
-        self.tab_widgets = []
+        self.tab_widgets = {}
         self.exp_config = exp_config # Global variable
+        self.settings_path = settings_path # Global variable
         self.connection_table = connection_table # Global variable
         self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
         self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
         
+     
         
+        # Instantiate Devices from Connection Table, Place in Array        
+        self.attached_devices = self.connection_table.find_devices(device_list)
+        self.settings_dict = {}
+        
+        # Get settings to restore 
+        self.front_panel_settings = FrontPanelSettings(self.settings_path, self.connection_table)
+        settings,question,error,tab_data = self.front_panel_settings.restore()
+            
+        # TODO: handle question/error cases
+        
+        # read out position settings:
+        # try:
+            # self.window.move(tab_data['BLACS settings']["window_xpos"],tab_data['BLACS settings']["window_ypos"])
+            # self.window.resize(tab_data['BLACS settings']["window_width"],tab_data['BLACS settings']["window_height"])
+            
+            # for pane_name,pane in self.panes.items():
+                # pane.set_position(tab_data['BLACS settings'][pane_name])
+                    
+        # except Exception as e:
+            # logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
+        
+        #splash.update_text('Creating the device tabs...')
+        self.tablist = {}
+        # Create the notebooks
         for i in range(4):
-            self.tab_widgets.append(DragDropTabWidget(self.tab_widget_ids))
-            self.tab_widgets[i].addTab(QLabel("tab %d"%i),"tab %d"%i)
+            self.tab_widgets[i] = DragDropTabWidget(self.tab_widget_ids)
             getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
+        
+        for device_name,device_class in self.attached_devices.items():
+            self.settings_dict.setdefault(device_name,{"device_name":device_name})
+            # add common keys to settings:
+            self.settings_dict[device_name]["connection_table"] = self.connection_table
+            self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
+            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
+                        
+            # Select the notebook to add the device to
+            notebook_num = 0
+            if device_name in tab_data:
+                notebook_num = int(tab_data[device_name]["notebook"])
+                if notebook_num not in self.tab_widgets: 
+                    notebook_num = 0
+            #splash.update_text('Creating the device tabs...'+device_name+'...')
+            # Instantiate the device            
+            self.tablist[device_name] = globals()[device_class](self.tab_widgets[notebook_num],self.settings_dict[device_name])
+        
+        # splash.update_text('restoring tab positions...')
+        # # Now that all the pages are created, reorder them!
+        # for device_name,device_class in self.attached_devices.items():
+            # if device_name in tab_data:
+                # notebook_num = tab_data[device_name]["notebook"]
+                # if notebook_num in self.notebook:                                        
+                    # self.notebook[notebook_num].reorder_child(self.tablist[device_name]._toplevel,tab_data[device_name]["page"])
+                
+        # # Now that they are in the correct order, set the correct one visible
+        # for device_name,device_data in tab_data.items():
+            # if device_name == 'BLACS settings':
+                # continue
+            # # if the notebook still exists and we are on the entry that is visible
+            # if device_data["visible"] and device_data["notebook"] in self.notebook:
+                # self.notebook[device_data["notebook"]].set_current_page(device_data["page"])
+            
+        
+        # for i in range(4):
+            # self.tab_widgets.append(DragDropTabWidget(self.tab_widget_ids))
+            # self.tab_widgets[i].addTab(QLabel("tab %d"%i),"tab %d"%i)
+            # getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
         
         # Setup the QueueManager
         self.queue = QueueManager(self.ui)
@@ -189,7 +258,7 @@ if __name__ == '__main__':
         # dialog.run()
         # dialog.destroy()
         sys.exit("Invalid Connection Table")
-        return
+        
     
     qapplication = QApplication(sys.argv)
     app = BLACS()

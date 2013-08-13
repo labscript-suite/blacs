@@ -3,10 +3,11 @@ import socket
 import logging
 
 import excepthook
-import gtk
 import numpy
 import h5_lock, h5py
 
+from PySide.QtCore import *
+from PySide.QtGui import *
 
 # Connection Table Code
 from connections import ConnectionTable
@@ -14,8 +15,11 @@ from connections import ConnectionTable
 logger = logging.getLogger('BLACS.FrontPanelSettings')  
 
 class FrontPanelSettings(object):
-    def __init__(self):
-        pass
+    def __init__(self,settings_path,connection_table):
+        self.settings_path = settings_path
+        self.connection_table = connection_table
+        with h5py.File(settings_path,'a') as h5file:
+            pass
         
     def setup_settings(self,blacs):
         self.tablist = blacs.tablist
@@ -26,7 +30,7 @@ class FrontPanelSettings(object):
         self.connection_table = blacs.connection_table
         self.blacs = blacs
 
-    def restore(self,h5_file,blacs_ct):
+    def restore(self):
         
         # Get list of DO/AO
         # Does the object have a name?
@@ -51,12 +55,13 @@ class FrontPanelSettings(object):
         error = {}
         tab_data = {}
         try:
-            saved_ct = ConnectionTable(h5_file)
-            ct_match,error = blacs_ct.compare_to(saved_ct)
-        
-            with h5py.File(h5_file,'r') as hdf5_file:
+            saved_ct = ConnectionTable(self.settings_path)
+            ct_match,error = self.connection_table.compare_to(saved_ct)
+            
+            with h5py.File(self.settings_path,'r') as hdf5_file:
                 # Get Tab Data
                 dataset = hdf5_file['/front_panel'].get('_notebook_data',[])
+                
                 for row in dataset:
                     tab_data.setdefault(row['tab_name'],{})
                     try:
@@ -72,8 +77,12 @@ class FrontPanelSettings(object):
                 for key in type_list:
                     dataset = hdf5_file["/front_panel"].get(key, [])
                     for row in dataset:
-                        result = self.check_row(row,ct_match,blacs_ct,saved_ct)
-                        settings,question,error = self.handle_return_code(row,result,settings,question,error)
+                        result = self.check_row(row,ct_match,self.connection_table,saved_ct)
+                        columns = ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units']
+                        data_dict = {}
+                        for i in range(len(row)):
+                            data_dict[columns[i]] = row[i]
+                        settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
         except Exception,e:
             logger.info("Could not load saved settings")
             logger.info(e.message)
@@ -93,8 +102,8 @@ class FrontPanelSettings(object):
             result = result[0]
         
         if result == 1:
-            settings.setdefault(row[1],{})
-            settings[row[1]][row[2]] = row
+            settings.setdefault(row['device_name'],{})
+            settings[row['device_name']][row['channel']] = row
         elif result == 2:
             settings.setdefault(connection.parent.name,{})
             settings[connection.parent.name][connection.parent_port] = row
@@ -102,9 +111,9 @@ class FrontPanelSettings(object):
             question.setdefault(connection.parent.name,{})
             question[connection.parent.name][connection.parent_port] = row
         elif result == -1:
-            error[row[1]+'_'+row[2]] = row,"missing"
+            error[row['device_name']+'_'+row['channel']] = row,"missing"
         elif result == -2:
-            error[row[1]+'_'+row[2]] = row,"changed"
+            error[row['device_name']+'_'+row['channel']] = row,"changed"
             
         return settings,question,error
     
@@ -222,13 +231,18 @@ class FrontPanelSettings(object):
                     if hdf5_file['/'].get('front_panel') != None:
                         # Create a dialog to ask whether we can overwrite!
                         overwrite = False
-                        if not silent:                                
-                            message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_YES_NO, "Do you wish to replace the existing front panel configuration in this file?")                             
-                            resp = message.run()
-                            
-                            if resp == gtk.RESPONSE_YES:
-                                overwrite = True                              
-                            message.destroy()
+                        if not silent:
+                            message = QMessageBox()
+                            message.setText("This file '%s' already contains a connection table."%current_file)
+                            message.setInformativeText("Do you wish to replace the existing front panel configuration in this file?")
+                            message.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                            message.setDefaultButton(QMessageBox.No)
+                            message.setIcon(QMessageBox.Question)
+                            message.setWindowTitle("BLACS")
+                            resp = message.exec_()
+                                                
+                            if resp == QMessageBox.Yes :
+                                overwrite = True   
                         else:
                             overwrite = silent["overwrite"]
                         
@@ -237,10 +251,12 @@ class FrontPanelSettings(object):
                             del hdf5_file['/front_panel']
                             self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table)
                         else:
-                            if not silent:
-                                message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_CANCEL, "Front Panel not saved.") 
-                                message.run()  
-                                message.destroy()
+                            if not silent:                               
+                                message = QMessageBox()
+                                message.setText("Front Panel not saved.")
+                                message.setIcon(QMessageBox.Information)
+                                message.setWindowTitle("BLACS")
+                                message.exec_()
                             else:
                                 logger.info("Front Panel not saved as it already existed in the h5 file '"+current_file+"'")
                             return
@@ -250,9 +266,11 @@ class FrontPanelSettings(object):
             else:
                 # Create Error dialog (invalid connection table)
                 if not silent:
-                    message = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO, gtk.BUTTONS_CANCEL, "The Front Panel was not saved as the file selected contains a connection table which is not a subset of the current connection table.") 
-                    message.run()  
-                    message.destroy()   
+                    message = QMessageBox()
+                    message.setText("The Front Panel was not saved as the file selected contains a connection table which is not a subset of the BLACS connection table.")
+                    message.setIcon(QMessageBox.Information)
+                    message.setWindowTitle("BLACS")
+                    message.exec_() 
                 else:
                     logger.info("Front Panel not saved as the connection table in the h5 file '"+current_file+"' didn't match the current connection table.")
                 return
