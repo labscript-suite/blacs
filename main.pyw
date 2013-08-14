@@ -32,8 +32,11 @@ from queue import QueueManager
 from hardware_interfaces import *
 for device in device_list:    
     exec("from hardware_interfaces."+device+" import "+device)
- # Save/restore frontpanel code
+# Save/restore frontpanel code
 from front_panel_settings import FrontPanelSettings
+# Preferences system
+from settings import Settings
+import settings_pages
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -70,7 +73,9 @@ class BLACS(object):
         self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
         self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
         
-     
+        # Setup the UI
+        self.ui.main_splitter.setStretchFactor(0,0)
+        self.ui.main_splitter.setStretchFactor(1,1)
         
         # Instantiate Devices from Connection Table, Place in Array        
         self.attached_devices = self.connection_table.find_devices(device_list)
@@ -135,10 +140,23 @@ class BLACS(object):
                     
         # Setup the QueueManager
         self.queue = QueueManager(self.ui)
+        
+        # setup the BLACS preferences system
+        self.settings = Settings(file=self.settings_path,
+                                     parent = self.ui,
+                                     page_classes=[settings_pages.connection_table.ConnectionTable,
+                                                   settings_pages.general.General])
+        #self.settings.register_callback(self.on_settings_changed)
             
+        
+        # Connect menu actions
+        self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
+        
+        
         self.ui.show()
         
-        
+    def on_open_preferences(self,*args,**kwargs):
+        self.settings.create_dialog()
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):

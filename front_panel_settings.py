@@ -24,10 +24,9 @@ class FrontPanelSettings(object):
     def setup_settings(self,blacs):
         self.tablist = blacs.tablist
         self.attached_devices = blacs.attached_devices
-        self.notebook = blacs.notebook
+        self.notebook = blacs.tab_widgets
         self.window = blacs.window
         self.panes = blacs.panes
-        self.connection_table = blacs.connection_table
         self.blacs = blacs
 
     def restore(self):

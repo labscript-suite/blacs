@@ -6,19 +6,29 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>568</width>
-    <height>551</height>
+    <width>1068</width>
+    <height>729</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>BLACS</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>BLACS.ico</normaloff>BLACS.ico</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_13">
     <item>
      <layout class="QVBoxLayout" name="verticalLayout_12">
       <item>
-       <widget class="QSplitter" name="splitter_4">
+       <widget class="QSplitter" name="main_splitter">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
@@ -28,6 +38,9 @@
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
              <layout class="QVBoxLayout" name="verticalLayout">
+              <property name="sizeConstraint">
+               <enum>QLayout::SetMinimumSize</enum>
+              </property>
               <item>
                <spacer name="verticalSpacer">
                 <property name="orientation">
@@ -43,53 +56,103 @@
               </item>
               <item>
                <widget class="QPushButton" name="queue_push_to_top">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
                   <width>20</width>
                   <height>0</height>
                  </size>
                 </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>20</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
-                 <string> </string>
+                 <string>^
+^</string>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="queue_push_up">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
                   <width>20</width>
                   <height>0</height>
                  </size>
                 </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>20</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
-                 <string> </string>
+                 <string>^</string>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="queue_push_down">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
                   <width>20</width>
                   <height>0</height>
                  </size>
                 </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>20</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
-                 <string> </string>
+                 <string>v</string>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="queue_push_to_bottom">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
                   <width>20</width>
                   <height>0</height>
                  </size>
                 </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>20</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
-                 <string> </string>
+                 <string>V
+V</string>
                 </property>
                </widget>
               </item>
@@ -243,11 +306,11 @@
           </item>
          </layout>
         </widget>
-        <widget class="QSplitter" name="splitter_3">
+        <widget class="QSplitter" name="tab_horizontal_splitter">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
          </property>
-         <widget class="QSplitter" name="splitter_2">
+         <widget class="QSplitter" name="tab_top_vertical_splitter">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -266,7 +329,7 @@
            </layout>
           </widget>
          </widget>
-         <widget class="QSplitter" name="splitter">
+         <widget class="QSplitter" name="tab_bottom_vertical_splitter">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -297,16 +360,19 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>568</width>
-     <height>21</height>
+     <width>1068</width>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionAdd_to_queue"/>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpenPreferences"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
@@ -314,17 +380,27 @@
   </widget>
   <action name="actionOpen">
    <property name="text">
-    <string>Open</string>
+    <string>Load front-panel</string>
    </property>
   </action>
   <action name="actionSave">
    <property name="text">
-    <string>Save</string>
+    <string>Save front-panel</string>
    </property>
   </action>
   <action name="actionExit">
    <property name="text">
     <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionOpenPreferences">
+   <property name="text">
+    <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionAdd_to_queue">
+   <property name="text">
+    <string>Add to queue</string>
    </property>
   </action>
  </widget>

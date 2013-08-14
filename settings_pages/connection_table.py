@@ -1,5 +1,9 @@
 import os
-import gtk
+from PySide.QtCore import *
+from PySide.QtGui import *
+from PySide.QtUiTools import QUiLoader
+from IPython import embed
+FILEPATH_COLUMN = 0
 
 class ConnectionTable(object):
     name = "Connection Table"
@@ -13,33 +17,58 @@ class ConnectionTable(object):
         for store in self.stores_list:
             if '%s_list'%store not in self.data:
                 self.data['%s_list'%store] = []
+                
+            #set the default sort order if it wasn't previousl saved
+            if '%s_sort_order'%store not in self.data:
+                self.data['%s_sort_order'%store] = Qt.AscendingOrder
         
-    # Create the GTK page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
+    # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        builder = gtk.Builder()
-        self.builder = builder
-        builder.add_from_file(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.glade'))
-        builder.connect_signals(self)
-    
-        toplevel = builder.get_object('toplevel')
+        ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.ui'))
         
-        # get the liststores and populate them!
-        self.stores = {}
+        # Create the models, get the views, and link them!!
+        self.models = {}
         self.views = {}
+        self.models['globals'] = QStandardItemModel()
+        self.models['globals'].setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
+        self.views['globals'] = ui.h5_treeview
+        self.views['globals'].setModel(self.models['globals'])
+        
+        self.models['calibrations'] = QStandardItemModel()
+        self.models['calibrations'].setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
+        self.views['calibrations'] = ui.unit_conversion_treeview
+        self.views['calibrations'].setModel(self.models['calibrations'])
+        
+        # Setup the buttons
+        ui.add_h5_file.clicked.connect(self.add_global_file)
+        ui.delete_h5_file.clicked.connect(self.delete_selected_globals_file)
+        ui.add_unitconversion_file.clicked.connect(self.add_calibration_file)
+        ui.add_unitconversion_folder.clicked.connect(self.add_calibration_folder)
+        ui.delete_unitconversion.clicked.connect(self.delete_selected_conversion_file)
+        
+        # setup sort indicator changed signals
+        self.views['globals'].header().sortIndicatorChanged.connect(self.global_sort_indicator_changed)
+        self.views['calibrations'].header().sortIndicatorChanged.connect(self.calibrations_sort_indicator_changed)
+        
         #iterate over the two listores
         for store in self.stores_list:
-            # Get and save the liststore for later use
-            self.stores[store] = builder.get_object('%s_store'%store)
-            self.views[store] = builder.get_object('%s_view'%store)
             # If we have saved data in the data store, then load it into the list store
             if '%s_list'%store in self.data:
                 for path in self.data['%s_list'%store]:
-                    self.stores[store].append([path])
+                    self.models[store].appendRow(QStandardItem(path))
             # otherwise add an empty list to our data store, and leave the liststore empty
             else:
                 self.data['%s_list'%store] = []
         
-        return toplevel,None
+            self.views[store].sortByColumn(FILEPATH_COLUMN,self.data['%s_sort_order'%store])
+        
+        return ui,None
+    
+    def global_sort_indicator_changed(self):
+        self.data['globals_sort_order'] = self.views['globals'].header().sortIndicatorOrder()
+        
+    def calibrations_sort_indicator_changed(self):
+        self.data['calibrations_sort_order'] = self.views['calibrations'].header().sortIndicatorOrder()
     
     def get_value(self,name):
         if name in self.data:
@@ -50,118 +79,90 @@ class ConnectionTable(object):
     def save(self):
         # transfer the contents of the list store into the data store, and then return the data store
         for store in self.stores_list:
-            iter = self.stores[store].get_iter_first()
             # clear the existing list
             self.data['%s_list'%store] = []
-            while iter:
-                self.data['%s_list'%store].append(self.stores[store].get_value(iter,0))                
-                iter = self.stores[store].iter_next(iter)
+            for row_index in range(self.models[store].rowCount()):
+                self.data['%s_list'%store].append(self.models[store].item(row_index).text())        
         
         return self.data
         
     def close(self):
         pass
         
-    def add_global_file(self,widget):
-        # create file choose dialog
-        chooser = gtk.FileChooserDialog(title='select globals .h5 file',action=gtk.FILE_CHOOSER_ACTION_OPEN,
-                                    buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
-                                               gtk.STOCK_OPEN,gtk.RESPONSE_OK))
-        filter = gtk.FileFilter()
-        filter.add_pattern("*.h5")
-        filter.set_name("HDF5 Files")
-        chooser.add_filter(filter)
-        chooser.set_default_response(gtk.RESPONSE_OK)
-        # set this to the current location of the h5_chooser    
-        #chooser.set_current_folder(self.globals_path)
-               
-        chooser.set_current_name('.h5')
-        response = chooser.run()
-        path = chooser.get_filename()
-        chooser.destroy()
-        if response == gtk.RESPONSE_OK: 
-            # make sure the path isn't already in the list!
-            iter = self.stores['globals'].get_iter_first()
-            while iter:
-                fp = self.stores['globals'].get_value(iter,0)
-                if fp == path:
-                    return
-                iter = self.stores['globals'].iter_next(iter)
+    def add_global_file(self,*args,**kwargs):
+        # create file chooser dialog
+        dialog = QFileDialog(None,"select globals files", "C:\\", "HDF5 files (*.h5 *.hdf5)")
+        dialog.setViewMode(QFileDialog.Detail)
+        dialog.setFileMode(QFileDialog.ExistingFiles)
         
-            # get path, add to liststore
-            self.stores['globals'].append([path])
+        if dialog.exec_():
+            selected_files = dialog.selectedFiles()
+            for filepath in selected_files:
+                # Qt has this weird behaviour where if you type in the name of a file that exists
+                # but does not have the extension you have limited the dialog to, the OK button is greyed out
+                # but you can hit enter and the file will be selected. 
+                # So we must check the extension of each file here!
+                if filepath.endswith('.h5') or filepath.endswith('.hdf5'):
+                    # make sure the path isn't already in the list
+                    if not self.is_filepath_in_store(filepath,'globals'):
+                        self.models['globals'].appendRow(QStandardItem(filepath))
+         
+            self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.data['globals_sort_order'])
+            
+    def is_filepath_in_store(self,filepath,store):
+        for row_index in range(self.models[store].rowCount()):
+            if filepath == self.models[store].item(row_index).text():
+                return True
+        return False
     
-    def delete_global_file(self,widget):
-        selection = self.views['globals'].get_selection()
-        model, selection = selection.get_selected_rows()
-        while selection:
-            path = selection[0]
-            iter = model.get_iter(path)
-            model.remove(iter)
-            selection = self.views['globals'].get_selection()
-            model, selection = selection.get_selected_rows()
-
-    def add_calibration_file(self,widget):
-        # create file choose dialog
-        chooser = gtk.FileChooserDialog(title='Select calibration script',action=gtk.FILE_CHOOSER_ACTION_OPEN,
-                                    buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
-                                               gtk.STOCK_OPEN,gtk.RESPONSE_OK))
-        filter = gtk.FileFilter()
-        filter.add_pattern("*.py")
-        filter.set_name("Python Files")
-        chooser.add_filter(filter)
-        chooser.set_default_response(gtk.RESPONSE_OK)
-        # set this to the current location of the h5_chooser    
-        #chooser.set_current_folder(self.globals_path)
-               
-        chooser.set_current_name('.py')
-        response = chooser.run()
-        path = chooser.get_filename()
-        chooser.destroy()
-        if response == gtk.RESPONSE_OK: 
-            # make sure the path isn't already in the list!
-            iter = self.stores['calibrations'].get_iter_first()
-            while iter:
-                fp = self.stores['calibrations'].get_value(iter,0)
-                if fp == path:
-                    return
-                iter = self.stores['calibrations'].iter_next(iter)
+    def delete_selected_globals_file(self):
+        index_list = self.views['globals'].selectedIndexes()
+        while index_list:
+            self.models['globals'].takeRow(index_list[0].row())
+            index_list = self.views['globals'].selectedIndexes()
         
-            # get path, add to liststore
-            self.stores['calibrations'].append([path])
-    
-    def add_calibration_folder(self,widget):
-        # create file choose dialog
-        chooser = gtk.FileChooserDialog(title='Select calibration script folder',action=gtk.FILE_CHOOSER_ACTION_OPEN,
-                                    buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,
-                                               gtk.STOCK_OPEN,gtk.RESPONSE_OK))
-
-        chooser.set_action(gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER)
-        chooser.set_default_response(gtk.RESPONSE_OK)
-        # set this to the current location of the h5_chooser    
-        #chooser.set_current_folder(self.globals_path)
-               
-        response = chooser.run()
-        path = chooser.get_filename()
-        chooser.destroy()
-        if response == gtk.RESPONSE_OK: 
-            # make sure the path isn't already in the list!
-            iter = self.stores['calibrations'].get_iter_first()
-            while iter:
-                fp = self.stores['calibrations'].get_value(iter,0)
-                if fp == path:
-                    return
-                iter = self.stores['calibrations'].iter_next(iter)
+        self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.data['globals_sort_order'])
+            
+    def add_calibration_file(self):
+        # create file chooser dialog
+        dialog = QFileDialog(None,"Select unit conversion scripts", "C:\\", "Python files (*.py *.pyw)")
+        dialog.setViewMode(QFileDialog.Detail)
+        dialog.setFileMode(QFileDialog.ExistingFiles)
         
-            # get path, add to liststore
-            self.stores['calibrations'].append([path])
+        if dialog.exec_():
+            selected_files = dialog.selectedFiles()
+            for filepath in selected_files:
+                # Qt has this weird behaviour where if you type in the name of a file that exists
+                # but does not have the extension you have limited the dialog to, the OK button is greyed out
+                # but you can hit enter and the file will be selected. 
+                # So we must check the extension of each file here!
+                if filepath.endswith('.py') or filepath.endswith('.pyw'):
+                    # make sure the path isn't already in the list
+                    if not self.is_filepath_in_store(filepath,'calibrations'):
+                        self.models['calibrations'].appendRow(QStandardItem(filepath))
+         
+            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+        
+    def add_calibration_folder(self):
+        # create file chooser dialog
+        dialog = QFileDialog(None,"Select unit conversion folder", "C:\\", "")
+        dialog.setViewMode(QFileDialog.Detail)
+        dialog.setFileMode(QFileDialog.Directory)
+        
+        if dialog.exec_():
+            selected_files = dialog.selectedFiles()
+            for filepath in selected_files:
+                # make sure the path isn't already in the list
+                if not self.is_filepath_in_store(filepath,'calibrations'):
+                    self.models['calibrations'].appendRow(QStandardItem(filepath))
+         
+            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+        
     
-    def delete_calibration(self,widget):
-        selection = self.views['calibrations'].get_selection()
-        model, selection = selection.get_selected_rows()
-        while selection:
-            path = selection[0]
-            iter = model.get_iter(path)
-            model.remove(iter)
-            selection = self.views['calibrations'].get_selection()
-            model, selection = selection.get_selected_rows()
+    def delete_selected_conversion_file(self):
+        index_list = self.views['calibrations'].selectedIndexes()
+        while index_list:
+            self.models['calibrations'].takeRow(index_list[0].row())
+            index_list = self.views['calibrations'].selectedIndexes()
+        
+        self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
