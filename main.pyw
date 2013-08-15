@@ -277,7 +277,7 @@ class BLACS(object):
             else:
                 editor_args = self.exp_config.get('paths','connection_table_py') + " " + editor_args            
             try:
-                Popen([editor_path,editor_args])
+                subprocess.Popen([editor_path,editor_args])
             except Exception:
                 QMessageBox.information(self.ui,"Error","Unable to launch text editor. Check the path is valid in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
         else:
