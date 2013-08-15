@@ -8,6 +8,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 
 # Must be in this order
 import h5_lock
@@ -63,26 +64,52 @@ def setup_logging():
 logger = setup_logging()
 excepthook.set_logger(logger)
 
+class BLACSWindow(QMainWindow):
+    def __init__(self, blacs, parent=None):
+        QMainWindow.__init__(self, parent)
+        self.ui = loadUi('main.ui', self)
+        self.blacs = blacs
+        
+    def closeEvent(self, event):
+        #print 'aaaaa'
+        if self.blacs.exit_complete:
+            event.accept()
+            if self.blacs.relaunch:
+                logger.info('relaunching BLACS after quit')
+                subprocess.Popen([sys.executable] + sys.argv)
+        else:
+            event.ignore()
+            #logger.info('destroy called')
+            if not self.blacs.exiting:
+                self.blacs.exiting = True
+                #self.manager_running = False
+                #self.filewatcher.stop()
+                #self.settings.close()
+                #self.notifications.close_all()
+                
+                inmain_later(self.blacs.on_save_exit)
+                
+            QTimer.singleShot(100,self.close)
+        
 class BLACS(object):
 
     tab_widget_ids = 7
     
     def __init__(self,application):
         self.qt_application = application
-        self.qt_application.aboutToQuit.connect(self.destroy)
+        #self.qt_application.aboutToQuit.connect(self.destroy)
         self.relaunch = False
         self.exiting = False
+        self.exit_complete = False
         
-        self.ui = QUiLoader().load('main.ui')
+        self.ui = BLACSWindow(self).ui
         self.tab_widgets = {}
         self.exp_config = exp_config # Global variable
         self.settings_path = settings_path # Global variable
         self.connection_table = connection_table # Global variable
         self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
         self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
-        
-        self.ui.closeEvent = self.destroy
-        
+                
         # Setup the UI
         self.ui.main_splitter.setStretchFactor(0,0)
         self.ui.main_splitter.setStretchFactor(1,1)
@@ -168,16 +195,16 @@ class BLACS(object):
         
         self.ui.show()
     
-    def destroy(self,*args,**kwargs):
-        logger.info('destroy called')
-        if not self.exiting:
-            self.exiting = True
-            #self.manager_running = False
-            #self.filewatcher.stop()
-            #self.settings.close()
-            #self.notifications.close_all()
+    # def destroy(self,*args,**kwargs):
+        # logger.info('destroy called')
+        # if not self.exiting:
+            # self.exiting = True
+            # #self.manager_running = False
+            # #self.filewatcher.stop()
+            # #self.settings.close()
+            # #self.notifications.close_all()
             
-            self.on_save_exit()
+            # inmain_later(self.on_save_exit)
                 
     def on_save_exit(self):
         # Save front panel
@@ -214,9 +241,7 @@ class BLACS(object):
         if self.tablist:
             QTimer.singleShot(100,lambda: self.finalise_quit(initial_time))
         else:
-            if self.relaunch:
-                logger.info('relaunching BLACS after quit')
-                subprocess.Popen([sys.executable] + sys.argv)
+            self.exit_complete = True
             logger.info('quitting')
             #self.window.hide()
             #gtk.main_quit()
