@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1068</width>
+    <width>1110</width>
     <height>729</height>
    </rect>
   </property>
@@ -19,6 +19,9 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_13">
+    <item>
+     <layout class="QVBoxLayout" name="notifications"/>
+    </item>
     <item>
      <layout class="QVBoxLayout" name="verticalLayout_12">
       <item>
@@ -289,20 +292,7 @@ V</string>
            </layout>
           </item>
           <item>
-           <widget class="QWidget" name="widget" native="true">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>100</height>
-             </size>
-            </property>
-           </widget>
+           <layout class="QVBoxLayout" name="analysis"/>
           </item>
          </layout>
         </widget>
@@ -360,7 +350,7 @@ V</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1068</width>
+     <width>1110</width>
      <height>26</height>
     </rect>
    </property>
@@ -376,7 +366,16 @@ V</string>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
+   <widget class="QMenu" name="menuConnection_Table">
+    <property name="title">
+     <string>Connection Table</string>
+    </property>
+    <addaction name="actionEdit_Connection_Table"/>
+    <addaction name="actionSelect_Globals"/>
+    <addaction name="actionRecompile"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuConnection_Table"/>
   </widget>
   <action name="actionOpen">
    <property name="text">
@@ -401,6 +400,21 @@ V</string>
   <action name="actionAdd_to_queue">
    <property name="text">
     <string>Add to queue</string>
+   </property>
+  </action>
+  <action name="actionEdit_Connection_Table">
+   <property name="text">
+    <string>Edit</string>
+   </property>
+  </action>
+  <action name="actionSelect_Globals">
+   <property name="text">
+    <string>Select Globals</string>
+   </property>
+  </action>
+  <action name="actionRecompile">
+   <property name="text">
+    <string>Recompile</string>
    </property>
   </action>
  </widget>

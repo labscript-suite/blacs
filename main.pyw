@@ -5,6 +5,7 @@ import ctypes
 import logging, logging.handlers
 import os
 import socket
+import subprocess
 import sys
 import threading
 
@@ -37,6 +38,8 @@ from front_panel_settings import FrontPanelSettings
 # Preferences system
 from settings import Settings
 import settings_pages
+#compile and restart
+from compile_and_restart import CompileAndRestart
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -64,7 +67,12 @@ class BLACS(object):
 
     tab_widget_ids = 7
     
-    def __init__(self):
+    def __init__(self,application):
+        self.qt_application = application
+        self.qt_application.aboutToQuit.connect(self.destroy)
+        self.relaunch = False
+        self.exiting = False
+        
         self.ui = QUiLoader().load('main.ui')
         self.tab_widgets = {}
         self.exp_config = exp_config # Global variable
@@ -72,6 +80,8 @@ class BLACS(object):
         self.connection_table = connection_table # Global variable
         self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
         self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
+        
+        self.ui.closeEvent = self.destroy
         
         # Setup the UI
         self.ui.main_splitter.setStretchFactor(0,0)
@@ -151,12 +161,104 @@ class BLACS(object):
         
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
+        self.ui.actionSelect_Globals.triggered.connect(self.on_select_globals)
+        self.ui.actionEdit_Connection_Table.triggered.connect(self.on_edit_connection_table)
+        self.ui.actionRecompile.triggered.connect(self.recompile_connection_table)
         
         
         self.ui.show()
+    
+    def destroy(self,*args,**kwargs):
+        logger.info('destroy called')
+        if not self.exiting:
+            self.exiting = True
+            #self.manager_running = False
+            #self.filewatcher.stop()
+            #self.settings.close()
+            #self.notifications.close_all()
+            
+            self.on_save_exit()
+                
+    def on_save_exit(self):
+        # Save front panel
+        #data = self.front_panel_settings.get_save_data()
+       
+        #with h5py.File(self.settings_path,'r+') as h5file:
+        #    if 'connection table' in h5file:
+        #        del h5file['connection table']
         
+        #self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],{"overwrite":True})
+        logger.info('Destroying tabs')
+        for tab in self.tablist.values():
+            tab.destroy()            
+            
+        #gobject.timeout_add(100,self.finalise_quit,time.time())
+        QTimer.singleShot(100,lambda: self.finalise_quit(time.time()))
+    
+    def finalise_quit(self,initial_time):
+        logger.info('finalise_quit called')
+        tab_close_timeout = 2
+        # Kill any tabs which didn't close themselves:
+        for name, tab in self.tablist.items():
+            if tab.destroy_complete:
+                del self.tablist[name]
+        if self.tablist:
+            for name, tab in self.tablist.items():
+                # If a tab has a fatal error or is taking too long to close, force close it:
+                if (time.time() - initial_time > tab_close_timeout) or tab.state == 'fatal error':
+                    try:
+                        tab.close_tab() 
+                    except Exception as e:
+                        logger.error('Couldn\'t close tab:\n%s'%str(e))
+                    del self.tablist[name]
+        if self.tablist:
+            QTimer.singleShot(100,lambda: self.finalise_quit(initial_time))
+        else:
+            if self.relaunch:
+                logger.info('relaunching BLACS after quit')
+                subprocess.Popen([sys.executable] + sys.argv)
+            logger.info('quitting')
+            #self.window.hide()
+            #gtk.main_quit()
+            #return False
+    
+    
+    def recompile_connection_table(self,*args,**kwargs):
+        logger.info('recompile connection table called')
+        # get list of globals
+        globals_files = self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
+        # Remove unicode encoding so that zlock doesn't crash
+        for i in range(len(globals_files)):
+            globals_files[i] = str(globals_files[i])
+        CompileAndRestart(self,globals_files,self.connection_table_labscript, self.connection_table_h5file)
+          
+    
+    #########################
+    # Preferences functions #
+    #########################
     def on_open_preferences(self,*args,**kwargs):
         self.settings.create_dialog()
+        
+    def on_select_globals(self,*args,**kwargs):
+        self.settings.create_dialog(goto_page=settings_pages.connection_table.ConnectionTable)
+      
+    def on_edit_connection_table(self,*args,**kwargs):
+        # get path to text editor
+        editor_path = self.exp_config.get('programs','text_editor')
+        editor_args = self.exp_config.get('programs','text_editor_arguments')
+        if editor_path:  
+            if '{file}' in editor_args:
+                editor_args = editor_args.replace('{file}', self.exp_config.get('paths','connection_table_py'))
+            else:
+                editor_args = self.exp_config.get('paths','connection_table_py') + " " + editor_args            
+            try:
+                Popen([editor_path,editor_args])
+            except Exception:
+                QMessageBox.information(self.ui,"Error","Unable to launch text editor. Check the path is valid in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
+        else:
+            QMessageBox.information(self.ui,"Error","No text editor path was specified in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
+            
+                
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -273,7 +375,7 @@ if __name__ == '__main__':
         
     
     qapplication = QApplication(sys.argv)
-    app = BLACS()
+    app = BLACS(qapplication)
     
     def execute_program():
         qapplication.exec_()

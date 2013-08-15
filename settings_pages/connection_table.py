@@ -2,7 +2,6 @@ import os
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
-from IPython import embed
 FILEPATH_COLUMN = 0
 
 class ConnectionTable(object):
