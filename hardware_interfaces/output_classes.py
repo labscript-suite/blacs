@@ -207,7 +207,9 @@ class AO(object):
         
         # set the properties of the widgets...
         # set comboboxmodel
+        widget.block_combobox_signals()
         widget.set_combobox_model(self._comboboxmodel)
+        widget.unblock_combobox_signals()
         # This will set the min/max/value/num.decimals/stepsie and current_unit of ALL widgets
         # including the one just added!
         self.change_unit(self._current_units)
