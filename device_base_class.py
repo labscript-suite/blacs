@@ -259,7 +259,23 @@ class DeviceTab(Tab):
         # Add the widget containing the toolpalettegroup to the tab layout
         self.get_tab_layout().addWidget(widget)
         self.get_tab_layout().addItem(QSpacerItem(0,0,QSizePolicy.Minimum,QSizePolicy.MinimumExpanding))
-                           
+    
+    # This method should be overridden in your device class if you want to save any data not
+    # stored in an AO, DO or DDS object
+    # This method should return a dictionary, and this dictionary will be passed to the restore_save_data()
+    # method when the tab is initialised
+    def get_save_data(self):
+        return {}
+    
+    # This method should be overridden in your device class if you want to restore data 
+    # (saved by get_save_data()) when teh tab is initialised.
+    # You will be passed a dictionary of the form specified by your get_save_data() method
+    # 
+    # Note: You must handle the case where the data dictionary is empty (or one or more keys are missing)
+    #       This case will occur the first time BLACS is started on a PC, or if the BLACS datastore is destroyed
+    def restore_save_data(self,data):
+        return
+    
     def get_front_panel_values(self):
         return {channel:item.value for output in [self._AO,self._DO,self._DDS] for channel,item in output.items()}
     

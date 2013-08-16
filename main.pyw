@@ -114,12 +114,21 @@ class BLACS(object):
         self.ui.main_splitter.setStretchFactor(0,0)
         self.ui.main_splitter.setStretchFactor(1,1)
         
+        self.tablist = {}
+        self.panes = {}
+        self.settings_dict = {}
         # Instantiate Devices from Connection Table, Place in Array        
         self.attached_devices = self.connection_table.find_devices(device_list)
-        self.settings_dict = {}
         
+        # Store the panes in a dictionary for easy access
+        self.panes['tab_top_vertical_splitter'] = self.ui.tab_top_vertical_splitter
+        self.panes['tab_bottom_vertical_splitter'] = self.ui.tab_bottom_vertical_splitter
+        self.panes['tab_horizontal_splitter'] = self.ui.tab_horizontal_splitter
+        self.panes['main_splitter'] = self.ui.main_splitter
+                
         # Get settings to restore 
         self.front_panel_settings = FrontPanelSettings(self.settings_path, self.connection_table)
+        self.front_panel_settings.setup(self)
         settings,question,error,tab_data = self.front_panel_settings.restore()
             
         # TODO: handle question/error cases
@@ -136,7 +145,6 @@ class BLACS(object):
             # logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
         
         #splash.update_text('Creating the device tabs...')
-        self.tablist = {}
         # Create the notebooks
         for i in range(4):
             self.tab_widgets[i] = DragDropTabWidget(self.tab_widget_ids)
@@ -190,7 +198,8 @@ class BLACS(object):
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
         self.ui.actionSelect_Globals.triggered.connect(self.on_select_globals)
         self.ui.actionEdit_Connection_Table.triggered.connect(self.on_edit_connection_table)
-        self.ui.actionRecompile.triggered.connect(self.recompile_connection_table)
+        self.ui.actionRecompile.triggered.connect(self.on_recompile_connection_table)
+        self.ui.actionSave.triggered.connect(self.on_save_front_panel)
         
         
         self.ui.show()
@@ -248,7 +257,7 @@ class BLACS(object):
             #return False
     
     
-    def recompile_connection_table(self,*args,**kwargs):
+    def on_recompile_connection_table(self,*args,**kwargs):
         logger.info('recompile connection table called')
         # get list of globals
         globals_files = self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
@@ -256,7 +265,25 @@ class BLACS(object):
         for i in range(len(globals_files)):
             globals_files[i] = str(globals_files[i])
         CompileAndRestart(self,globals_files,self.connection_table_labscript, self.connection_table_h5file)
-          
+     
+    def on_save_front_panel(self,*args,**kwargs):
+        data = self.front_panel_settings.get_save_data()
+    
+        # Open save As dialog
+        dialog = QFileDialog(None,"Save BLACS state", self.exp_config.get('paths','experiment_shot_storage'), "HDF5 files (*.h5)")
+        dialog.setViewMode(QFileDialog.Detail)
+        dialog.setFileMode(QFileDialog.AnyFile)
+        dialog.setAcceptMode(QFileDialog.AcceptSave)
+        
+        if dialog.exec_():
+            current_file = str(dialog.selectedFiles()[0])
+            if not current_file.endswith('.h5'):
+                current_file += '.h5'
+            self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2])
+        
+                
+            
+        
     
     #########################
     # Preferences functions #

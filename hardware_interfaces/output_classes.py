@@ -78,6 +78,9 @@ class AO(object):
             settings['front_panel_settings'][self._hardware_name]['base_step_size'] = self._current_step_size
         if 'current_units' not in settings['front_panel_settings'][self._hardware_name]:
             settings['front_panel_settings'][self._hardware_name]['current_units'] = self._base_unit
+        if 'name' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['name'] = self._connection_name
+        
     
         # only keep a reference to the part of the settings dictionary relevant to this DO
         self._settings = settings['front_panel_settings'][self._hardware_name]
@@ -103,7 +106,7 @@ class AO(object):
     
     def convert_value_from_base(self, value, unit):  
         if self._calibration and unit in self._calibration.derived_units:
-            getattr(self._calibration,unit+"_from_base")(value)
+            return getattr(self._calibration,unit+"_from_base")(value)
     
         # TODO: include device name somehow, and also the calibration class name
         raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
@@ -245,8 +248,8 @@ class AO(object):
                 
             # figure out how many decimal points we need in the new unit
             trial1 = 10**(-self._decimals)
-            derived_trial1 = self.convert_value_fram_base(trial1,unit)
-            derived_trial2 = self.convert_value_fram_base(2*trial1,unit)
+            derived_trial1 = self.convert_value_from_base(trial1,unit)
+            derived_trial2 = self.convert_value_from_base(2*trial1,unit)
             difference = abs(derived_trial1-derived_trial2)
             if difference > 1:
                 if difference > 10:
@@ -387,6 +390,9 @@ class DO(object):
             settings['front_panel_settings'][self._hardware_name]['base_value'] = False
         if 'locked' not in settings['front_panel_settings'][self._hardware_name]:
             settings['front_panel_settings'][self._hardware_name]['locked'] = False
+        if 'name' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['name'] = self._connection_name
+        
     
         # only keep a reference to the part of the settings dictionary relevant to this DO
         self._settings = settings['front_panel_settings'][self._hardware_name]

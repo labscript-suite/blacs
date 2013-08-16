@@ -21,11 +21,11 @@ class FrontPanelSettings(object):
         with h5py.File(settings_path,'a') as h5file:
             pass
         
-    def setup_settings(self,blacs):
+    def setup(self,blacs):
         self.tablist = blacs.tablist
         self.attached_devices = blacs.attached_devices
         self.notebook = blacs.tab_widgets
-        self.window = blacs.window
+        self.window = blacs.ui
         self.panes = blacs.panes
         self.blacs = blacs
 
@@ -86,8 +86,7 @@ class FrontPanelSettings(object):
             logger.info("Could not load saved settings")
             logger.info(e.message)
         return settings,question,error,tab_data
-
-        
+    
     def handle_return_code(self,row,result,settings,question,error):
         # 1: Restore to existing device
         # 2: Send to new device
@@ -160,43 +159,47 @@ class FrontPanelSettings(object):
                 return 1
         
     def get_save_data(self):
-        states = {}
-        tab_positions = {}
-        for devicename,tab in self.tablist.items():
-            deviceclass_name = self.attached_devices[devicename]
-            states[devicename] = self.get_front_panel_state(tab)
-        
-            # Find the notebook it is in
-            current_notebook = tab._toplevel.get_parent()
-            # By default we assume it is in notebook1. This way, if a tab gets lost somewhere, and isn't found to be a child of any notebook we know about, 
-            # it will revert back to notebook 1 when the file is loaded upon program restart!
-            current_notebook_name = "1" 
-            
-            for notebook_name,notebook in self.notebook.items():
-                if notebook == current_notebook:
-                    current_notebook_name = notebook_name                       
-            
-            # find the page it is in
-            page = current_notebook.page_num(tab._toplevel)
-            visible = True if current_notebook.get_current_page() == page else False
-            
-            tab_positions[devicename] = {"notebook":current_notebook_name,"page":page, "visible":visible}
-         
-        # save window data
+        tab_data = {}
+        notebook_data = {}
         window_data = {}
         
-        # Size of window
-        win_size = self.window.get_size()
-        win_pos = self.window.get_position()
+        # iterate over all tabs
+        for device_name,tab in self.tablist.items():
+            tab_data[device_name] = {'front_panel':tab.settings['front_panel_settings'],
+                                     'save_data':tab.get_save_data() if hasattr(tab,'get_save_data') else {}
+                                  }
+            
+            # Find the notebook the tab is in
+            #            
+            # By default we assume it is in notebook0, on page 0. This way, if a tab gets lost somewhere, 
+            # and isn't found to be a child of any notebook we know about, 
+            # it will revert back to notebook 1 when the file is loaded upon program restart!
+            current_notebook_name = 0 
+            page = 0
+            visible = False
+            
+            for notebook_name,notebook in self.notebook.items():
+                if notebook.indexOf(tab._ui) != -1:                
+                    current_notebook_name = notebook_name 
+                    page = notebook.indexOf(tab._ui) 
+                    visible = True if notebook.currentIndex() == page else False   
+                    break
+                                
+            notebook_data[device_name] = {"notebook":current_notebook_name,"page":page, "visible":visible}
+         
+        # save window data
+        # Size of window       
+        window_data["_main_window"] = {"width":self.window.size().width(), 
+                                       "height":self.window.size().height(),
+                                       "xpos":self.window.pos().x(),
+                                       "ypos":self.window.pos().y(),
+                                       "maximized":self.window.isMaximized()
+                                      }
+        # Pane positions
+        for name,pane in self.panes.items():
+            window_data[name] = pane.sizes()[0]
         
-        window_data["window"] = {"width":win_size[0],"height":win_size[1],"xpos":win_pos[0],"ypos":win_pos[1]}
-        # Main Hpane
-        for k,v in self.panes.items():
-            window_data[k] = v.get_position()
-        
-        return states,tab_positions,window_data 
-    
-        
+        return tab_data,notebook_data,window_data 
 
     def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,silent = {}):        
         # Save the front panel!
@@ -278,141 +281,64 @@ class FrontPanelSettings(object):
                 # save connection table, save front panel                    
                 self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table=True)
         
-    
-    def store_front_panel_in_h5(self, hdf5_file,states,tab_positions,window_data,save_conn_table = False):
+    def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,save_conn_table = False):
         if save_conn_table:
             hdf5_file.create_dataset('connection table',data=self.connection_table.table)
         
-        #with h5py.File(current_file,'a') as hdf5_file:
         data_group = hdf5_file['/'].create_group('front_panel')
         
-        ao_list = []
-        do_list = []
-        dds_list = []
-        other_data_list = []
-       
-        ao_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
-        do_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',bool),('locked',bool)]
-        dds_dtype = ao_dtype
-        max_od_length = 2
+        front_panel_list = []
+        other_data_list = []       
+        front_panel_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
+        max_od_length = 2 # empty dictionary
             
         # Iterate over each device within a class
-        for devicename, device_state in states.items():
-            logger.debug("saving front panel for device:" + devicename) 
-            # Insert AO data into dataset
-            for data in device_state["AO"].values():
+        for device_name, device_state in tab_data.items():
+            logger.debug("saving front panel for device:" + device_name) 
+            # Insert front panel data into dataset
+            for hardware_name, data in device_state["front_panel"].items():
                 if data != {}:
-                    ao_list.append((data['name'],devicename,data['channel'],data['value'],data['locked'],data['step_size'],data['units']))
-                
-            # Insert DO data into dataset
-            for data in device_state["DO"].values():
-                if data != {}:
-                    do_list.append((data['name'],devicename,data['channel'],data['value'],data['locked']))
+                    front_panel_list.append((data['name'],
+                                             device_name,
+                                             hardware_name,
+                                             data['base_value'],
+                                             data['locked'],
+                                             data['base_step_size'] if 'base_step_size' in data else 0,
+                                             data['current_units'] if 'current_units' in data else ''
+                                            )
+                                           )               
             
-            # Insert DDS data into dataset
-            for data in device_state["DDS"].values():
-                # If we have the gate entry, pad it so we can store it in the dds list with teh AO channels
-                if data != {}:
-                    if 'step_size' not in data:
-                        data['value'] = float(data['value']) # Convert to float to match AO value type
-                        data['step_size'] = 0
-                        data['units'] = ''
-                    dds_list.append((data['name'],devicename,data['channel'],data['value'],data['locked'],data['step_size'],data['units']))
-                
             # Save "other data"
-            od = repr(device_state["other_data"])
+            od = repr(device_state["save_data"])
             other_data_list.append(od)            
-            max_od_length = len(od) if len(od) > max_od_length else max_od_length
-            
+            max_od_length = len(od) if len(od) > max_od_length else max_od_length            
         
-        # Create AO/DO/DDS/other_data datasets
-        if ao_list:
-            ao_array = numpy.empty(len(ao_list),dtype=ao_dtype)
-            for i, row in enumerate(ao_list):
-                ao_array[i] = row
-            data_group.create_dataset('AO',data=ao_array)
-        
-        if do_list:
-            do_array = numpy.empty(len(do_list),dtype=do_dtype)
-            for i, row in enumerate(do_list):
-                do_array[i] = row
-            data_group.create_dataset('DO',data=do_array)
-        
-        if dds_list:
-            dds_array = numpy.empty(len(dds_list),dtype=dds_dtype)
-            for i, row in enumerate(dds_list):
-                dds_array[i] = row
-            data_group.create_dataset('DDS',data=dds_array)
-   
-        
-        # Save BLACS Main GUI Info
-        # Save tab positions
+        # Create datasets
+        if front_panel_list:
+            front_panel_array = numpy.empty(len(front_panel_list),dtype=front_panel_dtype)
+            for i, row in enumerate(front_panel_list):
+                front_panel_array[i] = row
+            data_group.create_dataset('front_panel',data=front_panel_array)
+                
+        # Save tab data
         i = 0
-        tab_data = numpy.empty(len(tab_positions),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))])
-        for k,v in tab_positions.items():
-            tab_data[i] = (k,v["notebook"],v["page"],v["visible"],other_data_list[i])
+        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))])
+        for device_name,data in notebook_data.items():
+            tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
             i += 1
+            
+        # Save BLACS Main GUI Info
         dataset = data_group.create_dataset("_notebook_data",data=tab_data)
-        dataset.attrs["window_width"] = window_data["window"]["width"]
-        dataset.attrs["window_height"] = window_data["window"]["height"]
-        dataset.attrs["window_xpos"] = window_data["window"]["xpos"]
-        dataset.attrs["window_ypos"] = window_data["window"]["ypos"]
-        for k,v in window_data.items():
-            if k != "window":
-                dataset.attrs[k] = v
+        dataset.attrs["window_width"] = window_data["_main_window"]["width"]
+        dataset.attrs["window_height"] = window_data["_main_window"]["height"]
+        dataset.attrs["window_xpos"] = window_data["_main_window"]["xpos"]
+        dataset.attrs["window_ypos"] = window_data["_main_window"]["ypos"]
+        dataset.attrs["window_maximized"] = window_data["_main_window"]["maximized"]
+        for pane_name,pane_position in window_data.items():
+            if pane_name != "_main_window":
+                dataset.attrs[pane_name] = pane_position
         
         # Save analysis server settings:
-        dataset = data_group.create_group("analysis_server")
-        dataset.attrs['send_for_analysis'] = self.blacs.analysis_submission.toggle_analysis.get_active()
-        dataset.attrs['server'] = self.blacs.analysis_submission.analysis_host.get_text()
-        
-    
-    def get_front_panel_state(self, tab):    
-        
-        # instatiate AO/DO dict
-        ao_dict = {}
-        do_dict = {}
-        dds_dict = {}
-        
-        if hasattr(tab,'num_AO') and tab.num_AO > 0:
-            for i in range(tab.num_AO):
-                ao_chnl = tab.analog_outs[i]
-                ao_dict[ao_chnl.channel] = self.get_ao_dict(ao_chnl)
-                
-        if hasattr(tab,'num_DDS') and tab.num_DDS > 0:            
-            for i in range(tab.num_DDS):
-                for ao_chnl in [tab.dds_outputs[i].freq,tab.dds_outputs[i].amp,tab.dds_outputs[i].phase]:
-                    if ao_chnl:
-                        dds_dict[ao_chnl.channel] = self.get_ao_dict(ao_chnl)
-                
-                if hasattr(tab.dds_outputs[i].gate,'channel'):
-                    dds_dict[tab.dds_outputs[i].gate.channel] = self.get_do_dict(tab.dds_outputs[i].gate)
-        
-        if hasattr(tab,'num_DO') and tab.num_DO > 0:
-            for i in range(tab.num_DO):
-                do_chnl = tab.digital_outs[i]
-                do_dict[do_chnl.channel] = self.get_do_dict(do_chnl)
-        
-        return {'other_data':tab.get_save_data() if hasattr(tab,'get_save_data') else {},
-                'AO':ao_dict,
-                'DO':do_dict,
-                'DDS':dds_dict}
-                
-    def get_ao_dict(self,ao_chnl):
-        if not hasattr(ao_chnl,'name'):
-            return {}
-        return {'name':ao_chnl.name,
-                'channel':ao_chnl.channel,         
-                'value':ao_chnl.value, 
-                'locked':ao_chnl.locked,
-                'step_size':ao_chnl.get_step_in_base_units(),
-                'units':ao_chnl.current_units}
-    
-    def get_do_dict(self,do_chnl):
-        if not hasattr(do_chnl,'name'):
-            return {}
-        return {'name':do_chnl.name, 
-                'channel':do_chnl.channel, 
-                'value':bool(do_chnl.action.get_active()),
-                'locked':do_chnl.locked}
-         
+        #dataset = data_group.create_group("analysis_server")
+        #dataset.attrs['send_for_analysis'] = self.blacs.analysis_submission.toggle_analysis.get_active()
+        #dataset.attrs['server'] = self.blacs.analysis_submission.analysis_host.get_text()
