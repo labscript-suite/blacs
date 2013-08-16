@@ -71,10 +71,9 @@ class FrontPanelSettings(object):
                 #now get dataset attributes
                 tab_data['BLACS settings'] = dict(dataset.attrs)
                 
-                # open Datasets
-                type_list = ["AO", "DO", "DDS"]
-                for key in type_list:
-                    dataset = hdf5_file["/front_panel"].get(key, [])
+                # Get the front panel values
+                if 'front_panel' in hdf5_file["/front_panel"]:
+                    dataset = hdf5_file["/front_panel"].get('front_panel', [])
                     for row in dataset:
                         result = self.check_row(row,ct_match,self.connection_table,saved_ct)
                         columns = ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units']
@@ -82,6 +81,20 @@ class FrontPanelSettings(object):
                         for i in range(len(row)):
                             data_dict[columns[i]] = row[i]
                         settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
+      
+                # Else Legacy restore from GTK save data!
+                else:
+                    # open Datasets
+                    type_list = ["AO", "DO", "DDS"]
+                    for key in type_list:
+                        dataset = hdf5_file["/front_panel"].get(key, [])
+                        for row in dataset:
+                            result = self.check_row(row,ct_match,self.connection_table,saved_ct)
+                            columns = ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units']
+                            data_dict = {}
+                            for i in range(len(row)):
+                                data_dict[columns[i]] = row[i]
+                            settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
         except Exception,e:
             logger.info("Could not load saved settings")
             logger.info(e.message)
@@ -189,15 +202,17 @@ class FrontPanelSettings(object):
          
         # save window data
         # Size of window       
-        window_data["_main_window"] = {"width":self.window.size().width(), 
-                                       "height":self.window.size().height(),
-                                       "xpos":self.window.pos().x(),
-                                       "ypos":self.window.pos().y(),
-                                       "maximized":self.window.isMaximized()
+        window_data["_main_window"] = {"width":self.window.normalGeometry().width(), 
+                                       "height":self.window.normalGeometry().height(),
+                                       "xpos":self.window.normalGeometry().x(),
+                                       "ypos":self.window.normalGeometry().y(),
+                                       "maximized":self.window.isMaximized(),
+                                       "frame_height":abs(self.window.frameGeometry().height()-self.window.normalGeometry().height()),
+                                       "frame_width":abs(self.window.frameGeometry().width()-self.window.normalGeometry().width())
                                       }
         # Pane positions
         for name,pane in self.panes.items():
-            window_data[name] = pane.sizes()[0]
+            window_data[name] = pane.sizes()
         
         return tab_data,notebook_data,window_data 
 
@@ -334,6 +349,8 @@ class FrontPanelSettings(object):
         dataset.attrs["window_xpos"] = window_data["_main_window"]["xpos"]
         dataset.attrs["window_ypos"] = window_data["_main_window"]["ypos"]
         dataset.attrs["window_maximized"] = window_data["_main_window"]["maximized"]
+        dataset.attrs["window_frame_height"] = window_data["_main_window"]["frame_height"]
+        dataset.attrs["window_frame_width"] = window_data["_main_window"]["frame_width"]
         for pane_name,pane_position in window_data.items():
             if pane_name != "_main_window":
                 dataset.attrs[pane_name] = pane_position

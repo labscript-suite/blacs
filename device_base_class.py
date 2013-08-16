@@ -32,7 +32,8 @@ class DeviceTab(Tab):
         self.destroy_complete = False
         
         # Call the initialise GUI function
-        self.initialise_GUI()        
+        self.initialise_GUI() 
+        self.restore_save_data(self.settings['saved_data'])
         self.initialise_device()        
         self._last_programmed_values = self.get_front_panel_values()
         if self._can_check_remote_values:
@@ -275,6 +276,22 @@ class DeviceTab(Tab):
     #       This case will occur the first time BLACS is started on a PC, or if the BLACS datastore is destroyed
     def restore_save_data(self,data):
         return
+    
+    def update_from_settings(self,settings):
+        self.restore_save_data(settings['saved_data'])
+    
+        self.settings = settings
+        for output in [self._AO,self._DO]:
+            for name,channel in output.items():
+                if not channel._locked:
+                    channel._update_from_settings(settings)
+                    
+        for name,channel in self._DDS.items():
+            for subchnl_name in channel._sub_channel_list:
+                if hasattr(channel,subchnl_name):
+                    subchnl = getattr(channel,subchnl_name)
+                    if not subchnl._locked:
+                        subchnl._update_from_settings(settings)
     
     def get_front_panel_values(self):
         return {channel:item.value for output in [self._AO,self._DO,self._DDS] for channel,item in output.items()}

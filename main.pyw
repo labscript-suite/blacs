@@ -79,7 +79,7 @@ class BLACSWindow(QMainWindow):
                 subprocess.Popen([sys.executable] + sys.argv)
         else:
             event.ignore()
-            #logger.info('destroy called')
+            logger.info('destroy called')
             if not self.blacs.exiting:
                 self.blacs.exiting = True
                 #self.manager_running = False
@@ -133,16 +133,7 @@ class BLACS(object):
             
         # TODO: handle question/error cases
         
-        # read out position settings:
-        # try:
-            # self.window.move(tab_data['BLACS settings']["window_xpos"],tab_data['BLACS settings']["window_ypos"])
-            # self.window.resize(tab_data['BLACS settings']["window_width"],tab_data['BLACS settings']["window_height"])
-            
-            # for pane_name,pane in self.panes.items():
-                # pane.set_position(tab_data['BLACS settings'][pane_name])
-                    
-        # except Exception as e:
-            # logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
+        self.restore_window(tab_data)
         
         #splash.update_text('Creating the device tabs...')
         # Create the notebooks
@@ -155,33 +146,12 @@ class BLACS(object):
             # add common keys to settings:
             self.settings_dict[device_name]["connection_table"] = self.connection_table
             self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
-            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
-                        
-            # Select the notebook to add the device to
-            notebook_num = 0
-            if device_name in tab_data:
-                notebook_num = int(tab_data[device_name]["notebook"])
-                if notebook_num not in self.tab_widgets: 
-                    notebook_num = 0
-            #splash.update_text('Creating the device tabs...'+device_name+'...')
+            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}            
             # Instantiate the device            
-            self.tablist[device_name] = globals()[device_class](self.tab_widgets[notebook_num],self.settings_dict[device_name])
+            self.tablist[device_name] = globals()[device_class](self.tab_widgets[0],self.settings_dict[device_name])
         
-        # splash.update_text('restoring tab positions...')
-        # # Now that all the pages are created, reorder them!
-        for device_name,device_class in self.attached_devices.items():
-            if device_name in tab_data:
-                notebook_num = int(tab_data[device_name]["notebook"])
-                if notebook_num in self.tab_widgets:  
-                    self.tab_widgets[notebook_num].tab_bar.moveTab(self.tab_widgets[notebook_num].indexOf(self.tablist[device_name]._ui),int(tab_data[device_name]["page"]))
+        self.order_tabs(tab_data)
         
-        # # Now that they are in the correct order, set the correct one visible
-        for device_name,device_data in tab_data.items():
-            if device_name == 'BLACS settings':
-                continue
-            # if the notebook still exists and we are on the entry that is visible
-            if bool(device_data["visible"]) and int(device_data["notebook"]) in self.tab_widgets:
-                self.tab_widgets[int(device_data["notebook"])].tab_bar.setCurrentIndex(int(device_data["page"]))
                     
         # Setup the QueueManager
         self.queue = QueueManager(self.ui)
@@ -200,30 +170,133 @@ class BLACS(object):
         self.ui.actionEdit_Connection_Table.triggered.connect(self.on_edit_connection_table)
         self.ui.actionRecompile.triggered.connect(self.on_recompile_connection_table)
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
+        self.ui.actionOpen.triggered.connect(self.on_load_front_panel)
         
         
         self.ui.show()
     
-    # def destroy(self,*args,**kwargs):
-        # logger.info('destroy called')
-        # if not self.exiting:
-            # self.exiting = True
-            # #self.manager_running = False
-            # #self.filewatcher.stop()
-            # #self.settings.close()
-            # #self.notifications.close_all()
+    def restore_window(self,tab_data):
+        # read out position settings:
+        try:
+            # There are some dodgy hacks going on here to try and restore the window position correctly
+            # Unfortunately Qt has two ways of measuring teh window position, one with the frame/titlebar
+            # and one without. If you use the one that measures including the titlebar, you don't
+            # know what the window size was when the window was UNmaximized.
+            #
+            # Anyway, no idea if this works cross platform (tested on windows 8)
+            # Feel free to rewrite this, along with the code in front_panel_settings.py
+            # which stores the values
+            #
+            # Actually this is a waste of time because if you close when maximized, reoopen and then 
+            # de-maximize, the window moves to a random position (not the position it was at before maximizing)
+            # so bleh!
+            self.ui.move(tab_data['BLACS settings']["window_xpos"]-tab_data['BLACS settings']['window_frame_width']/2,tab_data['BLACS settings']["window_ypos"]-tab_data['BLACS settings']['window_frame_height']+tab_data['BLACS settings']['window_frame_width']/2)
+            self.ui.resize(tab_data['BLACS settings']["window_width"],tab_data['BLACS settings']["window_height"])
             
-            # inmain_later(self.on_save_exit)
-                
+            if 'window_maximized' in tab_data['BLACS settings'] and tab_data['BLACS settings']['window_maximized']:
+                self.ui.showMaximized()
+            
+            for pane_name,pane in self.panes.items():
+                pane.setSizes(tab_data['BLACS settings'][pane_name])
+                    
+        except Exception as e:
+            logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
+    
+    def order_tabs(self,tab_data):
+        # Move the tabs to the correct notebook
+        for device_name,device_class in self.attached_devices.items():
+            notebook_num = 0
+            if device_name in tab_data:
+                notebook_num = int(tab_data[device_name]["notebook"])
+                if notebook_num not in self.tab_widgets: 
+                    notebook_num = 0
+                    
+            #Find the notebook the tab is in, and remove it:
+            for notebook in self.tab_widgets.values():
+                tab_index = notebook.indexOf(self.tablist[device_name]._ui)
+                if tab_index != -1:
+                    notebook.removeTab(tab_index)
+                    self.tab_widgets[notebook_num].addTab(self.tablist[device_name]._ui,device_name)
+                    break
+        
+        # splash.update_text('restoring tab positions...')
+        # # Now that all the pages are created, reorder them!
+        for device_name,device_class in self.attached_devices.items():
+            if device_name in tab_data:
+                notebook_num = int(tab_data[device_name]["notebook"])
+                if notebook_num in self.tab_widgets:  
+                    self.tab_widgets[notebook_num].tab_bar.moveTab(self.tab_widgets[notebook_num].indexOf(self.tablist[device_name]._ui),int(tab_data[device_name]["page"]))
+        
+        # # Now that they are in the correct order, set the correct one visible
+        for device_name,device_data in tab_data.items():
+            if device_name == 'BLACS settings':
+                continue
+            # if the notebook still exists and we are on the entry that is visible
+            if bool(device_data["visible"]) and int(device_data["notebook"]) in self.tab_widgets:
+                self.tab_widgets[int(device_data["notebook"])].tab_bar.setCurrentIndex(int(device_data["page"]))
+    
+    def update_all_tab_settings(self,settings,tab_data):
+        for device_name,tab in self.tablist.items():
+            self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
+            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}            
+            tab.update_from_settings(self.settings_dict[device_name])
+                    
+        
+    def on_load_front_panel(self,*args,**kwargs):
+        # get the file:
+        # create file chooser dialog
+        dialog = QFileDialog(None,"Select file to load", self.exp_config.get('paths','experiment_shot_storage'), "HDF5 files (*.h5 *.hdf5)")
+        dialog.setViewMode(QFileDialog.Detail)
+        dialog.setFileMode(QFileDialog.ExistingFile)
+        if dialog.exec_():
+            selected_files = dialog.selectedFiles()
+            filepath = str(selected_files[0])
+            # Qt has this weird behaviour where if you type in the name of a file that exists
+            # but does not have the extension you have limited the dialog to, the OK button is greyed out
+            # but you can hit enter and the file will be selected. 
+            # So we must check the extension of each file here!
+            if filepath.endswith('.h5') or filepath.endswith('.hdf5'):
+                try:
+                    # TODO: Warn that this will restore values, but not channels that are locked
+                    message = QMessageBox()
+                    message.setText("Warning: This will modify front panel values and cause device output values to update.\nNote: Channels that are locked will not be updated.\n\nDo you wish to continue?")
+                    message.setIcon(QMessageBox.Warning)
+                    message.setWindowTitle("BLACS")
+                    message.setStandardButtons(QMessageBox.Yes|QMessageBox.No)
+                   
+                    if message.exec_() == QMessageBox.Yes:                
+                        front_panel_settings = FrontPanelSettings(filepath, self.connection_table)
+                        settings,question,error,tab_data = front_panel_settings.restore()
+                        #TODO: handle question/error
+                        
+                        # Restore window data
+                        self.restore_window(tab_data)
+                        self.order_tabs(tab_data)                   
+                        self.update_all_tab_settings(settings,tab_data)
+                except Exception as e:
+                    logger.warning("Unable to load the front panel in %s. Exception:%s"%(filepath,str(e)))
+                    message = QMessageBox()
+                    message.setText("Unable to load the front panel. The error encountered is printed below.\n\n%s"%str(e))
+                    message.setIcon(QMessageBox.Information)
+                    message.setWindowTitle("BLACS")
+                    message.exec_() 
+            else:
+                message = QMessageBox()
+                message.setText("You did not select a file ending with .h5 or .hdf5. Please try again")
+                message.setIcon(QMessageBox.Information)
+                message.setWindowTitle("BLACS")
+                message.exec_()
+                QTimer.singleShot(10,self.on_load_front_panel)
+    
     def on_save_exit(self):
         # Save front panel
-        #data = self.front_panel_settings.get_save_data()
+        data = self.front_panel_settings.get_save_data()
        
-        #with h5py.File(self.settings_path,'r+') as h5file:
-        #    if 'connection table' in h5file:
-        #        del h5file['connection table']
+        with h5py.File(self.settings_path,'r+') as h5file:
+           if 'connection table' in h5file:
+               del h5file['connection table']
         
-        #self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],{"overwrite":True})
+        self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],{"overwrite":True})
         logger.info('Destroying tabs')
         for tab in self.tablist.values():
             tab.destroy()            
