@@ -90,6 +90,7 @@ class adwin_do_card(Tab):
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
         self.static_mode = False
+        self.toplevel.set_sensitive(False)
         # Don't have to do anything, all the programming happens in the
         # parent ADWin tab.  So we're done here.
         notify_queue.put(self.device_name)
@@ -97,13 +98,15 @@ class adwin_do_card(Tab):
     @define_state
     def abort_buffered(self):      
         self.static_mode = True
+        self.toplevel.set_sensitive(True)
         # Again, we don't have to do anything
         pass
     
     @define_state        
     def transition_to_static(self, notify_queue):
         self.static_mode = True
-        # Do we need to do anything here? Update the outputs?
+        self.toplevel.set_sensitive(True)
+        notify_queue.put(self.device_name)
                     
     @define_state
     def destroy(self):
