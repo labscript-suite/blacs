@@ -216,6 +216,8 @@ class ADWinWorker(Worker):
         global ADwin; import ADwin
         
     def initialise(self, device_name, device_number, boot_image_path, process_1_image_path, process_2_image_path):
+        # Cache these values for a future reboot if needed:
+        self.boot_args = device_name, device_number, boot_image_path, process_1_image_path, process_2_image_path
         self.device_name = device_name
         self.aw = ADwin.ADwin(device_number)
 
@@ -287,7 +289,7 @@ class ADWinWorker(Worker):
         return True # indicates success
         
         
-    def program_buffered(self, h5file):
+    def program_buffered(self, h5file, reboot_on_error=True):
         with h5py.File(h5file) as f:
             # Get the instructions:
             group = f['devices'][self.device_name]
@@ -295,27 +297,43 @@ class ADWinWorker(Worker):
             digital_table = numpy.array(group['DIGITAL_OUTS'])
             cycle_time = group.attrs['cycle_time']
             stop_time = group.attrs['stop_time']
+        try:
+            # Program the analog out table:
+            self.aw.SetData_Long(list(analog_table['t']), self.ANALOG_TIMEPOINT, Startindex=1, Count=len(analog_table))
+            self.aw.SetData_Long(list(analog_table['duration']), self.ANALOG_DURATION, Startindex=1, Count=len(analog_table))
+            self.aw.SetData_Long(list(analog_table['card']), self.ANALOG_CARD_NUM, Startindex=1, Count=len(analog_table))
+            self.aw.SetData_Long(list(analog_table['channel']), self.ANALOG_CHAN_NUM, Startindex=1, Count=len(analog_table))
+            self.aw.SetData_Long(list(analog_table['ramp_type']), self.ANALOG_RAMP_TYPE, Startindex=1, Count=len(analog_table))
+            self.aw.SetData_Long(list(analog_table['A']), self.ANALOG_PAR_A, Startindex=1, Count=len(analog_table))
+            self.aw.SetData_Long(list(analog_table['B']), self.ANALOG_PAR_B, Startindex=1, Count=len(analog_table))
+            self.aw.SetData_Long(list(analog_table['C']), self.ANALOG_PAR_C, Startindex=1, Count=len(analog_table))
         
-        # Program the analog out table:
-        self.aw.SetData_Long(list(analog_table['t']), self.ANALOG_TIMEPOINT, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['duration']), self.ANALOG_DURATION, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['card']), self.ANALOG_CARD_NUM, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['channel']), self.ANALOG_CHAN_NUM, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['ramp_type']), self.ANALOG_RAMP_TYPE, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['A']), self.ANALOG_PAR_A, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['B']), self.ANALOG_PAR_B, Startindex=1, Count=len(analog_table))
-        self.aw.SetData_Long(list(analog_table['C']), self.ANALOG_PAR_C, Startindex=1, Count=len(analog_table))
-    
-        # Program the digital out table:
-        self.aw.SetData_Long(list(digital_table['t']), self.DIGITAL_TIMEPOINT, Startindex=1, Count=len(digital_table))
-        self.aw.SetData_Long(list(digital_table['card']), self.DIGITAL_CARD_NUM, Startindex=1, Count=len(digital_table))
-        self.aw.SetData_Long(list(digital_table['bitfield']), self.DIGITAL_VALUES, Startindex=1, Count=len(digital_table))
-        
-        # Set the total run time:
-        self.aw.Set_Par(self.ADWIN_TOTAL_TIME, int(stop_time))
+            # Program the digital out table:
+            self.aw.SetData_Long(list(digital_table['t']), self.DIGITAL_TIMEPOINT, Startindex=1, Count=len(digital_table))
+            self.aw.SetData_Long(list(digital_table['card']), self.DIGITAL_CARD_NUM, Startindex=1, Count=len(digital_table))
+            self.aw.SetData_Long(list(digital_table['bitfield']), self.DIGITAL_VALUES, Startindex=1, Count=len(digital_table))
+            
+            # Set the total run time:
+            self.aw.Set_Par(self.ADWIN_TOTAL_TIME, int(stop_time))
 
-        # set the cycle delay in multiples of cpu ticks:
-        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, int(round(cycle_time*self.CPU_FREQ)))
+            # set the cycle delay in multiples of cpu ticks:
+            self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, int(round(cycle_time*self.CPU_FREQ)))
+        except ADwin.ADwinError:
+            # Oh no, something is wrong! Try rebooting ADwin to see if that fixes things,
+            # as sometimes the ADwin firmware crashes and needs rebooting.
+            # We don't want BLACS to pause the run if that's all that happened.
+            try:
+                self.initialise(*self.boot_args)
+                reboot_fixed_it = True
+            except Exception:
+                # hm, nope.
+                reboot_fixed_it = False
+            if reboot_fixed_it:
+                # If the problem is fixed, try programming buffered once more:
+                self.program_buffered(h5file, reboot_on_error=False)
+            else:
+                raise
+                
         
     def start_run(self):
         # Say go!
