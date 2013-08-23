@@ -157,9 +157,7 @@ class adwin(Tab):
         # We don't have to do anything
         pass
            
-    @define_state
     def leave_transition_to_buffered(self, notify_queue, _results):
-        self.static_mode = True
         notify_queue.put(self.device_name)
 
     @define_state
@@ -181,7 +179,10 @@ class adwin(Tab):
     @define_state
     def transition_to_static(self, notify_queue):
         self.static_mode = True
-        # We don't need to do anything:
+        self.static_update(None, response_required=False)
+        self.do_after('leave_transition_to_static', notify_queue)
+        
+    def leave_transition_to_static(self, notify_queue, _results):
         notify_queue.put(self.device_name)
                      
     @define_state
@@ -294,7 +295,7 @@ class ADWinWorker(Worker):
         # Set the total cycle time, a small number:
         self.aw.Set_Par(self.ADWIN_TOTAL_TIME, 2)
         # Set the delay, large enough for all the channels to be programmed:
-        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 30000) # 100us
+        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 3000) # 10us
         # Tell the program that there is new data:
         self.aw.Set_Par(self.ADWIN_NEW_DATA, 1)
         return True  # indicates success
