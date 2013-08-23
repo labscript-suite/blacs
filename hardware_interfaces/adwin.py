@@ -15,11 +15,14 @@ class adwin(Tab):
         self.device_number = int(self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection)
         self.static_mode = True
         self.destroy_complete = False
-        # A dict to store the last requested static update values for
-        # each card. This is so that this tab can set these values
-        # itself in the case of a reboot:
-        if 'last_seen_values' not in self.settings:
-            self.settings['last_seen_values'] = {}
+        # Dicts to store the last requested static update values for
+        # each card. This is so that this tab can set these values itself
+        # in the case of a reboot, as well as know what the values of
+        # other cards are when one card requests an update:
+        if 'current_analog_values' not in self.settings:
+            self.settings['current_analog_values'] = {}
+        if 'current_digital_values' not in self.settings:
+            self.settings['current_digital_values'] = {}
         
         # Gtk stuff:
         self.builder = gtk.Builder()
@@ -75,16 +78,19 @@ class adwin(Tab):
         here"""
         while True:
             data = self.static_update_request.wait(id=self.device_number)
+            # Save the values along with the other cards' values, so
+            # that they can be programmed all at once (this is required
+            # so that they don't override each other's programs):
+            if data['type'] == 'analog':
+                self.settings['current_analog_values'][data['card']] = data
+            elif data['type'] == 'digital':
+                self.settings['current_digital_values'][data['card']] = data
             self.static_update(data)
-            # Cache this request so the latest request on each card can be re-executed in the case of a reboot:
-            self.settings['last_seen_values'][data['card']] = data
+            
             
     @define_state
     def static_update(self, data, response_required=True):
-        if data['type'] == 'analog':
-            self.queue_work('analog_static_update', data['card'], data['values'])
-        elif data['type'] == 'digital':
-            self.queue_work('digital_static_update', data['card'], data['values'])
+        self.queue_work('static_update', self.settings['current_analog_values'], self.settings['current_digital_values'])
         if response_required:
             # If this update was internally generated instead of being
             # requested by another tab, we don't need to respond to
@@ -101,7 +107,7 @@ class adwin(Tab):
             # The update did not complete properly:
             response = Exception('Setting the device output did not complete correctly.' +
                                  'Please see the corresponding ADWin tab for more info.')
-        self.static_update_complete.post(id=[self.device_number, card, request_number],data=response)
+        self.static_update_complete.post(id=[self.device_number, card, request_number], data=response)
     
     def on_boot_button_clicked(self, button):
         self.initialise_device()
@@ -137,8 +143,7 @@ class adwin(Tab):
         in the past. Rather than communicate with the tabs, we have
         stored the last request from each one. So this function simply
         calls self.static_update for each one of these stored requests"""
-        for card, data in self.settings['last_seen_values'].items():
-            self.static_update(data, response_required=False)
+        self.static_update(None, response_required=False)
             
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
@@ -230,64 +235,69 @@ class ADWinWorker(Worker):
         return True # indicates success
 
 
-    def analog_static_update(self, card, voltages):
-        output_values = []
-        # Convert the output values to integers as required by the API:
-        for voltage in voltages:
-            if not -10 <= voltage <= 10:
-                raise ValueError('voltage not in range [-10,10]:' + str(voltage))
-            output_value = int((voltage+10)/20.*(2**16-1))
-            output_values.append(output_value)
-        for i, output_value in enumerate(output_values):
-            chan = array_index = i+1 # ADWin uses indexing that starts from one
+    def program_analogs_static(self, analog_data):
+        # Where we are in the ADwin data arrays (ADwin starts counting from one):
+        array_index = 1
+        for card, data in analog_data.items():
+            voltages = data['values']
             
-            # Set the timepoint:
-            self.aw.SetData_Long([0], self.ANALOG_TIMEPOINT, Startindex=array_index, Count=1)
-            # The duration, minimum possible; 1 cycle:
-            self.aw.SetData_Long([1], self.ANALOG_DURATION, Startindex=array_index, Count=1)
-            # The card_number and channel:
-            self.aw.SetData_Long([card], self.ANALOG_CARD_NUM, Startindex=array_index, Count=1)
-            self.aw.SetData_Long([chan], self.ANALOG_CHAN_NUM, Startindex=array_index, Count=1)
-            # The ramp type and parameters such as to create just a constant
-            # value through use of a trivial linear ramp:
-            self.aw.SetData_Long([0], self.ANALOG_RAMP_TYPE, Startindex=array_index, Count=1)
-            self.aw.SetData_Long([output_value], self.ANALOG_PAR_A, Startindex=array_index, Count=1)
-            self.aw.SetData_Long([0], self.ANALOG_PAR_B, Startindex=array_index, Count=1)
-            self.aw.SetData_Long([output_value], self.ANALOG_PAR_C, Startindex=array_index, Count=1)
+            output_values = []
+            # Convert the output values to integers as required by the API:
+            for voltage in voltages:
+                if not -10 <= voltage <= 10:
+                    raise ValueError('voltage not in range [-10,10]:' + str(voltage))
+                output_value = int((voltage+10)/20.*(2**16-1))
+                output_values.append(output_value)
+            for i, output_value in enumerate(output_values):
+                chan = i+1 # ADWin uses indexing that starts from one
+            
+                # Set the timepoint:
+                self.aw.SetData_Long([0], self.ANALOG_TIMEPOINT, Startindex=array_index, Count=1)
+                # The duration, minimum possible; 1 cycle:
+                self.aw.SetData_Long([1], self.ANALOG_DURATION, Startindex=array_index, Count=1)
+                # The card_number and channel:
+                self.aw.SetData_Long([card], self.ANALOG_CARD_NUM, Startindex=array_index, Count=1)
+                self.aw.SetData_Long([chan], self.ANALOG_CHAN_NUM, Startindex=array_index, Count=1)
+                # The ramp type and parameters such as to create just a constant
+                # value through use of a trivial linear ramp:
+                self.aw.SetData_Long([0], self.ANALOG_RAMP_TYPE, Startindex=array_index, Count=1)
+                self.aw.SetData_Long([output_value], self.ANALOG_PAR_A, Startindex=array_index, Count=1)
+                self.aw.SetData_Long([0], self.ANALOG_PAR_B, Startindex=array_index, Count=1)
+                self.aw.SetData_Long([output_value], self.ANALOG_PAR_C, Startindex=array_index, Count=1)
+                array_index += 1
         # And now the stop instruction:
-        array_index += 1
         self.aw.SetData_Long([2147483647], self.ANALOG_TIMEPOINT, Startindex=array_index, Count=1)
+
+    def program_digitals_static(self, digital_data):
+        # Where we are in the ADwin data arrays (ADwin starts counting from one):
+        array_index = 1
+        for card, data in digital_data.items():
+            values = data['values']
+            output_values = 0
+            # Convert the digital values to an integer bitfield as required by the API:
+            for i, value in enumerate(values):
+                if value:
+                    output_values += 2**i
+            # Set the timepoint:
+            self.aw.SetData_Long([0], self.DIGITAL_TIMEPOINT, Startindex=array_index, Count=1)
+            # The card_number:
+            self.aw.SetData_Long([card], self.DIGITAL_CARD_NUM, Startindex=array_index, Count=1)
+            # The output values:
+            self.aw.SetData_Long([output_values], self.DIGITAL_VALUES, Startindex=array_index, Count=1)
+            array_index += 1
+        # And now the stop instruction:
+        self.aw.SetData_Long([2147483647], self.DIGITAL_TIMEPOINT, Startindex=array_index, Count=1)
+    
+    def static_update(self, analog_data, digital_data):
+        self.program_analogs_static(analog_data)
+        self.program_digitals_static(digital_data)
         # Set the total cycle time, a small number:
         self.aw.Set_Par(self.ADWIN_TOTAL_TIME, 2)
         # Set the delay, large enough for all the channels to be programmed:
-        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 3000) # 10us
+        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 30000) # 100us
         # Tell the program that there is new data:
         self.aw.Set_Par(self.ADWIN_NEW_DATA, 1)
-        return True # indicates success
-
-
-    def digital_static_update(self, card, values):
-        output_values = 0
-        # Convert the digital values to an integer bitfield as required by the API:
-        for i, value in enumerate(values):
-            if value:
-                output_values += 2**i
-        # Set the timepoint:
-        self.aw.SetData_Long([0], self.DIGITAL_TIMEPOINT, Startindex=1, Count=1)
-        # The card_number:
-        self.aw.SetData_Long([card], self.DIGITAL_CARD_NUM, Startindex=1, Count=1)
-        # The output values:
-        self.aw.SetData_Long([output_values], self.DIGITAL_VALUES, Startindex=1, Count=1)
-        # And now the stop instruction:
-        self.aw.SetData_Long([2147483647], self.DIGITAL_TIMEPOINT, Startindex=2, Count=1)
-        # Set the total cycle time, a small number:
-        self.aw.Set_Par(self.ADWIN_TOTAL_TIME, 2)
-        # Set the delay, some small value:
-        self.aw.Set_Par(self.ADWIN_CYCLE_DELAY, 3000)
-        # Tell the program that there is new data:
-        self.aw.Set_Par(self.ADWIN_NEW_DATA, 1)
-        return True # indicates success
-        
+        return True  # indicates success
         
     def program_buffered(self, h5file, reboot_on_error=True):
         with h5py.File(h5file) as f:
