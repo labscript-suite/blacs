@@ -39,7 +39,8 @@ class camera(Tab):
         if save_data:
             host = save_data['host']
             self.host.set_text(host)
-            use_zmq = save_data['use_zmq']
+            # Setdefault used for compat with sessions from previous versions of BLACS which didn't save this setting:
+            use_zmq = save_data.setdefault('use_zmq', False)
             self.use_zmq.set_state(use_zmq)
         else:
             self.logger.warning('No previous front panel state to restore')

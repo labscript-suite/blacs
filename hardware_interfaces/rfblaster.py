@@ -373,34 +373,37 @@ class RFBlasterWorker(Worker):
         return webvalues
         
     def program_buffered(self,h5file):
+        finalfreq = zeros(self.num_DDS)
+        finalamp = zeros(self.num_DDS)
+        finalphase = zeros(self.num_DDS)
+        #Strip out the binary files:
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices'][self.device_name]
-            #Strip out the binary files and submit to the webserver
-            form = MultiPartForm()
-            finalfreq = zeros(self.num_DDS)
-            finalamp = zeros(self.num_DDS)
-            finalphase = zeros(self.num_DDS)
+            binary_programs = {}
             for i in range(self.num_DDS):
-                data = group['BINARY_CODE/DDS%d'%i].value
-                form.add_file_content("pulse_ch%d"%i,"output_ch%d.bin"%i,data)
+                binary_programs[i] = group['BINARY_CODE/DDS%d'%i].value
                 finalfreq[i]=group['TABLE_DATA']["freq%d"%i][-1]
                 finalamp[i]=group['TABLE_DATA']["amp%d"%i][-1]*100
                 finalphase[i]=group['TABLE_DATA']["phase%d"%i][-1]
-            form.add_field("upload_and_run","Upload and start")
-            req = urllib2.Request(self.address)
+        # Submit to the webserver
+        form = MultiPartForm()
+        for i in range(self.num_DDS):
+            form.add_file_content("pulse_ch%d"%i,"output_ch%d.bin"%i,binary_programs[i])
+        form.add_field("upload_and_run","Upload and start")
+        req = urllib2.Request(self.address)
 
-            body = str(form)
-            req.add_header('Content-type', form.get_content_type())
-            req.add_header('Content-length', len(body))
-            req.add_data(body)
-            post_buffered_web_vals = self.get_web_values(str(urllib2.urlopen(req,timeout = self.timeout).readlines()))
-            #Find the final value from the human-readable part of the h5 file to use for
-            #the front panel values at the end
-            
-            
-            # Now we build a dictionary of the final state to send back to the GUI:
-            self.final_values = {"f":finalfreq,"a":finalamp,"p":finalphase,"e": ones(self.num_DDS)} #note, GUI wants Hz
-            return self.final_values, post_buffered_web_vals
+        body = str(form)
+        req.add_header('Content-type', form.get_content_type())
+        req.add_header('Content-length', len(body))
+        req.add_data(body)
+        post_buffered_web_vals = self.get_web_values(str(urllib2.urlopen(req,timeout = self.timeout).readlines()))
+        #Find the final value from the human-readable part of the h5 file to use for
+        #the front panel values at the end
+        
+        
+        # Now we build a dictionary of the final state to send back to the GUI:
+        self.final_values = {"f":finalfreq,"a":finalamp,"p":finalphase,"e": ones(self.num_DDS)} #note, GUI wants Hz
+        return self.final_values, post_buffered_web_vals
             
             
     def abort_buffered(self):

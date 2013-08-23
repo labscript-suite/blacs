@@ -36,6 +36,7 @@ class phasematrixquicksyn(Tab):
 
         
         self.queued_static_updates = 0
+        self.queued_static_freq_updates = 0
         
         # PyGTK stuff:
         self.builder = gtk.Builder()
@@ -46,7 +47,7 @@ class phasematrixquicksyn(Tab):
         self.main_view = self.builder.get_object('main_vbox')
         self.builder.get_object('title').set_text(self.settings["device_name"]+" - Port: "+self.com_port)
                 
-        # Get the widgets needed for showing the prompt to push/pull values to/from the Novatech
+        # Get the widgets needed for showing the prompt to push/pull values to/from the device
         self.changed_widgets = {'changed_vbox':self.builder.get_object('changed_vbox')}                
         self.changed_widgets['ch_0_vbox'] = self.builder.get_object('changed_vbox_ch_0')
         self.changed_widgets['ch_0_label'] = self.builder.get_object('new_ch_label_0')
@@ -140,7 +141,7 @@ class phasematrixquicksyn(Tab):
         self.outputs_by_widget[self.blanking.action] = 'blanking', self.blanking
         self.outputs_by_widget[self.lock_recovery.action] = 'lock_recovery', self.lock_recovery
         
-        print self.outputs_by_widget
+        
         
         self.dds_outputs = [DDS(freq_object,None,None,gate)]   
         
@@ -148,7 +149,8 @@ class phasematrixquicksyn(Tab):
         self.viewport.add(self.toplevel)
         
         # add the status check timeout
-        self.statemachine_timeout_add(10000,self.status_monitor)
+        self.statemachine_timeout_add(2000,self.status_monitor)
+        self.changed_count = 0
         
         # Initialise the device
         self.initialise()
@@ -168,48 +170,46 @@ class phasematrixquicksyn(Tab):
         
             
     def leave_status_monitor(self,_results=None):
-        # If a static_update is already queued up, ignore this as it's soon to be obsolete!
-        if self.queued_static_updates > 0:
-            self.changed_widgets['changed_vbox'].hide()            
-            self.main_view.set_sensitive(True)
-            return
+        
     
         # If results are None, then ignore because an exception was raised in the worker process
         if not _results:
+            raise Exception('Status Monitor: No results returned from worker process')
             return
     
         self.new_values = _results
         # if we're in static mode, check that the widgets match the output
         if self.static_mode == True:
             fpv = self.get_front_panel_state()
-            # Do the values match the front panel?
-            changed = False
-            
-            if _results['freq'] != fpv['freq'] or _results['gate'] != fpv['gate']:
-                # freeze the front panel
-                self.main_view.set_sensitive(False)
+            # Do the values match the front panel?            
+            #check if the freq or gate have changed, as long as there are no updates scheduled still!
+            if (_results['freq'] != fpv['freq'] or _results['gate'] != fpv['gate']) and self.queued_static_updates==0 and self.queued_static_freq_updates==0:
+                self.changed_count += 1
                 
-                # show changed vbox
-                self.changed_widgets['changed_vbox'].show()
-                self.changed_widgets['ch_0_vbox'].show()
-                self.changed_widgets['ch_0_label'].set_text(self.builder.get_object("channel_0_label").get_text())
-                changed = True
-                
-                # populate the labels with the values
-                for age in ['old','new']:
-                    self.changed_widgets['ch_0_%s_freq'%age].set_text(str(_results['freq'] if age == 'new' else fpv['freq']))
-                    self.changed_widgets['ch_0_%s_freq_unit'%age].set_text(self.base_units['freq'])
-                    self.changed_widgets['ch_0_%s_gate'%age].set_text(str(_results['gate'] if age == 'new' else fpv['gate']))                  
-            else:                
-                self.changed_widgets['ch_0_vbox'].hide()
+                if self.changed_count > 2:
+                    # freeze the front panel
+                    self.main_view.set_sensitive(False)
                     
-            if not changed:
+                    # show changed vbox
+                    self.changed_widgets['changed_vbox'].show()
+                    self.changed_widgets['ch_0_vbox'].show()
+                    self.changed_widgets['ch_0_label'].set_text(self.builder.get_object("channel_0_label").get_text())
+                    
+                    
+                    # populate the labels with the values
+                    for age in ['old','new']:
+                        self.changed_widgets['ch_0_%s_freq'%age].set_text(str(_results['freq'] if age == 'new' else fpv['freq']))
+                        self.changed_widgets['ch_0_%s_freq_unit'%age].set_text(self.base_units['freq'])
+                        self.changed_widgets['ch_0_%s_gate'%age].set_text(str(_results['gate'] if age == 'new' else fpv['gate']))                  
+            else: 
                 self.changed_widgets['changed_vbox'].hide()            
-                self.main_view.set_sensitive(True)
+                self.main_view.set_sensitive(True)                
+                self.changed_count = 0
         # but if we are in buffered mode, don't complain about the front panel, we'll sort that out at the end of the run!
         else:
             self.changed_widgets['changed_vbox'].hide()            
             self.main_view.set_sensitive(True)
+            self.changed_count = 0
     
         #now let's update other widgets, like the temperature and lock status:
         self.status_widgets['temperature'].set_text(str(_results['temperature']))
@@ -226,23 +226,16 @@ class phasematrixquicksyn(Tab):
         
     @define_state
     def continue_after_change(self,widget=None):
-        values = self.new_values
-        fpv = self.get_front_panel_state()
-        # do we want to use the front panel values (only applies to channels we showed changed values for)?
+        device_values = self.new_values
         if not self.changed_widgets['ch_0_pull_radio'].get_active() and self.changed_widgets['ch_0_vbox'].get_visible():
-            values['freq'] = fpv['freq']
-            values['gate'] = fpv['gate']
-                
-            # actually make it program.
-            # we explicitly do this because setting the widget to the value it is already set to, will never trigger a program call, 
-            # since we deliberately ignore such calls to limit possible recursion due to programming errors
-            self.program_channel('freq', fpv['freq'])
-            self.program_channel('gate', fpv['gate'])
-                
-                            
+            self.program_channel('freq')
+            self.program_channel('gate')
+        else:
+            self.set_front_panel_state(device_values)
+            
         self.main_view.set_sensitive(True)
         self.changed_widgets['changed_vbox'].hide()     
-        self.set_front_panel_state(values,program=True)
+        
     
         
     @define_state
@@ -280,27 +273,35 @@ class phasematrixquicksyn(Tab):
         if self.static_mode:
             
             type, output = self.outputs_by_widget[widget]
-            
             if type == 'freq':
                 value = output.value
+                if self.queued_static_freq_updates < 2:
+                    self.queued_static_freq_updates += 1
+                    self.program_channel(type)
             else:
                 value = output.state
-            
-            self.queued_static_updates += 1
-            self.program_channel(type,value)
+                self.queued_static_updates += 1
+                self.program_channel(type)
             
     @define_state
-    def program_channel(self,type,value):
-        self.queue_work('program_static', type, value)
+    def program_channel(self,type):
+        self.queue_work('program_static', type, self.get_front_panel_state()[type])
         self.do_after('leave_program_static',type)
             
     def leave_program_static(self,type,_results):
         # update the front panel value to what it actually is in the device
-        if self.queued_static_updates < 2:
+
+        if type == 'freq':
+            self.queued_static_freq_updates -= 1
+            if self.queued_static_freq_updates < 0:
+                self.queued_static_freq_updates = 0
+            
+        else:
             self.queued_static_updates -= 1
             if self.queued_static_updates < 0:
                 self.queued_static_updates = 0
-            self.set_front_panel_state({type:_results})
+            
+            
     
     @define_state
     def transition_to_buffered(self,h5file,notify_queue):
@@ -431,11 +432,9 @@ class PhaseMatrixQuickSynWorker(Worker):
         self.connection.write('DIAG:MEAS? 21\r')
         results['temperature'] = float(self.connection.readline())
         
-        
         return results
         
     def program_static(self,type,value):
-        
         if type == 'freq':
             #program in millihertz:
             value = value*1e3
@@ -461,8 +460,7 @@ class PhaseMatrixQuickSynWorker(Worker):
         else:
             raise TypeError(type)
         
-        time.sleep(0.05)
-        return self.get_current_values()[type]
+        return
        
     def program_buffered(self,device_name,h5file,initial_values):
         # Store the initial values in case we have to abort and restore them:
