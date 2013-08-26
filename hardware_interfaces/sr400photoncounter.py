@@ -2,6 +2,8 @@ import gtk
 from output_classes import DO
 from tab_base_classes import Tab, Worker, define_state
 
+import numpy
+
 class sr400photoncounter(Tab):
     def __init__(self,BLACS,notebook,settings,restart=False):
         Tab.__init__(self, BLACS, PhotonCounterWorker, notebook, settings)
@@ -52,53 +54,90 @@ class sr400photoncounter(Tab):
         self.queue_work('abort')
     
     @define_state
-    def transition_to_static(self,notify_queue):
+    def transition_to_static(self, notify_queue):
         self.queue_work('transition_to_static')
         self.do_after('leave_transition_to_static', notify_queue)
         
-    def leave_transition_to_static(self,notify_queue, _results):
-        self.static_mode = True
+    def leave_transition_to_static(self, notify_queue, _results):
         notify_queue.put(self.device_name)
+    
     
 class PhotonCounterWorker(Worker):
     def init(self):
         global h5py; import h5_lock, h5py
         global serial; import serial
         global time; import time
-    
+        global io; import io
+        
     def initialise_photoncounter(self, name, usbport):
         self.device_name = name
-        self.photoncounter = serial.Serial(usbport, 115200, timeout=1)
-        
-        
-        # Device has a finite startup time:
-        time.sleep(5)
-        self.photoncounter.write('hello\r\n')
-        response = self.photoncounter.readline()
-        if response == 'hello\r\n':
-            return
-        elif response:
-            raise Exception('PineBlaster is confused: saying %s instead of hello'%(repr(response)))
-        else:
-            raise Exception('PineBlaster is not saying hello back when greeted politely. How rude. Maybe it needs a reboot.')
+        self.ser = serial.Serial(usbport, timeout=1)
+        self.ser_io = io.TextIOWrapper(io.BufferedRWPair(self.ser, self.ser, 1),  newline = '\r', line_buffering = True)
+        # Confirm that connection is working:      
+        self.write('CM 0')
+        self.write('CM')
+        assert self.read() == '0'
+
+    def write(self, s):
+        print 'sending', s
+        self.ser_io.write(unicode(s) +'\r')
+    
+    def read(self):
+        result = str(self.ser_io.readline()).strip()
+        print 'returned', result
+        return result
             
     def close(self):
-        self.photoncounter.close()
+        self.ser.close()
         
-    def program_buffered(self, h5file, fresh):
+    def program_buffered(self, h5file):
+        self.h5file = h5file
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/%s'%self.device_name]
-            duration = group.attrs['duration']
-        self.photoncounter.write('set duration to %d and get ready to go!\r\n'%duration)
-        response = self.photoncounter.readline()
-        if response != 'ok\r\n':
-            raise Exception(response)
+            
+            bin_size_10MHz = group.attrs['bin_size_10MHz']
+            n_periods = group.attrs['n_periods']
+            dwell_time = group.attrs['dwell_time']
+            
+        # Set count mode to 'A,B FOR T PRESET'.
+        # This also resets the counter ready for a new scan:
+        self.write('CM 0')
+
+        # Confirm that connection is working
+        self.write('CM')
+        assert self.read() == '0'
+
+        # Set dwell time to minimum:
+        self.write('DT %.1g'%dwell_time)
+
+        # Tell it to stop when it finishes counting:
+        self.write('NE 0')
+
+        # CI i, j: Set Counter A (i=0) to use Input 1 (j = 1)
+        self.write('CI 0, 1')
+
+        # CI i, j: Set Counter T (i=2) to use 10MHz (j=0)
+        self.write('CI 2, 0')
+
+        # Set the bin size in multiples of the T counter (the 10MHz clock):
+        self.write('CP 2, %.1g'%bin_size_10MHz)
+
+        # Set the number of periods in a scan:
+        self.write('NP %d'%n_periods)
+        
+        # save n_periods for later data retrieval:
+        self.n_periods = n_periods
         
     def transition_to_static(self):
-        self.photoncounter.write('reset. stop counting. whatever')
-        response = self.photoncounter.readline()
-        if response != 'ok\r\n':
-            raise Exception(response)
+        self.write('EA')
+        data = []
+        for i in range(self.n_periods):
+            result = self.read()
+            data.append(int(result))
+        data = numpy.array(data,dtype=int)
+        with h5py.File(self.h5file) as f:
+            group = f.create_group('/data/%s'%self.device_name)
+            group.create_dataset('COUNTS', data=data)
             
     def abort(self):
         self.transition_to_static()
