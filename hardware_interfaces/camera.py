@@ -133,7 +133,7 @@ class CameraWorker(Worker):
     def starting_experiment(self, h5file, host, port, use_zmq):
         h5file = shared_drive.path_to_agnostic(h5file)
         if not use_zmq:
-            return self.starting_experiment_sockets(host, port)
+            return self.starting_experiment_sockets(h5file,host, port)
         else:
             response = subproc_utils.zmq_get_raw(port, host, data=h5file)
             if response != 'ok':

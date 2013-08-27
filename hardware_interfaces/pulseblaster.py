@@ -357,6 +357,11 @@ class PulseblasterWorker(Worker):
             freq_table[1] = group['DDS1/FREQ_REGS'][:]
             phase_table[1] = group['DDS1/PHASE_REGS'][:]
             pulse_program = group['PULSE_PROGRAM'][2:]
+            
+            # Are there waits in use in this experiment? The monitor waiting for the end of
+            # the experiment will need to know:
+            self.waits_pending =  bool(len(hdf5_file['waits']))
+            
         # Program the DDS registers:
         ampregs = []
         freqregs = []
@@ -415,11 +420,7 @@ class PulseblasterWorker(Worker):
                 for args in pulse_program:
                     pb_inst_dds2(*args)
             pb_stop_programming()
-        
-        # Are there waits in use in this experiment? The monitor waiting for the end of
-        # the experiment will need to know:
-        self.waits_pending =  bool(len(hdf5_file['waits']))
-        
+                
         # Now we build a dictionary of the final state to send back to the GUI:
         return {'freq0':finalfreq0, 'amp0':finalamp0, 'phase0':finalphase0, 'en0':en0,
                 'freq1':finalfreq1, 'amp1':finalamp1, 'phase1':finalphase1, 'en1':en1,
