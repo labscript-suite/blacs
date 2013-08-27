@@ -72,20 +72,26 @@ class PhotonCounterWorker(Worker):
     def initialise_photoncounter(self, name, usbport):
         self.device_name = name
         self.ser = serial.Serial(usbport, timeout=1)
-        self.ser_io = io.TextIOWrapper(io.BufferedRWPair(self.ser, self.ser, 1),  newline = '\r', line_buffering = True)
         # Confirm that connection is working:      
         self.write('CM 0')
         self.write('CM')
         assert self.read() == '0'
 
     def write(self, s):
-        print 'sending', s
-        self.ser_io.write(unicode(s) +'\r')
-    
+        self.logger.debug('sending: %s'%s)
+        self.ser.write(s+'\r')
+        
     def read(self):
-        result = str(self.ser_io.readline()).strip()
-        print 'returned', result
-        return result
+        """This seemed like the best way to readline when EOL is \r only.
+        The method pyserial recommends, the python io module docs warn is unreliable.
+        So we'll just roll our own readline function, no big deal."""
+        result = ''
+        while True:
+            char = self.ser.read(1)
+            if char == '\r':
+                self.logger.debug('read: %s'%result)
+                return result
+            result += char
             
     def close(self):
         self.ser.close()
