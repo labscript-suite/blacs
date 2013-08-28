@@ -4,7 +4,53 @@ from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
 FILEPATH_COLUMN = 0
 
-class ConnectionTable(object):
+class Plugin(object):
+    def __init__(self):
+        pass
+        
+    def get_menus(self):
+        return [Menu]
+        
+    def get_notifications(self):
+        return [Notification]
+        
+    def get_settings(self):
+        return [Setting]
+        
+    def register_callbacks(self):
+        pass
+
+class Menu(object):
+    def __init__(self,BLACS):
+        pass
+        
+    def get_menu_items(Self):
+        return {'Connection Table':{'Edit':self.on_edit_connection_table}}
+    
+    def on_select_globals(self,*args,**kwargs):
+        self.settings.create_dialog(goto_page=plugins.connection_table.Setting)
+      
+    def on_edit_connection_table(self,*args,**kwargs):
+        # get path to text editor
+        editor_path = self.exp_config.get('programs','text_editor')
+        editor_args = self.exp_config.get('programs','text_editor_arguments')
+        if editor_path:  
+            if '{file}' in editor_args:
+                editor_args = editor_args.replace('{file}', self.exp_config.get('paths','connection_table_py'))
+            else:
+                editor_args = self.exp_config.get('paths','connection_table_py') + " " + editor_args            
+            try:
+                subprocess.Popen([editor_path,editor_args])
+            except Exception:
+                QMessageBox.information(self.ui,"Error","Unable to launch text editor. Check the path is valid in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
+        else:
+            QMessageBox.information(self.ui,"Error","No text editor path was specified in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
+    
+    
+# class Notification(object):
+    # pass
+    
+class Setting(object):
     name = "Connection Table"
 
     def __init__(self,data):

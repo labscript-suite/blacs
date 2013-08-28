@@ -3,7 +3,30 @@ from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
 
-class General(object):
+class Plugin(object):
+    def __init__(self):
+        pass
+        
+    def get_menus(self):
+        return [Menu]
+        
+    def get_notifications(self):
+        return [Notification]
+        
+    def get_settings(self):
+        return [Setting]
+        
+    def register_callbacks(self):
+        pass
+
+# class Menu(object):
+    # pass
+    
+# class Notification(object):
+    # pass
+
+
+class Setting(object):
     name = "General"
 
     def __init__(self,data):

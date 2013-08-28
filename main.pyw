@@ -157,13 +157,26 @@ class BLACS(object):
         # Setup the QueueManager
         self.queue = QueueManager(self.ui)
         
+        # setup the plugin system
+        settings_pages = []
+        self.plugins = {}
+        for module_name in plugins.__plugins__:
+            try:
+                # instantiate the plugin
+                self.plugins[module_name] = plugins.__getattribute__(module_name).Plugin()                
+                settings_pages.extend(self.plugins[module_name].get_settings())
+            except Exception as e:
+                logger.error('Plugin %s only partially instantiated. Error was: %s'%(module_name,str(e)))
+        
         # setup the BLACS preferences system
         self.settings = Settings(file=self.settings_path,
                                      parent = self.ui,
-                                     page_classes=[plugins.connection_table.ConnectionTable,
-                                                   plugins.general.General])
+                                     page_classes=settings_pages)
+                                     #[plugins.connection_table.Setting,
+                                     #              plugins.general.Setting])
         #self.settings.register_callback(self.on_settings_changed)
             
+        
         
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
@@ -334,7 +347,7 @@ class BLACS(object):
     def on_recompile_connection_table(self,*args,**kwargs):
         logger.info('recompile connection table called')
         # get list of globals
-        globals_files = self.settings.get_value(plugins.connection_table.ConnectionTable,'globals_list')
+        globals_files = self.settings.get_value(plugins.connection_table.Setting,'globals_list')
         # Remove unicode encoding so that zlock doesn't crash
         for i in range(len(globals_files)):
             globals_files[i] = str(globals_files[i])
@@ -366,7 +379,7 @@ class BLACS(object):
         self.settings.create_dialog()
         
     def on_select_globals(self,*args,**kwargs):
-        self.settings.create_dialog(goto_page=plugins.connection_table.ConnectionTable)
+        self.settings.create_dialog(goto_page=plugins.connection_table.Setting)
       
     def on_edit_connection_table(self,*args,**kwargs):
         # get path to text editor
