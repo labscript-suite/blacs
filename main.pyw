@@ -38,7 +38,8 @@ for device in device_list:
 from front_panel_settings import FrontPanelSettings
 # Preferences system
 from settings import Settings
-import settings_pages
+#import settings_pages
+import plugins
 #compile and restart
 from compile_and_restart import CompileAndRestart
 
@@ -159,8 +160,8 @@ class BLACS(object):
         # setup the BLACS preferences system
         self.settings = Settings(file=self.settings_path,
                                      parent = self.ui,
-                                     page_classes=[settings_pages.connection_table.ConnectionTable,
-                                                   settings_pages.general.General])
+                                     page_classes=[plugins.connection_table.ConnectionTable,
+                                                   plugins.general.General])
         #self.settings.register_callback(self.on_settings_changed)
             
         
@@ -333,7 +334,7 @@ class BLACS(object):
     def on_recompile_connection_table(self,*args,**kwargs):
         logger.info('recompile connection table called')
         # get list of globals
-        globals_files = self.settings.get_value(settings_pages.connection_table.ConnectionTable,'globals_list')
+        globals_files = self.settings.get_value(plugins.connection_table.ConnectionTable,'globals_list')
         # Remove unicode encoding so that zlock doesn't crash
         for i in range(len(globals_files)):
             globals_files[i] = str(globals_files[i])
@@ -365,7 +366,7 @@ class BLACS(object):
         self.settings.create_dialog()
         
     def on_select_globals(self,*args,**kwargs):
-        self.settings.create_dialog(goto_page=settings_pages.connection_table.ConnectionTable)
+        self.settings.create_dialog(goto_page=plugins.connection_table.ConnectionTable)
       
     def on_edit_connection_table(self,*args,**kwargs):
         # get path to text editor
