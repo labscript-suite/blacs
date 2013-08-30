@@ -13,7 +13,7 @@ from subproc_utils.qt_components import OutputBox
 
 class CompileAndRestart(QDialog):
     def __init__(self, blacs, globals_files,connection_table_labscript, output_path):
-        QDialog.__init__(self,blacs.ui)
+        QDialog.__init__(self,blacs['ui'])
         self.globals_files = globals_files
         self.labscript_file = connection_table_labscript
         self.output_path = output_path
@@ -84,9 +84,9 @@ class CompileAndRestart(QDialog):
                 
     def restart(self):
         #gobject.timeout_add(100, self.blacs.destroy)
-        QTimer.singleShot(100, self.blacs.ui.close)
+        QTimer.singleShot(100, self.blacs['ui'].close)
         self.accept()        
-        self.blacs.relaunch = True
+        self.blacs['set_relaunch'](True)
         
         #self.blacs.qt_application.aboutToQuit.connect(self.relaunch)
         #gtk.quit_add(0,self.relaunch)

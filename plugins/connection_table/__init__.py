@@ -1,8 +1,16 @@
+import logging
 import os
+import subprocess
+
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
+
+from BLACS.compile_and_restart import CompileAndRestart
+
 FILEPATH_COLUMN = 0
+name = "Connection Table"
+logger = logging.getLogger('BLACS.plugin.%s'%name)
 
 class Plugin(object):
     def __init__(self):
@@ -22,36 +30,57 @@ class Plugin(object):
 
 class Menu(object):
     def __init__(self,BLACS):
-        pass
+        self.BLACS = BLACS
         
-    def get_menu_items(Self):
-        return {'Connection Table':{'Edit':self.on_edit_connection_table}}
+    def get_menu_items(self):
+        return {'name':name,        
+                'menu_items':[{'name':'Edit',
+                               'action':self.on_edit_connection_table
+                              },
+                              {'name':'Select Globals',
+                               'action':self.on_select_globals                              
+                              },
+                              {'name':'Recompile',
+                               'action':self.on_recompile_connection_table                              
+                              }
+                             ]                                
+               }
     
     def on_select_globals(self,*args,**kwargs):
-        self.settings.create_dialog(goto_page=plugins.connection_table.Setting)
+        print 'aaaaaa'
+        self.BLACS['settings'].create_dialog(goto_page=Setting)
       
     def on_edit_connection_table(self,*args,**kwargs):
         # get path to text editor
-        editor_path = self.exp_config.get('programs','text_editor')
-        editor_args = self.exp_config.get('programs','text_editor_arguments')
+        editor_path = self.BLACS['exp_config'].get('programs','text_editor')
+        editor_args = self.BLACS['exp_config'].get('programs','text_editor_arguments')
         if editor_path:  
             if '{file}' in editor_args:
-                editor_args = editor_args.replace('{file}', self.exp_config.get('paths','connection_table_py'))
+                editor_args = editor_args.replace('{file}', self.BLACS['exp_config'].get('paths','connection_table_py'))
             else:
-                editor_args = self.exp_config.get('paths','connection_table_py') + " " + editor_args            
+                editor_args = self.BLACS['exp_config'].get('paths','connection_table_py') + " " + editor_args            
             try:
                 subprocess.Popen([editor_path,editor_args])
             except Exception:
-                QMessageBox.information(self.ui,"Error","Unable to launch text editor. Check the path is valid in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
+                QMessageBox.information(self.BLACS['ui'],"Error","Unable to launch text editor. Check the path is valid in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.BLACS['exp_config'].config_path)
         else:
-            QMessageBox.information(self.ui,"Error","No text editor path was specified in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
+            QMessageBox.information(self.BLACS['ui'],"Error","No text editor path was specified in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.BLACS['exp_config'].config_path)
     
+    def on_recompile_connection_table(self,*args,**kwargs):
+        logger.info('recompile connection table called')
+        # get list of globals
+        globals_files = self.BLACS['settings'].get_value(Setting,'globals_list')
+        # Remove unicode encoding so that zlock doesn't crash
+        for i in range(len(globals_files)):
+            globals_files[i] = str(globals_files[i])
+        CompileAndRestart(self.BLACS, globals_files, self.BLACS['exp_config'].get('paths','connection_table_py'), self.BLACS['exp_config'].get('paths','connection_table_h5'))
+     
     
 # class Notification(object):
     # pass
     
 class Setting(object):
-    name = "Connection Table"
+    name = name
 
     def __init__(self,data):
         # This is our data store!

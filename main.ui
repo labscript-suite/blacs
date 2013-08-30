@@ -366,16 +366,7 @@ V</string>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
-   <widget class="QMenu" name="menuConnection_Table">
-    <property name="title">
-     <string>Connection Table</string>
-    </property>
-    <addaction name="actionEdit_Connection_Table"/>
-    <addaction name="actionSelect_Globals"/>
-    <addaction name="actionRecompile"/>
-   </widget>
    <addaction name="menuFile"/>
-   <addaction name="menuConnection_Table"/>
   </widget>
   <action name="actionOpen">
    <property name="text">

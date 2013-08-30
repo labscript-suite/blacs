@@ -40,8 +40,6 @@ from front_panel_settings import FrontPanelSettings
 from settings import Settings
 #import settings_pages
 import plugins
-#compile and restart
-from compile_and_restart import CompileAndRestart
 
 def setup_logging():
     logger = logging.getLogger('BLACS')
@@ -75,7 +73,7 @@ class BLACSWindow(QMainWindow):
         #print 'aaaaa'
         if self.blacs.exit_complete:
             event.accept()
-            if self.blacs.relaunch:
+            if self.blacs._relaunch:
                 logger.info('relaunching BLACS after quit')
                 subprocess.Popen([sys.executable] + sys.argv)
         else:
@@ -99,7 +97,7 @@ class BLACS(object):
     def __init__(self,application):
         self.qt_application = application
         #self.qt_application.aboutToQuit.connect(self.destroy)
-        self.relaunch = False
+        self._relaunch = False
         self.exiting = False
         self.exit_complete = False
         
@@ -163,10 +161,54 @@ class BLACS(object):
         for module_name in plugins.__plugins__:
             try:
                 # instantiate the plugin
-                self.plugins[module_name] = plugins.__getattribute__(module_name).Plugin()                
-                settings_pages.extend(self.plugins[module_name].get_settings())
+                self.plugins[module_name] = plugins.__getattribute__(module_name).Plugin()     
+                
             except Exception as e:
-                logger.error('Plugin %s only partially instantiated. Error was: %s'%(module_name,str(e)))
+                logger.error('Could not instantiate plugin %s. Error was: %s'%(module_name,str(e)))
+        
+        blacs_data = {'exp_config':self.exp_config,
+                      'ui':self.ui,
+                      'set_relaunch':self.set_relaunch,
+                     }
+        
+        def create_menu(parent, menu_parameters):
+            if 'name' in menu_parameters:
+                if 'menu_items' in menu_parameters:
+                    child = parent.addMenu(menu_parameters['name'])
+                    for child_menu_params in menu_parameters['menu_items']:
+                        create_menu(child,child_menu_params)
+                else:
+                    child = parent.addAction(menu_parameters['name'])
+                    
+                if 'action' in menu_parameters:
+                    try:
+                        child.triggered.connect(menu_parameters['action'])
+                    except Exception as e:
+                        from IPython import embed
+                        embed()
+                        raise
+                    
+            elif 'separator' in menu_parameters:
+                parent.addSeparator()
+        
+        self._plugin_menus = {}
+        for module_name, plugin in self.plugins.items():
+            try:
+                # Setup settings page
+                settings_pages.extend(plugin.get_settings())
+                # Setup menu
+                for menu_class in plugin.get_menus():
+                    # must store a reference or else the methods called when the menu actions are triggered
+                    # (contained in this object) will be garbaged collected
+                    self._plugin_menus[module_name] = menu_class(blacs_data)
+                    create_menu(self.ui.menubar,self._plugin_menus[module_name].get_menu_items())
+                        
+                # Setup notifications
+                
+                # Register callbacks
+                
+            except Exception as e:
+                logger.error('Plugin %s only partially setup. Error was: %s'%(module_name,str(e)))
         
         # setup the BLACS preferences system
         self.settings = Settings(file=self.settings_path,
@@ -175,19 +217,21 @@ class BLACS(object):
                                      #[plugins.connection_table.Setting,
                                      #              plugins.general.Setting])
         #self.settings.register_callback(self.on_settings_changed)
+        
+        # update the blacs_data dictionary with the settings system
+        blacs_data['settings'] = self.settings
             
         
         
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
-        self.ui.actionSelect_Globals.triggered.connect(self.on_select_globals)
-        self.ui.actionEdit_Connection_Table.triggered.connect(self.on_edit_connection_table)
-        self.ui.actionRecompile.triggered.connect(self.on_recompile_connection_table)
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
-        self.ui.actionOpen.triggered.connect(self.on_load_front_panel)
-        
+        self.ui.actionOpen.triggered.connect(self.on_load_front_panel)       
         
         self.ui.show()
+    
+    def set_relaunch(self,value):
+        self._relaunch = bool(value)
     
     def restore_window(self,tab_data):
         # read out position settings:
@@ -339,20 +383,7 @@ class BLACS(object):
         else:
             self.exit_complete = True
             logger.info('quitting')
-            #self.window.hide()
-            #gtk.main_quit()
-            #return False
     
-    
-    def on_recompile_connection_table(self,*args,**kwargs):
-        logger.info('recompile connection table called')
-        # get list of globals
-        globals_files = self.settings.get_value(plugins.connection_table.Setting,'globals_list')
-        # Remove unicode encoding so that zlock doesn't crash
-        for i in range(len(globals_files)):
-            globals_files[i] = str(globals_files[i])
-        CompileAndRestart(self,globals_files,self.connection_table_labscript, self.connection_table_h5file)
-     
     def on_save_front_panel(self,*args,**kwargs):
         data = self.front_panel_settings.get_save_data()
     
@@ -368,35 +399,8 @@ class BLACS(object):
                 current_file += '.h5'
             self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2])
         
-                
-            
-        
-    
-    #########################
-    # Preferences functions #
-    #########################
     def on_open_preferences(self,*args,**kwargs):
         self.settings.create_dialog()
-        
-    def on_select_globals(self,*args,**kwargs):
-        self.settings.create_dialog(goto_page=plugins.connection_table.Setting)
-      
-    def on_edit_connection_table(self,*args,**kwargs):
-        # get path to text editor
-        editor_path = self.exp_config.get('programs','text_editor')
-        editor_args = self.exp_config.get('programs','text_editor_arguments')
-        if editor_path:  
-            if '{file}' in editor_args:
-                editor_args = editor_args.replace('{file}', self.exp_config.get('paths','connection_table_py'))
-            else:
-                editor_args = self.exp_config.get('paths','connection_table_py') + " " + editor_args            
-            try:
-                subprocess.Popen([editor_path,editor_args])
-            except Exception:
-                QMessageBox.information(self.ui,"Error","Unable to launch text editor. Check the path is valid in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
-        else:
-            QMessageBox.information(self.ui,"Error","No text editor path was specified in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.exp_config.config_path)
-            
                 
 
 class RequestHandler(BaseHTTPRequestHandler):

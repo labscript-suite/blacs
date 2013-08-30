@@ -8,7 +8,7 @@ class Plugin(object):
         pass
         
     def get_menus(self):
-        return [Menu]
+        return []
         
     def get_notifications(self):
         return [Notification]
