@@ -180,13 +180,8 @@ class BLACS(object):
                 else:
                     child = parent.addAction(menu_parameters['name'])
                     
-                if 'action' in menu_parameters:
-                    try:
-                        child.triggered.connect(menu_parameters['action'])
-                    except Exception as e:
-                        from IPython import embed
-                        embed()
-                        raise
+                if 'action' in menu_parameters:                    
+                    child.triggered.connect(menu_parameters['action'])                    
                     
             elif 'separator' in menu_parameters:
                 parent.addSeparator()
