@@ -5,19 +5,26 @@ from PySide.QtUiTools import QUiLoader
 
 class Plugin(object):
     def __init__(self):
-        pass
+        self.menu = None
+        self.notifications = {}
         
-    def get_menus(self):
+    def get_menu_class(self):
+        return None
+        
+    def get_notification_classes(self):
         return []
         
-    def get_notifications(self):
-        return [Notification]
-        
-    def get_settings(self):
+    def get_setting_classes(self):
         return [Setting]
         
-    def register_callbacks(self):
+    def get_callbacks(self):
         pass
+        
+    def set_menu_instance(self,menu):
+        self.menu = menu
+        
+    def set_notification_instances(self,notifications):
+        self.notifications = notifications
 
 # class Menu(object):
     # pass

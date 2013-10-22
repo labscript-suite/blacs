@@ -1,4 +1,28 @@
+#import filewatcher.modulebooster
 
+# def profile_imports(threshold = 0.000005):
+    # import time
+    # _old_import = __import__
+    # class depth:
+        # depth = 0
+        
+    # def profiling_import(name, *args,**kwargs):
+        # start_time = time.time()
+        # depth.depth += 1
+        # try:
+            # result = _old_import(name, *args, **kwargs)
+        # finally:
+            # depth.depth -= 1
+        # time_taken = time.time() - start_time
+        # if time_taken > threshold:
+            # print ' '*depth.depth + '[%.2f] import %s'%(time_taken, name)
+
+        # return result
+        
+    # __builtins__.__dict__['__import__'] = profiling_import      
+
+# profile_imports()
+    
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import cgi
 import ctypes
@@ -36,6 +60,8 @@ for device in device_list:
     exec("from hardware_interfaces."+device+" import "+device)
 # Save/restore frontpanel code
 from front_panel_settings import FrontPanelSettings
+# Notifications system
+from notifications import Notifications
 # Preferences system
 from settings import Settings
 #import settings_pages
@@ -169,6 +195,7 @@ class BLACS(object):
         blacs_data = {'exp_config':self.exp_config,
                       'ui':self.ui,
                       'set_relaunch':self.set_relaunch,
+                      'plugins': self.plugins,
                      }
         
         def create_menu(parent, menu_parameters):
@@ -186,25 +213,36 @@ class BLACS(object):
             elif 'separator' in menu_parameters:
                 parent.addSeparator()
         
-        self._plugin_menus = {}
+        # setup the Notification system
+        self.notifications = Notifications(blacs_data)
+        
+        #self._plugin_menus = {}
         for module_name, plugin in self.plugins.items():
             try:
                 # Setup settings page
-                settings_pages.extend(plugin.get_settings())
+                settings_pages.extend(plugin.get_setting_classes())
                 # Setup menu
-                for menu_class in plugin.get_menus():
+                if plugin.get_menu_class():
                     # must store a reference or else the methods called when the menu actions are triggered
                     # (contained in this object) will be garbaged collected
-                    self._plugin_menus[module_name] = menu_class(blacs_data)
-                    create_menu(self.ui.menubar,self._plugin_menus[module_name].get_menu_items())
+                    #self._plugin_menus[module_name] = plugin.get_menu_class()(blacs_data)
+                    menu = plugin.get_menu_class()(blacs_data)
+                    create_menu(self.ui.menubar,menu.get_menu_items())
+                    plugin.set_menu_instance(menu)
                         
                 # Setup notifications
+                plugin_notifications = {}
+                for notification_class in plugin.get_notification_classes():
+                    self.notifications.add_notification(notification_class)
+                    plugin_notifications[notification_class] = self.notifications.get_instance(notification_class)
+                plugin.set_notification_instances(plugin_notifications)
                 
                 # Register callbacks
                 
             except Exception as e:
                 logger.error('Plugin %s only partially setup. Error was: %s'%(module_name,str(e)))
-        
+                
+                
         # setup the BLACS preferences system
         self.settings = Settings(file=self.settings_path,
                                      parent = self.ui,

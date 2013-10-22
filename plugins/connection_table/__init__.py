@@ -10,23 +10,31 @@ from BLACS.compile_and_restart import CompileAndRestart
 
 FILEPATH_COLUMN = 0
 name = "Connection Table"
-logger = logging.getLogger('BLACS.plugin.%s'%name)
+module = "connection_table" # should be folder name
+logger = logging.getLogger('BLACS.plugin.%s'%module)
 
 class Plugin(object):
     def __init__(self):
-        pass
+        self.menu = None
+        self.notifications = {}
         
-    def get_menus(self):
-        return [Menu]
+    def get_menu_class(self):
+        return Menu
         
-    def get_notifications(self):
+    def get_notification_classes(self):
         return [Notification]
         
-    def get_settings(self):
+    def get_setting_classes(self):
         return [Setting]
         
-    def register_callbacks(self):
+    def get_callbacks(self):
         pass
+        
+    def set_menu_instance(self,menu):
+        self.menu = menu
+        
+    def set_notification_instances(self,notifications):
+        self.notifications = notifications
 
 class Menu(object):
     def __init__(self,BLACS):
@@ -76,8 +84,35 @@ class Menu(object):
         CompileAndRestart(self.BLACS, globals_files, self.BLACS['exp_config'].get('paths','connection_table_py'), self.BLACS['exp_config'].get('paths','connection_table_h5'))
      
     
-# class Notification(object):
-    # pass
+class Notification(object):
+    name = name
+    def __init__(self, BLACS):
+        # set up the file watching
+        self.BLACS = BLACS
+        
+        # Create the widget
+        self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
+        self._ui.button.clicked.connect(self.on_recompile_connection_table)
+        #self._ui.hide()
+            
+    def get_widget(self):
+        return self._ui
+        
+    def get_properties(self):
+        return {'can_hide':True, 'can_close':False}
+        
+    def set_functions(self,show_func,hide_func,close_func):
+        self._show = show_func
+        self._hide = hide_func
+        self._close = close_func
+        QTimer.singleShot(5000,show_func)
+        #show_func()
+        
+    def on_recompile_connection_table(self,*args,**kwargs):
+        self.BLACS['plugins'][module].menu.on_recompile_connection_table()
+        
+    def setup_filewatching(self):
+        pass
     
 class Setting(object):
     name = name
