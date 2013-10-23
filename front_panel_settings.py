@@ -175,6 +175,7 @@ class FrontPanelSettings(object):
         tab_data = {}
         notebook_data = {}
         window_data = {}
+        plugin_data = {}
         
         # iterate over all tabs
         for device_name,tab in self.tablist.items():
@@ -199,7 +200,14 @@ class FrontPanelSettings(object):
                     break
                                 
             notebook_data[device_name] = {"notebook":current_notebook_name,"page":page, "visible":visible}
-         
+        
+        # iterate over all plugins
+        for module_name, plugin in self.blacs.plugins.items():
+            try:
+                plugin_data[module_name] = plugin.get_save_data()
+            except Exception as e:
+                logger.error('Could not save data for plugin %s. Error was: %s'%(module_name,str(e)))
+        
         # save window data
         # Size of window       
         window_data["_main_window"] = {"width":self.window.normalGeometry().width(), 
@@ -214,9 +222,9 @@ class FrontPanelSettings(object):
         for name,pane in self.panes.items():
             window_data[name] = pane.sizes()
         
-        return tab_data,notebook_data,window_data 
+        return tab_data,notebook_data,window_data,plugin_data
 
-    def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,silent = {}):        
+    def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,plugin_data,silent = {}):        
         # Save the front panel!
 
         # Does the file exist?            
@@ -266,7 +274,7 @@ class FrontPanelSettings(object):
                         if overwrite:
                             # Delete Front panel group, save new front panel
                             del hdf5_file['/front_panel']
-                            self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table)
+                            self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table)
                         else:
                             if not silent:                               
                                 message = QMessageBox()
@@ -279,7 +287,7 @@ class FrontPanelSettings(object):
                             return
                     else: 
                         # Save Front Panel in here
-                        self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table)
+                        self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table)
             else:
                 # Create Error dialog (invalid connection table)
                 if not silent:
@@ -294,9 +302,9 @@ class FrontPanelSettings(object):
         else:
             with h5py.File(current_file,'w') as hdf5_file:
                 # save connection table, save front panel                    
-                self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table=True)
+                self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table=True)
         
-    def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,save_conn_table = False):
+    def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,plugin_data,save_conn_table = False):
         if save_conn_table:
             hdf5_file.create_dataset('connection table',data=self.connection_table.table)
         
@@ -351,6 +359,7 @@ class FrontPanelSettings(object):
         dataset.attrs["window_maximized"] = window_data["_main_window"]["maximized"]
         dataset.attrs["window_frame_height"] = window_data["_main_window"]["frame_height"]
         dataset.attrs["window_frame_width"] = window_data["_main_window"]["frame_width"]
+        dataset.attrs['plugin_data'] = repr(plugin_data)
         for pane_name,pane_position in window_data.items():
             if pane_name != "_main_window":
                 dataset.attrs[pane_name] = pane_position

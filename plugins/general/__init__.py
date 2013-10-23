@@ -3,7 +3,7 @@ from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
 
-class Plugin(object):
+class Plugin(object, initial_settings):
     def __init__(self):
         self.menu = None
         self.notifications = {}

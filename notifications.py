@@ -30,6 +30,7 @@ class Notifications(object):
             show_func = lambda: self.show_notification(notification_class)
             hide_func = lambda: self.minimize_notification(notification_class)
             close_func = lambda: self.close_notification(notification_class)
+            get_state = lambda: self.get_state(notification_class)
             
             # create layout/widget with appropriate buttons and the widget from the notification class
             ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification_widget.ui'))            
@@ -54,7 +55,7 @@ class Notifications(object):
             # pass the show/hide/close functions to the notfication class
             self._widgets[notification_class] = ui
             self._minimized_widgets[notification_class] = ui2
-            self._notifications[notification_class].set_functions(show_func,hide_func,close_func)            
+            self._notifications[notification_class].set_functions(show_func,hide_func,close_func,get_state)            
             
         except:
             # Cleanup 
@@ -87,7 +88,15 @@ class Notifications(object):
     def minimize_notification(self,notification_class):
         self._widgets[notification_class].setVisible(False)
         self._minimized_widgets[notification_class].setVisible(True)
-        
+    
+    def get_state(self,notification_class):
+        if self._widgets[notification_class].isVisible():
+            return 'shown'
+        elif self._minimized_widgets[notification_class].isVisible():
+            return 'hidden'
+        else:
+            return 'closed'
+    
     def close_all(self):
         for notification in self._notifications:
             try:

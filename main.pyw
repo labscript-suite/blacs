@@ -184,10 +184,11 @@ class BLACS(object):
         # setup the plugin system
         settings_pages = []
         self.plugins = {}
+        plugin_settings = eval(tab_data['BLACS settings']['plugin_data']) if 'plugin_data' in tab_data['BLACS settings'] else {}
         for module_name in plugins.__plugins__:
             try:
                 # instantiate the plugin
-                self.plugins[module_name] = plugins.__getattribute__(module_name).Plugin()     
+                self.plugins[module_name] = plugins.__getattribute__(module_name).Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})     
                 
             except Exception as e:
                 logger.error('Could not instantiate plugin %s. Error was: %s'%(module_name,str(e)))
@@ -195,7 +196,9 @@ class BLACS(object):
         blacs_data = {'exp_config':self.exp_config,
                       'ui':self.ui,
                       'set_relaunch':self.set_relaunch,
-                      'plugins': self.plugins,
+                      'plugins':self.plugins,
+                      'connection_table_h5file':self.connection_table_h5file,
+                      'connection_table_labscript':self.connection_table_labscript,
                      }
         
         def create_menu(parent, menu_parameters):
@@ -216,7 +219,7 @@ class BLACS(object):
         # setup the Notification system
         self.notifications = Notifications(blacs_data)
         
-        #self._plugin_menus = {}
+        settings_callbacks = []
         for module_name, plugin in self.plugins.items():
             try:
                 # Setup settings page
@@ -225,7 +228,6 @@ class BLACS(object):
                 if plugin.get_menu_class():
                     # must store a reference or else the methods called when the menu actions are triggered
                     # (contained in this object) will be garbaged collected
-                    #self._plugin_menus[module_name] = plugin.get_menu_class()(blacs_data)
                     menu = plugin.get_menu_class()(blacs_data)
                     create_menu(self.ui.menubar,menu.get_menu_items())
                     plugin.set_menu_instance(menu)
@@ -238,22 +240,28 @@ class BLACS(object):
                 plugin.set_notification_instances(plugin_notifications)
                 
                 # Register callbacks
+                callbacks = plugin.get_callbacks()
+                # save the settings_changed callback in a separate list for setting up later
+                if isinstance(callbacks,dict) and 'settings_changed' in callbacks:
+                    settings_callbacks.append(callbacks['settings_changed'])
                 
             except Exception as e:
                 logger.error('Plugin %s only partially setup. Error was: %s'%(module_name,str(e)))
                 
                 
         # setup the BLACS preferences system
-        self.settings = Settings(file=self.settings_path,
-                                     parent = self.ui,
-                                     page_classes=settings_pages)
-                                     #[plugins.connection_table.Setting,
-                                     #              plugins.general.Setting])
-        #self.settings.register_callback(self.on_settings_changed)
+        self.settings = Settings(file=self.settings_path, parent = self.ui, page_classes=settings_pages)
+        for callback in settings_callbacks:            
+            self.settings.register_callback(callback)
         
         # update the blacs_data dictionary with the settings system
         blacs_data['settings'] = self.settings
             
+        for module_name, plugin in self.plugins.items():
+            try:
+                plugin.plugin_setup_complete()
+            except Exception as e:
+                logger.error('Plugin %s error: %s'%(module_name,str(e)))
         
         
         # Connect menu actions
@@ -387,7 +395,7 @@ class BLACS(object):
            if 'connection table' in h5file:
                del h5file['connection table']
         
-        self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],{"overwrite":True})
+        self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True})
         logger.info('Destroying tabs')
         for tab in self.tablist.values():
             tab.destroy()            
@@ -430,7 +438,7 @@ class BLACS(object):
             current_file = str(dialog.selectedFiles()[0])
             if not current_file.endswith('.h5'):
                 current_file += '.h5'
-            self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2])
+            self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2],data[3])
         
     def on_open_preferences(self,*args,**kwargs):
         self.settings.create_dialog()

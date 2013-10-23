@@ -7,6 +7,8 @@ from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
 
 from BLACS.compile_and_restart import CompileAndRestart
+from filewatcher import FileWatcher
+from qtutils import *
 
 FILEPATH_COLUMN = 0
 name = "Connection Table"
@@ -14,9 +16,10 @@ module = "connection_table" # should be folder name
 logger = logging.getLogger('BLACS.plugin.%s'%module)
 
 class Plugin(object):
-    def __init__(self):
+    def __init__(self,initial_settings):
         self.menu = None
         self.notifications = {}
+        self.initial_settings = initial_settings
         
     def get_menu_class(self):
         return Menu
@@ -28,17 +31,31 @@ class Plugin(object):
         return [Setting]
         
     def get_callbacks(self):
-        pass
+        {'settings_changed':self.notifications[Notification].setup_filewatching}
         
     def set_menu_instance(self,menu):
         self.menu = menu
         
     def set_notification_instances(self,notifications):
         self.notifications = notifications
+        
+    def plugin_setup_complete(self):
+        modified_times = self.initial_settings['modified_times'] if 'modified_times' in self.initial_settings else None
+        self.notifications[Notification].setup_filewatching(modified_times)
+        self.menu.close_notification_func = self.notifications[Notification]._close
+        if 'visible' in self.initial_settings and self.initial_settings['visible']:
+            self.notifications[Notification]._show()
+    
+    def get_save_data(self):
+        return self.notifications[Notification].get_save_data()
+    
+    def close(self):
+        self.notifications[Notification].close()
 
 class Menu(object):
     def __init__(self,BLACS):
         self.BLACS = BLACS
+        self.close_notification_func = None
         
     def get_menu_items(self):
         return {'name':name,        
@@ -81,7 +98,7 @@ class Menu(object):
         # Remove unicode encoding so that zlock doesn't crash
         for i in range(len(globals_files)):
             globals_files[i] = str(globals_files[i])
-        CompileAndRestart(self.BLACS, globals_files, self.BLACS['exp_config'].get('paths','connection_table_py'), self.BLACS['exp_config'].get('paths','connection_table_h5'))
+        CompileAndRestart(self.BLACS, globals_files, self.BLACS['exp_config'].get('paths','connection_table_py'), self.BLACS['exp_config'].get('paths','connection_table_h5'),close_notification_func=self.close_notification_func)
      
     
 class Notification(object):
@@ -89,6 +106,7 @@ class Notification(object):
     def __init__(self, BLACS):
         # set up the file watching
         self.BLACS = BLACS
+        self.filewatcher = None
         
         # Create the widget
         self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
@@ -101,18 +119,46 @@ class Notification(object):
     def get_properties(self):
         return {'can_hide':True, 'can_close':False}
         
-    def set_functions(self,show_func,hide_func,close_func):
+    def set_functions(self,show_func,hide_func,close_func,get_state):
         self._show = show_func
         self._hide = hide_func
         self._close = close_func
-        QTimer.singleShot(5000,show_func)
-        #show_func()
-        
+        self._get_state = get_state
+                
     def on_recompile_connection_table(self,*args,**kwargs):
         self.BLACS['plugins'][module].menu.on_recompile_connection_table()
         
-    def setup_filewatching(self):
-        pass
+    def setup_filewatching(self,modified_times = None):
+        folder_list = []
+        file_list = [self.BLACS['connection_table_labscript'], self.BLACS['connection_table_h5file']]
+        
+        # append the list of globals
+        file_list += self.BLACS['settings'].get_value(Setting,'globals_list')
+        # iterate over list, split folders off from files!
+        calibration_list = self.BLACS['settings'].get_value(Setting,'calibrations_list')
+        for path in calibration_list:
+            if os.path.isdir(path):
+                folder_list.append(path)
+            else:
+                file_list.append(path)
+        
+        if modified_times is None:
+            modified_times = {}
+        
+        # stop watching if we already were
+        if self.filewatcher:
+            self.filewatcher.stop()
+            modified_times = self.filewatch.get_modified_times()
+            
+        # Start the file watching!
+        self.filewatcher = FileWatcher(lambda f,m: inmain_later(self._show),file_list,folder_list,modified_times=modified_times)
+    
+    def get_save_data(self):
+        state = True if self._get_state() == 'hidden' or self._get_state() == 'shown' else False
+        return {'modified_times':self.filewatcher.get_modified_times() if self.filewatcher else {}, 'visible':state}
+    
+    def close(self):
+        self.filewatcher.stop()
     
 class Setting(object):
     name = name

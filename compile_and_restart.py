@@ -12,13 +12,14 @@ import runmanager
 from subproc_utils.qt_components import OutputBox
 
 class CompileAndRestart(QDialog):
-    def __init__(self, blacs, globals_files,connection_table_labscript, output_path):
+    def __init__(self, blacs, globals_files,connection_table_labscript, output_path, close_notification_func=None):
         QDialog.__init__(self,blacs['ui'])
         self.globals_files = globals_files
         self.labscript_file = connection_table_labscript
         self.output_path = output_path
         self.tempfilename = self.output_path.strip('.h5')+'.temp.h5'
         self.blacs = blacs
+        self.close_notification_func = close_notification_func
         
         self.ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'compile_and_restart.ui'))
         self.output_box = OutputBox(self.ui.verticalLayout)       
@@ -61,6 +62,7 @@ class CompileAndRestart(QDialog):
         self.ui.cancel.setEnabled(True)
         if success:
             self.ui.restart.setEnabled(True)
+            self.ui.cancel.setEnabled(False)
             self.ui.label.setText('Compilation succeeded, restart when ready')
             try:
                 os.remove(self.output_path)
@@ -84,6 +86,8 @@ class CompileAndRestart(QDialog):
                 
     def restart(self):
         #gobject.timeout_add(100, self.blacs.destroy)
+        if self.close_notification_func:
+            self.close_notification_func()
         QTimer.singleShot(100, self.blacs['ui'].close)
         self.accept()        
         self.blacs['set_relaunch'](True)
