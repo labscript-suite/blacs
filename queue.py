@@ -19,18 +19,47 @@ FILEPATH_COLUMN = 0
 class QueueTreeview(QTreeView):
     def __init__(self,*args,**kwargs):
         QTreeView.__init__(self,*args,**kwargs)
-        print 'INIT'
-        self.setAcceptDrops(True)
+        self.add_to_queue = None
+        self.delete_selection = None
+        self._logger = logging.getLogger('BLACS.QueueManager') 
 
-    def dragEnterEvent(self,event):
-        print 'EVENT!!'
-        event.acceptProposedAction()
+    def keyPressEvent(self,event):
+        if event.key() == Qt.Key_Delete:
+            event.accept()
+            if self.delete_selection:
+                self.delete_selection()
+        QTreeView.keyPressEvent(self,event)
         
-    def dragMoveEvent(self,event):
-        print 'MOVING'
-        
-    def dropEvent(self,event):
-        print 'DROPPED'
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.accept()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(Qt.CopyAction)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(Qt.CopyAction)
+            event.accept()
+            
+            for url in event.mimeData().urls():
+                path = url.toLocalFile()
+                if path.endswith('.h5') or path.endswith('.hdf5'):
+                    self._logger.info('Acceptable file dropped. Path is %s'%path)
+                    if self.add_to_queue:
+                        self.add_to_queue(str(path))
+                    else:
+                        self._logger.info('Dropped file not added to queue because there is no access to the neccessary add_to_queue method')
+                else:
+                    self._logger.info('Invalid file dropped. Path was %s'%path)
+        else:
+            event.ignore()
 
 class QueueManager(object):
     
@@ -48,8 +77,8 @@ class QueueManager(object):
         self._model = QStandardItemModel()
         self._create_headers()
         self._ui.treeview.setModel(self._model)
-        
-        self._ui.treeview.setAcceptDrops(True)
+        self._ui.treeview.add_to_queue = self.process_request
+        self._ui.treeview.delete_selection = self._delete_selected_items
         
         # set up buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
@@ -211,7 +240,6 @@ class QueueManager(object):
         try:
             new_conn = ConnectionTable(h5_filepath)
         except:
-            raise
             return "H5 file not accessible to Control PC\n"
         result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
         if result:
@@ -222,11 +250,11 @@ class QueueManager(object):
                 else:
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
-                logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath = new_rep_name(h5_filepath)
+                self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
+                new_h5_filepath = self.new_rep_name(h5_filepath)
                 # Keep counting up until we get a filename that isn't in the filesystem:
                 while os.path.exists(new_h5_filepath):
-                    new_h5_filepath = new_rep_name(new_h5_filepath)
+                    new_h5_filepath = self.new_rep_name(new_h5_filepath)
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
@@ -251,6 +279,15 @@ class QueueManager(object):
                        "\n"
                        "Please verify your experiment script matches the current experiment configuration, and try again\n")
             return message
+    
+    def new_rep_name(self,h5_filepath):
+        basename = os.path.basename(h5_filepath).split('.h5')[0]
+        if '_rep' in basename:
+            reps = int(basename.split('_rep')[1])
+            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
+        return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
+        
+
     
     def clean_h5_file(self,h5file,new_h5_file):
         try:

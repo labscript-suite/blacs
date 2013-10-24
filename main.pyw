@@ -467,15 +467,6 @@ class ExperimentServer(ZMQServer):
         h5_filepath = shared_drive.path_to_local(h5_filepath)
         logger.info('local filepath: %s'%h5_filepath)
         return app.queue.process_request(h5_filepath)
-        
-def new_rep_name(h5_filepath):
-    basename = os.path.basename(h5_filepath).split('.h5')[0]
-    if '_rep' in basename:
-        reps = int(basename.split('_rep')[1])
-        return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
-    return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
-        
-
 
  
 if __name__ == '__main__':
