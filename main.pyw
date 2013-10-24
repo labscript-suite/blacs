@@ -23,7 +23,6 @@
 
 # profile_imports()
     
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import cgi
 import ctypes
 import logging, logging.handlers
@@ -34,10 +33,15 @@ import sys
 import threading
 import time
 
-# Must be in this order
+# Pythonlib imports
+### Must be in this order
 import h5_lock
 import h5py
+###
+from subproc_utils import zmq_get, ZMQServer
+from setup_logging import setup_logging
 
+# Import Qt
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
@@ -67,27 +71,10 @@ from settings import Settings
 #import settings_pages
 import plugins
 
-def setup_logging():
-    logger = logging.getLogger('BLACS')
-    handler = logging.handlers.RotatingFileHandler(r'BLACS.log', maxBytes=1024*1024*50)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-    if sys.stdout.isatty():
-        terminalhandler = logging.StreamHandler(sys.stdout)
-        terminalhandler.setFormatter(formatter)
-        terminalhandler.setLevel(logging.INFO) # only display info or higher in the terminal
-        logger.addHandler(terminalhandler)
-    else:
-        # Prevent bug on windows where writing to stdout without a command
-        # window causes a crash:
-        sys.stdout = sys.stderr = open(os.devnull,'w')
-    logger.setLevel(logging.DEBUG)
-    return logger
-    
+# Setup logging
 logger = setup_logging()
 excepthook.set_logger(logger)
+
 
 class BLACSWindow(QMainWindow):
     def __init__(self, blacs, parent=None):
@@ -109,8 +96,12 @@ class BLACSWindow(QMainWindow):
                 self.blacs.exiting = True
                 #self.manager_running = False
                 #self.filewatcher.stop()
-                #self.settings.close()
-                #self.notifications.close_all()
+                self.blacs.settings.close()
+                for module_name, plugin in self.blacs.plugins.items():
+                    try:
+                        plugin.close()
+                    except Exception as e:
+                        logger.error('Could not close plugin %s. Error was: %s'%(module_name,str(e)))
                 
                 inmain_later(self.blacs.on_save_exit)
                 
@@ -443,23 +434,13 @@ class BLACS(object):
     def on_open_preferences(self,*args,**kwargs):
         self.settings.create_dialog()
                 
-
-class RequestHandler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        self.send_response(200)
-        self.end_headers()
-        ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
-        length = int(self.headers.getheader('content-length'))
-        postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
-        h5_filepath =  postvars['filepath'][0]
-        
-        # This function runs in the Qt Main thread (see decorator above function definition)
+class ExperimentServer(ZMQServer):
+    def handler(self, h5_filepath):
+        print h5_filepath
         message = self.process(h5_filepath)
-        
         logger.info('Request handler: %s ' % message.strip())
-        self.wfile.write(message)
-        self.wfile.close() 
-    
+        return message
+
     @inmain_decorator(wait_for_return=True)
     def process(self,h5_filepath):
         # Convert path to local slashes and shared drive prefix:
@@ -542,10 +523,8 @@ if __name__ == '__main__':
     if os.name == 'nt': # please leave this in so I can test in linux!
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
-    http_server = HTTPServer(('', port),RequestHandler)
-    serverthread = threading.Thread(target = http_server.serve_forever)
-    serverthread.daemon = True
-    serverthread.start()
+    # Start experiment server
+    experiment_server = ExperimentServer(port)
 
     # Create Connection Table object
     try:
@@ -562,10 +541,7 @@ if __name__ == '__main__':
     app = BLACS(qapplication)
     
     def execute_program():
-        qapplication.exec_()
-        
-        http_server.shutdown()
-        http_server.server_close()
-        http_server.socket.close()
+        qapplication.exec_()        
+        experiment_server.shutdown()
     
     sys.exit(execute_program())
