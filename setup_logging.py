@@ -11,7 +11,7 @@ def setup_logging():
     if sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
         terminalhandler.setFormatter(formatter)
-        terminalhandler.setLevel(logging.DEBUG) # only display error or higher in the terminal
+        terminalhandler.setLevel(logging.INFO) # only display error or higher in the terminal
         logger.addHandler(terminalhandler)
     else:
         # Prevent bug on windows where writing to stdout without a command
