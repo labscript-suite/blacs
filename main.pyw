@@ -33,13 +33,22 @@ import sys
 import threading
 import time
 
+# check if we should delay!
+try:
+    if '--delay' in sys.argv:
+        delay = int(sys.argv[sys.argv.index('--delay')+1])
+        time.sleep(delay)
+except:
+    print 'You should specify "--delay x" where x is an integer'
+
 # Pythonlib imports
 ### Must be in this order
-import h5_lock
-import h5py
+import zlock, h5_lock, h5py
+zlock.set_client_process_name('BLACS')
 ###
 from subproc_utils import zmq_get, ZMQServer
 from setup_logging import setup_logging
+import shared_drive
 
 # Import Qt
 from PySide.QtCore import *
@@ -57,7 +66,7 @@ from LabConfig import LabConfig, config_prefix
 # Qt utils for running functions in the main thread
 from qtutils import *
 # Queue Manager Code
-from queue import QueueManager
+from queue import QueueManager, QueueTreeview
 # Hardware Interface Imports
 from hardware_interfaces import *
 for device in device_list:    
@@ -79,7 +88,7 @@ excepthook.set_logger(logger)
 class BLACSWindow(QMainWindow):
     def __init__(self, blacs, parent=None):
         QMainWindow.__init__(self, parent)
-        self.ui = loadUi('main.ui', self)
+        self.ui = loadUi('main.ui', self, [QueueTreeview])
         self.blacs = blacs
         
     def closeEvent(self, event):
@@ -88,14 +97,24 @@ class BLACSWindow(QMainWindow):
             event.accept()
             if self.blacs._relaunch:
                 logger.info('relaunching BLACS after quit')
+                relaunch_delay = '2'
+                if '--delay' in sys.argv:
+                    index = sys.argv.index('--delay') + 1
+                    try:
+                        int(sys.argv[index])
+                        sys.argv[index] = relaunch_delay
+                    except:
+                        sys.argv.insert(index,relaunch_delay)
+                else:
+                    sys.argv.append('--delay')
+                    sys.argv.append(relaunch_delay)
                 subprocess.Popen([sys.executable] + sys.argv)
         else:
             event.ignore()
             logger.info('destroy called')
             if not self.blacs.exiting:
                 self.blacs.exiting = True
-                #self.manager_running = False
-                #self.filewatcher.stop()
+                self.blacs.queue.manager_running = False
                 self.blacs.settings.close()
                 for module_name, plugin in self.blacs.plugins.items():
                     try:
@@ -170,7 +189,7 @@ class BLACS(object):
         
                     
         # Setup the QueueManager
-        self.queue = QueueManager(self.ui)
+        self.queue = QueueManager(self,self.ui)
         
         # setup the plugin system
         settings_pages = []
@@ -444,10 +463,10 @@ class ExperimentServer(ZMQServer):
     @inmain_decorator(wait_for_return=True)
     def process(self,h5_filepath):
         # Convert path to local slashes and shared drive prefix:
-        shared_drive_prefix = app.exp_config.get('paths','shared_drive')     
-        h5_filepath = h5_filepath.replace('\\', os.path.sep).replace('Z:', shared_drive_prefix)
+        logger.info('received filepath: %s'%h5_filepath)        
+        h5_filepath = shared_drive.path_to_local(h5_filepath)
         logger.info('local filepath: %s'%h5_filepath)
-        return process_request(h5_filepath)
+        return app.queue.process_request(h5_filepath)
         
 def new_rep_name(h5_filepath):
     basename = os.path.basename(h5_filepath).split('.h5')[0]
@@ -456,51 +475,7 @@ def new_rep_name(h5_filepath):
         return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
     return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
         
-def process_request(h5_filepath):
-    # check connection table
-    try:
-        new_conn = ConnectionTable(h5_filepath)
-    except:
-        raise
-        return "H5 file not accessible to Control PC\n"
-    result,error = app.connection_table.compare_to(new_conn)
-    if result:
-        # Has this run file been run already?
-        with h5py.File(h5_filepath) as h5_file:
-            if 'data' in h5_file['/']:
-                rerun = True
-            else:
-                rerun = False
-        if rerun or app.queue.is_in_queue(h5_filepath):
-            logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-            new_h5_filepath = new_rep_name(h5_filepath)
-            # Keep counting up until we get a filename that isn't in the filesystem:
-            while os.path.exists(new_h5_filepath):
-                new_h5_filepath = new_rep_name(new_h5_filepath)
-            success = app.queue.clean_h5_file(h5_filepath, new_h5_filepath)
-            if not success:
-               return 'Cannot create a re run of this experiment. Is it a valid run file?'
-            app.queue.append([new_h5_filepath])
-            message = "Experiment added successfully: experiment to be re-run\n"
-        else:
-            app.queue.append([h5_filepath])
-            message = "Experiment added successfully\n"
-        if app.queue.manager_paused:
-            message += "Warning: Queue is currently paused\n"
-        if not app.queue.manager_running:
-            message = "Error: Queue is not running\n"
-        return message
-    else:
-        # TODO: Parse and display the contents of "error" for a more detailed analysis of what is wrong!
-        message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
-                   "You may have:\n"
-                   "    Submitted your file to the wrong control PC\n"
-                   "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
-                   "    Renamed a channel at the top of your script\n"
-                   "    Submitted an old file, and the experiment has since been rewired\n"
-                   "\n"
-                   "Please verify your experiment script matches the current experiment configuration, and try again\n")
-        return message
+
 
  
 if __name__ == '__main__':
@@ -520,9 +495,10 @@ if __name__ == '__main__':
     
     port = int(exp_config.get('ports','BLACS'))
     myappid = 'monashbec.BLACS' # arbitrary string
-    if os.name == 'nt': # please leave this in so I can test in linux!
+    try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-
+    except:
+        pass
     # Start experiment server
     experiment_server = ExperimentServer(port)
 

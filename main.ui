@@ -280,7 +280,26 @@ V</string>
                </layout>
               </item>
               <item>
-               <widget class="QTreeView" name="treeview">
+               <widget class="QLabel" name="queue_status">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QueueTreeview" name="treeview">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                   <horstretch>0</horstretch>
@@ -444,6 +463,13 @@ V</string>
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QueueTreeview</class>
+   <extends>QTreeView</extends>
+   <header>queue.py</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>queue_pause_button</tabstop>
   <tabstop>queue_repeat_button</tabstop>

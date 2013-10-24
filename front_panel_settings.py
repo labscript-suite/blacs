@@ -5,6 +5,7 @@ import logging
 import excepthook
 import numpy
 import h5_lock, h5py
+from qtutils import *
 
 from PySide.QtCore import *
 from PySide.QtGui import *
@@ -170,7 +171,8 @@ class FrontPanelSettings(object):
             else:
                 # restore to device
                 return 1
-        
+    
+    @inmain_decorator(wait_for_return=True)    
     def get_save_data(self):
         tab_data = {}
         notebook_data = {}
@@ -223,7 +225,8 @@ class FrontPanelSettings(object):
             window_data[name] = pane.sizes()
         
         return tab_data,notebook_data,window_data,plugin_data
-
+    
+    @inmain_decorator(wait_for_return=True)
     def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,plugin_data,silent = {}):        
         # Save the front panel!
 
@@ -303,7 +306,8 @@ class FrontPanelSettings(object):
             with h5py.File(current_file,'w') as hdf5_file:
                 # save connection table, save front panel                    
                 self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table=True)
-        
+    
+    @inmain_decorator(wait_for_return=True)
     def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,plugin_data,save_conn_table = False):
         if save_conn_table:
             hdf5_file.create_dataset('connection table',data=self.connection_table.table)
