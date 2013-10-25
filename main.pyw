@@ -199,7 +199,12 @@ class BLACS(object):
             tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
         # Setup the QueueManager
-        self.queue = QueueManager(self,self.ui)   
+        self.queue = QueueManager(self,self.ui)  
+        if 'queue_data' not in tab_data['BLACS settings']:
+            tab_data['BLACS settings']['queue_data'] = {}
+        else:
+            tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+        self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
         
         # setup the plugin system
         settings_pages = []
@@ -377,7 +382,10 @@ class BLACS(object):
                 try:
                     # TODO: Warn that this will restore values, but not channels that are locked
                     message = QMessageBox()
-                    message.setText("Warning: This will modify front panel values and cause device output values to update.\nNote: Channels that are locked will not be updated.\n\nDo you wish to continue?")
+                    message.setText("""Warning: This will modify front panel values and cause device output values to update.
+                    \nThe queue and files waiting to be sent for analysis will be cleared.
+                    \n
+                    \nNote: Channels that are locked will not be updated.\n\nDo you wish to continue?""")
                     message.setIcon(QMessageBox.Warning)
                     message.setWindowTitle("BLACS")
                     message.setStandardButtons(QMessageBox.Yes|QMessageBox.No)
@@ -392,6 +400,12 @@ class BLACS(object):
                         self.order_tabs(tab_data)                   
                         self.update_all_tab_settings(settings,tab_data)
                         
+                        # restore queue data
+                        if 'queue_data' not in tab_data['BLACS settings']:
+                            tab_data['BLACS settings']['queue_data'] = {}
+                        else:
+                            tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+                        self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
                         # restore analysis data
                         if 'analysis_data' not in tab_data['BLACS settings']:
                             tab_data['BLACS settings']['analysis_data'] = {}

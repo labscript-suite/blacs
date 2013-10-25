@@ -42,7 +42,7 @@ class AnalysisSubmission(object):
         if "send_to_server" in data:
             self.send_to_server = data["send_to_server"]
         if "waiting_for_submission" in data:
-            self._waiting_for_submission.extend(data["waiting_for_submission"])            
+            self._waiting_for_submission = list(data["waiting_for_submission"])
             self.inqueue.put(['try again', None])
             
     def get_save_data(self):

@@ -92,9 +92,32 @@ class QueueManager(object):
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
         self.manager.start()
-        
+    
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
+        
+    def get_save_data(self):
+        # get list of files in the queue
+        file_list = []
+        for i in range(self._model.rowCount()):
+            file_list.append(self._model.item(i).text())
+        # get button states
+        return {'manager_paused':self.manager_paused,
+                'manager_repeat':self.manager_repeat,
+                'files_queued':file_list,
+               }
+    
+    def restore_save_data(self,data):
+        if 'manager_paused' in data:
+            self.manager_paused = data['manager_paused']
+        if 'manager_repeat' in data:
+            self.manager_repeat = data['manager_repeat']
+        if 'files_queued' in data:
+            file_list = list(data['files_queued'])
+            self._model.clear()
+            self._create_headers()
+            for file in file_list:
+                self.process_request(str(file))
         
     @property
     @inmain_decorator(True)
