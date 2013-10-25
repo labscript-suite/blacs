@@ -218,7 +218,8 @@ class FrontPanelSettings(object):
                                        "ypos":self.window.normalGeometry().y(),
                                        "maximized":self.window.isMaximized(),
                                        "frame_height":abs(self.window.frameGeometry().height()-self.window.normalGeometry().height()),
-                                       "frame_width":abs(self.window.frameGeometry().width()-self.window.normalGeometry().width())
+                                       "frame_width":abs(self.window.frameGeometry().width()-self.window.normalGeometry().width()),
+                                       "_analysis":self.blacs.analysis_submission.get_save_data()
                                       }
         # Pane positions
         for name,pane in self.panes.items():
@@ -364,6 +365,7 @@ class FrontPanelSettings(object):
         dataset.attrs["window_frame_height"] = window_data["_main_window"]["frame_height"]
         dataset.attrs["window_frame_width"] = window_data["_main_window"]["frame_width"]
         dataset.attrs['plugin_data'] = repr(plugin_data)
+        dataset.attrs['analysis_data'] = repr(window_data["_main_window"]["_analysis"])
         for pane_name,pane_position in window_data.items():
             if pane_name != "_main_window":
                 dataset.attrs[pane_name] = pane_position

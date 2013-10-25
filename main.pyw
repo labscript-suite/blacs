@@ -65,6 +65,8 @@ import excepthook
 from LabConfig import LabConfig, config_prefix
 # Qt utils for running functions in the main thread
 from qtutils import *
+# Analysis Submission code
+from analysis_submission import AnalysisSubmission
 # Queue Manager Code
 from queue import QueueManager, QueueTreeview
 # Hardware Interface Imports
@@ -188,9 +190,16 @@ class BLACS(object):
         
         self.order_tabs(tab_data)
         
-                    
+                         
+        # setup analysis submission
+        self.analysis_submission = AnalysisSubmission(self,self.ui)
+        if 'analysis_data' not in tab_data['BLACS settings']:
+            tab_data['BLACS settings']['analysis_data'] = {}
+        else:
+            tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
+        self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
         # Setup the QueueManager
-        self.queue = QueueManager(self,self.ui)
+        self.queue = QueueManager(self,self.ui)   
         
         # setup the plugin system
         settings_pages = []
@@ -273,7 +282,6 @@ class BLACS(object):
                 plugin.plugin_setup_complete()
             except Exception as e:
                 logger.error('Plugin %s error: %s'%(module_name,str(e)))
-        
         
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
@@ -383,6 +391,13 @@ class BLACS(object):
                         self.restore_window(tab_data)
                         self.order_tabs(tab_data)                   
                         self.update_all_tab_settings(settings,tab_data)
+                        
+                        # restore analysis data
+                        if 'analysis_data' not in tab_data['BLACS settings']:
+                            tab_data['BLACS settings']['analysis_data'] = {}
+                        else:
+                            tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
+                        self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
                 except Exception as e:
                     logger.warning("Unable to load the front panel in %s. Exception:%s"%(filepath,str(e)))
                     message = QMessageBox()
@@ -481,7 +496,7 @@ if __name__ == '__main__':
                                        "connection_table_h5",
                                        "connection_table_py",                                       
                                       ],
-                              "ports":["BLACS"],
+                              "ports":["BLACS", "lyse"],
                              }
     exp_config = LabConfig(config_path,required_config_params)        
     

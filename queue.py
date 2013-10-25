@@ -502,8 +502,8 @@ class QueueManager(object):
                     error_condition = True
             if not error_condition:            
                 logger.info('All devices are back in static mode.')  
-                # Submit to the analysis server, if submission is enabled:
-                #TODO: self.analysis_queue.put(['file', path])
+                # Submit to the analysis server
+                self.BLACS.analysis_submission.get_queue().put(['file', path])
                     
                 self.set_status("Idle")
                 if self.manager_repeat:
