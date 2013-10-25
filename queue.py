@@ -407,133 +407,132 @@ class QueueManager(object):
                 self.set_status("Idle")
                 time.sleep(1)
                 continue
-
-            # Transition devices to buffered mode
-            transition_list = {}     
-            # A Queue for event-based notification when the tabs have
-            # completed transitioning to buffered:
-            self.current_queue = Queue.Queue()           
-            start_time = time.time()
-            timed_out = False
-            error_condition = False
-            self.set_status(now_running_text+"<br>Transitioning to Buffered")
             
-            with h5py.File(path,'r') as hdf5_file:
-                h5_file_devices = hdf5_file['devices/'].keys()
-            
-            for name in h5_file_devices: 
-                try:
-                    success = self.transition_device_to_buffered(name,transition_list)
-                    if not success:
-                        logger.error('%s has an error condition, aborting run' % name)
-                        error_condition = True
-                        break
-                except Exception as e:
-                    logger.error('Exception while transitioning %s to buffered mode. Exception was: %s'%(name,str(e)))
-                    error_condition = True
-                    break
-                    
-            devices_in_use = transition_list.copy()
-
-            while transition_list and not error_condition:
-                try:
-                    # Wait for a device to transtition_to_buffered:
-                    device_name, result = self.current_queue.get(timeout=2)
-                    if result == 'fail':
-                        logger.info('abort signal received during transition to buffered of ' % device_name)
-                        error_condition = True
-                        break
-                    logger.debug('%s finished transitioning to buffered mode' % device_name)
-                    # The tab says it's done, but does it have an error condition?
-                    if self.get_device_error_state(device_name,transition_list):
-                        logger.error('%s has an error condition, aborting run' % device_name)
-                        error_condition = True
-                        break
-                    del transition_list[name]                   
-                except:
-                    # It's been 2 seconds without a device finishing
-                    # transitioning to buffered. Is there an error?
-                    for name in transition_list:
-                        if self.get_device_error_state(name,transition_list):
+            try:
+                # Transition devices to buffered mode
+                transition_list = {}     
+                # A Queue for event-based notification when the tabs have
+                # completed transitioning to buffered:
+                self.current_queue = Queue.Queue()           
+                start_time = time.time()
+                timed_out = False
+                error_condition = False
+                self.set_status(now_running_text+"<br>Transitioning to Buffered")
+                
+                with h5py.File(path,'r') as hdf5_file:
+                    h5_file_devices = hdf5_file['devices/'].keys()
+                
+                for name in h5_file_devices: 
+                    try:
+                        success = self.transition_device_to_buffered(name,transition_list)
+                        if not success:
+                            logger.error('%s has an error condition, aborting run' % name)
                             error_condition = True
                             break
-                    if error_condition:
+                    except Exception as e:
+                        logger.error('Exception while transitioning %s to buffered mode. Exception was: %s'%(name,str(e)))
+                        error_condition = True
                         break
-                    # Has programming timed out?
-                    if time.time() - start_time > timeout_limit:
-                        logger.error('Transitioning to buffered mode timed out')
-                        timed_out = True
-                        break
-
-            # Handle if we broke out of loop due to timeout or error:
-            if timed_out or error_condition:
-                # Pause the queue, re add the path to the top of the queue, and set a status message!
-                self.manager_paused = True
-                self.prepend(path)                
-                if timed_out:
-                    self.set_status("Device programming timed out. Queue Paused...")
-                else:
-                    self.set_status("One or more devices is in an error state. Queue Paused...")
                         
-                # Abort the run for all devices in use:
-                self.current_queue = Queue.Queue()
-                for tab in devices_in_use.values():
-                    # TODO: check if all devices have aborted successfully?
-                    tab.abort_buffered(self.current_queue)
-                continue
-                
-                
-            # Get front panel data, but don't save it to the h5 file until the experiment ends:
-            states,tab_positions,window_data = self.BLACS.front_panel_settings.get_save_data()
-            self.set_status(now_running_text+"<br>Running...(program time: %.3fs)"%(time.time() - start_time))
-                
-            # A Queue for event-based notification of when the experiment has finished.
-            self.current_queue = Queue.Queue()               
-            logger.debug('About to start the master pseudoclock')
-            run_time = time.localtime()
-            self.tablist[self.master_pseudoclock].start_run(self.current_queue)
+                devices_in_use = transition_list.copy()
 
-            # Science!
+                while transition_list and not error_condition:
+                    try:
+                        # Wait for a device to transtition_to_buffered:
+                        device_name, result = self.current_queue.get(timeout=2)
+                        if result == 'fail':
+                            logger.info('abort signal received during transition to buffered of ' % device_name)
+                            error_condition = True
+                            break
+                        logger.debug('%s finished transitioning to buffered mode' % device_name)
+                        # The tab says it's done, but does it have an error condition?
+                        if self.get_device_error_state(device_name,transition_list):
+                            logger.error('%s has an error condition, aborting run' % device_name)
+                            error_condition = True
+                            break
+                        del transition_list[name]                   
+                    except:
+                        # It's been 2 seconds without a device finishing
+                        # transitioning to buffered. Is there an error?
+                        for name in transition_list:
+                            if self.get_device_error_state(name,transition_list):
+                                error_condition = True
+                                break
+                        if error_condition:
+                            break
+                        # Has programming timed out?
+                        if time.time() - start_time > timeout_limit:
+                            logger.error('Transitioning to buffered mode timed out')
+                            timed_out = True
+                            break
 
-            # Wait for notification of the end of run:
-            result = self.current_queue.get()
-            if result == 'abort':
-               pass # TODO implement this
-            logger.info('Run complete')
-            self.set_status(now_running_text+"<br>Sequence done, saving data...")
-
-            with h5py.File(path,'r+') as hdf5_file:
-                self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
-            with h5py.File(path,'r+') as hdf5_file:
-                data_group = hdf5_file['/'].create_group('data')
-                # stamp with the run time of the experiment
-                hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
-    
-            # A Queue for event-based notification of when the devices have transitioned to static mode:
-            self.current_queue = Queue.Queue()    
-                
-            # only transition one device to static at a time,
-            # since writing data to the h5 file can potentially
-            # happen at this stage:
-            error_condition = False
-            for devicename, tab in devices_in_use.items():
-                tab.transition_to_manual(self.current_queue)
-                _, result = self.current_queue.get()
-                if result == 'fail':
-                    error_condition = True
-                if self.get_device_error_state(devicename,devices_in_use):
-                    error_condition = True
-            if not error_condition:            
-                logger.info('All devices are back in static mode.')  
-                # Submit to the analysis server
-                self.BLACS.analysis_submission.get_queue().put(['file', path])
+                # Handle if we broke out of loop due to timeout or error:
+                if timed_out or error_condition:
+                    # Pause the queue, re add the path to the top of the queue, and set a status message!
+                    self.manager_paused = True
+                    self.prepend(path)                
+                    if timed_out:
+                        self.set_status("Device programming timed out. Queue Paused...")
+                    else:
+                        self.set_status("One or more devices is in an error state. Queue Paused...")
+                            
+                    # Abort the run for all devices in use:
+                    self.current_queue = Queue.Queue()
+                    for tab in devices_in_use.values():
+                        # TODO: check if all devices have aborted successfully?
+                        tab.abort_buffered(self.current_queue)
+                    continue
                     
-                self.set_status("Idle")
-                if self.manager_repeat:
-                    # Resubmit job to the bottom of the queue:
-                    message = self.process_request(path)
-                    logger.info(message)                    
-            else:
+                    
+                # Get front panel data, but don't save it to the h5 file until the experiment ends:
+                states,tab_positions,window_data = self.BLACS.front_panel_settings.get_save_data()
+                self.set_status(now_running_text+"<br>Running...(program time: %.3fs)"%(time.time() - start_time))
+                    
+                # A Queue for event-based notification of when the experiment has finished.
+                self.current_queue = Queue.Queue()               
+                logger.debug('About to start the master pseudoclock')
+                run_time = time.localtime()
+                self.tablist[self.master_pseudoclock].start_run(self.current_queue)
+           
+                ############
+                # Science! #
+                ############
+                
+                # Wait for notification of the end of run:
+                result = self.current_queue.get()
+                if result == 'abort':
+                   pass # TODO implement this
+                logger.info('Run complete')
+                self.set_status(now_running_text+"<br>Sequence done, saving data...")
+
+                with h5py.File(path,'r+') as hdf5_file:
+                    self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
+                with h5py.File(path,'r+') as hdf5_file:
+                    data_group = hdf5_file['/'].create_group('data')
+                    # stamp with the run time of the experiment
+                    hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
+        
+                # A Queue for event-based notification of when the devices have transitioned to static mode:
+                self.current_queue = Queue.Queue()    
+                    
+                # only transition one device to static at a time,
+                # since writing data to the h5 file can potentially
+                # happen at this stage:
+                error_condition = False
+                for devicename, tab in devices_in_use.items():
+                    tab.transition_to_manual(self.current_queue)
+                    _, result = self.current_queue.get()
+                    if result == 'fail':
+                        error_condition = True
+                    if self.get_device_error_state(devicename,devices_in_use):
+                        error_condition = True
+                        
+                if error_condition:                
+                    self.set_status("Error during transtion to static. Queue Paused.")
+                    raise Exception('A device failed during transition to static')
+                                       
+            except Exception as e:
+                # clean up the h5 file
                 self.manager_paused = True
                 # clean the h5 file:
                 self.clean_h5_file(path, 'temp.h5')
@@ -545,7 +544,21 @@ class QueueManager(object):
                     os.rename('temp.h5', path.replace('.h5','_retry.h5'))
                 # Put it back at the start of the queue:
                 self.prepend(path)
-                self.set_status("Error during transtion to static. Queue Paused.")
+                continue
+                
+            logger.info('All devices are back in static mode.')  
+            # Submit to the analysis server
+            self.BLACS.analysis_submission.get_queue().put(['file', path])
+                
+            self.set_status("Idle")
+            if self.manager_repeat:
+                # Resubmit job to the bottom of the queue:
+                try:
+                    message = self.process_request(path)
+                except:
+                    # TODO: make this error popup for the user
+                    self.logger.error('Failed to copy h5_file (%s) for repeat run'%s)
+                logger.info(message)      
 
         logger.info('Stopping')
 
