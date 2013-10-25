@@ -86,11 +86,7 @@ excepthook.set_logger(logger)
 
 
 class BLACSWindow(QMainWindow):
-    def __init__(self, blacs, parent=None):
-        QMainWindow.__init__(self, parent)
-        self.ui = loadUi('main.ui', self, [QueueTreeview])
-        self.blacs = blacs
-        
+       
     def closeEvent(self, event):
         #print 'aaaaa'
         if self.blacs.exit_complete:
@@ -137,7 +133,12 @@ class BLACS(object):
         self.exiting = False
         self.exit_complete = False
         
-        self.ui = BLACSWindow(self).ui
+        #self.ui = BLACSWindow(self).ui
+        loader = UiLoader()
+        loader.registerCustomWidget(QueueTreeview)
+        loader.registerCustomPromotion('BLACS',BLACSWindow)
+        self.ui = loader.load('main.ui')
+        self.ui.blacs=self
         self.tab_widgets = {}
         self.exp_config = exp_config # Global variable
         self.settings_path = settings_path # Global variable
