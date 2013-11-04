@@ -70,8 +70,8 @@ from analysis_submission import AnalysisSubmission
 # Queue Manager Code
 from queue import QueueManager, QueueTreeview
 # Hardware Interface Imports
-from hardware_interfaces import *
-for device in device_list:    
+import hardware_interfaces
+for device in hardware_interfaces.device_list:    
     exec("from hardware_interfaces."+device+" import "+device)
 # Save/restore frontpanel code
 from front_panel_settings import FrontPanelSettings
@@ -156,7 +156,7 @@ class BLACS(object):
         self.panes = {}
         self.settings_dict = {}
         # Instantiate Devices from Connection Table, Place in Array        
-        self.attached_devices = self.connection_table.find_devices(device_list)
+        self.attached_devices = self.connection_table.find_devices(hardware_interfaces.device_list)
         
         # Store the panes in a dictionary for easy access
         self.panes['tab_top_vertical_splitter'] = self.ui.tab_top_vertical_splitter
