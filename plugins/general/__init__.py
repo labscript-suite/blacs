@@ -3,8 +3,8 @@ from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
 
-class Plugin(object, initial_settings):
-    def __init__(self):
+class Plugin(object):
+    def __init__(self, initial_settings):
         self.menu = None
         self.notifications = {}
         
@@ -26,6 +26,9 @@ class Plugin(object, initial_settings):
     def set_notification_instances(self,notifications):
         self.notifications = notifications
 
+    def plugin_setup_complete(self):
+        pass
+        
 # class Menu(object):
     # pass
     
