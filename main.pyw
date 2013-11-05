@@ -50,6 +50,12 @@ from subproc_utils import zmq_get, ZMQServer
 from setup_logging import setup_logging
 import shared_drive
 
+# Custom Excepthook
+import excepthook
+# Setup logging
+logger = setup_logging()
+excepthook.set_logger(logger)
+
 # Import Qt
 from PySide.QtCore import *
 from PySide.QtGui import *
@@ -59,8 +65,6 @@ from PySide.QtUiTools import QUiLoader
 from connections import ConnectionTable
 #Draggable Tab Widget Code
 from qtutils.widgets.dragdroptab import DragDropTabWidget
-# Custom Excepthook
-import excepthook
 # Lab config code
 from LabConfig import LabConfig, config_prefix
 # Qt utils for running functions in the main thread
@@ -81,11 +85,6 @@ from notifications import Notifications
 from settings import Settings
 #import settings_pages
 import plugins
-
-# Setup logging
-logger = setup_logging()
-excepthook.set_logger(logger)
-
 
 class BLACSWindow(QMainWindow):
        
@@ -210,13 +209,12 @@ class BLACS(object):
         settings_pages = []
         self.plugins = {}
         plugin_settings = eval(tab_data['BLACS settings']['plugin_data']) if 'plugin_data' in tab_data['BLACS settings'] else {}
-        for module_name in plugins.__plugins__:
+        for module_name, module in plugins.modules.items():
             try:
                 # instantiate the plugin
-                self.plugins[module_name] = plugins.__getattribute__(module_name).Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})     
-                
-            except Exception as e:
-                logger.error('Could not instantiate plugin %s. Error was: %s'%(module_name,str(e)))
+                self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})     
+            except Exception:
+                logger.exception('Could not instantiate plugin \'%s\'. Skipping')
         
         blacs_data = {'exp_config':self.exp_config,
                       'ui':self.ui,
@@ -270,8 +268,8 @@ class BLACS(object):
                 if isinstance(callbacks,dict) and 'settings_changed' in callbacks:
                     settings_callbacks.append(callbacks['settings_changed'])
                 
-            except Exception as e:
-                logger.error('Plugin %s only partially setup. Error was: %s'%(module_name,str(e)))
+            except Exception:
+                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
                 
                 
         # setup the BLACS preferences system
@@ -285,8 +283,8 @@ class BLACS(object):
         for module_name, plugin in self.plugins.items():
             try:
                 plugin.plugin_setup_complete()
-            except Exception as e:
-                logger.error('Plugin %s error: %s'%(module_name,str(e)))
+            except Exception:
+                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
         
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
