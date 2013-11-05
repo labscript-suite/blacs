@@ -380,9 +380,33 @@ class DeviceTab(Tab):
             changed = False
             
             if channel in self._DDS:
-                # TODO: This is a complicated case!
-                #ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
-                pass
+                front_value = self._last_programmed_values[channel]
+                # format the entries for the DDS object correctly, then compare
+                
+                front_values_formatted = {}
+                remote_values_formatted = {}
+                for sub_chnl in front_value:
+                    if sub_chnl not in remote_value:
+                        raise RuntimeError('The worker function check_remote_values has not returned data for the sub-channel %s in channel %s'%(sub_chnl,channel))
+                    
+                    if sub_chnl == 'gate':
+                        front_values_formatted[subchnl] = str(bool(int(front_value[sub_chnl])))
+                        remote_values_formatted[subchnl] = str(bool(int(remote_value[sub_chnl])))
+                    else:
+                        decimals = self._AO[channel].__getattribute__(subchnl)._decimals
+                        front_values_formatted[subchnl] = ("%."+str(decimals)+"f")%front_value[sub_chnl]
+                        remote_values_formatted[subchnl] = ("%."+str(decimals)+"f")%remote_value[sub_chnl]
+                        
+                    if front_values_formatted[subchnl] != remote_values_formatted[subchnl]:
+                        changed = True
+                        
+                if changed:
+                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
+                    ui.channel_label.setText(self._DDS[channel].name)
+                    for sub_chnl in front_value:
+                        ui.__getattribute__('front_%s_value').setText(front_values_formatted[subchnl])
+                        ui.__getattribute__('remote_%s_value').setText(remote_values_formatted[subchnl])
+                
             elif channel in self._DO:
                 # This is an easy case!
                 front_value = str(bool(int(self._last_programmed_values[channel])))
@@ -399,7 +423,7 @@ class DeviceTab(Tab):
                 remote_value = ("%."+str(self._AO[channel]._decimals)+"f")%remote_value
                 if front_value != remote_value:
                     changed = True
-                    ui = QUiLoader().load('tab_value_changed.ui')
+                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
                     ui.channel_label.setText(self._AO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)

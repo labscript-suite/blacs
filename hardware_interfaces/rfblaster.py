@@ -57,9 +57,8 @@ class RFBlasterWorker(Worker):
         self.timeout = 30 #How long do we wait until we assume that the RFBlaster is dead? (in seconds)
     
     def initialise(self):
-        self.address = address
         # See if the RFBlaster answers
-        urllib2.urlopen(address,timeout=self.timeout)
+        urllib2.urlopen(self.address,timeout=self.timeout)
         
     def program_manual(self,values):
         form = MultiPartForm()
