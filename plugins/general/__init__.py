@@ -26,6 +26,9 @@ class Plugin(object):
     def set_notification_instances(self,notifications):
         self.notifications = notifications
 
+    def plugin_setup_complete(self):
+        pass
+        
 # class Menu(object):
     # pass
     
