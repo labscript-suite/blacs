@@ -192,6 +192,15 @@ class QuickSynWorker(Worker):
         # now let's check it's temperature!
         self.connection.write('DIAG:MEAS? 21\r')
         results['temperature'] = float(self.connection.readline())
+        
+        # check if the temperature is bad, if it is, raise an exception. Hopefully one day this will be sent to syslog,
+        #at which point we'll add some extra magic to segregate into warning and critical temperatures.
+        
+        if results['temperature'] > 50.0:
+            raise Exception('WARNING: Temperature is too high! Temperature is %s',%results['temperature'])
+            return results
+        
+        return results
     
     def program_manual(self,front_panel_values):
         freq = front_panel_values['dds 0']['freq']
