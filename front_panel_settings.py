@@ -53,7 +53,7 @@ class FrontPanelSettings(object):
         settings = {}
         question = {}
         error = {}
-        tab_data = {}
+        tab_data = {'BLACS settings':{}}
         try:
             saved_ct = ConnectionTable(self.settings_path)
             ct_match,error = self.connection_table.compare_to(saved_ct)
