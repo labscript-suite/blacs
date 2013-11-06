@@ -53,6 +53,9 @@ class DeviceTab(Tab):
         for worker in self._secondary_workers:
             yield(self.queue_work(worker,'initialise'))
         
+        if self.error_message:
+            raise Exception('Device failed to initialise')
+        
     @property
     def primary_worker(self):
         return self._primary_worker
