@@ -48,7 +48,7 @@ class rfblaster(DeviceTab):
         
 
 class RFBlasterWorker(Worker):
-    def init(self):
+    def initialise(self):
         exec 'from multipart_form import *' in globals()
         exec 'from numpy import *' in globals()
         global h5py; import h5_lock, h5py
@@ -56,7 +56,6 @@ class RFBlasterWorker(Worker):
         global re; import re
         self.timeout = 30 #How long do we wait until we assume that the RFBlaster is dead? (in seconds)
     
-    def initialise(self):
         # See if the RFBlaster answers
         urllib2.urlopen(self.address,timeout=self.timeout)
         
@@ -121,6 +120,7 @@ class RFBlasterWorker(Worker):
         req.add_header('Content-length', len(body))
         req.add_data(body)
         urllib2.urlopen(req,timeout=self.timeout)
+        return True
     
     def abort_buffered(self):
         form = MultiPartForm()
@@ -132,8 +132,10 @@ class RFBlasterWorker(Worker):
         req.add_header('Content-length', len(body))
         req.add_data(body)
         urllib2.urlopen(req,timeout=self.timeout)
+        return True
      
     def transition_to_manual(self):
+        # TODO: check that the RF blaster program is finished?
         return True
      
     def get_web_values(self,page): 
@@ -159,6 +161,7 @@ class RFBlasterWorker(Worker):
         return self.get_web_values(page)       
         
     def shutdown(self):
+        # TODO: implement this?
         pass
 
 if __name__ == '__main__':

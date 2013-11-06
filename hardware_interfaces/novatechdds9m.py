@@ -46,12 +46,11 @@ class novatechdds9m(DeviceTab):
 
         
 class NovatechDDS9mWorker(Worker):
-    def init(self):
+    def initialise(self):
         global serial; import serial
         global h5py; import h5_lock, h5py
         self.smart_cache = {'STATIC_DATA': None, 'TABLE_DATA': ''}
         
-    def initialise(self):
         self.connection = serial.Serial(self.com_port, baudrate = self.baud_rate, timeout=0.1)
         self.connection.readlines()
         
@@ -122,7 +121,6 @@ class NovatechDDS9mWorker(Worker):
             raise TypeError(type)
         # Now that a static update has been done, we'd better invalidate the saved STATIC_DATA:
         self.smart_cache['STATIC_DATA'] = None
-
      
     def transition_to_buffered(self,device_name,h5file,initial_values,fresh):
         # Store the initial values in case we have to abort and restore them:

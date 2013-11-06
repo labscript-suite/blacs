@@ -97,12 +97,11 @@ class phasematrixquicksyn(DeviceTab):
        
 
 class QuickSynWorker(Worker):
-    def init(self):
+    def initialise(self):
         global serial; import serial
         global h5py; import h5_lock, h5py
         global time; import time
     
-    def initialise(self):
         baud_rate=115200
         port = self.address
         self.connection = serial.Serial(port, baudrate = baud_rate, timeout=0.1)
@@ -114,8 +113,6 @@ class QuickSynWorker(Worker):
         if response == 'INT\n':
             #ref was set to internal, let's change it to ext
             self.connection.write('ROSC:SOUR EXT\r')
-
-    
     
     def check_remote_values(self):
         # Get the currently output values:
@@ -197,7 +194,7 @@ class QuickSynWorker(Worker):
         #at which point we'll add some extra magic to segregate into warning and critical temperatures.
         
         if results['temperature'] > 50.0:
-            raise Exception('WARNING: Temperature is too high! Temperature is %s',%results['temperature'])
+            raise Exception('WARNING: Temperature is too high! Temperature is %s'%results['temperature'])
             return results
         
         return results

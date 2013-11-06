@@ -44,14 +44,13 @@ class ni_pci_6733(DeviceTab):
     
 
 class NiPCI6733Worker(Worker):
-    def init(self):
+    def initialise(self):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global pylab; import pylab
         global h5py; import h5_lock, h5py
-        
-    def initialise(self):    
+           
         # Create task
         self.ao_task = Task()
         self.ao_read = int32()
@@ -75,8 +74,12 @@ class NiPCI6733Worker(Worker):
             self.ao_data[i] = front_panel_values['ao%d'%i]
         self.ao_task.WriteAnalogF64(1,True,1,DAQmx_Val_GroupByChannel,self.ao_data,byref(self.ao_read),None)
           
+        # TODO: Return coerced/quantised values
+        return {}
+        
     def transition_to_buffered(self,device_name,h5file,initial_values,fresh):
         # Store the initial values in case we have to abort and restore them:
+        # TODO: Coerce/quantise these correctly before returning them
         self.initial_values = initial_values
             
         with h5py.File(h5file,'r') as hdf5_file:
@@ -121,6 +124,8 @@ class NiPCI6733Worker(Worker):
         if abort:
             # Reprogram the initial states:
             self.program_manual(self.initial_values)
+            
+        return True
         
     def abort_transition_to_buffered(self):
         # TODO: untested

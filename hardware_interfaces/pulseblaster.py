@@ -132,7 +132,7 @@ class pulseblaster(DeviceTab):
         self.statemachine_timeout_add(1,self.status_monitor,notify_queue)
         
 class PulseblasterWorker(Worker):
-    def init(self):
+    def initialise(self):
         exec 'from spinapi import *' in globals()
         global h5py; import h5_lock, h5py
         self.pb_start = pb_start
@@ -150,9 +150,7 @@ class PulseblasterWorker(Worker):
         # The wait monitor device is expected to post such events, which we'll wait on:
         self.all_waits_finished = subproc_utils.Event('all_waits_finished')
         self.waits_pending = False
-        self.initialised = False
     
-    def initialise(self):
         pb_select_board(self.board_number)
         pb_init()
         pb_core_clock(75)
@@ -201,6 +199,9 @@ class PulseblasterWorker(Worker):
         # The pulse program now has a branch in line one, and so can't proceed to the pulse program
         # without a reprogramming of the first two lines:
         self.smart_cache['ready_to_go'] = False
+        
+        # TODO: return coerced/quantised values
+        return {}
         
     def program_buffered(self,device_name,h5file,initial_values,fresh):
         self.h5file = h5file
@@ -301,7 +302,7 @@ class PulseblasterWorker(Worker):
             return return_values
             
     def check_status(self):
-        if not self.initialised:
+        if not hasattr(self, 'initialised'):
             # Return Dummy status
             return {'stopped':False,'reset':False,'running':False, 'waiting':False}, False
         
@@ -313,6 +314,24 @@ class PulseblasterWorker(Worker):
                 pass
         return pb_read_status(), self.waits_pending
 
+    def transition_to_manual(self):
+        status, waits_pending = self.check_status()
+        if status['waiting'] and not waits_pending:
+            return True
+        else:
+            return False
+     
+    def abort_buffered(self):
+        #TODO: Implement this
+        pass
+        
+    def abort_transition_to_buffered(self):
+        #TODO: implement this
+        pass
+        
+    def shutdown(self):
+        #TODO: implement this
+        pass
         
 if __name__ == '__main__':
     from PySide.QtCore import *
