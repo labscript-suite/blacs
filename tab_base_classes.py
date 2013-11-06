@@ -285,7 +285,7 @@ class Tab(object):
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         
         worker = WorkerClass()
-        to_worker, from_worker = worker.start('%s_%s'%(self.device_name,name), workerargs)
+        to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
        
     # def btn_release(self,widget,event):
@@ -544,7 +544,7 @@ class Tab(object):
                            '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             
             self.state = 'fatal error'
-            # do the contents of the above function in the Qt main thread
+            # do this in the main thread
             inmain(self._ui.button_close.setEnabled,False)
         logger.info('Exiting')
         
@@ -554,15 +554,15 @@ class Worker(Process):
         # To be overridden by subclasses
         pass
     
-    def run(self, name, extraargs):
-        self.name = name
-        
+    def run(self, worker_name, device_name, extraargs):
+        self.worker_name = worker_name
+        self.device_name = device_name
         for argname in extraargs:
             setattr(self,argname,extraargs[argname])
         # Total fudge, should be replaced with zmq logging in future:
         from setup_logging import setup_logging
         setup_logging()
-        self.logger = logging.getLogger('BLACS.%s.worker'%self.name)
+        self.logger = logging.getLogger('BLACS.%s_%s.worker'%(self.device_name,self.worker_name))
         self.logger.debug('Starting')
         self.init()
         self.mainloop()
