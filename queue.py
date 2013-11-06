@@ -480,6 +480,7 @@ class QueueManager(object):
                     self.current_queue = Queue.Queue()
                     for tab in devices_in_use.values():
                         # TODO: check if all devices have aborted successfully?
+                        # TODO: should we be calling abort_buffered or abort_transition_to_buffered?
                         tab.abort_buffered(self.current_queue)
                     continue
                     
