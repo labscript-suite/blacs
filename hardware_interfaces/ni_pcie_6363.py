@@ -253,6 +253,9 @@ class NiPCIe6363AcquisitionWorker(Worker):
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global h5py; import h5_lock, h5py
         global numpy; import numpy
+        global threading; import threading
+        global subproc_utils; import subproc_utils
+        global logging; import logging
         
         self.task_running = False
         self.daqlock = threading.Condition()
@@ -555,7 +558,10 @@ class NiPCIe6363WaitMonitorWorker(Worker):
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global h5py; import h5_lock, h5py
-        global numpy; import numpy
+        global numpy; import numpy        
+        global threading; import threading
+        global subproc_utils; import subproc_utils
+        global logging; import logging
     
         self.task_running = False
         self.daqlock = threading.Lock() # not sure if needed, access should be serialised already
@@ -564,7 +570,6 @@ class NiPCIe6363WaitMonitorWorker(Worker):
         self.abort = False
         self.all_waits_finished = subproc_utils.Event('all_waits_finished',type='post')
         self.wait_durations_analysed = subproc_utils.Event('wait_durations_analysed',type='post')
-        self.mainloop()
     
     def shutdown(self):
         self.logger.info('Shutdown requested, stopping task')
