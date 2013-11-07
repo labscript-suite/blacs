@@ -50,6 +50,7 @@ class NiPCI6733Worker(Worker):
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global pylab; import pylab
         global h5py; import h5_lock, h5py
+        global numpy; import numpy
            
         # Create task
         self.ao_task = Task()
