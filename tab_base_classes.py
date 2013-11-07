@@ -33,21 +33,38 @@ MODE_MANUAL = 1
 MODE_TRANSITION_TO_BUFFERED = 2
 MODE_TRANSITION_TO_MANUAL = 4
 MODE_BUFFERED = 8  
-      
+            
 class StateQueue(object):
-    def __init__(self):
+    def __init__(self,device_name):
+        self.logger = logging.getLogger('BLACS.%s.state_queue'%(device_name))
+        self.logging_enabled = True
+        if self.logging_enabled:
+            self.logger.debug("started")
+        
         self.list_of_states = []
         self.last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
         self.get_blocking_queue = Queue()  
-            
+     
+    def log_current_states(self):
+        if self.logging_enabled:
+            self.logger.debug('Current items in the state queue: %s'%str(self.list_of_states))
+     
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)   
-    def put(self,allowed_states,queue_state_indefinitely,delete_stale_states,data):
-        self.list_of_states.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
+    def put(self,allowed_states,queue_state_indefinitely,delete_stale_states,data,prepend=False):
+        if prepend:
+            self.list_of_states.insert(0,[allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
+        else:
+            self.list_of_states.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
         # if this state is one the get command is waiting for, notify it!
         if self.last_requested_state and allowed_states&self.last_requested_state:
             self.get_blocking_queue.put('new item')
+        
+        if self.logging_enabled:
+            if not isinstance(data[0],str):
+                self.logger.debug('New state queued up. Allowed modes: %d, queue state indefinitely: %s, delete stale states: %s, function: %s'%(allowed_states,str(queue_state_indefinitely),str(delete_stale_states),data[0].__name__))
+        self.log_current_states()
     
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)
@@ -102,6 +119,9 @@ class StateQueue(object):
     
         self.last_requested_state = state
         while True:
+            if self.logging_enabled:
+                self.logger.debug('requesting next item in queue with mode %d'%state)
+            self.log_current_states()
             status,data = self.check_for_next_item(state)
             if not status:
                 # we didn't find anything useful, so we'll wait until a useful state is added!
@@ -140,7 +160,7 @@ class Tab(object):
         self._device_name = self.settings["device_name"]
         
         # Setup logging
-        self.logger = logging.getLogger('BLACS.%s'%self.device_name)   
+        self.logger = logging.getLogger('BLACS.%s'%(self.device_name))   
         self.logger.debug('Started')          
         
         # Create instance variables
@@ -153,7 +173,7 @@ class Tab(object):
         self._timeouts = set()
         self._timeout_ids = {}
         self._force_full_buffered_reprogram = True
-        self.event_queue = StateQueue()
+        self.event_queue = StateQueue(self.device_name)
         self.workers = {}
         self._supports_smart_programming = False
         
@@ -388,7 +408,7 @@ class Tab(object):
             # (albeit doing nothing) that we don't need:
             if self._mainloop_thread.is_alive():
                 worker_data[2].put((False,'quit',None))
-                self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None])
+                self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None],prepend=True)
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
@@ -401,11 +421,17 @@ class Tab(object):
         currentpage = self.close_tab()
         self.logger.info('***RESTART***')
         self.settings['saved_data'] = self.get_save_data()
+        inthread(self.wait_for_mainloop_to_stop, currentpage)
+        
+    def wait_for_mainloop_to_stop(self, currentpage):
+        self._mainloop_thread.join()
+        inmain(self.finalise_restart, currentpage)
+        
+    def finalise_restart(self, currentpage):
         # Note: the following function call will break if the user hasn't
         # overridden the __init__ function to take these arguments. So
         # make sure you do that!
         self.__init__(self.notebook, self.settings,restart=True)
-        
         # The init method is going to place this device tab at the end of the notebook specified
         # Let's remove it from there, and place it the poition it used to be!
         self.notebook = self._ui.parentWidget().parentWidget()
@@ -452,13 +478,18 @@ class Tab(object):
         return True
         
     def mainloop(self):
-        logger = logging.getLogger('BLACS.%s.mainloop'%self.settings['device_name'])   
+        logger = logging.getLogger('BLACS.%s.mainloop'%(self.settings['device_name']))   
         logger.debug('Starting')
+        
+        # Store a reference to the state queue and workers, this way if the tab is restarted, we won't ever get access to the new state queue created then
+        event_queue = self.event_queue
+        workers = self.workers
+        
         try:
             while True:
                 # Get the next task from the event queue:
                 logger.debug('Waiting for next event')
-                func, data = self.event_queue.get(self.mode)
+                func, data = event_queue.get(self.mode)
                 if func == '_quit':
                     # The user has requested a restart:
                     logger.debug('Received quit signal')
@@ -489,8 +520,8 @@ class Tab(object):
                                 self.error_message += 'Attempt to pass unserialisable object to child process:'
                                 raise
                             # Send the command to the worker
-                            to_worker = self.workers[worker_process][1]
-                            from_worker = self.workers[worker_process][2]
+                            to_worker = workers[worker_process][1]
+                            from_worker = workers[worker_process][2]
                             to_worker.put(worker_arg_list)
                             self.state = '%s (%s)'%(worker_function,worker_process)
                             # Confirm that the worker got the message:
@@ -538,6 +569,7 @@ class Tab(object):
                             generator_running = False
                     # Break out of the main loop if the user requests a restart
                     if break_main_loop:
+                        logger.debug('Breaking out of main loop')
                         break
                 self.state = 'idle'
         except:
