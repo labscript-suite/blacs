@@ -256,6 +256,7 @@ class NiPCIe6363AcquisitionWorker(Worker):
         global threading; import threading
         global subproc_utils; import subproc_utils
         global logging; import logging
+        global time; import time
         
         self.task_running = False
         self.daqlock = threading.Condition()
@@ -562,6 +563,7 @@ class NiPCIe6363WaitMonitorWorker(Worker):
         global threading; import threading
         global subproc_utils; import subproc_utils
         global logging; import logging
+        global time; import time
     
         self.task_running = False
         self.daqlock = threading.Lock() # not sure if needed, access should be serialised already
@@ -671,6 +673,7 @@ class NiPCIe6363WaitMonitorWorker(Worker):
                 # There are no waits. Do nothing.
                 self.logger.debug('There are no waits, not transitioning to buffered')
                 self.waits_in_use = False
+                self.wait_table = numpy.zeros((0,))
                 return {}
             self.waits_in_use = True
             acquisition_device = dataset.attrs['wait_monitor_acquisition_device']
