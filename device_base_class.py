@@ -56,6 +56,8 @@ class DeviceTab(Tab):
         if self.error_message:
             raise Exception('Device failed to initialise')
         
+        self.program_device()
+        
     @property
     def primary_worker(self):
         return self._primary_worker
