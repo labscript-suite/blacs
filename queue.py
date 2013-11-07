@@ -353,11 +353,11 @@ class QueueManager(object):
         return str(self._model.takeRow(0)[0].text())
     
     @inmain_decorator(wait_for_return=True)    
-    def transition_device_to_buffered(self,name,transition_list):
+    def transition_device_to_buffered(self, name, transition_list, h5file):
         tab = self.BLACS.tablist[name]
         if self.get_device_error_state(name,self.BLACS.tablist):
             return False
-        tab.transition_to_buffered(path,self.current_queue)
+        tab.transition_to_buffered(h5file,self.current_queue)
         transition_list[name] = tab
         return True
     
@@ -424,7 +424,7 @@ class QueueManager(object):
                 
                 for name in h5_file_devices: 
                     try:
-                        success = self.transition_device_to_buffered(name,transition_list)
+                        success = self.transition_device_to_buffered(name,transition_list,path)
                         if not success:
                             logger.error('%s has an error condition, aborting run' % name)
                             error_condition = True
@@ -439,6 +439,7 @@ class QueueManager(object):
                 while transition_list and not error_condition:
                     try:
                         # Wait for a device to transtition_to_buffered:
+                        logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s'%str(transition_list))
                         device_name, result = self.current_queue.get(timeout=2)
                         if result == 'fail':
                             logger.info('abort signal received during transition to buffered of ' % device_name)
@@ -450,8 +451,8 @@ class QueueManager(object):
                             logger.error('%s has an error condition, aborting run' % device_name)
                             error_condition = True
                             break
-                        del transition_list[name]                   
-                    except:
+                        del transition_list[device_name]                   
+                    except Queue.Empty:
                         # It's been 2 seconds without a device finishing
                         # transitioning to buffered. Is there an error?
                         for name in transition_list:
@@ -486,18 +487,23 @@ class QueueManager(object):
                     
                     
                 # Get front panel data, but don't save it to the h5 file until the experiment ends:
-                states,tab_positions,window_data = self.BLACS.front_panel_settings.get_save_data()
+                states,tab_positions,window_data,plugin_data = self.BLACS.front_panel_settings.get_save_data()
                 self.set_status(now_running_text+"<br>Running...(program time: %.3fs)"%(time.time() - start_time))
                     
                 # A Queue for event-based notification of when the experiment has finished.
                 self.current_queue = Queue.Queue()               
                 logger.debug('About to start the master pseudoclock')
                 run_time = time.localtime()
-                self.tablist[self.master_pseudoclock].start_run(self.current_queue)
+                #TODO: fix potential race condition if BLACS is closing when this line executes?
+                self.BLACS.tablist[self.master_pseudoclock].start_run(self.current_queue)
            
                 ############
                 # Science! #
                 ############
+                
+                # TODO: what if the start_run function of the master pseudoclock throws an exception?
+                # What if another device crashes mid-run?
+                # We need to catch these cases!
                 
                 # Wait for notification of the end of run:
                 result = self.current_queue.get()
@@ -507,7 +513,7 @@ class QueueManager(object):
                 self.set_status(now_running_text+"<br>Sequence done, saving data...")
 
                 with h5py.File(path,'r+') as hdf5_file:
-                    self.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,save_conn_table = False)
+                    self.BLACS.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table = False)
                 with h5py.File(path,'r+') as hdf5_file:
                     data_group = hdf5_file['/'].create_group('data')
                     # stamp with the run time of the experiment
@@ -533,6 +539,7 @@ class QueueManager(object):
                     raise Exception('A device failed during transition to static')
                                        
             except Exception as e:
+                logger.exception("Error in queue manager execution. Queue paused.")
                 # clean up the h5 file
                 self.manager_paused = True
                 # clean the h5 file:
