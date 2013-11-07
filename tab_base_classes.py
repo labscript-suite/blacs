@@ -400,6 +400,7 @@ class Tab(object):
     def restart(self,*args):
         currentpage = self.close_tab()
         self.logger.info('***RESTART***')
+        self.settings['saved_data'] = self.get_save_data()
         # Note: the following function call will break if the user hasn't
         # overridden the __init__ function to take these arguments. So
         # make sure you do that!

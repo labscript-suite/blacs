@@ -35,12 +35,17 @@ class DeviceTab(Tab):
         # Call the initialise GUI function
         self.initialise_GUI() 
         self.restore_save_data(self.settings['saved_data'] if 'saved_data' in self.settings else {})
-        self.initialise_device()        
+        self.initialise_workers()
+        self.initialise_device()
         self._last_programmed_values = self.get_front_panel_values()
         if self._can_check_remote_values:
             self.statemachine_timeout_add(30000,self.check_remote_values)
             
     def initialise_GUI(self):
+        # Override this function
+        pass
+        
+    def initialise_workers(self):
         # Override this function
         # set the primary worker at this time
         pass
