@@ -156,7 +156,7 @@ class Tab(object):
         self.event_queue = StateQueue()
         self.workers = {}
         self._supports_smart_programming = False
-
+        
         # Load the UI
         self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
         self._layout = self._ui.device_layout
@@ -172,6 +172,12 @@ class Tab(object):
         self._update_error()
         self.supports_smart_programming(False)
         
+        # This should be done beofre the main_loop starts or else there is a race condition as to whether the 
+        # self._mode variable is even defined!
+        # However it must be done after the UI is created!
+        self.mode = MODE_MANUAL
+        self.state = 'idle'
+        
         # Setup the not responding timeout
         self._timeout = QTimer()
         self._timeout.timeout.connect(self.check_time)
@@ -182,8 +188,6 @@ class Tab(object):
         self._mainloop_thread.daemon = True
         self._mainloop_thread.start()
         
-        self.mode = MODE_MANUAL
-        self.state = 'idle'
                 
         # Add the tab to the notebook
         self.notebook.addTab(self._ui,self.device_name)
