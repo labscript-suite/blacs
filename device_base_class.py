@@ -153,7 +153,7 @@ class DeviceTab(Tab):
         connection_name = device.name if device else '-'
         
         # Instantiate the DO object
-        return DO(hardware_name, connection_name, self.program_device, self.settings)
+        return DO(hardware_name, connection_name, self.device_name, self.program_device, self.settings)
     
     def create_analog_outputs(self,analog_properties):
         for hardware_name,properties in analog_properties.items():                    

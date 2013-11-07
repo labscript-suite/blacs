@@ -305,6 +305,7 @@ class AO(object):
         self._settings['base_value'] = self._current_value
             
         if program:
+            self._logger.debug('program device called')
             self._program_device()
             
         for widget in self._widgets:
@@ -366,10 +367,14 @@ class AO(object):
         return self._hardware_name + ' - ' + self._connection_name
             
 class DO(object):
-    def __init__(self, hardware_name, connection_name, program_function, settings):
+    def __init__(self, hardware_name, connection_name, device_name, program_function, settings):
         self._hardware_name = hardware_name
         self._connection_name = connection_name
         self._widget_list = []
+        
+        self._device_name = device_name
+        self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name)) 
+                
         # Note that while we could store self._current_state and self._locked in the
         # settings dictionary, this dictionary is available to other parts of BLACS
         # and using separate variables avoids those parts from being able to directly
@@ -459,7 +464,8 @@ class DO(object):
         # update the settings dictionary if it exists, to maintain continuity on tab restarts
         self._settings['base_value'] = state
         
-        if program:
+        if program:            
+            self._logger.debug('program device called')
             self._program_device()
             
         for widget in self._widget_list:
