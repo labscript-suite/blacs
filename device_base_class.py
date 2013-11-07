@@ -511,7 +511,7 @@ class DeviceTab(Tab):
             for worker in self._secondary_workers:
                 transitioned_called.append(worker)
                 extra_final_values = yield(self.queue_work(worker,'transition_to_buffered',self.device_name,h5_file,front_panel_values,self._force_full_buffered_reprogram))
-                if extra_final_values:
+                if extra_final_values is not None:
                     self._final_values.update(extra_final_values)
                 else:
                     self._final_values = None
