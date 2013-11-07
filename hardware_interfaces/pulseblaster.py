@@ -93,7 +93,7 @@ class pulseblaster(DeviceTab):
             # set the status checking timeout back to every 2 seconds
             # with no queue.
             notify_queue.put('done')
-            self.timeouts.remove(self.status_monitor)
+            self.statemachine_timeout_remove(self.status_monitor)
             self.statemachine_timeout_add(2000,self.status_monitor)
         
         # TODO: Update widgets
@@ -126,7 +126,7 @@ class pulseblaster(DeviceTab):
     def start_run(self, notify_queue):
         """Starts the Pulseblaster, notifying the queue manager when
         the run is over"""
-        self.timeouts.remove(self.status_monitor)
+        self.statemachine_timeout_remove(self.status_monitor)
         self.start()
         self.statemachine_timeout_add(1,self.status_monitor,notify_queue)
         
@@ -204,7 +204,7 @@ class PulseblasterWorker(Worker):
         # TODO: return coerced/quantised values
         return {}
         
-    def program_buffered(self,device_name,h5file,initial_values,fresh):
+    def transition_to_buffered(self,device_name,h5file,initial_values,fresh):
         self.h5file = h5file
         with h5py.File(h5file,'r') as hdf5_file:
             group = hdf5_file['devices/%s'%device_name]
