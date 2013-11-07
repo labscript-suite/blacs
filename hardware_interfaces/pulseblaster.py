@@ -2,7 +2,6 @@ from BLACS.tab_base_classes import Worker, define_state
 from BLACS.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 
 from BLACS.device_base_class import DeviceTab
-import subproc_utils
 
 class pulseblaster(DeviceTab):
     
@@ -48,7 +47,7 @@ class pulseblaster(DeviceTab):
         self.auto_place_widgets(("DDS Outputs",dds_widgets),("Flags",do_widgets,sort))
         
         # Store the board number to be used
-        self.board_number = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
+        self.board_number = int(self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection)
         
         # Create and set the primary worker
         self.create_worker("main_worker",PulseblasterWorker,{'board_number':self.board_number})
@@ -135,6 +134,8 @@ class PulseblasterWorker(Worker):
     def initialise(self):
         exec 'from spinapi import *' in globals()
         global h5py; import h5_lock, h5py
+        global subproc_utils; import subproc_utils
+        
         self.pb_start = pb_start
         self.pb_stop = pb_stop
         self.pb_reset = pb_reset
