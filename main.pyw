@@ -498,6 +498,12 @@ class ExperimentServer(ZMQServer):
 
  
 if __name__ == '__main__':
+    ##########
+    # import tracelog
+    # tracelog.log('blacs_trace.log',['__main__','BLACS','qtutils.invoke_in_main','qtutils.widgets.ddsoutput','qtutils.widgets.analogoutput','BLACS.hardware_interfaces.pulseblaster','BLACS.hardware_interfaces.output_classes'])
+    ##########
+
+
     config_path = os.path.join(config_prefix,'%s.ini'%socket.gethostname())
     settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%socket.gethostname())
     required_config_params = {"DEFAULT":["experiment_name"],
