@@ -59,9 +59,9 @@ class AO(object):
             self._calibration = None
             self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
         
-        self._update_from_settings(settings)
+        self._update_from_settings(settings,program=False)
     
-    def _update_from_settings(self,settings):
+    def _update_from_settings(self,settings,program=True):
         # Build up the settings dictionary if it isn't already
         if not isinstance(settings,dict):
             settings = {}
@@ -86,7 +86,7 @@ class AO(object):
         self._settings = settings['front_panel_settings'][self._hardware_name]
     
         # Update the state of the button
-        self.set_value(self._settings['base_value'],program=False)
+        self.set_value(self._settings['base_value'],program=program)
 
         # Update the lock state
         self._update_lock(self._settings['locked'])
@@ -95,22 +95,28 @@ class AO(object):
         self.set_step_size(self._settings['base_step_size'],self._base_unit)
     
         # Update the unit selection
-        self.change_unit(self._settings['current_units'])
+        self.change_unit(self._settings['current_units'],program=program)
      
     def convert_value_to_base(self, value, unit):
-        if self._calibration and unit in self._calibration.derived_units:
-            return getattr(self._calibration,unit+"_to_base")(value)
-         
-        # TODO: include device name somehow, and also the calibration class name
-        raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
-    
+        if unit != self._base_unit:
+            if self._calibration and unit in self._calibration.derived_units:
+                return getattr(self._calibration,unit+"_to_base")(value)
+             
+            # TODO: include device name somehow, and also the calibration class name
+            raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
+        else:
+            return value
+            
     def convert_value_from_base(self, value, unit):  
-        if self._calibration and unit in self._calibration.derived_units:
-            return getattr(self._calibration,unit+"_from_base")(value)
-    
-        # TODO: include device name somehow, and also the calibration class name
-        raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
-    
+        if unit != self._base_unit:
+            if self._calibration and unit in self._calibration.derived_units:
+                return getattr(self._calibration,unit+"_from_base")(value)
+        
+            # TODO: include device name somehow, and also the calibration class name
+            raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
+        else:
+            return value
+            
     # handles the conversion of a range centered on value in units to base units
     # In other words, how big is "range" in base units assuming that you care about what range is
     # between value-range/2 and value+range/2
@@ -212,7 +218,7 @@ class AO(object):
         widget.unblock_combobox_signals()
         # This will set the min/max/value/num.decimals/stepsie and current_unit of ALL widgets
         # including the one just added!
-        self.change_unit(self._current_units)
+        self.change_unit(self._current_units,program=False) # don't need to program though!
         # This will update the lock state of ALL widgets, including the one just added!
         self._update_lock(self._locked)
         
@@ -234,7 +240,7 @@ class AO(object):
         widget.disconnect_value_change()
         widget.set_combobox_model(QStandardItemModel())
         
-    def change_unit(self,unit):     
+    def change_unit(self,unit,program=True):     
         # These values are always stored in base units!
         property_value_list = [self._current_value,self._limits[0],self._limits[1]]
         property_range_list = [self._current_step_size]
@@ -277,16 +283,18 @@ class AO(object):
             widget.block_combobox_signals()
             widget.set_selected_unit(unit)
             widget.unblock_combobox_signals()
-            # Update the value
+            
+            # block the spinbox from emitting a signal
             widget.block_spinbox_signals()
-            widget.set_spinbox_value(property_value_list[0])
-            widget.unblock_spinbox_signals()
+            # Update the value
+            widget.set_spinbox_value(property_value_list[0],unit)
             # Update the limits
             widget.set_limits(property_value_list[1],property_value_list[2])
             # Update the step size
             widget.set_step_size(property_range_list[0])
             # Update the decimals
             widget.set_num_decimals(num_decimals)
+            widget.unblock_spinbox_signals()
       
     @property
     def value(self):
@@ -312,7 +320,7 @@ class AO(object):
             # block signals
             widget.block_spinbox_signals()
             # update widget
-            widget.set_spinbox_value(value)
+            widget.set_spinbox_value(value,unit if unit is not None else self._base_unit)
             # unblock signals            
             widget.unblock_spinbox_signals()
     
