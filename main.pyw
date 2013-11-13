@@ -411,13 +411,16 @@ class BLACS(object):
                             tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
                         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
                 except Exception as e:
-                    logger.warning("Unable to load the front panel in %s. Exception:%s"%(filepath,str(e)))
+                    logger.exception("Unable to load the front panel in %s."%(filepath))
                     message = QMessageBox()
                     message.setText("Unable to load the front panel. The error encountered is printed below.\n\n%s"%str(e))
                     message.setIcon(QMessageBox.Information)
                     message.setWindowTitle("BLACS")
                     message.exec_() 
+                finally:
+                    dialog.deleteLater()
             else:
+                dialog.deleteLater()
                 message = QMessageBox()
                 message.setText("You did not select a file ending with .h5 or .hdf5. Please try again")
                 message.setIcon(QMessageBox.Information)
@@ -468,15 +471,20 @@ class BLACS(object):
     
         # Open save As dialog
         dialog = QFileDialog(None,"Save BLACS state", self.exp_config.get('paths','experiment_shot_storage'), "HDF5 files (*.h5)")
-        dialog.setViewMode(QFileDialog.Detail)
-        dialog.setFileMode(QFileDialog.AnyFile)
-        dialog.setAcceptMode(QFileDialog.AcceptSave)
-        
-        if dialog.exec_():
-            current_file = str(dialog.selectedFiles()[0])
-            if not current_file.endswith('.h5'):
-                current_file += '.h5'
-            self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2],data[3])
+        try:
+            dialog.setViewMode(QFileDialog.Detail)
+            dialog.setFileMode(QFileDialog.AnyFile)
+            dialog.setAcceptMode(QFileDialog.AcceptSave)
+            
+            if dialog.exec_():
+                current_file = str(dialog.selectedFiles()[0])
+                if not current_file.endswith('.h5'):
+                    current_file += '.h5'
+                self.front_panel_settings.save_front_panel_to_h5(current_file,data[0],data[1],data[2],data[3])
+        except Exception:
+            raise
+        finally:
+            dialog.deleteLater()
         
     def on_open_preferences(self,*args,**kwargs):
         self.settings.create_dialog()
@@ -500,7 +508,19 @@ class ExperimentServer(ZMQServer):
 if __name__ == '__main__':
     ##########
     # import tracelog
-    # tracelog.log('blacs_trace.log',['__main__','BLACS','qtutils.invoke_in_main','qtutils.widgets.ddsoutput','qtutils.widgets.analogoutput','BLACS.hardware_interfaces.pulseblaster','BLACS.hardware_interfaces.output_classes'])
+    # tracelog.log('blacs_trace.log',['__main__','BLACS',
+                                    # 'qtutils',
+                                    # # 'qtutils.widgets.ddsoutput',
+                                    # # 'qtutils.widgets.analogoutput',
+                                    # 'BLACS.hardware_interfaces.ni_pcie_6363',
+                                    # 'BLACS.hardware_interfaces.output_classes',
+                                    # 'BLACS.device_base_class',
+                                    # 'BLACS.tab_base_classes',
+                                    # # 'BLACS.plugins.connection_table',
+                                    # # 'BLACS.recompile_and_restart',
+                                    # 'filewatcher',
+                                    # 'settings'
+                                   # ], sub=True)
     ##########
 
 
