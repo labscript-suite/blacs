@@ -286,14 +286,17 @@ class AO(object):
             
             # block the spinbox from emitting a signal
             widget.block_spinbox_signals()
-            # Update the value
-            widget.set_spinbox_value(property_value_list[0],unit)
             # Update the limits
             widget.set_limits(property_value_list[1],property_value_list[2])
             # Update the step size
             widget.set_step_size(property_range_list[0])
             # Update the decimals
             widget.set_num_decimals(num_decimals)
+            # Update the value - This should be the last thing you do, 
+            #                    otherwise it might get truncated or 
+            #                    limited in a bad way
+            widget.set_spinbox_value(property_value_list[0],unit)
+            # unblock the spinbox signals
             widget.unblock_spinbox_signals()
       
     @property
