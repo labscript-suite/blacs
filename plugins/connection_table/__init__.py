@@ -264,6 +264,8 @@ class Setting(object):
          
             self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.data['globals_sort_order'])
             
+        dialog.deleteLater()
+            
     def is_filepath_in_store(self,filepath,store):
         for row_index in range(self.models[store].rowCount()):
             if filepath == self.models[store].item(row_index).text():
@@ -298,6 +300,8 @@ class Setting(object):
          
             self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
         
+        dialog.deleteLater()
+        
     def add_calibration_folder(self):
         # create file chooser dialog
         dialog = QFileDialog(None,"Select unit conversion folder", "C:\\", "")
@@ -313,6 +317,7 @@ class Setting(object):
          
             self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
         
+        dialog.deleteLater()
     
     def delete_selected_conversion_file(self):
         index_list = self.views['calibrations'].selectedIndexes()

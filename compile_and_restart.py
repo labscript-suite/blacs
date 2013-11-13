@@ -14,6 +14,8 @@ from subproc_utils.qt_components import OutputBox
 class CompileAndRestart(QDialog):
     def __init__(self, blacs, globals_files,connection_table_labscript, output_path, close_notification_func=None):
         QDialog.__init__(self,blacs['ui'])
+        self.setAttribute(Qt.WA_DeleteOnClose, True) # make sure the dialog is deleted when the window is closed
+        
         self.globals_files = globals_files
         self.labscript_file = connection_table_labscript
         self.output_path = output_path
