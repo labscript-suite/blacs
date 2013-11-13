@@ -428,10 +428,17 @@ class Tab(object):
         inmain(self.finalise_restart, currentpage)
         
     def finalise_restart(self, currentpage):
+        # Clean up UI
+        ui = self._ui
+        self._ui = None
+        ui.setParent(None)
+        del ui
+        
         # Note: the following function call will break if the user hasn't
         # overridden the __init__ function to take these arguments. So
         # make sure you do that!
         self.__init__(self.notebook, self.settings,restart=True)
+        
         # The init method is going to place this device tab at the end of the notebook specified
         # Let's remove it from there, and place it the poition it used to be!
         self.notebook = self._ui.parentWidget().parentWidget()
