@@ -184,7 +184,8 @@ class Tab(object):
         self._changed_widget = self._ui.changed_widget
         self._changed_layout = self._ui.changed_layout
         self._changed_widget.hide()        
-        self._ui.device_name.setText("<u><b>"+str(self.device_name)+"</b></u>")
+        self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
+        self._ui.device_name.setText("<b>%s</b> (connection: %s)"%(str(self.device_name),str(self.BLACS_connection)))
         # connect signals
         self._ui.smart_programming.toggled.connect(self.on_force_full_buffered_reprogram)
         self._ui.button_close.clicked.connect(self.hide_error)
