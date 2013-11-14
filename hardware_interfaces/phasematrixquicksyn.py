@@ -58,7 +58,7 @@ class phasematrixquicksyn(DeviceTab):
         # an experimental run.
         self.status = yield(self.queue_work(self._primary_worker,'check_status'))
         #TODO: update some widgets to reflect the current state
-        self.status_ui.temperature_label.setText(self.status['temperature'])
+        self.status_ui.temperature_label.setText(str(self.status['temperature']))
         
         if self.status['freqlock']:
             self.status_ui.freq_lock_label.setText('locked')
@@ -150,6 +150,10 @@ class QuickSynWorker(Worker):
         return results
     
     def check_status(self):
+        if not hasattr(self,'connection'):
+            # dummy status:
+            return {'ref':0, 'freqlock':0, 'reflock':0, 'ref_output':0, 'blanking':0, 'lock_recovery':0, 'temperature':0}
+            
         results = {}
         line = ''
         self.connection.write('STAT?\r')
