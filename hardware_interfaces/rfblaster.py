@@ -36,7 +36,7 @@ class rfblaster(DeviceTab):
         self.auto_place_widgets(("DDS Outputs",dds_widgets))
         
         # Store the COM port to be used
-        self.address = "http://" + str(self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection) + ":8080"
+        self.address = "http://" + str(self.BLACS_connection) + ":8080"
         
         # Create and set the primary worker
         self.create_worker("main_worker",RFBlasterWorker,{'address':self.address, 'num_DDS':self.num_DDS})
@@ -59,7 +59,11 @@ class RFBlasterWorker(Worker):
         # See if the RFBlaster answers
         urllib2.urlopen(self.address,timeout=self.timeout)
         
+        self._last_program_manual_values = {}
+        
     def program_manual(self,values):
+        self._last_program_manual_values = values
+        
         form = MultiPartForm()
         for i in range(self.num_DDS):
             # Program the frequency, amplitude and phase
@@ -76,7 +80,9 @@ class RFBlasterWorker(Worker):
         req.add_header('Content-length', len(body))
         req.add_data(body)
         response = str(urllib2.urlopen(req,timeout=self.timeout).readlines())
-        return self.get_web_values(response)
+        return_vals = self.get_web_values(response)
+            
+        return return_vals
         
     def transition_to_buffered(self,device_name,h5file,initial_values,fresh):
         with h5py.File(h5file,'r') as hdf5_file:
@@ -150,15 +156,23 @@ class RFBlasterWorker(Worker):
         for register,channel,value in webvalues:
             newvals['dds %d'%int(channel)][register_name_map[register]] = float(value)
         for i in range(self.num_DDS):
-            newvals['dds %d'%i]['gate'] = True
+            if 'dds %d'%i in self._last_program_manual_values and newvals['dds %d'%i]['amp'] == 0:
+                newvals['dds %d'%i]['gate'] = self._last_program_manual_values['dds %d'%i]['gate']
+            else:
+                newvals['dds %d'%i]['gate'] = True
+                
             newvals['dds %d'%i]['freq'] *= 1e6 # BLACS expects it in the base unit (Hz)
+            
+            # if the gate is off, keep the front panel amplitude
+            if not newvals['dds %d'%i]['gate']:
+                newvals['dds %d'%i]['amp'] = self._last_program_manual_values['dds %d'%i]['amp']
             
         return newvals
     
     def check_remote_values(self):
         #read the webserver page to see what values it puts in the form
         page = str(urllib2.urlopen(self.address,timeout=self.timeout).readlines())
-        return self.get_web_values(page)       
+        return self.get_web_values(page)
         
     def shutdown(self):
         # TODO: implement this?
