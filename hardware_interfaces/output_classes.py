@@ -7,8 +7,11 @@ from PySide.QtGui import *
 from qtutils.widgets.analogoutput import AnalogOutput
 from qtutils.widgets.digitaloutput import DigitalOutput
 from qtutils.widgets.ddsoutput import DDSOutput
-from unitconversions import *
-
+try:
+    from unitconversions import *
+except Exception:
+    print 'failed to import unit conversion classes'
+    
 
 class AO(object):
     def __init__(self, hardware_name, connection_name, device_name, program_function, settings, calib_class, calib_params, default_units, min, max, step, decimals):
@@ -32,6 +35,7 @@ class AO(object):
         self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name)) 
         
         # Initialise Calibrations
+        self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
         if calib_class is not None:
             if calib_class not in globals() or not isinstance(calib_params,dict) or globals()[calib_class].base_unit != default_units:
                 # log an error:  
@@ -45,19 +49,21 @@ class AO(object):
                 self._logger.error('The unit conversion class (%s) could not be loaded. Reason: %s'%(calib_class,reason))   
                 # Use default units
                 self._calibration = None
-                self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
             else:
-                # initialise calibration class
-                self._calibration = globals()[calib_class](calib_params)    
-                self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
-                        
-                for unit in self._calibration.derived_units:
-                    self._comboboxmodel.appendRow(QStandardItem(unit))
-                    
+                try:
+                    # initialise calibration class
+                    self._calibration = globals()[calib_class](calib_params)                     
+                    for unit in self._calibration.derived_units:
+                        try:
+                            self._comboboxmodel.appendRow(QStandardItem(unit))
+                        except Exception:
+                             self._logger.exception('Error while trying to add unit "%s"'%unit)                    
+                except Exception:
+                    self._logger.exception('Error while trying to instantiate calibration class')
+                    self._calibration = None
         else:
             # use default units
             self._calibration = None
-            self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
         
         self._update_from_settings(settings,program=False)
     
@@ -95,7 +101,10 @@ class AO(object):
         self.set_step_size(self._settings['base_step_size'],self._base_unit)
     
         # Update the unit selection
-        self.change_unit(self._settings['current_units'],program=program)
+        if self._calibration and self._settings['current_units'] in self._calibration.derived_units:
+            self.change_unit(self._settings['current_units'],program=program)
+        else:
+            self.change_unit(self._base_unit,program=program)
      
     def convert_value_to_base(self, value, unit):
         if unit != self._base_unit:
@@ -103,7 +112,7 @@ class AO(object):
                 return getattr(self._calibration,unit+"_to_base")(value)
              
             # TODO: include device name somehow, and also the calibration class name
-            raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
+            raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._connection_name))
         else:
             return value
             
@@ -113,7 +122,7 @@ class AO(object):
                 return getattr(self._calibration,unit+"_from_base")(value)
         
             # TODO: include device name somehow, and also the calibration class name
-            raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._name))
+            raise RuntimeError('The value %s (%s) could not be converted to base units because the hardware channel %s, named %s, either does not have a unit conversion class or the unit specified was invalid'%(str(value),unit,self._hardware_name,self._connection_name))
         else:
             return value
             
@@ -255,17 +264,16 @@ class AO(object):
                 property_range_list[index] = self.convert_range_from_base(property_value_list[0],param,unit)
                 
             # figure out how many decimal points we need in the new unit
-            trial1 = 10**(-self._decimals)
-            derived_trial1 = self.convert_value_from_base(trial1,unit)
-            derived_trial2 = self.convert_value_from_base(2*trial1,unit)
-            difference = abs(derived_trial1-derived_trial2)
-            if difference > 1:
-                if difference > 10:
+            smallest_step = 10**(-self._decimals)
+            smallest_step_in_new_unit = self.convert_range_from_base(property_value_list[0]+smallest_step,smallest_step,unit)
+            
+            if smallest_step_in_new_unit > 1:
+                if smallest_step_in_new_unit > 10:
                     num_decimals = 0
                 else:
                     num_decimals = 1
             else:
-                num_decimals = abs(math.ceil(math.log10(difference))-2)
+                num_decimals = abs(math.floor(math.log10(smallest_step_in_new_unit))-2)
         else:
             num_decimals = self._decimals
         
