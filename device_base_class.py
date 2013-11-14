@@ -420,22 +420,22 @@ class DeviceTab(Tab):
                         raise RuntimeError('The worker function check_remote_values has not returned data for the sub-channel %s in channel %s'%(sub_chnl,channel))
                     
                     if sub_chnl == 'gate':
-                        front_values_formatted[subchnl] = str(bool(int(front_value[sub_chnl])))
-                        remote_values_formatted[subchnl] = str(bool(int(remote_value[sub_chnl])))
+                        front_values_formatted[sub_chnl] = str(bool(int(front_value[sub_chnl])))
+                        remote_values_formatted[sub_chnl] = str(bool(int(remote_value[sub_chnl])))
                     else:
-                        decimals = self._AO[channel].__getattribute__(subchnl)._decimals
-                        front_values_formatted[subchnl] = ("%."+str(decimals)+"f")%front_value[sub_chnl]
-                        remote_values_formatted[subchnl] = ("%."+str(decimals)+"f")%remote_value[sub_chnl]
+                        decimals = self._DDS[channel].__getattribute__(sub_chnl)._decimals
+                        front_values_formatted[sub_chnl] = ("%."+str(decimals)+"f")%front_value[sub_chnl]
+                        remote_values_formatted[sub_chnl] = ("%."+str(decimals)+"f")%remote_value[sub_chnl]
                         
-                    if front_values_formatted[subchnl] != remote_values_formatted[subchnl]:
+                    if front_values_formatted[sub_chnl] != remote_values_formatted[sub_chnl]:
                         changed = True
                         
                 if changed:
                     ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
                     ui.channel_label.setText(self._DDS[channel].name)
                     for sub_chnl in front_value:
-                        ui.__getattribute__('front_%s_value').setText(front_values_formatted[subchnl])
-                        ui.__getattribute__('remote_%s_value').setText(remote_values_formatted[subchnl])
+                        ui.__getattribute__('front_%s_value'%sub_chnl).setText(front_values_formatted[sub_chnl])
+                        ui.__getattribute__('remote_%s_value'%sub_chnl).setText(remote_values_formatted[sub_chnl])
                 
             elif channel in self._DO:
                 # This is an easy case!
