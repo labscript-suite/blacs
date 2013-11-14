@@ -31,20 +31,20 @@ class QueueTreeview(QTreeView):
         QTreeView.keyPressEvent(self,event)
         
     def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls:
+        if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
     def dragMoveEvent(self, event):
-        if event.mimeData().hasUrls:
+        if event.mimeData().hasUrls():
             event.setDropAction(Qt.CopyAction)
             event.accept()
         else:
             event.ignore()
 
     def dropEvent(self, event):
-        if event.mimeData().hasUrls:
+        if event.mimeData().hasUrls():
             event.setDropAction(Qt.CopyAction)
             event.accept()
             
