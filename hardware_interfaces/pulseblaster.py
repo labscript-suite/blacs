@@ -128,7 +128,7 @@ class pulseblaster(DeviceTab):
         the run is over"""
         self.statemachine_timeout_remove(self.status_monitor)
         self.start()
-        self.statemachine_timeout_add(1,self.status_monitor,notify_queue)
+        self.statemachine_timeout_add(100,self.status_monitor,notify_queue)
         
 class PulseblasterWorker(Worker):
     def initialise(self):
