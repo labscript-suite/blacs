@@ -61,7 +61,13 @@ class DeviceTab(Tab):
         if self.error_message:
             raise Exception('Device failed to initialise')
         
-        self.program_device()
+        # If we can check remote values, then no need to call program manual as 
+        # the remote device will either be programmed correctly, or will need an 
+        # inconsistency between local and remote values resolved
+        # The check_remote_values state is queued up automatically as part of
+        # the __init__ method
+        if not self._can_check_remote_values:        
+            self.program_device()
         
     @property
     def primary_worker(self):
@@ -436,6 +442,13 @@ class DeviceTab(Tab):
                     for sub_chnl in front_value:
                         ui.__getattribute__('front_%s_value'%sub_chnl).setText(front_values_formatted[sub_chnl])
                         ui.__getattribute__('remote_%s_value'%sub_chnl).setText(remote_values_formatted[sub_chnl])
+                    
+                    # Hide unused sub_channels of this DDS
+                    for sub_chnl in self._DDS[channel].get_unused_subchnl_list():
+                        ui.__getattribute__('front_%s_value'%sub_chnl).setVisible(False)
+                        ui.__getattribute__('front_%s_label'%sub_chnl).setVisible(False)
+                        ui.__getattribute__('remote_%s_value'%sub_chnl).setVisible(False)
+                        ui.__getattribute__('remote_%s_label'%sub_chnl).setVisible(False)
                 
             elif channel in self._DO:
                 # This is an easy case!
@@ -498,6 +511,10 @@ class DeviceTab(Tab):
                 
         if needs_programming:
             self.program_device()
+        else:
+            # Now that the inconsistency is resolved, Let's update the "last programmed values"
+            # to match the remote values
+            self._last_programmed_values = self.get_front_panel_values()
             
         self._changed_widget.hide()
     

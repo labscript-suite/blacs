@@ -550,7 +550,18 @@ class DDS(object):
                 getattr(self,subchnl).remove_widget(widget.get_sub_widget(subchnl))  
         
         self._widget_list.remove(widget)
-     
+    
+    def get_subchnl_list(self):
+        subchnls = []
+        for subchnl in self._sub_channel_list:
+            if hasattr(self,subchnl):
+                subchnls.append(subchnl)
+                
+        return subchnls
+        
+    def get_unused_subchnl_list(self):
+        return list(set(self._sub_channel_list).difference(set(self.get_subchnl_list())))
+    
     @property
     def value(self):
         value = {}
