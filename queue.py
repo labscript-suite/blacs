@@ -249,12 +249,12 @@ class QueueManager(object):
                 selected_row_list[i] += 1
                 row += 1
     
-    @inmain_decorator(False)
+    @inmain_decorator(True)
     def append(self, h5files):
         for file in h5files:
             self._model.appendRow(QStandardItem(file))
     
-    @inmain_decorator(False)
+    @inmain_decorator(True)
     def prepend(self,h5file):
         self._model.insertRow(0,QStandardItem(h5file))
     
@@ -339,7 +339,7 @@ class QueueManager(object):
         else:
             return False
 
-    @inmain_decorator(wait_for_return=False)
+    @inmain_decorator(wait_for_return=True)
     def set_status(self,text):
         # TODO: make this fancier!
         self._ui.queue_status.setText(str(text))

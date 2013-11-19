@@ -151,7 +151,7 @@ class Notification(object):
             modified_times = self.filewatch.get_modified_times()
             
         # Start the file watching!
-        self.filewatcher = FileWatcher(lambda f,m: inmain_later(self._show),file_list,folder_list,modified_times=modified_times)
+        self.filewatcher = FileWatcher(lambda f,m: inmain(self._show),file_list,folder_list,modified_times=modified_times)
     
     def get_save_data(self):
         state = True if self._get_state() == 'hidden' or self._get_state() == 'shown' else False
