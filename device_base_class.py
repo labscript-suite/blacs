@@ -584,7 +584,7 @@ class DeviceTab(Tab):
             raise Exception('Could not abort the buffered sequence. You must restart this device to continue')
             
     @define_state(MODE_BUFFERED,False)
-    def transition_to_manual(self,notify_queue,program=True):
+    def transition_to_manual(self,notify_queue,program=False):
         self.mode = MODE_TRANSITION_TO_MANUAL
         
         success = yield(self.queue_work(self._primary_worker,'transition_to_manual'))
@@ -602,6 +602,8 @@ class DeviceTab(Tab):
                 self._DO[channel].set_value(value,program=False)
             elif channel in self._DDS:
                 self._DDS[channel].set_value(value,program=False)
+        
+        
             
         if success:
             notify_queue.put([self.device_name,'success'])
@@ -612,7 +614,8 @@ class DeviceTab(Tab):
             
         if program:
             self.program_device()
-
+        else:
+            self._last_programmed_values = self.get_front_panel_values()
             
 class DeviceWorker(Worker):
     def init(self):
