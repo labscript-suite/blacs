@@ -89,9 +89,10 @@ class QueueManager(object):
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
         
-        self.manager = threading.Thread(target = self.manage)
-        self.manager.daemon=True
-        self.manager.start()
+        # self.manager = threading.Thread(target = self.manage)
+        self.manager = in_qt_thread(target = self.manage)
+        # self.manager.daemon=True
+        # self.manager.start()
     
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))

@@ -28,13 +28,15 @@ class AnalysisSubmission(object):
         self._ui.server.editingFinished.connect(lambda: self._set_server(self._ui.server.text()))
         
         self._waiting_for_submission = []
-        self.mainloop_thread = threading.Thread(target=self.mainloop)
-        self.mainloop_thread.daemon = True
-        self.mainloop_thread.start()
+        self.mainloop_thread = in_qt_thread(target=self.mainloop)
+        #self.mainloop_thread = threading.Thread(target=self.mainloop)
+        #self.mainloop_thread.daemon = True
+        # self.mainloop_thread.start()
         
-        self.checking_thread = threading.Thread(target=self.check_connectivity_loop)
-        self.checking_thread.daemon = True
-        self.checking_thread.start()
+        self.checking_thread = in_qt_thread(target=self.check_connectivity_loop)
+        #self.checking_thread = threading.Thread(target=self.check_connectivity_loop)
+        #self.checking_thread.daemon = True
+        # self.checking_thread.start()
     
     def restore_save_data(self,data):
         if "server" in data:
