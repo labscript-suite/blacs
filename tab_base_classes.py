@@ -205,9 +205,10 @@ class Tab(object):
         self._timeout.start(1000)
         
         # Launch the mainloop
-        self._mainloop_thread = threading.Thread(target = self.mainloop)
-        self._mainloop_thread.daemon = True
-        self._mainloop_thread.start()
+        self._mainloop_thread = in_qt_thread(target = self.mainloop)
+        # self._mainloop_thread = threading.Thread(target = self.mainloop)
+        # self._mainloop_thread.daemon = True
+        # self._mainloop_thread.start()
         
                 
         # Add the tab to the notebook
