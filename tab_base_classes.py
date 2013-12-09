@@ -427,9 +427,7 @@ class Tab(object):
         self.closing_thread = in_qt_thread(target=self.wait_for_mainloop_to_stop, args=(currentpage,))
         
     def wait_for_mainloop_to_stop(self, currentpage):
-        print 'a'
         self._mainloop_thread.join()
-        print 'b'
         inmain_later(self.finalise_restart, currentpage)
         
     def finalise_restart(self, currentpage):
