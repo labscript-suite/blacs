@@ -127,70 +127,78 @@ class NovatechDDS9mWorker(Worker):
         self.initial_values = initial_values
         # Store the final values to for use during transition_to_static:
         self.final_values = {}
+        static_data = None
+        table_data = None
         with h5py.File(h5file) as hdf5_file:
             group = hdf5_file['/devices/'+device_name]
             # If there are values to set the unbuffered outputs to, set them now:
             if 'STATIC_DATA' in group:
-                data = group['STATIC_DATA'][0]
-                if fresh or data != self.smart_cache['STATIC_DATA']:
-                    self.logger.debug('Static data has changed, reprogramming.')
-                    self.smart_cache['SMART_DATA'] = data
-                    self.connection.write('F2 %f\r\n'%(data['freq2']/10.0**7))
-                    self.connection.readline()
-                    self.connection.write('V2 %u\r\n'%(data['amp2']))
-                    self.connection.readline()
-                    self.connection.write('P2 %u\r\n'%(data['phase2']))
-                    self.connection.readline()
-                    self.connection.write('F3 %f\r\n'%(data['freq3']/10.0**7))
-                    self.connection.readline()
-                    self.connection.write('V3 %u\r\n'%data['amp3'])
-                    self.connection.readline()
-                    self.connection.write('P3 %u\r\n'%data['phase3'])
-                    self.connection.readline()
-                    
-                    # Save these values into final_values so the GUI can
-                    # be updated at the end of the run to reflect them:
-                    self.final_values['channel 2'] = {}
-                    self.final_values['channel 3'] = {}
-                    self.final_values['channel 2']['freq'] = data['freq2']/10.0
-                    self.final_values['channel 3']['freq'] = data['freq3']/10.0
-                    self.final_values['channel 2']['amp'] = data['amp2']
-                    self.final_values['channel 3']['amp'] = data['amp3']
-                    self.final_values['channel 2']['phase'] = data['phase2']*360/16384.0
-                    self.final_values['channel 3']['phase'] = data['phase3']*360/16384.0
-                    
+                static_data = group['STATIC_DATA'][:][0]
             # Now program the buffered outputs:
             if 'TABLE_DATA' in group:
-                data = group['TABLE_DATA'][:]
-                for i, line in enumerate(data):
-                    st = time()
-                    oldtable = self.smart_cache['TABLE_DATA']
-                    for ddsno in range(2):
-                        if fresh or i >= len(oldtable) or (line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]) != (oldtable[i]['freq%d'%ddsno],oldtable[i]['phase%d'%ddsno],oldtable[i]['amp%d'%ddsno]):
-                            self.connection.write('t%d %04x %08x,%04x,%04x,ff\r\n '%(ddsno, i,line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]))
-                            self.connection.readline()
-                    et = time()
-                    tt=et-st
-                    self.logger.debug('Time spent on line %s: %s'%(i,tt))
-                # Store the table for future smart programming comparisons:
-                try:
-                    self.smart_cache['TABLE_DATA'][:len(data)] = data
-                    self.logger.debug('Stored new table as subset of old table')
-                except: # new table is longer than old table
-                    self.smart_cache['TABLE_DATA'] = data
-                    self.logger.debug('New table is longer than old table and has replaced it.')
-                    
-                # Get the final values of table mode so that the GUI can
-                # reflect them after the run:
-                self.final_values['channel 0'] = {}
-                self.final_values['channel 1'] = {}
-                self.final_values['channel 0']['freq'] = data[-1]['freq0']/10.0
-                self.final_values['channel 1']['freq'] = data[-1]['freq1']/10.0
-                self.final_values['channel 0']['amp'] = data[-1]['amp0']
-                self.final_values['channel 1']['amp'] = data[-1]['amp1']
-                self.final_values['channel 0']['phase'] = data[-1]['phase0']*360/16384.0
-                self.final_values['channel 1']['phase'] = data[-1]['phase1']*360/16384.0
+                table_data = group['TABLE_DATA'][:]
+        
+        if static_data is not None:
+            data = static_data
+            if fresh or data != self.smart_cache['STATIC_DATA']:
+                self.logger.debug('Static data has changed, reprogramming.')
+                self.smart_cache['SMART_DATA'] = data
+                self.connection.write('F2 %.7f\r\n'%(data['freq2']/10.0**7))
+                self.connection.readline()
+                self.connection.write('V2 %u\r\n'%(data['amp2']))
+                self.connection.readline()
+                self.connection.write('P2 %u\r\n'%(data['phase2']))
+                self.connection.readline()
+                self.connection.write('F3 %.7f\r\n'%(data['freq3']/10.0**7))
+                self.connection.readline()
+                self.connection.write('V3 %u\r\n'%data['amp3'])
+                self.connection.readline()
+                self.connection.write('P3 %u\r\n'%data['phase3'])
+                self.connection.readline()
                 
+                # Save these values into final_values so the GUI can
+                # be updated at the end of the run to reflect them:
+                self.final_values['channel 2'] = {}
+                self.final_values['channel 3'] = {}
+                self.final_values['channel 2']['freq'] = data['freq2']/10.0
+                self.final_values['channel 3']['freq'] = data['freq3']/10.0
+                self.final_values['channel 2']['amp'] = data['amp2']
+                self.final_values['channel 3']['amp'] = data['amp3']
+                self.final_values['channel 2']['phase'] = data['phase2']*360/16384.0
+                self.final_values['channel 3']['phase'] = data['phase3']*360/16384.0
+                    
+        # Now program the buffered outputs:
+        if table_data is not None:
+            data = table_data
+            for i, line in enumerate(data):
+                st = time()
+                oldtable = self.smart_cache['TABLE_DATA']
+                for ddsno in range(2):
+                    if fresh or i >= len(oldtable) or (line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]) != (oldtable[i]['freq%d'%ddsno],oldtable[i]['phase%d'%ddsno],oldtable[i]['amp%d'%ddsno]):
+                        self.connection.write('t%d %04x %08x,%04x,%04x,ff\r\n '%(ddsno, i,line['freq%d'%ddsno],line['phase%d'%ddsno],line['amp%d'%ddsno]))
+                        self.connection.readline()
+                et = time()
+                tt=et-st
+                self.logger.debug('Time spent on line %s: %s'%(i,tt))
+            # Store the table for future smart programming comparisons:
+            try:
+                self.smart_cache['TABLE_DATA'][:len(data)] = data
+                self.logger.debug('Stored new table as subset of old table')
+            except: # new table is longer than old table
+                self.smart_cache['TABLE_DATA'] = data
+                self.logger.debug('New table is longer than old table and has replaced it.')
+                
+            # Get the final values of table mode so that the GUI can
+            # reflect them after the run:
+            self.final_values['channel 0'] = {}
+            self.final_values['channel 1'] = {}
+            self.final_values['channel 0']['freq'] = data[-1]['freq0']/10.0
+            self.final_values['channel 1']['freq'] = data[-1]['freq1']/10.0
+            self.final_values['channel 0']['amp'] = data[-1]['amp0']
+            self.final_values['channel 1']['amp'] = data[-1]['amp1']
+            self.final_values['channel 0']['phase'] = data[-1]['phase0']*360/16384.0
+            self.final_values['channel 1']['phase'] = data[-1]['phase1']*360/16384.0
+            
             # Transition to table mode:
             self.connection.write('m t\r\n')
             self.connection.readline()
@@ -199,7 +207,7 @@ class NovatechDDS9mWorker(Worker):
             self.connection.readline()
             # We are now waiting for a rising edge to trigger the output
             # of the second table pair (first of the experiment)
-            return self.final_values
+        return self.final_values
     
     def abort_transition_to_buffered(self):
         return self.transition_to_manual(True)
