@@ -13,6 +13,7 @@ from qtutils import *
 
 # Connection Table Code
 from connections import ConnectionTable
+from BLACS.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 
 FILEPATH_COLUMN = 0
 
@@ -408,6 +409,8 @@ class QueueManager(object):
                 time.sleep(1)
                 continue
             
+            devices_in_use = {}
+            
             try:
                 # Transition devices to buffered mode
                 transition_list = {}     
@@ -552,6 +555,14 @@ class QueueManager(object):
                     os.rename('temp.h5', path.replace('.h5','_retry.h5'))
                 # Put it back at the start of the queue:
                 self.prepend(path)
+                
+                # Need to put devices back in manual mode
+                self.current_queue = Queue.Queue()
+                for devicename, tab in devices_in_use.items():
+                    if tab.mode == MODE_BUFFERED or tab.mode == MODE_TRANSITION_TO_BUFFERED:
+                        tab.transition_to_manual(self.current_queue)
+                        
+                self.set_status("Error occured in Queue Manager. Queue Paused. \nPlease make sure all devices are back in manual mode before unpausing the queue")
                 continue
                 
             logger.info('All devices are back in static mode.')  
