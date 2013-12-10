@@ -142,7 +142,7 @@ class NovatechDDS9mWorker(Worker):
             data = static_data
             if fresh or data != self.smart_cache['STATIC_DATA']:
                 self.logger.debug('Static data has changed, reprogramming.')
-                self.smart_cache['SMART_DATA'] = data
+                self.smart_cache['STATIC_DATA'] = data
                 self.connection.write('F2 %.7f\r\n'%(data['freq2']/10.0**7))
                 self.connection.readline()
                 self.connection.write('V2 %u\r\n'%(data['amp2']))
