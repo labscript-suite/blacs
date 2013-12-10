@@ -144,7 +144,7 @@ class QuickSynWorker(Worker):
             
 
         #get the gate status
-        results['dds 0']['gate'] = int(line)
+        results['dds 0']['gate'] = 0 if line == 'OFF\n' else 1
 
 
         return results
@@ -239,11 +239,11 @@ class QuickSynWorker(Worker):
             group = hdf5_file['/devices/'+device_name]
             # If there are values to set the unbuffered outputs to, set them now:
             if 'STATIC_DATA' in group:
-                data = group['STATIC_DATA'][0][:]
+                data = group['STATIC_DATA'][:][0]
                 
         self.connection.write('FREQ %i\r'%(data['freq0']))
         time.sleep(0.05)
-        self.connection.write('OUTP:STAT %i'%(data['gate0']))
+        self.connection.write('OUTP:STAT 1')#%i'%(data['gate0']))
         
         
         # Save these values into final_values so the GUI can
@@ -251,7 +251,7 @@ class QuickSynWorker(Worker):
         final_values = {'dds 0':{}}
         
         final_values['dds 0']['freq'] = data['freq0']/1e3
-        final_values['dds 0']['gate'] = data['gate0']
+        final_values['dds 0']['gate'] = 1#data['gate0']
                 
         return final_values
         
