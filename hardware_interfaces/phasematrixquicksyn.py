@@ -475,13 +475,13 @@ class PhaseMatrixQuickSynWorker(Worker):
                 
                 self.connection.write('FREQ %i\r'%(data['freq0']))
                 time.sleep(0.05)
-                self.connection.write('OUTP:STAT %i'%(data['gate0']))
+                self.connection.write('OUTP:STAT 1')
                 
                 
                 # Save these values into final_values so the GUI can
                 # be updated at the end of the run to reflect them:
                 self.final_values['freq'] = data['freq0']/1e3
-                self.final_values['gate'] = data['gate0']
+                self.final_values['gate'] = 1
                 
             return self.final_values
             
