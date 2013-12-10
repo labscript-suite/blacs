@@ -532,7 +532,7 @@ class DeviceTab(Tab):
         if self._final_values is not None:
             for worker in self._secondary_workers:
                 transitioned_called.append(worker)
-                extra_final_values = yield(self.queue_work(worker,'transition_to_buffered',self.device_name,h5_file,front_panel_values,self._force_full_buffered_reprogram))
+                extra_final_values = yield(self.queue_work(worker,'transition_to_buffered',self.device_name,h5_file,front_panel_values,self.force_full_buffered_reprogram))
                 if extra_final_values is not None:
                     self._final_values.update(extra_final_values)
                 else:
@@ -544,6 +544,9 @@ class DeviceTab(Tab):
             notify_queue.put([self.device_name,'fail'])
             self.abort_transition_to_buffered(transitioned_called)
         else:
+            if self._supports_smart_programming:
+                self.force_full_buffered_reprogram = False
+                self._ui.smart_programming.setEnabled(True)
             # Tell the queue manager that we're done:
             self.mode = MODE_BUFFERED
             notify_queue.put([self.device_name,'success'])
