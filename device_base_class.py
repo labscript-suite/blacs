@@ -151,24 +151,24 @@ class DeviceTab(Tab):
     def create_digital_outputs(self,digital_properties):
         for hardware_name,properties in digital_properties.items():
             # Save the DO object
-            self._DO[hardware_name] = self._create_DO_object(self.device_name,hardware_name,properties)
+            self._DO[hardware_name] = self._create_DO_object(self.device_name,hardware_name,hardware_name,properties)
     
-    def _create_DO_object(self,parent_device,hardware_name,properties):
+    def _create_DO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self._connection_table.find_child(parent_device,hardware_name)
+        device = self._connection_table.find_child(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Instantiate the DO object
-        return DO(hardware_name, connection_name, self.device_name, self.program_device, self.settings)
+        return DO(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings)
     
     def create_analog_outputs(self,analog_properties):
         for hardware_name,properties in analog_properties.items():                    
             # Create and save the AO object
-            self._AO[hardware_name] = self._create_AO_object(self.device_name,hardware_name,properties)
+            self._AO[hardware_name] = self._create_AO_object(self.device_name,hardware_name,hardware_name,properties)
 
-    def _create_AO_object(self,parent_device,hardware_name,properties):
+    def _create_AO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self._connection_table.find_child(parent_device,hardware_name)
+        device = self._connection_table.find_child(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Get the calibration details
@@ -180,7 +180,7 @@ class DeviceTab(Tab):
             calib_params = eval(device.unit_conversion_params)
         
         # Instantiate the AO object
-        return AO(hardware_name, connection_name, self.device_name, self.program_device, self.settings, calib_class, calib_params,
+        return AO(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings, calib_class, calib_params,
                 properties['base_unit'], properties['min'], properties['max'], properties['step'], properties['decimals'])
             
     def create_dds_outputs(self,dds_properties):
@@ -193,10 +193,10 @@ class DeviceTab(Tab):
             for subchnl in subchnl_name_list:
                 if subchnl in properties:
                     # Create the AO object
-                    sub_chnls[subchnl] = self._create_AO_object(hardware_name,hardware_name+'_'+subchnl,properties[subchnl])
+                    sub_chnls[subchnl] = self._create_AO_object(connection_name,hardware_name+'_'+subchnl,subchnl,properties[subchnl])
             
             if 'gate' in properties:
-                sub_chnls['gate'] = self._create_DO_object(hardware_name,hardware_name+'_gate',properties)
+                sub_chnls['gate'] = self._create_DO_object(connection_name,hardware_name+'_gate','gate',properties)
             
             self._DDS[hardware_name] = DDS(hardware_name,connection_name,sub_chnls)
         
