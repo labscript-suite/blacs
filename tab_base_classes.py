@@ -205,12 +205,9 @@ class Tab(object):
         self._timeout.start(1000)
         
         # Launch the mainloop
-        self.closing_thread = None
-        self._mainloop_thread = in_qt_thread(target = self.mainloop)
-        # self._mainloop_thread = threading.Thread(target = self.mainloop)
-        # self._mainloop_thread.daemon = True
-        # self._mainloop_thread.start()
-        
+        self._mainloop_thread = threading.Thread(target = self.mainloop)
+        self._mainloop_thread.daemon = True
+        self._mainloop_thread.start()
                 
         # Add the tab to the notebook
         self.notebook.addTab(self._ui,self.device_name)
@@ -424,16 +421,13 @@ class Tab(object):
         currentpage = self.close_tab()
         self.logger.info('***RESTART***')
         self.settings['saved_data'] = self.get_save_data()
-        self.closing_thread = in_qt_thread(target=self.wait_for_mainloop_to_stop, args=(currentpage,))
+        inthread(self.wait_for_mainloop_to_stop, currentpage)
         
     def wait_for_mainloop_to_stop(self, currentpage):
         self._mainloop_thread.join()
-        inmain_later(self.finalise_restart, currentpage)
+        inmain(self.finalise_restart, currentpage)
         
     def finalise_restart(self, currentpage):
-        self.closing_thread.wait()
-        self.closing_thread.deleteLater()
-        self.closing_thread = None
         # Clean up UI
         ui = self._ui
         self._ui = None
