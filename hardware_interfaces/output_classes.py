@@ -52,18 +52,20 @@ class AO(object):
             else:
                 try:
                     # initialise calibration class
-                    self._calibration = globals()[calib_class](calib_params)                     
+                    self._calibration = globals()[calib_class](calib_params)  
+                    self._logger.debug('unit conversion class instantiated')                    
                     for unit in self._calibration.derived_units:
                         try:
                             self._comboboxmodel.appendRow(QStandardItem(unit))
                         except Exception:
                              self._logger.exception('Error while trying to add unit "%s"'%unit)                    
                 except Exception:
-                    self._logger.exception('Error while trying to instantiate calibration class')
+                    self._logger.exception('Error while trying to instantiate unit conversion class')
                     self._calibration = None
         else:
             # use default units
             self._calibration = None
+            self._logger.debug('No unit conversion class specified')
         
         self._update_from_settings(settings,program=False)
     
@@ -265,7 +267,7 @@ class AO(object):
                 
             # figure out how many decimal points we need in the new unit
             smallest_step = 10**(-self._decimals)
-            smallest_step_in_new_unit = self.convert_range_from_base(property_value_list[0]+smallest_step,smallest_step,unit)
+            smallest_step_in_new_unit = self.convert_range_from_base(self._current_value+smallest_step,smallest_step,unit)
             
             if smallest_step_in_new_unit > 1:
                 if smallest_step_in_new_unit > 10:
