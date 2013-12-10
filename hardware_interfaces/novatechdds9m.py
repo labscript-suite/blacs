@@ -8,7 +8,7 @@ from BLACS.device_base_class import DeviceTab
 class novatechdds9m(DeviceTab):
     def initialise_GUI(self):        
         # Capabilities
-        self.base_units =    {'freq':'Hz',          'amp':'Arb.', 'phase':'Degrees'}
+        self.base_units =    {'freq':'Hz',          'amp':'Arb',  'phase':'Degrees'}
         self.base_min =      {'freq':0.0,           'amp':0,      'phase':0}
         self.base_max =      {'freq':170.0*10.0**6, 'amp':1023,   'phase':360}
         self.base_step =     {'freq':10**6,         'amp':1,      'phase':1}
