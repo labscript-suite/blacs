@@ -135,16 +135,16 @@ class RFBlasterWorker(Worker):
                 data = group['BINARY_CODE/DDS%d'%i].value
                 form.add_file_content("pulse_ch%d"%i,"output_ch%d.bin"%i,data)
                 
-            form.add_field("upload_and_run","Upload and start")
-            req = urllib2.Request(self.address)
+        form.add_field("upload_and_run","Upload and start")
+        req = urllib2.Request(self.address)
 
-            body = str(form)
-            req.add_header('Content-type', form.get_content_type())
-            req.add_header('Content-length', len(body))
-            req.add_data(body)
-            post_buffered_web_vals = self.get_web_values(str(urllib2.urlopen(req,timeout = self.timeout).readlines()))
+        body = str(form)
+        req.add_header('Content-type', form.get_content_type())
+        req.add_header('Content-length', len(body))
+        req.add_data(body)
+        post_buffered_web_vals = self.get_web_values(str(urllib2.urlopen(req,timeout = self.timeout).readlines()))
 
-            return self.final_values
+        return self.final_values
                  
     def abort_transition_to_buffered(self):
         # TODO: untested (this is probably wrong...)
