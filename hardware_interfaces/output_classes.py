@@ -27,8 +27,9 @@ class AO(object):
         self._program_device = program_function
         
         # All of these are in base units ALWAYS
-        self._current_value = 0
-        self._current_step_size = step
+        self._current_value = 0 # value in base units
+        self._current_step_size = step # step size in current units
+        self._step_size = step # step size in base units
         self._limits = [min,max]
         self._decimals = decimals
                 
@@ -83,7 +84,7 @@ class AO(object):
         if 'locked' not in settings['front_panel_settings'][self._hardware_name]:
             settings['front_panel_settings'][self._hardware_name]['locked'] = False
         if 'base_step_size' not in settings['front_panel_settings'][self._hardware_name]:
-            settings['front_panel_settings'][self._hardware_name]['base_step_size'] = self._current_step_size
+            settings['front_panel_settings'][self._hardware_name]['base_step_size'] = self._step_size
         if 'current_units' not in settings['front_panel_settings'][self._hardware_name]:
             settings['front_panel_settings'][self._hardware_name]['current_units'] = self._base_unit
         if 'name' not in settings['front_panel_settings'][self._hardware_name]:
@@ -136,6 +137,8 @@ class AO(object):
     # used on the offending side of value
     # If range is greater than the difference of the limits, we will return the difference between the limits
     def convert_range_to_base(self,value,range,unit):
+        self._logger.debug('convert_range_to_base called. value: %f, range: %f, unit: %s'%(value,range,unit))
+        
         # Do we need to convert the limits?
         if unit != self._base_unit:
             limits = [self.convert_value_from_base(self._limits[0],unit),self.convert_value_from_base(self._limits[1],unit)]
@@ -144,31 +147,40 @@ class AO(object):
         else:
             limits = self._limits
         
+        self._logger.debug('limits in unit: %s), limits=[%f,%f]'%(unit,limits[0],limits[1]))
+        
         # limits are now in the units given to the function!
         # (As are range and value)
             
         # If range is bigger than the difference of the limits, return the difference of the limits
         # in base units
         if range >= abs(limits[0]-limits[1]):
-            limits = [self.convert_value_to_base(limits[0],unit),self.convert_value_to_base(limits[1],unit)]
+            limits = [self.convert_value_to_base(limits[0],unit),self.convert_value_to_base(limits[1],unit)]            
+            self._logger.debug('range bigger than range of limits, returning difference of limits') 
             return abs(limits[0]-limits[1])
           
         # At this point, the range must fit inside the limits, so if we find we are out of bounds on one side, 
         # we can be certain shifting the fractions will not cause us to go out of bounds on the other side
         positive_fraction = range/2.0
         negative_fraction = range/2.0
-        # If the value+range/2 is greater than the upper limit, shift the fraction 
-        if value+positive_fraction > self._limits[1]:
-            positive_fraction = abs(self._limits[1]-value)
-            negative_fraction = abs(range-positive_fraction)
-        # Similarly if value-range/2 is less than the lower limit, shift the fraction
-        elif value-negative_fraction < self._limits[0]:    
-            negative_fraction = abs(self._limits[0]-value)        
-            positive_fraction = abs(range-negative_fraction)
+        self._logger.debug('fractions are.... positive_fraction: %f, negative_fraction: %f'%(positive_fraction, negative_fraction))
         
+        # If the value+range/2 is greater than the upper limit, shift the fraction 
+        if value+positive_fraction > limits[1]:           
+            positive_fraction = abs(limits[1]-value)
+            negative_fraction = abs(range-positive_fraction) 
+            self._logger.debug('outside upper limit. positive_fraction: %f, negative_fraction: %f'%(positive_fraction, negative_fraction))
+        # Similarly if value-range/2 is less than the lower limit, shift the fraction
+        elif value-negative_fraction < limits[0]:    
+            negative_fraction = abs(limits[0]-value)        
+            positive_fraction = abs(range-negative_fraction)
+            self._logger.debug('outside lower limit. positive_fraction: %f, negative_fraction: %f'%(positive_fraction, negative_fraction))
+        
+        self._logger.debug('converting values to base units')            
         # Now do the conversion!
         bound1 = self.convert_value_to_base(value+positive_fraction,unit)
         bound2 = self.convert_value_to_base(value-negative_fraction,unit)
+        self._logger.debug('range in base units is: %f'%(abs(bound1-bound2)))
         
         return abs(bound1-bound2)
     
@@ -191,12 +203,12 @@ class AO(object):
         positive_fraction = range/2.0
         negative_fraction = range/2.0
         # If the value+range/2 is greater than the upper limit, shift the fraction 
-        if value+positive_fraction > self._limits[1]:
-            positive_fraction = abs(self._limits[1]-value)
+        if value+positive_fraction > limits[1]:
+            positive_fraction = abs(limits[1]-value)
             negative_fraction = abs(range-positive_fraction)
         # Similarly if value-range/2 is less than the lower limit, shift the fraction
-        elif value-negative_fraction < self._limits[0]:    
-            negative_fraction = abs(self._limits[0]-value)        
+        elif value-negative_fraction < limits[0]:    
+            negative_fraction = abs(limits[0]-value)        
             positive_fraction = abs(range-negative_fraction)
         
         # Now do the conversion!
@@ -254,7 +266,11 @@ class AO(object):
     def change_unit(self,unit,program=True):     
         # These values are always stored in base units!
         property_value_list = [self._current_value,self._limits[0],self._limits[1]]
-        property_range_list = [self._current_step_size]
+        property_range_list = [self._step_size]
+        
+        self._logger.debug('changing unit to %s'%unit)
+        self._logger.debug('Values in base units are: value: %f, lower_limit: %f, upper_limit: %f'%(property_value_list[0],property_value_list[1],property_value_list[2]))
+        self._logger.debug('ranges in base units are: step_size: %f'%(property_range_list[0]))
         
         # Now convert to the new unit
         if unit != self._base_unit:
@@ -263,11 +279,16 @@ class AO(object):
                 property_value_list[index] = self.convert_value_from_base(param,unit)
             for index,param in enumerate(property_range_list):
                 #convert each to base units
-                property_range_list[index] = self.convert_range_from_base(property_value_list[0],param,unit)
-                
+                property_range_list[index] = self.convert_range_from_base(self._current_value,param,unit)
+            
+            self._logger.debug('Values in new unit are: value: %f, lower_limit: %f, upper_limit: %f'%(property_value_list[0],property_value_list[1],property_value_list[2]))
+            self._logger.debug('ranges in new unit are: step_size: %f'%(property_range_list[0]))        
+            
             # figure out how many decimal points we need in the new unit
             smallest_step = 10**(-self._decimals)
+            self._logger.debug('Smallest step size in base units: %f'%smallest_step)
             smallest_step_in_new_unit = self.convert_range_from_base(self._current_value+smallest_step,smallest_step,unit)
+            self._logger.debug('Smallest step size in new_unit: %f'%smallest_step_in_new_unit)
             
             if smallest_step_in_new_unit > 1:
                 if smallest_step_in_new_unit > 10:
@@ -338,6 +359,7 @@ class AO(object):
             widget.unblock_spinbox_signals()
     
     def set_step_size(self,step_size,unit):
+        self._logger.debug('set_step_size called. step_size: %f, unit: %s'%(step_size,unit))
         if unit != self._base_unit:
             # convert and store!
             value = self.convert_value_from_base(self._current_value,unit)
@@ -349,15 +371,18 @@ class AO(object):
                 step_size = abs(self._limits[0]-self._limits[1])
             self._step_size = step_size
         
-        self._current_step_size = self._step_size
+        self._logger.debug('step_size in base units: %f'%self._step_size)
+        
+        #self._current_step_size = self._step_size
         self._settings['base_step_size'] = self._step_size
         
         # now convert to current units
-        converted_step_size = self.get_step_size(self._current_units)
+        self._current_step_size = self.get_step_size(self._current_units)        
+        self._logger.debug('step_size in current units (%s): %f'%(self._current_units,self._current_step_size))
     
         # Update the step size for all widgets
         for widget in self._widgets:
-            widget.set_step_size(converted_step_size)
+            widget.set_step_size(self._current_step_size)
     
     def get_step_size(self,unit):
         if unit != self._base_unit:
