@@ -8,11 +8,11 @@ from BLACS.device_base_class import DeviceTab
 class novatechdds9m(DeviceTab):
     def initialise_GUI(self):        
         # Capabilities
-        self.base_units =    {'freq':'Hz',          'amp':'Arb',  'phase':'Degrees'}
-        self.base_min =      {'freq':0.0,           'amp':0,      'phase':0}
-        self.base_max =      {'freq':170.0*10.0**6, 'amp':1023,   'phase':360}
-        self.base_step =     {'freq':10**6,         'amp':1,      'phase':1}
-        self.base_decimals = {'freq':1,             'amp':0,      'phase':3} # TODO: find out what the phase precision is!
+        self.base_units =    {'freq':'Hz',          'amp':'Arb',   'phase':'Degrees'}
+        self.base_min =      {'freq':0.0,           'amp':0,       'phase':0}
+        self.base_max =      {'freq':170.0*10.0**6, 'amp':1,       'phase':360}
+        self.base_step =     {'freq':10**6,         'amp':1/1023., 'phase':1}
+        self.base_decimals = {'freq':1,             'amp':4,       'phase':3} # TODO: find out what the phase precision is!
         self.num_DDS = 4
         
         # Create DDS Output objects
@@ -84,9 +84,9 @@ class NovatechDDS9mWorker(Worker):
             results['channel %d'%i] = {}
             freq, phase, amp, ignore, ignore, ignore, ignore = line.split()
             # Convert hex multiple of 0.1 Hz to MHz:
-            results['channel %d'%i]['freq'] = float(int(freq,16))/10
+            results['channel %d'%i]['freq'] = float(int(freq,16))/10.0
             # Convert hex to int:
-            results['channel %d'%i]['amp'] = int(amp,16)
+            results['channel %d'%i]['amp'] = int(amp,16)/1023.0
             # Convert hex fraction of 16384 to degrees:
             results['channel %d'%i]['phase'] = int(phase,16)*360/16384.0
         return results
@@ -108,7 +108,7 @@ class NovatechDDS9mWorker(Worker):
             if self.connection.readline() != "OK\r\n":
                 raise Exception('Error: Failed to execute command: %s'%command)
         elif type == 'amp':
-            command = 'V%d %u\r\n'%(channel,value)
+            command = 'V%d %u\r\n'%(channel,int(value*1023+0.5))
             self.connection.write(command)
             if self.connection.readline() != "OK\r\n":
                 raise Exception('Error: Failed to execute command: %s'%command)
@@ -162,8 +162,8 @@ class NovatechDDS9mWorker(Worker):
                 self.final_values['channel 3'] = {}
                 self.final_values['channel 2']['freq'] = data['freq2']/10.0
                 self.final_values['channel 3']['freq'] = data['freq3']/10.0
-                self.final_values['channel 2']['amp'] = data['amp2']
-                self.final_values['channel 3']['amp'] = data['amp3']
+                self.final_values['channel 2']['amp'] = data['amp2']/1023.0
+                self.final_values['channel 3']['amp'] = data['amp3']/1023.0
                 self.final_values['channel 2']['phase'] = data['phase2']*360/16384.0
                 self.final_values['channel 3']['phase'] = data['phase3']*360/16384.0
                     
@@ -194,8 +194,8 @@ class NovatechDDS9mWorker(Worker):
             self.final_values['channel 1'] = {}
             self.final_values['channel 0']['freq'] = data[-1]['freq0']/10.0
             self.final_values['channel 1']['freq'] = data[-1]['freq1']/10.0
-            self.final_values['channel 0']['amp'] = data[-1]['amp0']
-            self.final_values['channel 1']['amp'] = data[-1]['amp1']
+            self.final_values['channel 0']['amp'] = data[-1]['amp0']/1023.0
+            self.final_values['channel 1']['amp'] = data[-1]['amp1']/1023.0
             self.final_values['channel 0']['phase'] = data[-1]['phase0']*360/16384.0
             self.final_values['channel 1']['phase'] = data[-1]['phase1']*360/16384.0
             
