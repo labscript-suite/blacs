@@ -256,9 +256,25 @@ class Tab(object):
         self._ui.error_message.setHtml(prefix+self._not_responding_error_message+self._error+suffix)
         if self._error or self._not_responding_error_message:
             self._ui.notresponding.show()
+            self.update_tab_text_colour('red')
         else:
             self._ui.notresponding.hide()
-            
+            self.update_tab_text_colour('black')
+    
+    @inmain_decorator(True)
+    def update_tab_text_colour(self,colour):
+        try:
+            self.notebook = self._ui.parentWidget().parentWidget()
+            currentpage = None
+            if self.notebook:
+                #currentpage = self.notebook.get_current_page()
+                currentpage = self.notebook.indexOf(self._ui)
+                self.notebook.tabBar().setTabTextColor(currentpage,QColor(colour))
+            else:
+                raise Exception('')
+        except Exception:
+            QTimer.singleShot(100,lambda:self.update_tab_text_colour(colour))
+    
     def get_tab_layout(self):
         return self._layout
     
