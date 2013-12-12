@@ -323,12 +323,19 @@ class PulseblasterWorker(Worker):
             return False
      
     def abort_buffered(self):
-        #TODO: Implement this
-        pass
+        # Stop the execution
+        self.pb_stop()
+        # Reset to the beginning of the pulse sequence
+        self.pb_reset()
+                
+        # abort_buffered in the GUI process queues up a program_device state
+        # which will reprogram the device and call pb_start()
+        # This ensures the device isn't accidentally retriggered by another device
+        # while it is running it's abort function
+        return True
         
     def abort_transition_to_buffered(self):
-        #TODO: implement this
-        pass
+        return True
         
     def shutdown(self):
         #TODO: implement this
