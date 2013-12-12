@@ -163,6 +163,12 @@ class Tab(object):
         self.logger = logging.getLogger('BLACS.%s'%(self.device_name))   
         self.logger.debug('Started')          
         
+        # Setup the timer for updating that tab text label when the tab is not 
+        # actively part of a notebook
+        self._tab_text_timer = QTimer()
+        self._tab_text_timer.timeout.connect(self.update_tab_text_colour)
+        self._tab_text_colour = 'black'
+        
         # Create instance variables
         self._not_responding_error_message = ''
         self._error = ''
@@ -205,7 +211,7 @@ class Tab(object):
         self._timeout = QTimer()
         self._timeout.timeout.connect(self.check_time)
         self._timeout.start(1000)
-        
+                
         # Launch the mainloop
         self._mainloop_thread = threading.Thread(target = self.mainloop)
         self._mainloop_thread.daemon = True
@@ -256,24 +262,33 @@ class Tab(object):
         self._ui.error_message.setHtml(prefix+self._not_responding_error_message+self._error+suffix)
         if self._error or self._not_responding_error_message:
             self._ui.notresponding.show()
-            self.update_tab_text_colour('red')
+            self._tab_text_colour = 'red'
+            self.update_tab_text_colour()
         else:
             self._ui.notresponding.hide()
-            self.update_tab_text_colour('black')
+            self._tab_text_colour = 'black'
+            self.update_tab_text_colour()
     
     @inmain_decorator(True)
-    def update_tab_text_colour(self,colour):
+    def update_tab_text_colour(self):
         try:
             self.notebook = self._ui.parentWidget().parentWidget()
             currentpage = None
             if self.notebook:
                 #currentpage = self.notebook.get_current_page()
                 currentpage = self.notebook.indexOf(self._ui)
-                self.notebook.tabBar().setTabTextColor(currentpage,QColor(colour))
+                if currentpage == -1:
+                    raise Exception('')
+                else:
+                    print 'tab text colour updated'
+                    self.notebook.tabBar().setTabTextColor(currentpage,QColor(self._tab_text_colour))
+                    self._tab_text_timer.stop()
             else:
                 raise Exception('')
         except Exception:
-            QTimer.singleShot(100,lambda:self.update_tab_text_colour(colour))
+            print 'waiting for tab to become available, updating to: %s'%self._tab_text_colour
+            if not self._tab_text_timer.isActive():
+                self._tab_text_timer.start(100)
     
     def get_tab_layout(self):
         return self._layout
@@ -415,6 +430,7 @@ class Tab(object):
     def close_tab(self,*args):
         self.logger.info('close_tab called')
         self._timeout.stop()
+        self._tab_text_timer.stop()
         for name,worker_data in self.workers.items():            
             worker_data[0].terminate()
             # The mainloop is blocking waiting for something out of the
