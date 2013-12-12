@@ -641,8 +641,11 @@ class Worker(Process):
         # Total fudge, should be replaced with zmq logging in future:
         from setup_logging import setup_logging
         setup_logging()
-        self.logger = logging.getLogger('BLACS.%s_%s.worker'%(self.device_name,self.worker_name))
+        log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
+        self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
+        import zlock, h5_lock
+        zlock.set_client_process_name(log_name)
         self.init()
         self.mainloop()
 
