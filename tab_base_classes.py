@@ -280,13 +280,11 @@ class Tab(object):
                 if currentpage == -1:
                     raise Exception('')
                 else:
-                    print 'tab text colour updated'
                     self.notebook.tabBar().setTabTextColor(currentpage,QColor(self._tab_text_colour))
                     self._tab_text_timer.stop()
             else:
                 raise Exception('')
         except Exception:
-            print 'waiting for tab to become available, updating to: %s'%self._tab_text_colour
             if not self._tab_text_timer.isActive():
                 self._tab_text_timer.start(100)
     
