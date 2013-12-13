@@ -182,6 +182,7 @@ class Tab(object):
         self.event_queue = StateQueue(self.device_name)
         self.workers = {}
         self._supports_smart_programming = False
+        self._restart_receiver = []
         
         # Load the UI
         self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
@@ -449,8 +450,23 @@ class Tab(object):
             currentpage = self.notebook.indexOf(self._ui)
             self.notebook.removeTab(currentpage)       
         return currentpage
-        
+    
+    def connect_restart_receiver(self,function):
+        if function not in self._restart_receiver:
+            self._restart_receiver.append(function)
+            
+    def disconnect_restart_receiver(self,function):
+        if function in self._restart_receiver:
+            self._restart_receiver.remove(function)
+    
     def restart(self,*args):
+        # notify all connected receivers:
+        for f in self._restart_receiver:
+            try:
+                f(self.device_name)
+            except:
+                self.logger.exception('Could not notify a connected receiver function')
+                
         currentpage = self.close_tab()
         self.logger.info('***RESTART***')
         self.settings['saved_data'] = self.get_save_data()

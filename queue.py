@@ -257,7 +257,8 @@ class QueueManager(object):
     
     @inmain_decorator(True)
     def prepend(self,h5file):
-        self._model.insertRow(0,QStandardItem(h5file))
+        if not self.is_in_queue(h5file):
+            self._model.insertRow(0,QStandardItem(h5file))
     
     def process_request(self,h5_filepath):
         # check connection table
@@ -311,8 +312,6 @@ class QueueManager(object):
             return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
         return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
         
-
-    
     def clean_h5_file(self,h5file,new_h5_file):
         try:
             with h5py.File(h5file,'r') as old_file:
@@ -354,10 +353,11 @@ class QueueManager(object):
         return str(self._model.takeRow(0)[0].text())
     
     @inmain_decorator(wait_for_return=True)    
-    def transition_device_to_buffered(self, name, transition_list, h5file):
+    def transition_device_to_buffered(self, name, transition_list, h5file, restart_receiver):
         tab = self.BLACS.tablist[name]
         if self.get_device_error_state(name,self.BLACS.tablist):
             return False
+        tab.connect_restart_receiver(restart_receiver)
         tab.transition_to_buffered(h5file,self.current_queue)
         transition_list[name] = tab
         return True
@@ -393,7 +393,7 @@ class QueueManager(object):
             if self.manager_paused:
                 if self.get_status() == "Idle":
                     logger.info('Paused')
-                self.set_status("Queue Paused") 
+                    self.set_status("Queue Paused") 
                 time.sleep(1)
                 continue
             
@@ -417,9 +417,17 @@ class QueueManager(object):
             # Function to be run when abort button is clicked
             def abort_function():
                 try:
+                    # Set device name to "Queue Manager" which will never be a labscript device name
+                    # as it is not a valid python variable name (has a space in it!)
                     self.current_queue.put(['Queue Manager', 'abort'])
                 except Exception:
                     logger.exception('Could not send abort message to the queue manager')
+        
+            def restart_function(device_name):
+                try:
+                    self.current_queue.put([device_name, 'restart'])
+                except Exception:
+                    logger.exception('Could not send restart message to the queue manager for device %s'%device_name)
         
             ##########################################################################################################################################
             #                                                       transition to buffered                                                           #
@@ -431,20 +439,21 @@ class QueueManager(object):
                 timed_out = False
                 error_condition = False
                 abort = False
+                restarted = False
                 self.set_status(now_running_text+"<br>Transitioning to Buffered")
                 
                 # Enable abort button, and link in current_queue:
                 inmain(self._ui.queue_abort_button.clicked.connect,abort_function)
                 inmain(self._ui.queue_abort_button.setEnabled,True)
                                 
-                # TODO: Connect restart signal from tabs to current_queue
                 
                 with h5py.File(path,'r') as hdf5_file:
                     h5_file_devices = hdf5_file['devices/'].keys()
                 
                 for name in h5_file_devices: 
                     try:
-                        success = self.transition_device_to_buffered(name,transition_list,path)
+                        # Connect restart signal from tabs to current_queue and transition the device to buffered mode
+                        success = self.transition_device_to_buffered(name,transition_list,path,restart_function)
                         if not success:
                             logger.error('%s has an error condition, aborting run' % name)
                             error_condition = True
@@ -472,6 +481,10 @@ class QueueManager(object):
                         if result == 'fail':
                             logger.info('abort signal received during transition to buffered of ' % device_name)
                             error_condition = True
+                            break
+                        elif result == 'restart':
+                            logger.info('Device %s was restarted, aborting shot.'%device_name)
+                            restarted = True
                             break
                             
                         logger.debug('%s finished transitioning to buffered mode' % device_name)
@@ -501,7 +514,7 @@ class QueueManager(object):
                             break
 
                 # Handle if we broke out of loop due to timeout or error:
-                if timed_out or error_condition or abort:
+                if timed_out or error_condition or abort or restarted:
                     # Pause the queue, re add the path to the top of the queue, and set a status message!
                     # only if we aren't responding to an abort click
                     if not abort:
@@ -511,6 +524,8 @@ class QueueManager(object):
                         self.set_status("Device programming timed out. Queue Paused...")
                     elif abort:
                         self.set_status("Shot aborted")
+                    elif restarted:
+                        self.set_status('A device was restarted during transition_to_buffered. Shot aborted')
                     else:
                         self.set_status("One or more devices is in an error state. Queue Paused...")
                         
@@ -525,7 +540,8 @@ class QueueManager(object):
                         tab.abort_buffered(self.current_queue)
                         # We don't need to check the results of this function call because it will either be successful, or raise a visible error in the tab.
                         
-                        # TODO: disconnect restart signal from tabs
+                        # disconnect restart signal from tabs
+                        inmain(tab.disconnect_restart_receiver,restart_function)
                         
                     # disconnect abort button and disable
                     inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
@@ -551,39 +567,53 @@ class QueueManager(object):
                 #TODO: fix potential race condition if BLACS is closing when this line executes?
                 self.BLACS.tablist[self.master_pseudoclock].start_run(experiment_finished_queue)
                 
-                # TODO: what if the start_run function of the master pseudoclock throws an exception?
-                # What if another device crashes mid-run?
-                # We need to catch these cases!
-                
-                # TODO: Poll devices for error states
-                # TODO: Poll self.current_queue for abort signal from button or device restart
-                
+                                                
                 # Wait for notification of the end of run:
                 abort = False
+                restarted = False
                 while result != 'done':
                     try:
                         result = experiment_finished_queue.get(timeout=0.5)
                     except Queue.Empty:
                         pass
                     try:
+                        # Poll self.current_queue for abort signal from button or device restart
                         device_name, result = self.current_queue.get(timeout=0.5)                        
-                        if device_name == 'Queue Manager' and result == 'abort':
+                        if (device_name == 'Queue Manager' and result == 'abort'):
                             abort = True
+                            break
+                        elif result == 'restart':
+                            restarted = True
+                            break
+                        # Check for error states in tabs
+                        for device_name, tab in devices_in_use.items():
+                            if self.get_device_error_state(device_name,devices_in_use):
+                                restarted = True
+                                break
+                        if restarted:
                             break
                     except Queue.Empty:
                         pass
-                
-                if abort:
+                        
+                if abort or restarted:
                     for devicename, tab in devices_in_use.items():
                         if tab.mode == MODE_BUFFERED:
                             tab.abort_buffered(self.current_queue)
-                            # TODO: disconnect restart signal from tabs 
+                        # disconnect restart signal from tabs 
+                        inmain(tab.disconnect_restart_receiver,restart_function)
                                             
                 # Disable abort button
                 inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
                 inmain(self._ui.queue_abort_button.setEnabled,False)
                 
-                if abort:
+                if restarted:                    
+                    self.manager_paused = True
+                    self.prepend(path)  
+                    self.set_status("Device restarted mid-shot. Shot aborted, Queue paused.")
+                else:
+                    self.set_status("Shot aborted")
+                    
+                if abort or restarted:
                     # after disabling the abort button, we now start a new iteration
                     continue                
                 
@@ -610,11 +640,11 @@ class QueueManager(object):
                 for devicename, tab in devices_in_use.items():
                     if tab.mode == MODE_BUFFERED or tab.mode == MODE_TRANSITION_TO_BUFFERED:
                         tab.abort_buffered(self.current_queue)
-                    # TODO: disconnect restart signal from tabs 
+                    # disconnect restart signal from tabs 
+                    inmain(tab.disconnect_restart_receiver,restart_function)
                 self.set_status("Error occured in Queue Manager. Queue Paused. \nPlease make sure all devices are back in manual mode before unpausing the queue")
                 
-                # TODO: disconnect restart signal from tabs in new except block
-                # TODO: disconnect and disable abort button in new except block
+                # disconnect and disable abort button
                 inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
                 inmain(self._ui.queue_abort_button.setEnabled,False)
                 
@@ -647,19 +677,37 @@ class QueueManager(object):
                 # since writing data to the h5 file can potentially
                 # happen at this stage:
                 error_condition = False
-                for devicename, tab in devices_in_use.items():
-                    tab.transition_to_manual(self.current_queue)
-                    _, result = self.current_queue.get()
-                    # TODO: Check for abort signal from device restart
+                
+                # This is far more complicated than it needs to be once transition_to_manual is unserialised!
+                response_list = {}
+                for device_name, tab in devices_in_use.items():
+                    if device_name not in response_list:
+                        tab.transition_to_manual(self.current_queue)               
+                        while True:
+                            # TODO: make the call to current_queue.get() timeout 
+                            # and periodically check for error condition on the tab
+                            got_device_name, result = self.current_queue.get()
+                            # if the response is not for this device, then save it for later!
+                            if device_name != got_device_name:
+                                response_list[got_device_name] = result
+                            else:
+                                break
+                    else:
+                        result = response_list[device_name]
+                    # Check for abort signal from device restart
                     if result == 'fail':
                         error_condition = True
-                    if self.get_device_error_state(devicename,devices_in_use):
+                    if result == 'restart':
                         error_condition = True
-                    # TODO: Once device has transitioned_to_manual, disconnect restart signal
+                    if self.get_device_error_state(device_name,devices_in_use):
+                        error_condition = True
+                    # Once device has transitioned_to_manual, disconnect restart signal
+                    inmain(tab.disconnect_restart_receiver,restart_function)
                     
                 if error_condition:                
-                    self.set_status("Error during transtion to static. Queue Paused.")
-                    raise Exception('A device failed during transition to static')
+                    self.set_status("Error during transtion to manual. Queue Paused.")
+                    # TODO: Kind of dodgy raising an exception here...
+                    raise Exception('A device failed during transition to manual')
                                        
             except Exception as e:
                 logger.exception("Error in queue manager execution. Queue paused.")
@@ -678,11 +726,13 @@ class QueueManager(object):
                 
                 # Need to put devices back in manual mode. Since the experiment is over before this try/except block begins, we can 
                 # safely call transition_to_manual() on each device tab
+                # TODO: Not serialised...could be bad with older BIAS versions :(
                 self.current_queue = Queue.Queue()
                 for devicename, tab in devices_in_use.items():
                     if tab.mode == MODE_BUFFERED:
                         tab.transition_to_manual(self.current_queue)
-                    # TODO: disconnect restart signal from tabs 
+                    # disconnect restart signal from tabs 
+                    inmain(tab.disconnect_restart_receiver,restart_function)
                 self.set_status("Error occured in Queue Manager. Queue Paused. \nPlease make sure all devices are back in manual mode before unpausing the queue")
                 continue
             
