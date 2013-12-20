@@ -31,7 +31,7 @@ from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
 class DeviceTab(Tab):
     def __init__(self,notebook,settings,restart=False):
         Tab.__init__(self,notebook,settings,restart)
-        self._connection_table = settings['connection_table']
+        self.connection_table = settings['connection_table']
         
         # Create the variables we need
         self._AO = {}
@@ -170,7 +170,7 @@ class DeviceTab(Tab):
     
     def _create_DO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self._connection_table.find_child(parent_device,labscript_hardware_name)
+        device = self.connection_table.find_child(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Instantiate the DO object
@@ -183,7 +183,7 @@ class DeviceTab(Tab):
 
     def _create_AO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self._connection_table.find_child(parent_device,labscript_hardware_name)
+        device = self.connection_table.find_child(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Get the calibration details
@@ -200,7 +200,7 @@ class DeviceTab(Tab):
             
     def create_dds_outputs(self,dds_properties):
         for hardware_name,properties in dds_properties.items():
-            device = self._connection_table.find_child(self.device_name,hardware_name)
+            device = self.connection_table.find_child(self.device_name,hardware_name)
             connection_name = device.name if device else '-'
         
             subchnl_name_list = ['freq','amp','phase']
@@ -532,6 +532,10 @@ class DeviceTab(Tab):
             self._last_programmed_values = self.get_front_panel_values()
             
         self._changed_widget.hide()
+    
+    @define_state(MODE_BUFFERED,True)
+    def start_run(self,notify_queue):
+        raise NotImplementedError('The device %s has not implemented a start method and so cannot be used to trigger the experiment to begin. Please implement the start method or use a different pseudoclock as the master pseudoclock'%self.device_name)
     
     @define_state(MODE_MANUAL,True)
     def transition_to_buffered(self,h5_file,notify_queue): 

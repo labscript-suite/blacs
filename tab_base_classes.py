@@ -370,7 +370,12 @@ class Tab(object):
         worker = WorkerClass()
         to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
+        self._initialise_worker(name)
        
+    @define_state(MODE_MANUAL,True)  
+    def _initialise_worker(self,worker_name):
+        yield(self.queue_work(worker_name,'init'))
+        
     # def btn_release(self,widget,event):
         # if event.button == 3:
             # menu = gtk.Menu()
@@ -686,7 +691,7 @@ class Worker(Process):
         self.logger.debug('Starting')
         import zprocess.locking, labscript_utils.h5_lock
         zprocess.locking.set_client_process_name(log_name)
-        self.init()
+        #self.init()
         self.mainloop()
 
     def mainloop(self):
@@ -904,7 +909,8 @@ class MyWorker(Worker):
         # the former.
         global serial; import serial
         self.logger.info('got x! %d' % self.x)
-    
+        raise Exception('bad import!')
+        
     # Here's a function that will be called when requested by the parent
     # process. There's nothing special about it really. Its return
     # value will be passed as a keyword argument _results to the
@@ -956,8 +962,20 @@ if __name__ == '__main__':
     notebook = DragDropTabWidget()
     layout.addWidget(notebook)
     
-    tab1 = MyTab(notebook,settings = {'device_name': 'Example'})
-    tab2 = MyTab(notebook,settings = {'device_name': 'Example2'})
+    class FakeConnection(object):
+        def __init__(self):
+            self.BLACS_connection = 'None'
+    class FakeConnectionTable(object):
+        def __init__(self):
+            pass
+        
+        def find_by_name(self, device_name):
+            return FakeConnection()
+    
+    connection_table = FakeConnectionTable()
+    
+    tab1 = MyTab(notebook,settings = {'device_name': 'Example', 'connection_table':connection_table})
+    tab2 = MyTab(notebook,settings = {'device_name': 'Example2', 'connection_table':connection_table})
     
     window.show()
     #notebook.show()
