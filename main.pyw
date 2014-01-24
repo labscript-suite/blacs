@@ -506,22 +506,26 @@ class ExperimentServer(ZMQServer):
 
  
 if __name__ == '__main__':
-    ##########
-    # import tracelog
-    # tracelog.log('blacs_trace.log',['__main__','BLACS',
-                                    # 'qtutils',
-                                    # # 'qtutils.widgets.ddsoutput',
-                                    # # 'qtutils.widgets.analogoutput',
-                                    # 'BLACS.hardware_interfaces.ni_pcie_6363',
-                                    # 'BLACS.hardware_interfaces.output_classes',
-                                    # 'BLACS.device_base_class',
-                                    # 'BLACS.tab_base_classes',
-                                    # # 'BLACS.plugins.connection_table',
-                                    # # 'BLACS.recompile_and_restart',
-                                    # 'filewatcher',
-                                    # 'settings'
-                                   # ], sub=True)
-    ##########
+    if 'tracelog' in sys.argv:
+        ##########
+        import tracelog
+        tracelog.log('blacs_trace.log',['__main__','BLACS.tab_base_classes',
+                                        'qtutils',
+                                        'qtutils.widgets.ddsoutput',
+                                        'qtutils.widgets.analogoutput',
+                                        'BLACS.hardware_interfaces.ni_pcie_6363',
+                                        'BLACS.hardware_interfaces.output_classes',
+                                        'BLACS.device_base_class',
+                                        'BLACS.tab_base_classes',
+                                        'BLACS.plugins.connection_table',
+                                        'BLACS.recompile_and_restart',
+                                        'filewatcher',
+                                        'queue',
+                                        'notifications',
+                                        'analysis_submission',
+                                        'settings'
+                                       ], sub=True)
+        ##########
 
 
     config_path = os.path.join(config_prefix,'%s.ini'%socket.gethostname())
