@@ -1,3 +1,16 @@
+#####################################################################
+#                                                                   #
+# /connections.py                                                   #
+#                                                                   #
+# Copyright 2013, Monash University                                 #
+#                                                                   #
+# This file is part of the program BLACS, in the labscript suite    #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
+#                                                                   #
+#####################################################################
+
 import labscript_utils.h5_lock, h5py
 import logging
 import labscript_utils.excepthook
