@@ -37,7 +37,7 @@ MODE_BUFFERED = 8
 class StateQueue(object):
     def __init__(self,device_name):
         self.logger = logging.getLogger('BLACS.%s.state_queue'%(device_name))
-        self.logging_enabled = True
+        self.logging_enabled = False
         if self.logging_enabled:
             self.logger.debug("started")
         
@@ -73,6 +73,8 @@ class StateQueue(object):
         # are described in messages in this queue, so let's not keep those messages around anymore.
         # Put another way, we want to block until a new item is added, if we don't find an item in this function
         # So it's best if the queue is empty now!
+        if self.logging_enabled:
+            self.logger.debug('Re-initialsing self._get_blocking_queue')
         self.get_blocking_queue = Queue()
         
         # traverse the list
@@ -80,9 +82,14 @@ class StateQueue(object):
         success = False
         for i,item in enumerate(self.list_of_states):
             allowed_states,queue_state_indefinitely,delete_stale_states,data = item
+            if self.logging_enabled:
+                self.logger.debug('iterating over states in queue')
             if allowed_states&state:
                 # We have found one! Remove it from the list
                 delete_index_list.append(i)
+                
+                if self.logging_enabled:
+                    self.logger.debug('requested state found in queue')
                 
                 # If we are to delete stale states, see if the next state is the same statefunction.
                 # If it is, use that one, or whichever is the latest entry without encountering a different statefunction,
@@ -91,6 +98,8 @@ class StateQueue(object):
                     state_function = data[0]
                     i+=1
                     while i < len(self.list_of_states) and state_function == self.list_of_states[i][3][0]:
+                        if self.logging_enabled:
+                            self.logger.debug('requesting deletion of stale state')
                         allowed_states,queue_state_indefinitely,delete_stale_states,data = self.list_of_states[i]
                         delete_index_list.append(i)
                         i+=1
@@ -98,10 +107,14 @@ class StateQueue(object):
                 success = True
                 break
             elif not queue_state_indefinitely:
+                if self.logging_enabled:
+                    self.logger.debug('state should not be queued indefinitely')
                 delete_index_list.append(i)
         
         # do this in reverse order so that the first delete operation doesn't mess up the indices of subsequent ones
         for index in reversed(sorted(delete_index_list)):
+            if self.logging_enabled:
+                self.logger.debug('deleting state')
             del self.list_of_states[index]
             
         if not success:
@@ -121,7 +134,7 @@ class StateQueue(object):
         while True:
             if self.logging_enabled:
                 self.logger.debug('requesting next item in queue with mode %d'%state)
-            self.log_current_states()
+                inmain(self.log_current_states)
             status,data = self.check_for_next_item(state)
             if not status:
                 # we didn't find anything useful, so we'll wait until a useful state is added!
