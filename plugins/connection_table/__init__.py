@@ -148,7 +148,7 @@ class Notification(object):
         # stop watching if we already were
         if self.filewatcher:
             self.filewatcher.stop()
-            modified_times = self.filewatch.get_modified_times()
+            modified_times = self.filewatcher.get_modified_times()
             
         # Start the file watching!
         self.filewatcher = FileWatcher(lambda f,m: inmain(self._show),file_list,folder_list,modified_times=modified_times)
