@@ -798,7 +798,7 @@ if __name__ == '__main__':
     notebook = DragDropTabWidget()
     layout.addWidget(notebook)
     connection_table = ConnectionTable(os.path.join(os.path.dirname(os.path.realpath(__file__)),r'../example_connection_table.h5'))
-    tab1 = ni_pci_6733(notebook,settings = {'device_name': 'ni_pci_6733_0', 'connection_table':connection_table})
+    tab1 = ni_pcie_6363(notebook,settings = {'device_name': 'ni_pcie_6363_0', 'connection_table':connection_table})
     window.add_my_tab(tab1)
     window.show()
     def run():
