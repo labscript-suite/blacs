@@ -11,7 +11,7 @@
 #                                                                   #
 #####################################################################
 
-from subproc_utils import Process
+from zprocess import Process
 from Queue import Queue as Queue
 import time
 import sys
@@ -23,7 +23,7 @@ import cgi
 import os
 from types import GeneratorType
 
-import subproc_utils
+import zprocess
 #import labscript_utils.excepthook
 
 from PySide.QtCore import *
@@ -684,8 +684,8 @@ class Worker(Process):
         log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
         self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
-        import zlock, labscript_utils.h5_lock
-        zlock.set_client_process_name(log_name)
+        import zprocess.locking, labscript_utils.h5_lock
+        zprocess.locking.set_client_process_name(log_name)
         self.init()
         self.mainloop()
 

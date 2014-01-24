@@ -267,7 +267,7 @@ class NiPCIe6363AcquisitionWorker(Worker):
         global h5py; import labscript_utils.h5_lock, h5py
         global numpy; import numpy
         global threading; import threading
-        global subproc_utils; import subproc_utils
+        global zprocess; import zprocess
         global logging; import logging
         global time; import time
         
@@ -290,7 +290,7 @@ class NiPCIe6363AcquisitionWorker(Worker):
         
         # And event for knowing when the wait durations are known, so that we may use them
         # to chunk up acquisition data:
-        self.wait_durations_analysed = subproc_utils.Event('wait_durations_analysed')
+        self.wait_durations_analysed = zprocess.Event('wait_durations_analysed')
         
         self.daqmx_read_thread = threading.Thread(target=self.daqmx_read)
         self.daqmx_read_thread.daemon = True
@@ -359,7 +359,7 @@ class NiPCIe6363AcquisitionWorker(Worker):
                     # Todo: replace this with zmq pub plus a broker somewhere so things can subscribe to channels
                     # and get their data without caring what process it came from. For the sake of speed, this
                     # should use the numpy buffer interface and raw zmq messages, and not the existing event system
-                    # that subproc_utils has.
+                    # that zprocess has.
                     # self.result_queue.put([self.t0,self.rate,self.ai_read.value,len(self.channels),self.ai_data])
                     # self.t0 = self.t0 + self.samples_per_channel/self.rate
         except:
@@ -574,7 +574,7 @@ class NiPCIe6363WaitMonitorWorker(Worker):
         global h5py; import labscript_utils.h5_lock, h5py
         global numpy; import numpy        
         global threading; import threading
-        global subproc_utils; import subproc_utils
+        global zprocess; import zprocess
         global logging; import logging
         global time; import time
     
@@ -583,8 +583,8 @@ class NiPCIe6363WaitMonitorWorker(Worker):
         self.h5_file = None
         self.task = None
         self.abort = False
-        self.all_waits_finished = subproc_utils.Event('all_waits_finished',type='post')
-        self.wait_durations_analysed = subproc_utils.Event('wait_durations_analysed',type='post')
+        self.all_waits_finished = zprocess.Event('all_waits_finished',type='post')
+        self.wait_durations_analysed = zprocess.Event('wait_durations_analysed',type='post')
     
     def shutdown(self):
         self.logger.info('Shutdown requested, stopping task')

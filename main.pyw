@@ -31,10 +31,10 @@ except:
 
 # Pythonlib imports
 ### Must be in this order
-import zlock, labscript_utils.h5_lock, h5py
-zlock.set_client_process_name('BLACS')
+import zprocess.locking, labscript_utils.h5_lock, h5py
+zprocess.locking.set_client_process_name('BLACS')
 ###
-from subproc_utils import zmq_get, ZMQServer
+from zprocess import zmq_get, ZMQServer
 from setup_logging import setup_logging
 import labscript_utils.shared_drive
 

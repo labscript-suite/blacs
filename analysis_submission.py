@@ -22,7 +22,7 @@ from PySide.QtCore import *
 from PySide.QtUiTools import QUiLoader
 
 from qtutils import *
-from subproc_utils import zmq_get
+from zprocess import zmq_get
 import labscript_utils.shared_drive
 
 class AnalysisSubmission(object):        

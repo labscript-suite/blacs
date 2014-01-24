@@ -22,7 +22,7 @@ from PySide.QtUiTools import QUiLoader
 
 from qtutils import *
 import runmanager
-from subproc_utils.qt_components import OutputBox
+from qtutils.outputbox import OutputBox
 
 class CompileAndRestart(QDialog):
     def __init__(self, blacs, globals_files,connection_table_labscript, output_path, close_notification_func=None):

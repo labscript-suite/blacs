@@ -88,7 +88,7 @@ class CameraWorker(Worker):
 #        self.use_zmq = use_zmq
         global socket; import socket
         global zmq; import zmq
-        global subproc_utils; import subproc_utils
+        global zprocess; import zprocess
         global shared_drive; import labscript_utils.shared_drive as shared_drive
         
     def initialise(self):
@@ -97,7 +97,7 @@ class CameraWorker(Worker):
         if not self.use_zmq:
             return self.initialise_sockets(self.host, self.port)
         else:
-            response = subproc_utils.zmq_get_raw(self.port, self.host, data='hello')
+            response = zprocess.zmq_get_raw(self.port, self.host, data='hello')
             if response == 'hello':
                 return True
             else:
@@ -128,10 +128,10 @@ class CameraWorker(Worker):
         h5file = shared_drive.path_to_agnostic(h5file)
         if not self.use_zmq:
             return self.transition_to_buffered_sockets(h5file,self.host, self.port)
-        response = subproc_utils.zmq_get_raw(self.port, self.host, data=h5file)
+        response = zprocess.zmq_get_raw(self.port, self.host, data=h5file)
         if response != 'ok':
             raise Exception('invalid response from server: ' + str(response))
-        response = subproc_utils.zmq_get_raw(self.port, self.host, timeout = 10)
+        response = zprocess.zmq_get_raw(self.port, self.host, timeout = 10)
         if response != 'done':
             raise Exception('invalid response from server: ' + str(response))
         return {} # indicates final values of buffered run, we have none
@@ -154,10 +154,10 @@ class CameraWorker(Worker):
     def transition_to_manual(self):
         if not self.use_zmq:
             return self.transition_to_manual_sockets(self.host, self.port)
-        response = subproc_utils.zmq_get_raw(self.port, self.host, 'done')
+        response = zprocess.zmq_get_raw(self.port, self.host, 'done')
         if response != 'ok':
             raise Exception('invalid response from server: ' + str(response))
-        response = subproc_utils.zmq_get_raw(self.port, self.host, timeout = 10)
+        response = zprocess.zmq_get_raw(self.port, self.host, timeout = 10)
         if response != 'done':
             raise Exception('invalid response from server: ' + str(response))
         return True # indicates success
@@ -186,7 +186,7 @@ class CameraWorker(Worker):
     def abort(self):
         if not self.use_zmq:
             return self.abort_sockets(self.host, self.port)
-        response = subproc_utils.zmq_get_raw(self.port, self.host, 'abort')
+        response = zprocess.zmq_get_raw(self.port, self.host, 'abort')
         if response != 'done':
             raise Exception('invalid response from server: ' + str(response))
         return True # indicates success 

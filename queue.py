@@ -18,8 +18,8 @@ import Queue
 import threading
 import time
 
-import zlock, labscript_utils.h5_lock, h5py
-zlock.set_client_process_name('BLACS.queuemanager')
+import zprocess.locking, labscript_utils.h5_lock, h5py
+zprocess.locking.set_client_process_name('BLACS.queuemanager')
 from PySide.QtCore import *
 from PySide.QtGui import *
 from qtutils import *
@@ -686,7 +686,7 @@ class QueueManager(object):
                 # A Queue for event-based notification of when the devices have transitioned to static mode:
                 # Shouldn't need to recreate the queue: self.current_queue = Queue.Queue()    
                     
-                # TODO: unserialise this if everything is using zlock
+                # TODO: unserialise this if everything is using zprocess.locking
                 # only transition one device to static at a time,
                 # since writing data to the h5 file can potentially
                 # happen at this stage:

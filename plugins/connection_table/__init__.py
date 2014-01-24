@@ -108,7 +108,7 @@ class Menu(object):
         logger.info('recompile connection table called')
         # get list of globals
         globals_files = self.BLACS['settings'].get_value(Setting,'globals_list')
-        # Remove unicode encoding so that zlock doesn't crash
+        # Remove unicode encoding so that zprocess.locking doesn't crash
         for i in range(len(globals_files)):
             globals_files[i] = str(globals_files[i])
         CompileAndRestart(self.BLACS, globals_files, self.BLACS['exp_config'].get('paths','connection_table_py'), self.BLACS['exp_config'].get('paths','connection_table_h5'),close_notification_func=self.close_notification_func)

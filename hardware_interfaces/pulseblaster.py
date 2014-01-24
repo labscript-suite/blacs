@@ -147,7 +147,7 @@ class PulseblasterWorker(Worker):
     def initialise(self):
         exec 'from spinapi import *' in globals()
         global h5py; import labscript_utils.h5_lock, h5py
-        global subproc_utils; import subproc_utils
+        global zprocess; import zprocess
         
         self.pb_start = pb_start
         self.pb_stop = pb_stop
@@ -162,7 +162,7 @@ class PulseblasterWorker(Worker):
         # An event for checking when all waits (if any) have completed, so that
         # we can tell the difference between a wait and the end of an experiment.
         # The wait monitor device is expected to post such events, which we'll wait on:
-        self.all_waits_finished = subproc_utils.Event('all_waits_finished')
+        self.all_waits_finished = zprocess.Event('all_waits_finished')
         self.waits_pending = False
     
         pb_select_board(self.board_number)
@@ -324,7 +324,7 @@ class PulseblasterWorker(Worker):
             try:
                 self.all_waits_finished.wait(self.h5file, timeout=0)
                 self.waits_pending = False
-            except subproc_utils.TimeoutError:
+            except zprocess.TimeoutError:
                 pass
         return pb_read_status(), self.waits_pending
 
