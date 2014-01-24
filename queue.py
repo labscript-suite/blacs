@@ -331,7 +331,8 @@ class QueueManager(object):
             return False
             
         return True
-        
+    
+    @inmain_decorator(wait_for_return=True)    
     def is_in_queue(self,path):                
         item = self._model.findItems(path,column=FILEPATH_COLUMN)
         if item:
