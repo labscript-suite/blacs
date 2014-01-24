@@ -2,9 +2,9 @@ import os
 import socket
 import logging
 
-import excepthook
+import labscript_utils.excepthook
 import numpy
-import h5_lock, h5py
+import labscript_utils.h5_lock, h5py
 from qtutils import *
 
 from PySide.QtCore import *

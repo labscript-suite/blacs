@@ -4,11 +4,11 @@ import math
 from PySide.QtCore import *
 from PySide.QtGui import *
 
-from qtutils.widgets.analogoutput import AnalogOutput
-from qtutils.widgets.digitaloutput import DigitalOutput
-from qtutils.widgets.ddsoutput import DDSOutput
+from labscript_utils.qtwidgets.analogoutput import AnalogOutput
+from labscript_utils.qtwidgets.digitaloutput import DigitalOutput
+from labscript_utils.qtwidgets.ddsoutput import DDSOutput
 try:
-    from unitconversions import *
+    from labscript_utils.unitconversions import *
 except Exception:
     print 'failed to import unit conversion classes'
     
@@ -608,7 +608,7 @@ class DDS(object):
         return self._hardware_name + ' - ' + self._connection_name
         
 if __name__ == '__main__':
-    from qtutils.widgets.toolpalette import ToolPaletteGroup
+    from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
     import sys
     
     qapplication = QApplication(sys.argv)

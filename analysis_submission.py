@@ -10,7 +10,7 @@ from PySide.QtUiTools import QUiLoader
 
 from qtutils import *
 from subproc_utils import zmq_get
-import shared_drive
+import labscript_utils.shared_drive
 
 class AnalysisSubmission(object):        
     def __init__(self, BLACS, blacs_ui):
@@ -160,7 +160,7 @@ class AnalysisSubmission(object):
             path = self._waiting_for_submission[0]
             try:
                 self._mainloop_logger.info('Submitting run file %s.\n'%os.path.basename(path))
-                data = {'filepath': shared_drive.path_to_agnostic(path)}
+                data = {'filepath': labscript_utils.shared_drive.path_to_agnostic(path)}
                 response = zmq_get(self.port, self.server, data, timeout = 2)
                 if response != 'added successfully':
                     raise Exception

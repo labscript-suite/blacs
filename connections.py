@@ -1,6 +1,6 @@
-import h5_lock, h5py
+import labscript_utils.h5_lock, h5py
 import logging
-import excepthook
+import labscript_utils.excepthook
 import numpy as np
 
 class ConnectionTable(object):    

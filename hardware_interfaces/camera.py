@@ -76,7 +76,7 @@ class CameraWorker(Worker):
         global socket; import socket
         global zmq; import zmq
         global subproc_utils; import subproc_utils
-        global shared_drive; import shared_drive
+        global shared_drive; import labscript_utils.shared_drive as shared_drive
         
     def initialise(self):
         if not self.host:

@@ -1,7 +1,7 @@
 import logging
 import os
 import gc
-from tracelog import memprof
+from labscript_utils import memprof
 
 from PySide.QtCore import *
 from PySide.QtGui import *

@@ -1,7 +1,7 @@
 import gtk
 import sys
 import socket
-from LabConfig import LabConfig
+from labscript_utils.labconfig import LabConfig
 # Connection Table Code
 from connections import ConnectionTable
 

@@ -48,7 +48,7 @@ class novatechdds9m(DeviceTab):
 class NovatechDDS9mWorker(Worker):
     def initialise(self):
         global serial; import serial
-        global h5py; import h5_lock, h5py
+        global h5py; import labscript_utils.h5_lock, h5py
         self.smart_cache = {'STATIC_DATA': None, 'TABLE_DATA': ''}
         
         self.connection = serial.Serial(self.com_port, baudrate = self.baud_rate, timeout=0.1)
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     from PySide.QtCore import *
     from PySide.QtGui import *
     import sys,os
-    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     from BLACS.connections import ConnectionTable
     
     

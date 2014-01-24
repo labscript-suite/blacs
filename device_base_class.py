@@ -3,6 +3,8 @@ import sys
 import os
 import time
 
+import labscript_utils.excepthook
+
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
@@ -10,7 +12,7 @@ from PySide.QtUiTools import QUiLoader
 from tab_base_classes import Tab, Worker, define_state
 from tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 from hardware_interfaces.output_classes import AO, DO, DDS
-from qtutils.widgets.toolpalette import ToolPaletteGroup
+from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
 
 
 class DeviceTab(Tab):
@@ -699,14 +701,14 @@ if __name__ == '__main__':
     else:
         sys.stdout = sys.stderr = open(os.devnull)
     logger.setLevel(logging.DEBUG)
-    #excepthook.set_logger(logger)
+    #labscript_utils.excepthook.set_logger(logger)
     logger.info('\n\n===============starting===============\n')
             
 if __name__ == '__main__':
     # Test case!
     
     from connections import ConnectionTable
-    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     
     class MyTab(DeviceTab):
         

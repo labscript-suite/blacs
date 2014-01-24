@@ -1,28 +1,3 @@
-#import filewatcher.modulebooster
-
-# def profile_imports(threshold = 0.000005):
-    # import time
-    # _old_import = __import__
-    # class depth:
-        # depth = 0
-        
-    # def profiling_import(name, *args,**kwargs):
-        # start_time = time.time()
-        # depth.depth += 1
-        # try:
-            # result = _old_import(name, *args, **kwargs)
-        # finally:
-            # depth.depth -= 1
-        # time_taken = time.time() - start_time
-        # if time_taken > threshold:
-            # print ' '*depth.depth + '[%.2f] import %s'%(time_taken, name)
-
-        # return result
-        
-    # __builtins__.__dict__['__import__'] = profiling_import      
-
-# profile_imports()
-    
 import cgi
 import ctypes
 import logging, logging.handlers
@@ -43,18 +18,18 @@ except:
 
 # Pythonlib imports
 ### Must be in this order
-import zlock, h5_lock, h5py
+import zlock, labscript_utils.h5_lock, h5py
 zlock.set_client_process_name('BLACS')
 ###
 from subproc_utils import zmq_get, ZMQServer
 from setup_logging import setup_logging
-import shared_drive
+import labscript_utils.shared_drive
 
 # Custom Excepthook
-import excepthook
+import labscript_utils.excepthook
 # Setup logging
 logger = setup_logging()
-excepthook.set_logger(logger)
+labscript_utils.excepthook.set_logger(logger)
 
 # Import Qt
 from PySide.QtCore import *
@@ -64,9 +39,9 @@ from PySide.QtUiTools import QUiLoader
 # Connection Table Code
 from connections import ConnectionTable
 #Draggable Tab Widget Code
-from qtutils.widgets.dragdroptab import DragDropTabWidget
+from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
-from LabConfig import LabConfig, config_prefix
+from labscript_utils.labconfig import LabConfig, config_prefix
 # Qt utils for running functions in the main thread
 from qtutils import *
 # Analysis Submission code
@@ -82,7 +57,7 @@ from front_panel_settings import FrontPanelSettings
 # Notifications system
 from notifications import Notifications
 # Preferences system
-from settings import Settings
+from labscript_utils.settings import Settings
 #import settings_pages
 import plugins
 
@@ -500,7 +475,7 @@ class ExperimentServer(ZMQServer):
     def process(self,h5_filepath):
         # Convert path to local slashes and shared drive prefix:
         logger.info('received filepath: %s'%h5_filepath)        
-        h5_filepath = shared_drive.path_to_local(h5_filepath)
+        h5_filepath = labscript_utils.shared_drive.path_to_local(h5_filepath)
         logger.info('local filepath: %s'%h5_filepath)
         return app.queue.process_request(h5_filepath)
 
@@ -508,11 +483,11 @@ class ExperimentServer(ZMQServer):
 if __name__ == '__main__':
     if 'tracelog' in sys.argv:
         ##########
-        import tracelog
-        tracelog.log('blacs_trace.log',['__main__','BLACS.tab_base_classes',
+        import labscript_utils.tracelog
+        labscript_utils.tracelog.log('blacs_trace.log',['__main__','BLACS.tab_base_classes',
                                         'qtutils',
-                                        'qtutils.widgets.ddsoutput',
-                                        'qtutils.widgets.analogoutput',
+                                        'labscript_utils.qtwidgets.ddsoutput',
+                                        'labscript_utils.qtwidgets.analogoutput',
                                         'BLACS.hardware_interfaces.ni_pcie_6363',
                                         'BLACS.hardware_interfaces.output_classes',
                                         'BLACS.device_base_class',
@@ -559,6 +534,7 @@ if __name__ == '__main__':
              
         # dialog.run()
         # dialog.destroy()
+        raise
         sys.exit("Invalid Connection Table")
         
     

@@ -133,7 +133,7 @@ class pulseblaster(DeviceTab):
 class PulseblasterWorker(Worker):
     def initialise(self):
         exec 'from spinapi import *' in globals()
-        global h5py; import h5_lock, h5py
+        global h5py; import labscript_utils.h5_lock, h5py
         global subproc_utils; import subproc_utils
         
         self.pb_start = pb_start
@@ -345,7 +345,7 @@ if __name__ == '__main__':
     from PySide.QtCore import *
     from PySide.QtGui import *
     import sys,os
-    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     from BLACS.connections import ConnectionTable
     
     

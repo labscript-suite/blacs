@@ -5,7 +5,7 @@ import Queue
 import threading
 import time
 
-import zlock, h5_lock, h5py
+import zlock, labscript_utils.h5_lock, h5py
 zlock.set_client_process_name('BLACS.queuemanager')
 from PySide.QtCore import *
 from PySide.QtGui import *

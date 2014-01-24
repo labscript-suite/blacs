@@ -7,7 +7,7 @@ from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
 
 from BLACS.compile_and_restart import CompileAndRestart
-from filewatcher import FileWatcher
+from labscript_utils.filewatcher import FileWatcher
 from qtutils import *
 
 FILEPATH_COLUMN = 0

@@ -82,7 +82,7 @@ class RFBlasterWorker(Worker):
     def initialise(self):
         exec 'from multipart_form import *' in globals()
         exec 'from numpy import *' in globals()
-        global h5py; import h5_lock, h5py
+        global h5py; import labscript_utils.h5_lock, h5py
         global urllib2; import urllib2
         global re; import re
         self.timeout = 30 #How long do we wait until we assume that the RFBlaster is dead? (in seconds)
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     from PySide.QtCore import *
     from PySide.QtGui import *
     import sys,os
-    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     from BLACS.connections import ConnectionTable
     
     

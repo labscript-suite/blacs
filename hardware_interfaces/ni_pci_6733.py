@@ -49,7 +49,7 @@ class NiPCI6733Worker(Worker):
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global pylab; import pylab
-        global h5py; import h5_lock, h5py
+        global h5py; import labscript_utils.h5_lock, h5py
         global numpy; import numpy
            
         # Create task
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     from PySide.QtCore import *
     from PySide.QtGui import *
     import sys,os
-    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     from BLACS.connections import ConnectionTable
     
     

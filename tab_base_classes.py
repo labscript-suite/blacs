@@ -11,7 +11,7 @@ import os
 from types import GeneratorType
 
 import subproc_utils
-#import excepthook
+#import labscript_utils.excepthook
 
 from PySide.QtCore import *
 from PySide.QtGui import *
@@ -671,7 +671,7 @@ class Worker(Process):
         log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
         self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
-        import zlock, h5_lock
+        import zlock, labscript_utils.h5_lock
         zlock.set_client_process_name(log_name)
         self.init()
         self.mainloop()
@@ -932,11 +932,11 @@ if __name__ == '__main__':
     else:
         sys.stdout = sys.stderr = open(os.devnull)
     logger.setLevel(logging.DEBUG)
-    #excepthook.set_logger(logger)
+    #labscript_utils.excepthook.set_logger(logger)
     logger.info('\n\n===============starting===============\n')
 
 if __name__ == '__main__':
-    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     app = QApplication(sys.argv)
     window = QWidget()
     layout = QVBoxLayout(window)

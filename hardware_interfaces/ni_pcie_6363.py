@@ -83,7 +83,7 @@ class NiPCIe6363Worker(Worker):
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
         global pylab; import pylab
         global numpy; import numpy
-        global h5py; import h5_lock, h5py
+        global h5py; import labscript_utils.h5_lock, h5py
         
         # Create task
         self.ao_task = Task()
@@ -251,7 +251,7 @@ class NiPCIe6363AcquisitionWorker(Worker):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
-        global h5py; import h5_lock, h5py
+        global h5py; import labscript_utils.h5_lock, h5py
         global numpy; import numpy
         global threading; import threading
         global subproc_utils; import subproc_utils
@@ -558,7 +558,7 @@ class NiPCIe6363WaitMonitorWorker(Worker):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
-        global h5py; import h5_lock, h5py
+        global h5py; import labscript_utils.h5_lock, h5py
         global numpy; import numpy        
         global threading; import threading
         global subproc_utils; import subproc_utils
@@ -767,7 +767,7 @@ if __name__ == '__main__':
     from PySide.QtCore import *
     from PySide.QtGui import *
     import sys,os
-    from qtutils.widgets.dragdroptab import DragDropTabWidget
+    from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     from BLACS.connections import ConnectionTable
     
     
