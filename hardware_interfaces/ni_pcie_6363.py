@@ -321,12 +321,13 @@ class NiPCIe6363AcquisitionWorker(Worker):
                         acquisition_timeout = 5
                         error = self.task.ReadAnalogF64(self.samples_per_channel,acquisition_timeout,DAQmx_Val_GroupByChannel,self.ai_data,self.samples_per_channel*len(chnl_list),byref(self.ai_read),None)
                         logger.debug('Reading complete')
-                        if error < 0:
-                            raise Exception(error)
-                        if error > 0:
-                            logger.warning(error)
+                        if error is not None and error != 0:
+                            if error < 0:
+                                raise Exception(error)
+                            if error > 0:
+                                logger.warning(error)
                     except Exception as e:
-                        logger.error('acquisition error: %s' %str(e))
+                        logger.exception('acquisition error')
                         if self.abort:
                             # If an abort is in progress, then we expect an exception here. Don't raise it.
                             logger.debug('ignoring error since an abort is in progress.')
