@@ -302,14 +302,17 @@ class AO(object):
             self._logger.debug('Smallest step size in base units: %f'%smallest_step)
             smallest_step_in_new_unit = self.convert_range_from_base(self._current_value+smallest_step,smallest_step,unit)
             self._logger.debug('Smallest step size in new_unit: %f'%smallest_step_in_new_unit)
-            
-            if smallest_step_in_new_unit > 1:
-                if smallest_step_in_new_unit > 10:
-                    num_decimals = 0
+            try:
+                if smallest_step_in_new_unit > 1:
+                    if smallest_step_in_new_unit > 10:
+                        num_decimals = 0
+                    else:
+                        num_decimals = 1
                 else:
-                    num_decimals = 1
-            else:
-                num_decimals = abs(math.floor(math.log10(smallest_step_in_new_unit))-2)
+                    num_decimals = abs(math.floor(math.log10(smallest_step_in_new_unit))-2)
+            except:
+                self._logger.warning('Failed to convert number of significant figures to new unit. Loss of precision likely (in manual mode) for this unit. Probably cause is a unit conversion class that imposes limits on the converted values.')
+                num_decimals = self._decimals
         else:
             num_decimals = self._decimals
         
