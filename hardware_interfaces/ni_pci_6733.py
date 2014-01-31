@@ -57,7 +57,7 @@ class ni_pci_6733(DeviceTab):
     
 
 class NiPCI6733Worker(Worker):
-    def initialise(self):
+    def init(self):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()

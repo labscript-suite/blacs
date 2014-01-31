@@ -32,6 +32,10 @@ class camera(DeviceTab):
         self.ui.is_responding.setVisible(False)
         self.ui.is_not_responding.setVisible(False)
         
+        self.ui.host_lineEdit.returnPressed.connect(self.update_settings_and_check_connectivity)
+        self.ui.use_zmq_checkBox.toggled.connect(self.update_settings_and_check_connectivity)
+        self.ui.check_connectivity_pushButton.clicked.connect(self.update_settings_and_check_connectivity)
+        
     def get_save_data(self):
         return {'host': str(self.ui.host_lineEdit.text()), 'use_zmq': self.ui.use_zmq_checkBox.isChecked()}
     
@@ -45,24 +49,18 @@ class camera(DeviceTab):
                 self.ui.use_zmq_checkBox.setChecked(use_zmq)
         else:
             self.logger.warning('No previous front panel state to restore')
+        
+        # call update_settings if primary_worker is set
+        # this will be true if you load a front panel from the file menu after the tab has started
+        if self.primary_worker:
+            self.update_settings_and_check_connectivity()
             
     def initialise_workers(self):
-        worker_initialisation_kwargs = {'port': self.ui.port_label.text(),
-                                        'host': str(self.ui.host_lineEdit.text()),
-                                        'use_zmq': self.ui.use_zmq_checkBox.isChecked()}
+        worker_initialisation_kwargs = {'port': self.ui.port_label.text()}
         self.create_worker("main_worker", CameraWorker, worker_initialisation_kwargs)
         self.primary_worker = "main_worker"
-    
-    @define_state(MODE_MANUAL,True)
-    def initialise_device(self):
-        # Run worker
-        responding = yield(self.queue_work(self._primary_worker,'initialise'))
-        self.update_responding_indicator(responding)
-        # Connect signals; user input should only so anything after the device has been initialised:
-        self.ui.host_lineEdit.returnPressed.connect(self.update_settings_and_check_connectivity)
-        self.ui.use_zmq_checkBox.toggled.connect(self.update_settings_and_check_connectivity)
-        self.ui.check_connectivity_pushButton.clicked.connect(self.update_settings_and_check_connectivity)
-        
+        self.update_settings_and_check_connectivity()
+       
     @define_state(MODE_MANUAL, queue_state_indefinitely=True, delete_stale_states=True)
     def update_settings_and_check_connectivity(self, *args):
         self.ui.saying_hello.setVisible(True)
@@ -91,7 +89,12 @@ class CameraWorker(Worker):
         global zprocess; import zprocess
         global shared_drive; import labscript_utils.shared_drive as shared_drive
         
-    def initialise(self):
+        self.host = ''
+        self.use_zmq = False
+        
+    def update_settings_and_check_connectivity(self, host, use_zmq):
+        self.host = host
+        self.use_zmq = use_zmq
         if not self.host:
             return False
         if not self.use_zmq:
@@ -102,13 +105,7 @@ class CameraWorker(Worker):
                 return True
             else:
                 raise Exception('invalid response from server: ' + str(response))
-        self.connected = True
-        
-    def update_settings_and_check_connectivity(self, host, use_zmq):
-        self.host = host
-        self.use_zmq = use_zmq
-        return self.initialise()
-        
+                
     def initialise_sockets(self, host, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         assert port, 'No port number supplied.'
@@ -201,7 +198,10 @@ class CameraWorker(Worker):
             s.close()
             raise Exception(response)
         return True # indicates success 
-        
+    
+    def program_manual(self, values):
+        return {}
+    
     def shutdown(self):
         return
         

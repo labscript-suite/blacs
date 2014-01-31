@@ -51,10 +51,14 @@ class DeviceTab(Tab):
         self.initialise_GUI() 
         self.restore_save_data(self.settings['saved_data'] if 'saved_data' in self.settings else {})
         self.initialise_workers()
-        self.initialise_device()
         self._last_programmed_values = self.get_front_panel_values()
         if self._can_check_remote_values:
-            self.statemachine_timeout_add(30000,self.check_remote_values)
+            self.statemachine_timeout_add(30000,self.check_remote_values)     
+        else:       
+            # If we can check remote values, then no need to call program manual as 
+            # the remote device will either be programmed correctly, or will need an 
+            # inconsistency between local and remote values resolved
+            self.program_device()
             
     def initialise_GUI(self):
         # Override this function
@@ -64,26 +68,7 @@ class DeviceTab(Tab):
         # Override this function
         # set the primary worker at this time
         pass
-    
-    @define_state(MODE_MANUAL,True)
-    def initialise_device(self):
-        # Run primary worker first
-        yield(self.queue_work(self._primary_worker,'initialise'))
-        # Then any secondary workers
-        for worker in self._secondary_workers:
-            yield(self.queue_work(worker,'initialise'))
-        
-        if self.error_message:
-            raise Exception('Device failed to initialise')
-        
-        # If we can check remote values, then no need to call program manual as 
-        # the remote device will either be programmed correctly, or will need an 
-        # inconsistency between local and remote values resolved
-        # The check_remote_values state is queued up automatically as part of
-        # the __init__ method
-        if not self._can_check_remote_values:        
-            self.program_device()
-        
+
     @property
     def primary_worker(self):
         return self._primary_worker

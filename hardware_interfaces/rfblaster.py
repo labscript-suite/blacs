@@ -92,7 +92,7 @@ class rfblaster(DeviceTab):
     
 
 class RFBlasterWorker(Worker):
-    def initialise(self):
+    def init(self):
         exec 'from multipart_form import *' in globals()
         exec 'from numpy import *' in globals()
         global h5py; import labscript_utils.h5_lock, h5py

@@ -110,7 +110,7 @@ class phasematrixquicksyn(DeviceTab):
        
 
 class QuickSynWorker(Worker):
-    def initialise(self):
+    def init(self):
         global serial; import serial
         global h5py; import labscript_utils.h5_lock, h5py
         global time; import time
@@ -163,10 +163,6 @@ class QuickSynWorker(Worker):
         return results
     
     def check_status(self):
-        if not hasattr(self,'connection'):
-            # dummy status:
-            return {'ref':0, 'freqlock':0, 'reflock':0, 'ref_output':0, 'blanking':0, 'lock_recovery':0, 'temperature':0}
-            
         results = {}
         line = ''
         self.connection.write('STAT?\r')

@@ -144,7 +144,7 @@ class pulseblaster(DeviceTab):
         self.statemachine_timeout_add(100,self.status_monitor,notify_queue)
         
 class PulseblasterWorker(Worker):
-    def initialise(self):
+    def init(self):
         exec 'from spinapi import *' in globals()
         global h5py; import labscript_utils.h5_lock, h5py
         global zprocess; import zprocess
@@ -168,7 +168,6 @@ class PulseblasterWorker(Worker):
         pb_select_board(self.board_number)
         pb_init()
         pb_core_clock(75)
-        self.initialised = True
 
     def program_manual(self,values):
         # Program the DDS registers:
@@ -316,10 +315,6 @@ class PulseblasterWorker(Worker):
             return return_values
             
     def check_status(self):
-        if not hasattr(self, 'initialised'):
-            # Return Dummy status
-            return {'stopped':False,'reset':False,'running':False, 'waiting':False}, False
-        
         if self.waits_pending:
             try:
                 self.all_waits_finished.wait(self.h5file, timeout=0)

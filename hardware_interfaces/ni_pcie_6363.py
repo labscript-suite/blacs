@@ -90,7 +90,7 @@ class ni_pcie_6363(DeviceTab):
     
 
 class NiPCIe6363Worker(Worker):
-    def initialise(self):
+    def init(self):
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
         exec 'from PyDAQmx.DAQmxTypes import *' in globals()
@@ -259,7 +259,7 @@ class NiPCIe6363Worker(Worker):
 
         
 class NiPCIe6363AcquisitionWorker(Worker):
-    def initialise(self):
+    def init(self):
         #exec 'import traceback' in globals()
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()
@@ -567,7 +567,7 @@ class NiPCIe6363AcquisitionWorker(Worker):
         return {}
     
 class NiPCIe6363WaitMonitorWorker(Worker):
-    def initialise(self):
+    def init(self):
         exec 'import ctypes' in globals()
         exec 'from PyDAQmx import Task' in globals()
         exec 'from PyDAQmx.DAQmxConstants import *' in globals()

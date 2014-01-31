@@ -375,6 +375,10 @@ class Tab(object):
     @define_state(MODE_MANUAL,True)  
     def _initialise_worker(self,worker_name):
         yield(self.queue_work(worker_name,'init'))
+                
+        if self.error_message:
+            raise Exception('Device failed to initialise')
+        
         
     # def btn_release(self,widget,event):
         # if event.button == 3:
