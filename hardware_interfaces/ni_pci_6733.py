@@ -13,9 +13,9 @@
 
 from time import time
 
-from BLACS.tab_base_classes import Worker, define_state
-from BLACS.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
-from BLACS.device_base_class import DeviceTab
+from blacs.tab_base_classes import Worker, define_state
+from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
+from blacs.device_base_class import DeviceTab
 
 class ni_pci_6733(DeviceTab):
     def initialise_GUI(self):
@@ -155,7 +155,7 @@ if __name__ == '__main__':
     from PySide.QtGui import *
     import sys,os
     from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
-    from BLACS.connections import ConnectionTable
+    from blacs.connections import ConnectionTable
     
     
     class MyWindow(QWidget):

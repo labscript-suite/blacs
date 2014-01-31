@@ -12,10 +12,10 @@
 #####################################################################
 
 import os
-from BLACS.tab_base_classes import Worker, define_state
-from BLACS.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
+from blacs.tab_base_classes import Worker, define_state
+from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 
-from BLACS.device_base_class import DeviceTab
+from blacs.device_base_class import DeviceTab
 
 from PySide.QtUiTools import QUiLoader
 

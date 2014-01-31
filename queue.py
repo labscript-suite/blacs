@@ -26,7 +26,7 @@ from qtutils import *
 
 # Connection Table Code
 from connections import ConnectionTable
-from BLACS.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
+from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 
 FILEPATH_COLUMN = 0
 

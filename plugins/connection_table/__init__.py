@@ -19,7 +19,7 @@ from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
 
-from BLACS.compile_and_restart import CompileAndRestart
+from blacs.compile_and_restart import CompileAndRestart
 from labscript_utils.filewatcher import FileWatcher
 from qtutils import *
 
