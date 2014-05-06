@@ -624,7 +624,7 @@ class QueueManager(object):
                     self.manager_paused = True
                     self.prepend(path)  
                     self.set_status("Device restarted mid-shot. Shot aborted, Queue paused.")
-                else:
+                elif abort:
                     self.set_status("Shot aborted")
                     
                 if abort or restarted:
