@@ -646,6 +646,7 @@ class QueueManager(object):
                 except WindowsError if platform.system() == 'Windows' else None:
                     logger.warning('Couldn\'t delete failed run file %s, another process may be using it. Using alternate filename for second attempt.'%path)
                     os.rename('temp.h5', path.replace('.h5','_retry.h5'))
+                    path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
                 
@@ -735,6 +736,7 @@ class QueueManager(object):
                 except WindowsError if platform.system() == 'Windows' else None:
                     logger.warning('Couldn\'t delete failed run file %s, another process may be using it. Using alternate filename for second attempt.'%path)
                     os.rename('temp.h5', path.replace('.h5','_retry.h5'))
+                    path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
                 
