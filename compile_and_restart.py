@@ -87,7 +87,7 @@ class CompileAndRestart(QDialog):
             try:
                 os.rename(self.tempfilename,self.output_path)
             except OSError:
-                self.output_box.queue.put(['stderr','Couldn\'t replace existing connection table h5 file. Is it open in another process?'])
+                self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?', red=True)
                 self.ui.label.setText('Compilation failed.')
                 self.ui.restart.setEnabled(False)
                 os.remove(self.tempfilename)
