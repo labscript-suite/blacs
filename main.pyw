@@ -126,7 +126,7 @@ class BLACS(object):
         loader = UiLoader()
         loader.registerCustomWidget(QueueTreeview)
         loader.registerCustomPromotion('BLACS',BLACSWindow)
-        self.ui = loader.load('main.ui')
+        self.ui = loader.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'main.ui'))
         self.ui.blacs=self
         self.tab_widgets = {}
         self.exp_config = exp_config # Global variable
