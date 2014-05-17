@@ -49,51 +49,51 @@ try:
     import sys
     logger.info('Python Version: %s'%sys.version)
     logger.info('Platform: %s'%sys.platform)
-except:
+except Exception:
     logger.error('Failed to find python version')
 
 try:
     import sys
     logger.info('windows version: %s'%str(sys.getwindowsversion()))
-except:
+except Exception:
     pass
     
 try:
     import zmq
     logger.info('PyZMQ Version: %s'%zmq.__version__)
     logger.info('ZMQ Version: %s'%zmq.zmq_version())
-except:
+except Exception:
     logger.error('Failed to find PyZMQ version')
 
 try:
     import h5py
     logger.info('h5py Version: %s'%h5py.version.info)
-except:
+except Exception:
     logger.error('Failed to find h5py version')
     
 try:
     import PySide
     logger.info('PySide Version: %s'%PySide.__version__)
     logger.info('Qt Version: %s'%PySide.QtCore.__version__)    
-except:
+except Exception:
     logger.error('Failed to find PySide version')
 
 try:
     import qtutils
     logger.info('qtutils Version: %s'%qtutils.__version__)
-except:
+except Exception:
     logger.error('Failed to find qtutils version')
     
 try:
     import zprocess
     logger.info('zprocess Version: %s'%zprocess.__version__)
-except:
+except Exception:
     logger.error('Failed to find zprocess version')
     
 try:
     import labscript_utils
     logger.info('labscript_utils Version: %s'%labscript_utils.__version__)
-except:
+except Exception:
     logger.error('Failed to find labscript_utils version')
     
     
