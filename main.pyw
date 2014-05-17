@@ -175,11 +175,13 @@ class BLACS(object):
         self.exiting = False
         self.exit_complete = False
         
+        logger.info('Loading BLACS ui')
         #self.ui = BLACSWindow(self).ui
         loader = UiLoader()
         loader.registerCustomWidget(QueueTreeview)
         loader.registerCustomPromotion('BLACS',BLACSWindow)
         self.ui = loader.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'main.ui'))
+        logger.info('BLACS ui loaded')
         self.ui.blacs=self
         self.tab_widgets = {}
         self.exp_config = exp_config # Global variable
@@ -195,7 +197,9 @@ class BLACS(object):
         self.tablist = {}
         self.panes = {}
         self.settings_dict = {}
-        # Instantiate Devices from Connection Table, Place in Array        
+        
+        # Instantiate Devices from Connection Table, Place in Array  
+        logger.info('finding devices in connection table')
         self.attached_devices = self.connection_table.find_devices(hardware_interfaces.device_list)
         
         # Store the panes in a dictionary for easy access
@@ -205,20 +209,24 @@ class BLACS(object):
         self.panes['main_splitter'] = self.ui.main_splitter
                 
         # Get settings to restore 
+        logger.info('Loading front panel settings')
         self.front_panel_settings = FrontPanelSettings(self.settings_path, self.connection_table)
         self.front_panel_settings.setup(self)
         settings,question,error,tab_data = self.front_panel_settings.restore()
             
         # TODO: handle question/error cases
         
+        logger.info('restoring window data')
         self.restore_window(tab_data)
         
         #splash.update_text('Creating the device tabs...')
         # Create the notebooks
+        logger.info('Creating tab widgets')
         for i in range(4):
             self.tab_widgets[i] = DragDropTabWidget(self.tab_widget_ids)
             getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
         
+        logger.info('Instantiating devices')
         for device_name,device_class in self.attached_devices.items():
             self.settings_dict.setdefault(device_name,{"device_name":device_name})
             # add common keys to settings:
@@ -226,11 +234,13 @@ class BLACS(object):
             self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
             self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}            
             # Instantiate the device            
+            logger.info('instantiating %s'%device_name)
             self.tablist[device_name] = globals()[device_class](self.tab_widgets[0],self.settings_dict[device_name])
         
+        logger.info('reordering tabs')
         self.order_tabs(tab_data)
         
-                         
+        logger.info('starting analysis submission thread')
         # setup analysis submission
         self.analysis_submission = AnalysisSubmission(self,self.ui)
         if 'analysis_data' not in tab_data['BLACS settings']:
@@ -238,6 +248,8 @@ class BLACS(object):
         else:
             tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
+        
+        logger.info('starting queue manager thread')
         # Setup the QueueManager
         self.queue = QueueManager(self,self.ui)  
         if 'queue_data' not in tab_data['BLACS settings']:
@@ -246,6 +258,7 @@ class BLACS(object):
             tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
         
+        logger.info('instantiating plugins')
         # setup the plugin system
         settings_pages = []
         self.plugins = {}
@@ -281,6 +294,7 @@ class BLACS(object):
                 parent.addSeparator()
         
         # setup the Notification system
+        logger.info('setting up notification system')
         self.notifications = Notifications(blacs_data)
         
         settings_callbacks = []
@@ -314,6 +328,7 @@ class BLACS(object):
                 
                 
         # setup the BLACS preferences system
+        logger.info('setting up preferences system')
         self.settings = Settings(file=self.settings_path, parent = self.ui, page_classes=settings_pages)
         for callback in settings_callbacks:            
             self.settings.register_callback(callback)
@@ -332,6 +347,7 @@ class BLACS(object):
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
         self.ui.actionOpen.triggered.connect(self.on_load_front_panel)       
         
+        logger.info('showing UI')
         self.ui.show()
     
     def set_relaunch(self,value):
@@ -599,6 +615,7 @@ if __name__ == '__main__':
     experiment_server = ExperimentServer(port)
 
     # Create Connection Table object
+    logger.info('About to load connection table')
     try:
         connection_table = ConnectionTable(exp_config.get('paths','connection_table_h5'))
     except:
@@ -606,13 +623,16 @@ if __name__ == '__main__':
              
         # dialog.run()
         # dialog.destroy()
+        logger.exception('connection table failed to load')
         raise
         sys.exit("Invalid Connection Table")
-        
+    logger.info('connection table loaded')
     
     qapplication = QApplication(sys.argv)
+    logger.info('QApplication instantiated')
     app = BLACS(qapplication)
     
+    logger.info('BLACS instantiated')
     def execute_program():
         qapplication.exec_()        
         experiment_server.shutdown()
