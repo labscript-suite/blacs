@@ -21,26 +21,30 @@ class ConnectionTable(object):
         self.logger = logging.getLogger('BLACS.ConnectionTable') 
         self.toplevel_children = {}
         self.logger.debug('Parsing connection table from %s'%h5file)
-        with h5py.File(h5file,'r') as hdf5_file:
-            try:
-                table = hdf5_file['connection table']
-            except:
-                raise
-            try:
-                if len(table):
-                    self.table = np.array(table)
-                else:
-                    self.table = np.array([])
-                for row in self.table:
-                    if row[3] == "None":
-                        self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],self.table)
+        try:
+            with h5py.File(h5file,'r') as hdf5_file:
                 try:
-                    self.master_pseudoclock = table.attrs['master_pseudoclock']
+                    table = hdf5_file['connection table']
                 except:
-                    self.master_pseudoclock = None
-            except:
-                self.logger.error('Unable to get connection table  %s'%h5file)
-                raise
+                    raise
+                try:
+                    if len(table):
+                        self.table = np.array(table)
+                    else:
+                        self.table = np.array([])
+                    for row in self.table:
+                        if row[3] == "None":
+                            self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],self.table)
+                    try:
+                        self.master_pseudoclock = table.attrs['master_pseudoclock']
+                    except:
+                        self.master_pseudoclock = None
+                except:
+                    self.logger.error('Unable to get connection table  %s'%h5file)
+                    raise
+        except:
+            self.logger.exception('An error occurred while trying to open the h5 file at %s'%h5file)
+            raise
     
     def assert_superset(self,other):
         # let's check that we're a superset of the connection table in "other"
