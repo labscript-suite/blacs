@@ -29,16 +29,27 @@ try:
 except:
     print 'You should specify "--delay x" where x is an integer'
 
+    
 lower_argv = [s.lower() for s in sys.argv]
 if 'pyside' in lower_argv:
     # Import Qt
     from PySide.QtCore import *
     from PySide.QtGui import *
     # from PySide.QtUiTools import QUiLoader
-else:
+elif 'pyqt' in lower_argv:
     from PyQt4.QtCore import *
     from PyQt4.QtGui import *
+else:
+    try:
+        from PyQt4.QtCore import *
+        from PyQt4.QtGui import *
+    except Exception:
+        from PySide.QtCore import *
+        from PySide.QtGui import *
     
+    
+class VersionException(Exception):
+    pass
     
 # now check required versions
 try:
@@ -46,10 +57,12 @@ try:
     version = labscript_utils.__version__.split('-')[0].split('.')
     version = [int(v) for v in version]
     if version[0] > 1:
-        raise Exception('labscript_utils is too new for this version of BLACS. Please downgrade labscript_utils to v1.1.x or upgrade BLACS')
+        raise VersionException('labscript_utils is too new for this version of BLACS. Please downgrade labscript_utils to v1.1.x or upgrade BLACS')
     elif version[0] < 1 or (version[0] == 1 and version[1] < 1):
-        raise Exception('labscript_utils is out of date. Please update to v1.1.x or later')
-except:
+        raise VersionException('labscript_utils is out of date. Please update to v1.1.x or later')
+except VersionException:
+    raise
+except Exception:
     print 'Failed to check labscript_utils version. Continuing anyway...'
     
 try:
@@ -57,10 +70,12 @@ try:
     version = qtutils.__version__.split('-')[0].split('.')
     version = [int(v) for v in version]
     if version[0] > 1:
-        raise Exception('qtutils is too new for this version of BLACS. Please downgrade qtutils to v1.2.x or upgrade BLACS')
+        raise VersionException('qtutils is too new for this version of BLACS. Please downgrade qtutils to v1.2.x or upgrade BLACS')
     elif version[0] < 1 or (version[0] == 1 and version[1] < 2):
-        raise Exception('qtutils is out of date. Please update to v1.2.x or later')
-except:
+        raise VersionException('qtutils is out of date. Please update to v1.2.x or later')
+except VersionException:
+    raise
+except Exception:
     print 'Failed to check qtutils version. Continuing anyway...'           
     
 # Pythonlib imports
