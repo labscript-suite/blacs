@@ -431,7 +431,7 @@ V</string>
      <x>0</x>
      <y>0</y>
      <width>1030</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -493,7 +493,7 @@ V</string>
   <customwidget>
    <class>QueueTreeview</class>
    <extends>QTreeView</extends>
-   <header>queue.py</header>
+   <header>qtutils/widgets.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

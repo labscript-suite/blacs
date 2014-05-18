@@ -16,7 +16,7 @@ from time import time
 from blacs.tab_base_classes import Worker, define_state
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 from blacs.device_base_class import DeviceTab
-from PySide.QtUiTools import QUiLoader
+from qtutils import UiLoader
 import os
 
 class phasematrixquicksyn(DeviceTab):
@@ -39,7 +39,7 @@ class phasematrixquicksyn(DeviceTab):
         # and auto place the widgets in the UI
         self.auto_place_widgets(("DDS Outputs",dds_widgets))
         
-        self.status_ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'phasematrixquicksyn.ui'))
+        self.status_ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'phasematrixquicksyn.ui'))
         self.get_tab_layout().addWidget(self.status_ui)
         self.status_ui.ref_button.clicked.connect(self.update_reference_out)
         self.status_ui.blanking_button.clicked.connect(self.update_blanking)
@@ -284,9 +284,13 @@ class QuickSynWorker(Worker):
         self.connection.close()
 
 if __name__ == '__main__':
-    from PySide.QtCore import *
-    from PySide.QtGui import *
     import sys,os
+    if 'PySide' in sys.modules.copy():
+        from PySide.QtCore import *
+        from PySide.QtGui import *
+    else:
+        from PyQt4.QtCore import *
+        from PyQt4.QtGui import *
     from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     from blacs.connections import ConnectionTable
     

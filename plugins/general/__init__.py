@@ -12,10 +12,16 @@
 #####################################################################
 
 import os
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
+import sys
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
+from qtutils import UiLoader
+    
 class Plugin(object):
     def __init__(self, initial_settings):
         self.menu = None
@@ -63,7 +69,7 @@ class Setting(object):
         
     # Create the GTK page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'general.ui'))
+        ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'general.ui'))
         
         # get the widgets!
         self.widgets = {}

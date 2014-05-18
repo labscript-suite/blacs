@@ -14,10 +14,14 @@
 import logging
 import os
 import subprocess
+import sys
 
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 from blacs.compile_and_restart import CompileAndRestart
 from labscript_utils.filewatcher import FileWatcher
@@ -122,7 +126,7 @@ class Notification(object):
         self.filewatcher = None
         
         # Create the widget
-        self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
+        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
         self._ui.button.clicked.connect(self.on_recompile_connection_table)
         #self._ui.hide()
             
@@ -192,7 +196,7 @@ class Setting(object):
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.ui'))
+        ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.ui'))
         
         # Create the models, get the views, and link them!!
         self.models = {}

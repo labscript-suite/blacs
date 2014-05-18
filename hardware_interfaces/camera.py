@@ -17,13 +17,13 @@ from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MOD
 
 from blacs.device_base_class import DeviceTab
 
-from PySide.QtUiTools import QUiLoader
+from qtutils import UiLoader
 
 class camera(DeviceTab):
     def initialise_GUI(self):
         layout = self.get_tab_layout()
         ui_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'camera.ui')
-        self.ui = QUiLoader().load(ui_filepath)
+        self.ui = UiLoader().load(ui_filepath)
         layout.addWidget(self.ui)
         
         port = int(self.settings['connection_table'].find_by_name(self.settings["device_name"]).BLACS_connection)

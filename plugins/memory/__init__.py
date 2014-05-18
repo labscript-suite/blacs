@@ -14,13 +14,16 @@
 import logging
 import os
 import gc
+import sys
+
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
+
 from labscript_utils import memprof
-
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
-
-
 
 FILEPATH_COLUMN = 0
 name = "Memory Profile"

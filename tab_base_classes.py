@@ -26,9 +26,12 @@ from types import GeneratorType
 import zprocess
 #import labscript_utils.excepthook
 
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 from qtutils import *
 
@@ -211,7 +214,7 @@ class Tab(object):
         self._restart_receiver = []
         
         # Load the UI
-        self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
+        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
         self._layout = self._ui.device_layout
         self._device_widget = self._ui.device_controls
         self._changed_widget = self._ui.changed_widget

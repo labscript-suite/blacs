@@ -16,11 +16,15 @@ import os
 import Queue
 import threading
 import time
+import sys
 
-from PySide.QtGui import *
-from PySide.QtCore import *
-from PySide.QtUiTools import QUiLoader
-
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
+    
 from qtutils import *
 from zprocess import zmq_get
 import labscript_utils.shared_drive
@@ -34,7 +38,7 @@ class AnalysisSubmission(object):
         self._server = ''
         self._server_online = 'offline'
         
-        self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'analysis_submission.ui'))
+        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'analysis_submission.ui'))
         blacs_ui.analysis.addWidget(self._ui)
         # connect signals
         self._ui.send_to_server.toggled.connect(lambda state:self._set_send_to_server(state))

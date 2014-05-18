@@ -16,11 +16,15 @@ import sys
 import os
 import time
 
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
+    
 import labscript_utils.excepthook
 
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
 
 from tab_base_classes import Tab, Worker, define_state
 from tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
@@ -437,7 +441,7 @@ class DeviceTab(Tab):
                         changed = True
                         
                 if changed:
-                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
+                    ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
                     ui.channel_label.setText(self._DDS[channel].name)
                     for sub_chnl in front_value:
                         ui.__getattribute__('front_%s_value'%sub_chnl).setText(front_values_formatted[sub_chnl])
@@ -456,7 +460,7 @@ class DeviceTab(Tab):
                 remote_value = str(bool(int(remote_value)))
                 if front_value != remote_value:
                     changed = True
-                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
+                    ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
                     ui.channel_label.setText(self._DO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)
@@ -466,7 +470,7 @@ class DeviceTab(Tab):
                 remote_value = ("%."+str(self._AO[channel]._decimals)+"f")%remote_value
                 if front_value != remote_value:
                     changed = True
-                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
+                    ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
                     ui.channel_label.setText(self._AO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)

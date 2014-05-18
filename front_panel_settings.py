@@ -14,14 +14,19 @@
 import os
 import socket
 import logging
+import sys
+
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 import labscript_utils.excepthook
 import numpy
 import labscript_utils.h5_lock, h5py
 from qtutils import *
-
-from PySide.QtCore import *
-from PySide.QtGui import *
 
 # Connection Table Code
 from connections import ConnectionTable

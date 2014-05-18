@@ -16,9 +16,12 @@ import os
 import subprocess
 from Queue import Queue
 
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 from qtutils import *
 import runmanager
@@ -36,7 +39,7 @@ class CompileAndRestart(QDialog):
         self.blacs = blacs
         self.close_notification_func = close_notification_func
         
-        self.ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'compile_and_restart.ui'))
+        self.ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'compile_and_restart.ui'))
         self.output_box = OutputBox(self.ui.verticalLayout)       
         self.ui.restart.setEnabled(False)
         

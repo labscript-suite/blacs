@@ -262,9 +262,13 @@ class NovatechDDS9mWorker(Worker):
         self.connection.close()
         
 if __name__ == '__main__':
-    from PySide.QtCore import *
-    from PySide.QtGui import *
     import sys,os
+    if 'PySide' in sys.modules.copy():
+        from PySide.QtCore import *
+        from PySide.QtGui import *
+    else:
+        from PyQt4.QtCore import *
+        from PyQt4.QtGui import *
     from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     from blacs.connections import ConnectionTable
     

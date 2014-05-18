@@ -29,6 +29,40 @@ try:
 except:
     print 'You should specify "--delay x" where x is an integer'
 
+lower_argv = [s.lower() for s in sys.argv]
+if 'pyside' in lower_argv:
+    # Import Qt
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+    # from PySide.QtUiTools import QUiLoader
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
+    
+    
+# now check required versions
+try:
+    import labscript_utils
+    version = labscript_utils.__version__.split('-')[0].split('.')
+    version = [int(v) for v in version]
+    if version[0] > 1:
+        raise Exception('labscript_utils is too new for this version of BLACS. Please downgrade labscript_utils to v1.1.x or upgrade BLACS')
+    elif version[0] < 1 or (version[0] == 1 and version[1] < 1):
+        raise Exception('labscript_utils is out of date. Please update to v1.1.x or later')
+except:
+    print 'Failed to check labscript_utils version. Continuing anyway...'
+    
+try:
+    import qtutils
+    version = qtutils.__version__.split('-')[0].split('.')
+    version = [int(v) for v in version]
+    if version[0] > 1:
+        raise Exception('qtutils is too new for this version of BLACS. Please downgrade qtutils to v1.2.x or upgrade BLACS')
+    elif version[0] < 1 or (version[0] == 1 and version[1] < 2):
+        raise Exception('qtutils is out of date. Please update to v1.2.x or later')
+except:
+    print 'Failed to check qtutils version. Continuing anyway...'           
+    
 # Pythonlib imports
 ### Must be in this order
 import zprocess.locking, labscript_utils.h5_lock, h5py
@@ -44,7 +78,7 @@ import labscript_utils.excepthook
 logger = setup_logging()
 labscript_utils.excepthook.set_logger(logger)
 
-
+# now log versions (must be after setup logging)
 try:
     import sys
     logger.info('Python Version: %s'%sys.version)
@@ -72,11 +106,16 @@ except Exception:
     logger.error('Failed to find h5py version')
     
 try:
-    import PySide
-    logger.info('PySide Version: %s'%PySide.__version__)
-    logger.info('Qt Version: %s'%PySide.QtCore.__version__)    
+    if 'PySide' in sys.modules.copy():
+        import PySide
+        logger.info('PySide Version: %s'%PySide.__version__)
+        logger.info('Qt Version: %s'%PySide.QtCore.__version__)    
+    else:
+        import PyQt4.QtCore
+        logger.info('PyQt Version: %s'%PyQt4.QtCore.PYQT_VERSION_STR)
+        logger.info('Qt Version: %s'%PyQt4.QtCore.QT_VERSION_STR)   
 except Exception:
-    logger.error('Failed to find PySide version')
+    logger.error('Failed to find PySide/PyQt version')
 
 try:
     import qtutils
@@ -95,12 +134,6 @@ try:
     logger.info('labscript_utils Version: %s'%labscript_utils.__version__)
 except Exception:
     logger.error('Failed to find labscript_utils version')
-    
-    
-# Import Qt
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
 
 # Connection Table Code
 from connections import ConnectionTable
@@ -179,8 +212,8 @@ class BLACS(object):
         #self.ui = BLACSWindow(self).ui
         loader = UiLoader()
         loader.registerCustomWidget(QueueTreeview)
-        loader.registerCustomPromotion('BLACS',BLACSWindow)
-        self.ui = loader.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'main.ui'))
+        #loader.registerCustomPromotion('BLACS',BLACSWindow)
+        self.ui = loader.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'main.ui'), BLACSWindow())
         logger.info('BLACS ui loaded')
         self.ui.blacs=self
         self.tab_widgets = {}

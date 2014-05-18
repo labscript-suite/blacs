@@ -17,11 +17,18 @@ import platform
 import Queue
 import threading
 import time
+import sys
+
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS.queuemanager')
-from PySide.QtCore import *
-from PySide.QtGui import *
+
 from qtutils import *
 
 # Connection Table Code
