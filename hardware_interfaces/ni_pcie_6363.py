@@ -177,28 +177,9 @@ class NiPCIe6363Worker(Worker):
                 
                 
         
-        final_values = {}
-        if self.buffered_using_analog:
-            self.ao_task.StopTask()
-            self.ao_task.ClearTask()
-            self.ao_task = Task()
-            ao_read = int32()
-
-            self.ao_task.CreateAOVoltageChan(ao_channels,"",-10.0,10.0,DAQmx_Val_Volts,None)
-            self.ao_task.CfgSampClkTiming(clock_terminal,1000000,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps, ao_data.shape[0])
-            
-            self.ao_task.WriteAnalogF64(ao_data.shape[0],False,10.0,DAQmx_Val_GroupByScanNumber, ao_data,ao_read,None)
-            self.ao_task.StartTask()   
-            
-            # Final values here are a dictionary of values, keyed by channel:
-            channel_list = [channel.split('/')[1] for channel in ao_channels.split(', ')]
-            for channel, value in zip(channel_list, ao_data[-1,:]):
-                final_values[channel] = value
-        else:
-            # we should probabaly still stop the task (this makes it easier to setup the task later)
-            self.ao_task.StopTask()
-            self.ao_task.ClearTask()
-                
+        final_values = {} 
+        # We must do digital first, so as to make sure the manual mode task is stopped, or reprogrammed, by the time we setup the AO task
+        # this is because the clock_terminal PFI must be freed!
         if self.buffered_using_digital:
             # Expand each bitfield int into self.num['DO']
             # (32) individual ones and zeros:
@@ -223,6 +204,29 @@ class NiPCIe6363Worker(Worker):
             # clock flag available for buffered analog output, or the wait monitor:
             self.do_task.StopTask()
             self.do_task.ClearTask()
+            
+        if self.buffered_using_analog:
+            self.ao_task.StopTask()
+            self.ao_task.ClearTask()
+            self.ao_task = Task()
+            ao_read = int32()
+
+            self.ao_task.CreateAOVoltageChan(ao_channels,"",-10.0,10.0,DAQmx_Val_Volts,None)
+            self.ao_task.CfgSampClkTiming(clock_terminal,1000000,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps, ao_data.shape[0])
+            
+            self.ao_task.WriteAnalogF64(ao_data.shape[0],False,10.0,DAQmx_Val_GroupByScanNumber, ao_data,ao_read,None)
+            self.ao_task.StartTask()   
+            
+            # Final values here are a dictionary of values, keyed by channel:
+            channel_list = [channel.split('/')[1] for channel in ao_channels.split(', ')]
+            for channel, value in zip(channel_list, ao_data[-1,:]):
+                final_values[channel] = value
+        else:
+            # we should probabaly still stop the task (this makes it easier to setup the task later)
+            self.ao_task.StopTask()
+            self.ao_task.ClearTask()
+                
+       
             
         return final_values
         
