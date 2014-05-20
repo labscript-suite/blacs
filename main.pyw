@@ -96,6 +96,13 @@ try:
 except Exception:
     logger.error('Failed to find labscript_utils version')
     
+try:
+    import blacs
+    logger.info('BLACS Version: %s'%blacs.__version__)
+except Exception:
+    logger.error('Failed to find blacs version')
+    
+    
     
 # Import Qt
 from PySide.QtCore import *
