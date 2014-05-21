@@ -133,7 +133,7 @@ class PulseblasterNoDDSWorker(Worker):
         exec 'from spinapi import *' in globals()
         import spinapi
         version = [int(v) for v in spinapi.__version__.split('-')[0].split('.')]
-        requires_version = (1,1,0)
+        requires_version = (2,0,1)
         try:
             assert version[0] == requires_version[0]
             assert version[1] >= requires_version[1]
