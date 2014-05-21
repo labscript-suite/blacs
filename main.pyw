@@ -496,11 +496,11 @@ class BLACS(object):
         # Save front panel
         data = self.front_panel_settings.get_save_data()
        
-        with h5py.File(self.settings_path,'r+') as h5file:
-           if 'connection table' in h5file:
-               del h5file['connection table']
+        # with h5py.File(self.settings_path,'r+') as h5file:
+           # if 'connection table' in h5file:
+               # del h5file['connection table']
         
-        self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True})
+        self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True},force_new_conn_table=True)
         logger.info('Destroying tabs')
         for tab in self.tablist.values():
             tab.destroy()            

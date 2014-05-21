@@ -242,7 +242,7 @@ class FrontPanelSettings(object):
         return tab_data,notebook_data,window_data,plugin_data
     
     @inmain_decorator(wait_for_return=True)
-    def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,plugin_data,silent = {}):        
+    def save_front_panel_to_h5(self,current_file,states,tab_positions,window_data,plugin_data,silent = {}, force_new_conn_table = False):        
         # Save the front panel!
 
         # Does the file exist?            
@@ -257,14 +257,15 @@ class FrontPanelSettings(object):
         #   No: Create new file, place inside the connection table and front panel
             
         if os.path.isfile(current_file):
-            save_conn_table = False
-            try:
-                new_conn = ConnectionTable(current_file)
-                result,error = self.connection_table.compare_to(new_conn)
-            except:
-                # no connection table is present, so also save the connection table!
-                save_conn_table = True
-                result = False
+            save_conn_table = True if force_new_conn_table else False
+            result = False
+            if not save_conn_table:
+                try:
+                    new_conn = ConnectionTable(current_file)
+                    result,error = self.connection_table.compare_to(new_conn)
+                except:
+                    # no connection table is present, so also save the connection table!
+                    save_conn_table = True
             
             # if save_conn_table is True, we don't bother checking to see if the connection tables match, because save_conn_table is only true when the connection table doesn't exist in the current file
             # As a result, if save_conn_table is True, we ignore connection table checking, and save the connection table in the h5file.
@@ -325,6 +326,8 @@ class FrontPanelSettings(object):
     @inmain_decorator(wait_for_return=True)
     def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,plugin_data,save_conn_table = False):
         if save_conn_table:
+            if 'connection table' in hdf5_file:
+                del hdf5_file['connection table']
             hdf5_file.create_dataset('connection table',data=self.connection_table.table)
         
         data_group = hdf5_file['/'].create_group('front_panel')
