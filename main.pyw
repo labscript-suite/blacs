@@ -622,7 +622,7 @@ if __name__ == '__main__':
     experiment_server = ExperimentServer(port)
 
     # Create Connection Table object
-    logger.info('About to load connection table')
+    logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     try:
         connection_table = ConnectionTable(exp_config.get('paths','connection_table_h5'))
     except:
