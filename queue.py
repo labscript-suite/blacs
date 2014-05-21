@@ -329,13 +329,11 @@ class QueueManager(object):
         try:
             with h5py.File(h5file,'r') as old_file:
                 with h5py.File(new_h5_file,'w') as new_file:
-                    new_file['/'].copy(old_file['/devices'],"devices")
-                    new_file['/'].copy(old_file['/calibrations'],"calibrations")
-                    new_file['/'].copy(old_file['/script'],"script")
-                    new_file['/'].copy(old_file['/globals'],"globals")
-                    new_file['/'].copy(old_file['/connection table'],"connection table")
-                    new_file['/'].copy(old_file['/labscriptlib'],"labscriptlib")
-                    new_file['/'].copy(old_file['/waits'],"waits")
+                    groups_to_copy = ['devices', 'calibrations', 'script', 'globals', 'connection table', 
+                                      'labscriptlib', 'waits']
+                    for group in groups_to_copy:
+                        if group in old_file:
+                            new_file.copy(old_file[group], group)
                     for name in old_file.attrs:
                         new_file.attrs[name] = old_file.attrs[name]
         except Exception as e:
