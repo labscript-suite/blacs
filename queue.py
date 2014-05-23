@@ -314,7 +314,7 @@ class QueueManager(object):
                 message = "Error: Queue is not running\n"
             return message
         else:
-            # TODO: Parse and display the contents of "error" for a more detailed analysis of what is wrong!
+            # TODO: Parse and display the contents of "error" in a more human readable format for analysis of what is wrong!
             message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
                        "You may have:\n"
                        "    Submitted your file to the wrong control PC\n"
@@ -322,8 +322,10 @@ class QueueManager(object):
                        "    Renamed a channel at the top of your script\n"
                        "    Submitted an old file, and the experiment has since been rewired\n"
                        "\n"
-                       "Please verify your experiment script matches the current experiment configuration, and try again\n")
+                       "Please verify your experiment script matches the current experiment configuration, and try again\n"
+                       "The error was %s\n"%error)
             return message
+            
     
     def new_rep_name(self,h5_filepath):
         basename = os.path.basename(h5_filepath).split('.h5')[0]
