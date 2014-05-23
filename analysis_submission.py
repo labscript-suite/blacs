@@ -90,7 +90,7 @@ class AnalysisSubmission(object):
     @property
     @inmain_decorator(True)
     def server(self):
-        return self._server
+        return str(self._server)
         
     @server.setter    
     @inmain_decorator(True)
