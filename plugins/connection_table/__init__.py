@@ -192,7 +192,7 @@ class Setting(object):
                 
             #set the default sort order if it wasn't previousl saved
             if '%s_sort_order'%store not in self.data:
-                self.data['%s_sort_order'%store] = Qt.AscendingOrder
+                self.data['%s_sort_order'%store] = 'ASC'
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
@@ -231,16 +231,58 @@ class Setting(object):
             # otherwise add an empty list to our data store, and leave the liststore empty
             else:
                 self.data['%s_list'%store] = []
-        
-            self.views[store].sortByColumn(FILEPATH_COLUMN,self.data['%s_sort_order'%store])
+            
+            self.views[store].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['%s_sort_order'%store]))
         
         return ui,None
     
     def global_sort_indicator_changed(self):
-        self.data['globals_sort_order'] = self.views['globals'].header().sortIndicatorOrder()
+        if 'PySide' in sys.modules.copy():
+            if self.views['globals'].header().sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        else:
+            if self.views['globals'].header().sortIndicatorOrder() == Qt.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        self.data['globals_sort_order'] = self.enum_to_order(self.views['globals'].header().sortIndicatorOrder())
         
     def calibrations_sort_indicator_changed(self):
-        self.data['calibrations_sort_order'] = self.views['calibrations'].header().sortIndicatorOrder()
+        self.data['calibrations_sort_order'] = self.enum_to_order(self.views['calibrations'].header().sortIndicatorOrder())
+    
+    def order_to_enum(self, order):
+        # if we are accidnetally passed an enum, just return it
+        if order not in ['ASC', 'DESC']:
+            return order
+    
+        if 'PySide' in sys.modules.copy():
+            if order == 'ASC':
+                enum = Qt.SortOrder.AscendingOrder
+            else:
+                enum = Qt.SortOrder.DescendingOrder
+        else:
+            if order == 'ASC':
+                enum = Qt.AscendingOrder
+            else:
+                enum = Qt.DescendingOrder
+        
+        return enum
+        
+    def enum_to_order(self, enum):
+        if 'PySide' in sys.modules.copy():
+            if enum == Qt.SortOrder.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        else:
+            if enum == Qt.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        
+        return order
     
     def get_value(self,name):
         if name in self.data:
