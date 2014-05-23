@@ -24,7 +24,7 @@ else:
     from PyQt4.QtGui import *
     
 import labscript_utils.excepthook
-
+from qtutils import UiLoader
 
 from tab_base_classes import Tab, Worker, define_state
 from tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
