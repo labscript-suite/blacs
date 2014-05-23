@@ -150,6 +150,13 @@ try:
 except Exception:
     logger.error('Failed to find labscript_utils version')
 
+try:
+    import blacs
+    logger.info('BLACS Version: %s'%blacs.__version__)
+except Exception:
+    logger.error('Failed to find blacs version')
+    
+    
 # Connection Table Code
 from connections import ConnectionTable
 #Draggable Tab Widget Code
@@ -537,11 +544,11 @@ class BLACS(object):
         # Save front panel
         data = self.front_panel_settings.get_save_data()
        
-        with h5py.File(self.settings_path,'r+') as h5file:
-           if 'connection table' in h5file:
-               del h5file['connection table']
+        # with h5py.File(self.settings_path,'r+') as h5file:
+           # if 'connection table' in h5file:
+               # del h5file['connection table']
         
-        self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True})
+        self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True},force_new_conn_table=True)
         logger.info('Destroying tabs')
         for tab in self.tablist.values():
             tab.destroy()            
@@ -663,7 +670,7 @@ if __name__ == '__main__':
     experiment_server = ExperimentServer(port)
 
     # Create Connection Table object
-    logger.info('About to load connection table')
+    logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     try:
         connection_table = ConnectionTable(exp_config.get('paths','connection_table_h5'))
     except:
