@@ -58,9 +58,21 @@ class StateQueue(object):
             self.logger.debug("started")
         
         self.list_of_states = []
-        self.last_requested_state = None
+        self._last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
         self.get_blocking_queue = Queue()  
+    
+    @property
+    @inmain_decorator(True)    
+    # This is always done in main so that we avoid a race condition between the get method and
+    # the put method accessing this property
+    def last_requested_state(self):
+        return self._last_requested_state
+    
+    @last_requested_state.setter
+    @inmain_decorator(True)
+    def last_requested_state(self, value):
+        self._last_requested_state = value
      
     def log_current_states(self):
         if self.logging_enabled:
@@ -74,7 +86,7 @@ class StateQueue(object):
         else:
             self.list_of_states.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
         # if this state is one the get command is waiting for, notify it!
-        if self.last_requested_state and allowed_states&self.last_requested_state:
+        if self.last_requested_state is not None and allowed_states&self.last_requested_state:
             self.get_blocking_queue.put('new item')
         
         if self.logging_enabled:
