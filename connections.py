@@ -104,14 +104,22 @@ class ConnectionTable(object):
             print key
             value.print_details('    ')
     
-    # Returns a list of "connection" objects which have the one of the classes specified in the "device_list"
-    def find_devices(self,device_list):
-        return_list = {}
-        for key,value in self.toplevel_children.items():
-            return_list = value.find_devices(device_list,return_list)
+    def get_attached_devices(self):
+        """Finds out which devices in the connection table are
+        connected to BLACS, based on whether their 'BLACS_connection'
+        attribute is non-empty. Returns a dictionary of them in the form
+        {device_instance_name: labscript_class_name}"""
+        attached_devices = {}
+        for device in self.table:
+            if device['BLACS_connection']:
+                # The device is connected to BLACS.
+                # What's it's name, and it's labscript class name?
+                # What's its labscript class name?
+                instance_name = device['name']
+                labscript_device_class_name = device['class']
+                attached_devices[instance_name] = labscript_device_class_name
+        return attached_devices
         
-        return return_list
-    
     # Returns the "Connection" object which is a child of "device_name", connected via "parent_port"
     # Eg, Returns the child of "pulseblaster_0" connected via "dds 0"
     def find_child(self,device_name,parent_port):
@@ -192,16 +200,6 @@ class Connection(object):
             print indent + key
             value.print_details(indent+'    ')
     
-    def find_devices(self,device_list,return_list):
-        for device in device_list:
-            if device.lower() == self.device_class.lower():
-                return_list[self.name] = device            
-            
-        for key,value in self.child_list.items():
-            return_list = value.find_devices(device_list,return_list)
-            
-        return return_list   
-
     def find_child(self,device_name,parent_port):
         for k,v in self.child_list.items():
             if v.parent.name == device_name and v.parent_port == parent_port:

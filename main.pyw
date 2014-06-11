@@ -169,10 +169,8 @@ from qtutils import *
 from analysis_submission import AnalysisSubmission
 # Queue Manager Code
 from queue import QueueManager, QueueTreeview
-# Hardware Interface Imports
-import hardware_interfaces
-for device in hardware_interfaces.device_list:    
-    exec("from hardware_interfaces."+device+" import "+device)
+# Module containing hardware compatibility:
+import labscript_devices
 # Save/restore frontpanel code
 from front_panel_settings import FrontPanelSettings
 # Notifications system
@@ -253,9 +251,9 @@ class BLACS(object):
         self.panes = {}
         self.settings_dict = {}
         
-        # Instantiate Devices from Connection Table, Place in Array  
-        logger.info('finding devices in connection table')
-        self.attached_devices = self.connection_table.find_devices(hardware_interfaces.device_list)
+        # Find which devices are connected to BLACS, and what their labscript class names are:
+        logger.info('finding connected devices in connection table')
+        self.attached_devices = self.connection_table.get_attached_devices()
         
         # Store the panes in a dictionary for easy access
         self.panes['tab_top_vertical_splitter'] = self.ui.tab_top_vertical_splitter
@@ -282,7 +280,7 @@ class BLACS(object):
             getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
         
         logger.info('Instantiating devices')
-        for device_name,device_class in self.attached_devices.items():
+        for device_name, labscript_device_class_name in self.attached_devices.items():
             self.settings_dict.setdefault(device_name,{"device_name":device_name})
             # add common keys to settings:
             self.settings_dict[device_name]["connection_table"] = self.connection_table
@@ -290,7 +288,8 @@ class BLACS(object):
             self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}            
             # Instantiate the device            
             logger.info('instantiating %s'%device_name)
-            self.tablist[device_name] = globals()[device_class](self.tab_widgets[0],self.settings_dict[device_name])
+            TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
+            self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
         
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
@@ -437,7 +436,7 @@ class BLACS(object):
     
     def order_tabs(self,tab_data):
         # Move the tabs to the correct notebook
-        for device_name,device_class in self.attached_devices.items():
+        for device_name in self.attached_devices:
             notebook_num = 0
             if device_name in tab_data:
                 notebook_num = int(tab_data[device_name]["notebook"])
@@ -454,7 +453,7 @@ class BLACS(object):
         
         # splash.update_text('restoring tab positions...')
         # # Now that all the pages are created, reorder them!
-        for device_name,device_class in self.attached_devices.items():
+        for device_name in self.attached_devices:
             if device_name in tab_data:
                 notebook_num = int(tab_data[device_name]["notebook"])
                 if notebook_num in self.tab_widgets:  
