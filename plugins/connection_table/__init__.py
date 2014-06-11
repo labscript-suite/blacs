@@ -321,7 +321,7 @@ class Setting(object):
                     if not self.is_filepath_in_store(filepath,'globals'):
                         self.models['globals'].appendRow(QStandardItem(filepath))
          
-            self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.data['globals_sort_order'])
+            self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['globals_sort_order']))
             
         dialog.deleteLater()
             
@@ -337,7 +337,7 @@ class Setting(object):
             self.models['globals'].takeRow(index_list[0].row())
             index_list = self.views['globals'].selectedIndexes()
         
-        self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.data['globals_sort_order'])
+        self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['globals_sort_order']))
             
     def add_calibration_file(self):
         # create file chooser dialog
@@ -357,7 +357,7 @@ class Setting(object):
                     if not self.is_filepath_in_store(filepath,'calibrations'):
                         self.models['calibrations'].appendRow(QStandardItem(filepath))
          
-            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['calibrations_sort_order']))
         
         dialog.deleteLater()
         
@@ -374,7 +374,7 @@ class Setting(object):
                 if not self.is_filepath_in_store(filepath,'calibrations'):
                     self.models['calibrations'].appendRow(QStandardItem(filepath))
          
-            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['calibrations_sort_order']))
         
         dialog.deleteLater()
     
@@ -384,4 +384,4 @@ class Setting(object):
             self.models['calibrations'].takeRow(index_list[0].row())
             index_list = self.views['calibrations'].selectedIndexes()
         
-        self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+        self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['calibrations_sort_order']))
