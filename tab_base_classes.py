@@ -51,6 +51,19 @@ MODE_TRANSITION_TO_MANUAL = 4
 MODE_BUFFERED = 8  
             
 class StateQueue(object):
+    # NOTE:
+    #
+    # It is theoretically possible to remove the dependency on the Qt Mainloop (remove inmain decorators and fnuction calls)
+    # by introducing a local lock object instead. However, be aware that right now, the Qt inmain lock is preventing the 
+    # statemachine loop (Tab.mainloop) from getting any states uot of the queue until after the entire tab is initialised 
+    # and the Qt mainloop starts.
+    #
+    # This is particularly important because we exploit this behaviour to make sure that Tab._initialise_worker is placed at the
+    # start of the StateQueue, and so the Tab.mainloop method is guaranteed to get this initialisation method as the first state 
+    # regardless of whether the mainloop is started before the state is inserted (the state should always be inserted as part of  
+    # the call to Tab.create_worker, in DeviceTab.initialise_workers in DeviceTab.__init__ )
+    #
+    
     def __init__(self,device_name):
         self.logger = logging.getLogger('BLACS.%s.state_queue'%(device_name))
         self.logging_enabled = False
@@ -385,25 +398,14 @@ class Tab(object):
         worker = WorkerClass()
         to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
-        self._initialise_worker(name)
+        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
        
-    @define_state(MODE_MANUAL,True)  
-    def _initialise_worker(self,worker_name):
+    def _initialise_worker(self, worker_name):
         yield(self.queue_work(worker_name,'init'))
                 
         if self.error_message:
             raise Exception('Device failed to initialise')
-        
-        
-    # def btn_release(self,widget,event):
-        # if event.button == 3:
-            # menu = gtk.Menu()
-            # menu_item = gtk.MenuItem("Restart device tab")
-            # menu_item.connect("activate",self.restart)
-            # menu_item.show()
-            # menu.append(menu_item)
-            # menu.popup(None,None,None,event.button,event.time)
-        
+               
     @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)  
     def _timeout_add(self,delay,execute_timeout):
         QTimer.singleShot(delay,execute_timeout)
