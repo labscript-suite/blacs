@@ -159,7 +159,7 @@ class DeviceTab(Tab):
     
     def _create_DO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self.connection_table.find_child(parent_device,labscript_hardware_name)
+        device = self.get_child_from_connection_table(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Instantiate the DO object
@@ -172,7 +172,7 @@ class DeviceTab(Tab):
 
     def _create_AO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self.connection_table.find_child(parent_device,labscript_hardware_name)
+        device = self.get_child_from_connection_table(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Get the calibration details
@@ -189,7 +189,7 @@ class DeviceTab(Tab):
             
     def create_dds_outputs(self,dds_properties):
         for hardware_name,properties in dds_properties.items():
-            device = self.connection_table.find_child(self.device_name,hardware_name)
+            device = self.get_child_from_connection_table(self.device_name,hardware_name)
             connection_name = device.name if device else '-'
         
             subchnl_name_list = ['freq','amp','phase']
@@ -203,7 +203,10 @@ class DeviceTab(Tab):
                 sub_chnls['gate'] = self._create_DO_object(connection_name,hardware_name+'_gate','gate',properties)
             
             self._DDS[hardware_name] = DDS(hardware_name,connection_name,sub_chnls)
-        
+    
+    def get_child_from_connection_table(self, parent_device_name, port):
+        return self.connection_table.find_child(parent_device_name, port)
+    
     def create_digital_widgets(self,channel_properties):
         widgets = {}
         for hardware_name,properties in channel_properties.items():
