@@ -88,7 +88,8 @@ class Setting(object):
     def save(self):
         # transfer the contents of the list store into the data store, and then return the data store
         for var in self.var_list:
-            self.data[var[0]] = getattr(self.widgets[var[0]],var[2])()
+            # TODO: Make more general than forcing type to string
+            self.data[var[0]] = str(getattr(self.widgets[var[0]],var[2])())
         
         return self.data
         

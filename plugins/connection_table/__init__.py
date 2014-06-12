@@ -296,7 +296,7 @@ class Setting(object):
             # clear the existing list
             self.data['%s_list'%store] = []
             for row_index in range(self.models[store].rowCount()):
-                self.data['%s_list'%store].append(self.models[store].item(row_index).text())        
+                self.data['%s_list'%store].append(str(self.models[store].item(row_index).text()))
         
         return self.data
         
@@ -312,6 +312,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
+                filepath = str(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
@@ -327,7 +328,7 @@ class Setting(object):
             
     def is_filepath_in_store(self,filepath,store):
         for row_index in range(self.models[store].rowCount()):
-            if filepath == self.models[store].item(row_index).text():
+            if str(filepath) == str(self.models[store].item(row_index).text()):
                 return True
         return False
     
@@ -348,6 +349,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
+                filepath = str(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
