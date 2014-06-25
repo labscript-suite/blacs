@@ -70,7 +70,7 @@ class QueueTreeview(QTreeView):
             event.accept()
             
             for url in event.mimeData().urls():
-                path = url.toLocalFile()
+                path = str(url.toLocalFile())
                 if path.endswith('.h5') or path.endswith('.hdf5'):
                     self._logger.info('Acceptable file dropped. Path is %s'%path)
                     if self.add_to_queue:
