@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>BLACS</string>
+   <string>blacs - the labscript suite</string>
   </property>
   <property name="windowIcon">
    <iconset resource="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
