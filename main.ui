@@ -14,8 +14,8 @@
    <string>BLACS</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>BLACS.ico</normaloff>BLACS.ico</iconset>
+   <iconset resource="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+    <normaloff>:/qtutils/custom/blacs.png</normaloff>:/qtutils/custom/blacs.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_13">
@@ -431,7 +431,7 @@ V</string>
      <x>0</x>
      <y>0</y>
      <width>1030</width>
-     <height>26</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -505,7 +505,9 @@ V</string>
   <tabstop>queue_push_down</tabstop>
   <tabstop>queue_push_to_bottom</tabstop>
  </tabstops>
- <resources/>
+ <resources>
+  <include location="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>actionExit</sender>

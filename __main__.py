@@ -39,10 +39,12 @@ if 'pyside' in lower_argv:
 elif 'pyqt' in lower_argv:
     from PyQt4.QtCore import *
     from PyQt4.QtGui import *
+    from PyQt4.QtCore import pyqtSignal as Signal
 else:
     try:
         from PyQt4.QtCore import *
         from PyQt4.QtGui import *
+        from PyQt4.QtCore import pyqtSignal as Signal
     except Exception:
         from PySide.QtCore import *
         from PySide.QtGui import *
@@ -165,6 +167,8 @@ from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 from labscript_utils.labconfig import LabConfig, config_prefix
 # Qt utils for running functions in the main thread
 from qtutils import *
+# And for icons:
+import qtutils.icons
 # Analysis Submission code
 from analysis_submission import AnalysisSubmission
 # Queue Manager Code
@@ -180,8 +184,30 @@ from labscript_utils.settings import Settings
 #import settings_pages
 import plugins
 
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
+
+
+def set_win_appusermodel(window_id):
+    from labscript_utils.winshell import set_appusermodel, appids, app_descriptions
+    icon_path = os.path.abspath('blacs.ico')
+    executable = sys.executable.lower()
+    if not executable.endswith('w.exe'):
+        executable = executable.replace('.exe', 'w.exe')
+    relaunch_command = executable + ' ' + os.path.abspath(__file__.replace('.pyc', '.py'))
+    print relaunch_command
+    relaunch_display_name = app_descriptions['blacs']
+    set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
+
+    
 class BLACSWindow(QMainWindow):
-       
+    newWindow = Signal(int)
+
+    def event(self, event):
+        result = QMainWindow.event(self, event)
+        if event.type() == QEvent.WinIdChange:
+            self.newWindow.emit(self.effectiveWinId())
+        return result
+        
     def closeEvent(self, event):
         #print 'aaaaa'
         if self.blacs.exit_complete:
@@ -400,6 +426,10 @@ class BLACS(object):
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
         self.ui.actionOpen.triggered.connect(self.on_load_front_panel)       
+        
+        # Connect the windows AppId stuff:
+        if os.name == 'nt':
+            self.ui.newWindow.connect(set_win_appusermodel)
         
         logger.info('showing UI')
         self.ui.show()
@@ -660,18 +690,15 @@ if __name__ == '__main__':
     exp_config = LabConfig(config_path,required_config_params)        
     
     port = int(exp_config.get('ports','BLACS'))
-    myappid = 'monashbec.BLACS' # arbitrary string
-    try:
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-    except:
-        pass
+    
     # Start experiment server
     experiment_server = ExperimentServer(port)
 
     # Create Connection Table object
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
+    connection_table_h5_file = exp_config.get('paths','connection_table_h5')
     try:
-        connection_table = ConnectionTable(exp_config.get('paths','connection_table_h5'))
+        connection_table = ConnectionTable(connection_table_h5_file)
     except:
         # dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%self.connection_table_h5file)
              
