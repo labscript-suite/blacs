@@ -190,7 +190,6 @@ def set_win_appusermodel(window_id):
     if not executable.endswith('w.exe'):
         executable = executable.replace('.exe', 'w.exe')
     relaunch_command = executable + ' ' + os.path.abspath(__file__.replace('.pyc', '.py'))
-    print relaunch_command
     relaunch_display_name = app_descriptions['blacs']
     set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
 
