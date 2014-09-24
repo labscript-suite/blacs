@@ -21,6 +21,10 @@ import sys
 import threading
 import time
 
+import signal
+# Quit on ctrl-c
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 # check if we should delay!
 try:
     if '--delay' in sys.argv:
@@ -50,36 +54,28 @@ else:
         from PySide.QtGui import *
     
     
-class VersionException(Exception):
-    pass
-    
-# now check required versions
-try:
-    import labscript_utils
-    version = labscript_utils.__version__.split('-')[0].split('.')
-    version = [int(v) for v in version]
-    if version[0] > 1:
-        raise VersionException('labscript_utils is too new for this version of BLACS. Please downgrade labscript_utils to v1.1.x or upgrade BLACS')
-    elif version[0] < 1 or (version[0] == 1 and version[1] < 1):
-        raise VersionException('labscript_utils is out of date. Please update to v1.1.x or later')
-except VersionException:
-    raise
-except Exception:
-    print 'Failed to check labscript_utils version. Continuing anyway...'
-    
-try:
-    import qtutils
-    version = qtutils.__version__.split('-')[0].split('.')
-    version = [int(v) for v in version]
-    if version[0] > 1:
-        raise VersionException('qtutils is too new for this version of BLACS. Please downgrade qtutils to v1.2.x or upgrade BLACS')
-    elif version[0] < 1 or (version[0] == 1 and version[1] < 2):
-        raise VersionException('qtutils is out of date. Please update to v1.2.x or later')
-except VersionException:
-    raise
-except Exception:
-    print 'Failed to check qtutils version. Continuing anyway...'           
-    
+def check_version(module_name, at_least, less_than, version=None):
+
+    class VersionException(Exception):
+        pass
+
+    def get_version_tuple(version_string):
+        version_tuple = [int(v.replace('+', '-').split('-')[0]) for v in version_string.split('.')]
+        while len(version_tuple) < 3:
+            version_tuple += (0,)
+        return version_tuple
+
+    if version is None:
+        version = __import__(module_name).__version__
+    at_least_tuple, less_than_tuple, version_tuple = [get_version_tuple(v) for v in [at_least, less_than, version]]
+    if not at_least_tuple <= version_tuple < less_than_tuple:
+        raise VersionException(
+            '{module_name} {version} found. {at_least} <= {module_name} < {less_than} required.'.format(**locals()))
+
+check_version('labscript_utils', '1.1', '2')
+check_version('qtutils', '1.5.1', '2')
+check_version('zprocess', '1.1.2', '2')
+            
 # Pythonlib imports
 ### Must be in this order
 import zprocess.locking, labscript_utils.h5_lock, h5py
