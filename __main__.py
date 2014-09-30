@@ -33,7 +33,7 @@ try:
 except:
     print 'You should specify "--delay x" where x is an integer'
 
-    
+
 lower_argv = [s.lower() for s in sys.argv]
 if 'pyside' in lower_argv:
     # Import Qt
@@ -52,8 +52,8 @@ else:
     except Exception:
         from PySide.QtCore import *
         from PySide.QtGui import *
-    
-    
+
+
 def check_version(module_name, at_least, less_than, version=None):
 
     class VersionException(Exception):
@@ -75,7 +75,7 @@ def check_version(module_name, at_least, less_than, version=None):
 check_version('labscript_utils', '1.1', '2')
 check_version('qtutils', '1.5.1', '2')
 check_version('zprocess', '1.1.2', '2')
-            
+
 # Pythonlib imports
 ### Must be in this order
 import zprocess.locking, labscript_utils.h5_lock, h5py
@@ -104,7 +104,7 @@ try:
     logger.info('windows version: %s'%str(sys.getwindowsversion()))
 except Exception:
     pass
-    
+
 try:
     import zmq
     logger.info('PyZMQ Version: %s'%zmq.__version__)
@@ -117,16 +117,16 @@ try:
     logger.info('h5py Version: %s'%h5py.version.info)
 except Exception:
     logger.error('Failed to find h5py version')
-    
+
 try:
     if 'PySide' in sys.modules.copy():
         import PySide
         logger.info('PySide Version: %s'%PySide.__version__)
-        logger.info('Qt Version: %s'%PySide.QtCore.__version__)    
+        logger.info('Qt Version: %s'%PySide.QtCore.__version__)
     else:
         import PyQt4.QtCore
         logger.info('PyQt Version: %s'%PyQt4.QtCore.PYQT_VERSION_STR)
-        logger.info('Qt Version: %s'%PyQt4.QtCore.QT_VERSION_STR)   
+        logger.info('Qt Version: %s'%PyQt4.QtCore.QT_VERSION_STR)
 except Exception:
     logger.error('Failed to find PySide/PyQt version')
 
@@ -135,13 +135,13 @@ try:
     logger.info('qtutils Version: %s'%qtutils.__version__)
 except Exception:
     logger.error('Failed to find qtutils version')
-    
+
 try:
     import zprocess
     logger.info('zprocess Version: %s'%zprocess.__version__)
 except Exception:
     logger.error('Failed to find zprocess version')
-    
+
 try:
     import labscript_utils
     logger.info('labscript_utils Version: %s'%labscript_utils.__version__)
@@ -153,8 +153,8 @@ try:
     logger.info('BLACS Version: %s'%blacs.__version__)
 except Exception:
     logger.error('Failed to find blacs version')
-    
-    
+
+
 # Connection Table Code
 from connections import ConnectionTable
 #Draggable Tab Widget Code
@@ -193,7 +193,7 @@ def set_win_appusermodel(window_id):
     relaunch_display_name = app_descriptions['blacs']
     set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
 
-    
+
 class BLACSWindow(QMainWindow):
     newWindow = Signal(int)
 
@@ -202,7 +202,7 @@ class BLACSWindow(QMainWindow):
         if event.type() == QEvent.WinIdChange:
             self.newWindow.emit(self.effectiveWinId())
         return result
-        
+
     def closeEvent(self, event):
         #print 'aaaaa'
         if self.blacs.exit_complete:
@@ -228,27 +228,28 @@ class BLACSWindow(QMainWindow):
                 self.blacs.exiting = True
                 self.blacs.queue.manager_running = False
                 self.blacs.settings.close()
+                experiment_server.shutdown()
                 for module_name, plugin in self.blacs.plugins.items():
                     try:
                         plugin.close()
                     except Exception as e:
                         logger.error('Could not close plugin %s. Error was: %s'%(module_name,str(e)))
-                
+
                 inmain_later(self.blacs.on_save_exit)
-                
+
             QTimer.singleShot(100,self.close)
-        
+
 class BLACS(object):
 
     tab_widget_ids = 7
-    
+
     def __init__(self,application):
         self.qt_application = application
         #self.qt_application.aboutToQuit.connect(self.destroy)
         self._relaunch = False
         self.exiting = False
         self.exit_complete = False
-        
+
         logger.info('Loading BLACS ui')
         #self.ui = BLACSWindow(self).ui
         loader = UiLoader()
@@ -263,58 +264,58 @@ class BLACS(object):
         self.connection_table = connection_table # Global variable
         self.connection_table_h5file = self.exp_config.get('paths','connection_table_h5')
         self.connection_table_labscript = self.exp_config.get('paths','connection_table_py')
-                
+
         # Setup the UI
         self.ui.main_splitter.setStretchFactor(0,0)
         self.ui.main_splitter.setStretchFactor(1,1)
-        
+
         self.tablist = {}
         self.panes = {}
         self.settings_dict = {}
-        
+
         # Find which devices are connected to BLACS, and what their labscript class names are:
         logger.info('finding connected devices in connection table')
         self.attached_devices = self.connection_table.get_attached_devices()
-        
+
         # Store the panes in a dictionary for easy access
         self.panes['tab_top_vertical_splitter'] = self.ui.tab_top_vertical_splitter
         self.panes['tab_bottom_vertical_splitter'] = self.ui.tab_bottom_vertical_splitter
         self.panes['tab_horizontal_splitter'] = self.ui.tab_horizontal_splitter
         self.panes['main_splitter'] = self.ui.main_splitter
-                
-        # Get settings to restore 
+
+        # Get settings to restore
         logger.info('Loading front panel settings')
         self.front_panel_settings = FrontPanelSettings(self.settings_path, self.connection_table)
         self.front_panel_settings.setup(self)
         settings,question,error,tab_data = self.front_panel_settings.restore()
-            
+
         # TODO: handle question/error cases
-        
+
         logger.info('restoring window data')
         self.restore_window(tab_data)
-        
+
         #splash.update_text('Creating the device tabs...')
         # Create the notebooks
         logger.info('Creating tab widgets')
         for i in range(4):
             self.tab_widgets[i] = DragDropTabWidget(self.tab_widget_ids)
             getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
-        
+
         logger.info('Instantiating devices')
         for device_name, labscript_device_class_name in self.attached_devices.items():
             self.settings_dict.setdefault(device_name,{"device_name":device_name})
             # add common keys to settings:
             self.settings_dict[device_name]["connection_table"] = self.connection_table
             self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
-            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}            
-            # Instantiate the device            
+            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
+            # Instantiate the device
             logger.info('instantiating %s'%device_name)
             TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
             self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
-        
+
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
-        
+
         logger.info('starting analysis submission thread')
         # setup analysis submission
         self.analysis_submission = AnalysisSubmission(self,self.ui)
@@ -323,16 +324,16 @@ class BLACS(object):
         else:
             tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
-        
+
         logger.info('starting queue manager thread')
         # Setup the QueueManager
-        self.queue = QueueManager(self,self.ui)  
+        self.queue = QueueManager(self,self.ui)
         if 'queue_data' not in tab_data['BLACS settings']:
             tab_data['BLACS settings']['queue_data'] = {}
         else:
             tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
-        
+
         logger.info('instantiating plugins')
         # setup the plugin system
         settings_pages = []
@@ -341,10 +342,10 @@ class BLACS(object):
         for module_name, module in plugins.modules.items():
             try:
                 # instantiate the plugin
-                self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})     
+                self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})
             except Exception:
                 logger.exception('Could not instantiate plugin \'%s\'. Skipping')
-        
+
         blacs_data = {'exp_config':self.exp_config,
                       'ui':self.ui,
                       'set_relaunch':self.set_relaunch,
@@ -352,7 +353,7 @@ class BLACS(object):
                       'connection_table_h5file':self.connection_table_h5file,
                       'connection_table_labscript':self.connection_table_labscript,
                      }
-        
+
         def create_menu(parent, menu_parameters):
             if 'name' in menu_parameters:
                 if 'menu_items' in menu_parameters:
@@ -361,17 +362,17 @@ class BLACS(object):
                         create_menu(child,child_menu_params)
                 else:
                     child = parent.addAction(menu_parameters['name'])
-                    
-                if 'action' in menu_parameters:                    
-                    child.triggered.connect(menu_parameters['action'])                    
-                    
+
+                if 'action' in menu_parameters:
+                    child.triggered.connect(menu_parameters['action'])
+
             elif 'separator' in menu_parameters:
                 parent.addSeparator()
-        
+
         # setup the Notification system
         logger.info('setting up notification system')
         self.notifications = Notifications(blacs_data)
-        
+
         settings_callbacks = []
         for module_name, plugin in self.plugins.items():
             try:
@@ -384,54 +385,54 @@ class BLACS(object):
                     menu = plugin.get_menu_class()(blacs_data)
                     create_menu(self.ui.menubar,menu.get_menu_items())
                     plugin.set_menu_instance(menu)
-                        
+
                 # Setup notifications
                 plugin_notifications = {}
                 for notification_class in plugin.get_notification_classes():
                     self.notifications.add_notification(notification_class)
                     plugin_notifications[notification_class] = self.notifications.get_instance(notification_class)
                 plugin.set_notification_instances(plugin_notifications)
-                
+
                 # Register callbacks
                 callbacks = plugin.get_callbacks()
                 # save the settings_changed callback in a separate list for setting up later
                 if isinstance(callbacks,dict) and 'settings_changed' in callbacks:
                     settings_callbacks.append(callbacks['settings_changed'])
-                
+
             except Exception:
                 logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
-                
-                
+
+
         # setup the BLACS preferences system
         logger.info('setting up preferences system')
         self.settings = Settings(file=self.settings_path, parent = self.ui, page_classes=settings_pages)
-        for callback in settings_callbacks:            
+        for callback in settings_callbacks:
             self.settings.register_callback(callback)
-        
+
         # update the blacs_data dictionary with the settings system
         blacs_data['settings'] = self.settings
-            
+
         for module_name, plugin in self.plugins.items():
             try:
                 plugin.plugin_setup_complete()
             except Exception:
                 logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
-        
+
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
-        self.ui.actionOpen.triggered.connect(self.on_load_front_panel)       
-        
+        self.ui.actionOpen.triggered.connect(self.on_load_front_panel)
+
         # Connect the windows AppId stuff:
         if os.name == 'nt':
             self.ui.newWindow.connect(set_win_appusermodel)
-        
+
         logger.info('showing UI')
         self.ui.show()
-    
+
     def set_relaunch(self,value):
         self._relaunch = bool(value)
-    
+
     def restore_window(self,tab_data):
         # read out position settings:
         try:
@@ -444,30 +445,30 @@ class BLACS(object):
             # Feel free to rewrite this, along with the code in front_panel_settings.py
             # which stores the values
             #
-            # Actually this is a waste of time because if you close when maximized, reoopen and then 
+            # Actually this is a waste of time because if you close when maximized, reoopen and then
             # de-maximize, the window moves to a random position (not the position it was at before maximizing)
             # so bleh!
             self.ui.move(tab_data['BLACS settings']["window_xpos"]-tab_data['BLACS settings']['window_frame_width']/2,tab_data['BLACS settings']["window_ypos"]-tab_data['BLACS settings']['window_frame_height']+tab_data['BLACS settings']['window_frame_width']/2)
             self.ui.resize(tab_data['BLACS settings']["window_width"],tab_data['BLACS settings']["window_height"])
-            
+
             if 'window_maximized' in tab_data['BLACS settings'] and tab_data['BLACS settings']['window_maximized']:
                 self.ui.showMaximized()
-            
+
             for pane_name,pane in self.panes.items():
                 pane.setSizes(tab_data['BLACS settings'][pane_name])
-                    
+
         except Exception as e:
             logger.warning("Unable to load window and notebook defaults. Exception:"+str(e))
-    
+
     def order_tabs(self,tab_data):
         # Move the tabs to the correct notebook
         for device_name in self.attached_devices:
             notebook_num = 0
             if device_name in tab_data:
                 notebook_num = int(tab_data[device_name]["notebook"])
-                if notebook_num not in self.tab_widgets: 
+                if notebook_num not in self.tab_widgets:
                     notebook_num = 0
-                    
+
             #Find the notebook the tab is in, and remove it:
             for notebook in self.tab_widgets.values():
                 tab_index = notebook.indexOf(self.tablist[device_name]._ui)
@@ -475,15 +476,15 @@ class BLACS(object):
                     notebook.removeTab(tab_index)
                     self.tab_widgets[notebook_num].addTab(self.tablist[device_name]._ui,device_name)
                     break
-        
+
         # splash.update_text('restoring tab positions...')
         # # Now that all the pages are created, reorder them!
         for device_name in self.attached_devices:
             if device_name in tab_data:
                 notebook_num = int(tab_data[device_name]["notebook"])
-                if notebook_num in self.tab_widgets:  
+                if notebook_num in self.tab_widgets:
                     self.tab_widgets[notebook_num].tab_bar.moveTab(self.tab_widgets[notebook_num].indexOf(self.tablist[device_name]._ui),int(tab_data[device_name]["page"]))
-        
+
         # # Now that they are in the correct order, set the correct one visible
         for device_name,device_data in tab_data.items():
             if device_name == 'BLACS settings':
@@ -491,14 +492,14 @@ class BLACS(object):
             # if the notebook still exists and we are on the entry that is visible
             if bool(device_data["visible"]) and int(device_data["notebook"]) in self.tab_widgets:
                 self.tab_widgets[int(device_data["notebook"])].tab_bar.setCurrentIndex(int(device_data["page"]))
-    
+
     def update_all_tab_settings(self,settings,tab_data):
         for device_name,tab in self.tablist.items():
             self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
-            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}            
+            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
             tab.update_from_settings(self.settings_dict[device_name])
-                    
-        
+
+
     def on_load_front_panel(self,*args,**kwargs):
         # get the file:
         # create file chooser dialog
@@ -510,7 +511,7 @@ class BLACS(object):
             filepath = str(selected_files[0])
             # Qt has this weird behaviour where if you type in the name of a file that exists
             # but does not have the extension you have limited the dialog to, the OK button is greyed out
-            # but you can hit enter and the file will be selected. 
+            # but you can hit enter and the file will be selected.
             # So we must check the extension of each file here!
             if filepath.endswith('.h5') or filepath.endswith('.hdf5'):
                 try:
@@ -523,17 +524,17 @@ class BLACS(object):
                     message.setIcon(QMessageBox.Warning)
                     message.setWindowTitle("BLACS")
                     message.setStandardButtons(QMessageBox.Yes|QMessageBox.No)
-                   
-                    if message.exec_() == QMessageBox.Yes:                
+
+                    if message.exec_() == QMessageBox.Yes:
                         front_panel_settings = FrontPanelSettings(filepath, self.connection_table)
                         settings,question,error,tab_data = front_panel_settings.restore()
                         #TODO: handle question/error
-                        
+
                         # Restore window data
                         self.restore_window(tab_data)
-                        self.order_tabs(tab_data)                   
+                        self.order_tabs(tab_data)
                         self.update_all_tab_settings(settings,tab_data)
-                        
+
                         # restore queue data
                         if 'queue_data' not in tab_data['BLACS settings']:
                             tab_data['BLACS settings']['queue_data'] = {}
@@ -552,7 +553,7 @@ class BLACS(object):
                     message.setText("Unable to load the front panel. The error encountered is printed below.\n\n%s"%str(e))
                     message.setIcon(QMessageBox.Information)
                     message.setWindowTitle("BLACS")
-                    message.exec_() 
+                    message.exec_()
                 finally:
                     dialog.deleteLater()
             else:
@@ -563,23 +564,23 @@ class BLACS(object):
                 message.setWindowTitle("BLACS")
                 message.exec_()
                 QTimer.singleShot(10,self.on_load_front_panel)
-    
+
     def on_save_exit(self):
         # Save front panel
         data = self.front_panel_settings.get_save_data()
-       
+
         # with h5py.File(self.settings_path,'r+') as h5file:
            # if 'connection table' in h5file:
                # del h5file['connection table']
-        
+
         self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True},force_new_conn_table=True)
         logger.info('Destroying tabs')
         for tab in self.tablist.values():
-            tab.destroy()            
-            
+            tab.destroy()
+
         #gobject.timeout_add(100,self.finalise_quit,time.time())
         QTimer.singleShot(100,lambda: self.finalise_quit(time.time()))
-    
+
     def finalise_quit(self,initial_time):
         logger.info('finalise_quit called')
         tab_close_timeout = 2
@@ -592,7 +593,7 @@ class BLACS(object):
                 # If a tab has a fatal error or is taking too long to close, force close it:
                 if (time.time() - initial_time > tab_close_timeout) or tab.state == 'fatal error':
                     try:
-                        tab.close_tab() 
+                        tab.close_tab()
                     except Exception as e:
                         logger.error('Couldn\'t close tab:\n%s'%str(e))
                     del self.tablist[name]
@@ -601,17 +602,17 @@ class BLACS(object):
         else:
             self.exit_complete = True
             logger.info('quitting')
-    
+
     def on_save_front_panel(self,*args,**kwargs):
         data = self.front_panel_settings.get_save_data()
-    
+
         # Open save As dialog
         dialog = QFileDialog(None,"Save BLACS state", self.exp_config.get('paths','experiment_shot_storage'), "HDF5 files (*.h5)")
         try:
             dialog.setViewMode(QFileDialog.Detail)
             dialog.setFileMode(QFileDialog.AnyFile)
             dialog.setAcceptMode(QFileDialog.AcceptSave)
-            
+
             if dialog.exec_():
                 current_file = str(dialog.selectedFiles()[0])
                 if not current_file.endswith('.h5'):
@@ -621,10 +622,10 @@ class BLACS(object):
             raise
         finally:
             dialog.deleteLater()
-        
+
     def on_open_preferences(self,*args,**kwargs):
         self.settings.create_dialog()
-                
+
 class ExperimentServer(ZMQServer):
     def handler(self, h5_filepath):
         print h5_filepath
@@ -635,12 +636,12 @@ class ExperimentServer(ZMQServer):
     @inmain_decorator(wait_for_return=True)
     def process(self,h5_filepath):
         # Convert path to local slashes and shared drive prefix:
-        logger.info('received filepath: %s'%h5_filepath)        
+        logger.info('received filepath: %s'%h5_filepath)
         h5_filepath = labscript_utils.shared_drive.path_to_local(h5_filepath)
         logger.info('local filepath: %s'%h5_filepath)
         return app.queue.process_request(h5_filepath)
 
- 
+
 if __name__ == '__main__':
     if 'tracelog' in sys.argv:
         ##########
@@ -678,14 +679,14 @@ if __name__ == '__main__':
                                          ],
                               "paths":["shared_drive",
                                        "connection_table_h5",
-                                       "connection_table_py",                                       
+                                       "connection_table_py",
                                       ],
                               "ports":["BLACS", "lyse"],
                              }
-    exp_config = LabConfig(config_path,required_config_params)        
-    
+    exp_config = LabConfig(config_path,required_config_params)
+
     port = int(exp_config.get('ports','BLACS'))
-    
+
     # Start experiment server
     experiment_server = ExperimentServer(port)
 
@@ -696,21 +697,20 @@ if __name__ == '__main__':
         connection_table = ConnectionTable(connection_table_h5_file)
     except:
         # dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%self.connection_table_h5file)
-             
+
         # dialog.run()
         # dialog.destroy()
         logger.exception('connection table failed to load')
         raise
         sys.exit("Invalid Connection Table")
     logger.info('connection table loaded')
-    
+
     qapplication = QApplication(sys.argv)
     logger.info('QApplication instantiated')
     app = BLACS(qapplication)
-    
+
     logger.info('BLACS instantiated')
     def execute_program():
-        qapplication.exec_()        
-        experiment_server.shutdown()
-    
+        qapplication.exec_()
+
     sys.exit(execute_program())
