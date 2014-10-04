@@ -14,10 +14,14 @@
 import logging
 import os
 import subprocess
+import sys
 
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 from blacs.compile_and_restart import CompileAndRestart
 from labscript_utils.filewatcher import FileWatcher
@@ -122,7 +126,7 @@ class Notification(object):
         self.filewatcher = None
         
         # Create the widget
-        self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
+        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
         self._ui.button.clicked.connect(self.on_recompile_connection_table)
         #self._ui.hide()
             
@@ -188,11 +192,11 @@ class Setting(object):
                 
             #set the default sort order if it wasn't previousl saved
             if '%s_sort_order'%store not in self.data:
-                self.data['%s_sort_order'%store] = Qt.AscendingOrder
+                self.data['%s_sort_order'%store] = 'ASC'
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.ui'))
+        ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.ui'))
         
         # Create the models, get the views, and link them!!
         self.models = {}
@@ -227,16 +231,58 @@ class Setting(object):
             # otherwise add an empty list to our data store, and leave the liststore empty
             else:
                 self.data['%s_list'%store] = []
-        
-            self.views[store].sortByColumn(FILEPATH_COLUMN,self.data['%s_sort_order'%store])
+            
+            self.views[store].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['%s_sort_order'%store]))
         
         return ui,None
     
     def global_sort_indicator_changed(self):
-        self.data['globals_sort_order'] = self.views['globals'].header().sortIndicatorOrder()
+        if 'PySide' in sys.modules.copy():
+            if self.views['globals'].header().sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        else:
+            if self.views['globals'].header().sortIndicatorOrder() == Qt.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        self.data['globals_sort_order'] = self.enum_to_order(self.views['globals'].header().sortIndicatorOrder())
         
     def calibrations_sort_indicator_changed(self):
-        self.data['calibrations_sort_order'] = self.views['calibrations'].header().sortIndicatorOrder()
+        self.data['calibrations_sort_order'] = self.enum_to_order(self.views['calibrations'].header().sortIndicatorOrder())
+    
+    def order_to_enum(self, order):
+        # if we are accidnetally passed an enum, just return it
+        if order not in ['ASC', 'DESC']:
+            return order
+    
+        if 'PySide' in sys.modules.copy():
+            if order == 'ASC':
+                enum = Qt.SortOrder.AscendingOrder
+            else:
+                enum = Qt.SortOrder.DescendingOrder
+        else:
+            if order == 'ASC':
+                enum = Qt.AscendingOrder
+            else:
+                enum = Qt.DescendingOrder
+        
+        return enum
+        
+    def enum_to_order(self, enum):
+        if 'PySide' in sys.modules.copy():
+            if enum == Qt.SortOrder.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        else:
+            if enum == Qt.AscendingOrder:
+                order = 'ASC'
+            else:
+                order = 'DESC'
+        
+        return order
     
     def get_value(self,name):
         if name in self.data:
@@ -250,7 +296,7 @@ class Setting(object):
             # clear the existing list
             self.data['%s_list'%store] = []
             for row_index in range(self.models[store].rowCount()):
-                self.data['%s_list'%store].append(self.models[store].item(row_index).text())        
+                self.data['%s_list'%store].append(str(self.models[store].item(row_index).text()))
         
         return self.data
         
@@ -266,6 +312,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
+                filepath = str(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
@@ -275,13 +322,13 @@ class Setting(object):
                     if not self.is_filepath_in_store(filepath,'globals'):
                         self.models['globals'].appendRow(QStandardItem(filepath))
          
-            self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.data['globals_sort_order'])
+            self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['globals_sort_order']))
             
         dialog.deleteLater()
             
     def is_filepath_in_store(self,filepath,store):
         for row_index in range(self.models[store].rowCount()):
-            if filepath == self.models[store].item(row_index).text():
+            if str(filepath) == str(self.models[store].item(row_index).text()):
                 return True
         return False
     
@@ -291,7 +338,7 @@ class Setting(object):
             self.models['globals'].takeRow(index_list[0].row())
             index_list = self.views['globals'].selectedIndexes()
         
-        self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.data['globals_sort_order'])
+        self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['globals_sort_order']))
             
     def add_calibration_file(self):
         # create file chooser dialog
@@ -302,6 +349,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
+                filepath = str(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
@@ -311,7 +359,7 @@ class Setting(object):
                     if not self.is_filepath_in_store(filepath,'calibrations'):
                         self.models['calibrations'].appendRow(QStandardItem(filepath))
          
-            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['calibrations_sort_order']))
         
         dialog.deleteLater()
         
@@ -328,7 +376,7 @@ class Setting(object):
                 if not self.is_filepath_in_store(filepath,'calibrations'):
                     self.models['calibrations'].appendRow(QStandardItem(filepath))
          
-            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+            self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['calibrations_sort_order']))
         
         dialog.deleteLater()
     
@@ -338,4 +386,4 @@ class Setting(object):
             self.models['calibrations'].takeRow(index_list[0].row())
             index_list = self.views['calibrations'].selectedIndexes()
         
-        self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.data['calibrations_sort_order'])
+        self.views['calibrations'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['calibrations_sort_order']))

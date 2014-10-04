@@ -33,11 +33,16 @@ class ConnectionTable(object):
                     else:
                         self.table = np.array([])
                     for row in self.table:
+                        row = Row(row)
                         if row[3] == "None":
-                            self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],self.table)
+                            self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],row[7],self.table)
                     try:
                         self.master_pseudoclock = table.attrs['master_pseudoclock']
                     except:
+                        #TODO: This will cause the Queue Manager to be unhappy
+                        #      as it needs to know the master pseudoclock
+                        #
+                        #      Perhaps we should just raise an exception here?
                         self.master_pseudoclock = None
                 except:
                     self.logger.error('Unable to get connection table  %s'%h5file)
@@ -104,14 +109,22 @@ class ConnectionTable(object):
             print key
             value.print_details('    ')
     
-    # Returns a list of "connection" objects which have the one of the classes specified in the "device_list"
-    def find_devices(self,device_list):
-        return_list = {}
-        for key,value in self.toplevel_children.items():
-            return_list = value.find_devices(device_list,return_list)
+    def get_attached_devices(self):
+        """Finds out which devices in the connection table are
+        connected to BLACS, based on whether their 'BLACS_connection'
+        attribute is non-empty. Returns a dictionary of them in the form
+        {device_instance_name: labscript_class_name}"""
+        attached_devices = {}
+        for device in self.table:
+            if device['BLACS_connection']:
+                # The device is connected to BLACS.
+                # What's it's name, and it's labscript class name?
+                # What's its labscript class name?
+                instance_name = device['name']
+                labscript_device_class_name = device['class']
+                attached_devices[instance_name] = labscript_device_class_name
+        return attached_devices
         
-        return return_list
-    
     # Returns the "Connection" object which is a child of "device_name", connected via "parent_port"
     # Eg, Returns the child of "pulseblaster_0" connected via "dds 0"
     def find_child(self,device_name,parent_port):
@@ -131,10 +144,32 @@ class ConnectionTable(object):
                 if result is not None:
                     return result
         return None
+
+# A wrapper class for rows taken out of the connection table
+# This allows us to easily provide backwards compatibilty for older HDF5
+# files when we add a new column to the connection table
+#
+# If a column is missing in the connection table, the values used
+# for that column will match those specified in thge defaults dictionary
+class Row(object):
+    def __init__(self, row):
+        self.row = row
+        # key,value pairs of default values. 
+        # The key indicates the column number in the connection table (indexing 
+        #     starts from 0)
+        # The value indicates the default value to be used if the column
+        #     does not exist
+        self.defaults = {4:"None", 5:"None", 6:"", 7:"{}"}
+    def __getitem__(self, index):
+        if index >= len(self.row):
+            return self.defaults[index]
+        else:
+            return self.row[index]
+            
     
 class Connection(object):
     
-    def __init__(self, name, device_class, parent, parent_port, unit_conversion_class, unit_conversion_params, BLACS_connection, table):
+    def __init__(self, name, device_class, parent, parent_port, unit_conversion_class, unit_conversion_params, BLACS_connection, properties, table):
         self.child_list = {}
         self.name = name
         self.device_class = device_class
@@ -143,11 +178,13 @@ class Connection(object):
         self.unit_conversion_class = unit_conversion_class
         self.unit_conversion_params = unit_conversion_params
         self.BLACS_connection = BLACS_connection
+        self.properties = eval(properties)
         
         # Create children
         for row in table:
+            row = Row(row)
             if row[2] == self.name:
-                self.child_list[row[0]] = Connection(row[0],row[1],self,row[3],row[4],row[5],row[6],table)
+                self.child_list[row[0]] = Connection(row[0],row[1],self,row[3],row[4],row[5],row[6],row[7],table)
         
     def compare_to(self,other_connection):
         if not isinstance(other_connection,Connection):
@@ -167,6 +204,8 @@ class Connection(object):
             error["unit_conversion_params"] = True
         if self.BLACS_connection != other_connection.BLACS_connection:
             error["BLACS_connection"] = True
+        if self.properties != other_connection.properties:
+            error["properties"] = True
         
         # for each child in other_connection, check that the child also exists here
         for name,connection in other_connection.child_list.items():
@@ -192,16 +231,6 @@ class Connection(object):
             print indent + key
             value.print_details(indent+'    ')
     
-    def find_devices(self,device_list,return_list):
-        for device in device_list:
-            if device.lower() == self.device_class.lower():
-                return_list[self.name] = device            
-            
-        for key,value in self.child_list.items():
-            return_list = value.find_devices(device_list,return_list)
-            
-        return return_list   
-
     def find_child(self,device_name,parent_port):
         for k,v in self.child_list.items():
             if v.parent.name == device_name and v.parent_port == parent_port:
@@ -213,6 +242,7 @@ class Connection(object):
             val = v.find_child(device_name,parent_port)
             if val is not None:
                 return val
+                
         
         return None
 

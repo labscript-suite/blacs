@@ -16,15 +16,19 @@ import sys
 import os
 import time
 
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
+    
 import labscript_utils.excepthook
-
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
+from qtutils import UiLoader
 
 from tab_base_classes import Tab, Worker, define_state
 from tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
-from hardware_interfaces.output_classes import AO, DO, DDS
+from output_classes import AO, DO, DDS
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
 
 
@@ -155,7 +159,7 @@ class DeviceTab(Tab):
     
     def _create_DO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self.connection_table.find_child(parent_device,labscript_hardware_name)
+        device = self.get_child_from_connection_table(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Instantiate the DO object
@@ -168,7 +172,7 @@ class DeviceTab(Tab):
 
     def _create_AO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
-        device = self.connection_table.find_child(parent_device,labscript_hardware_name)
+        device = self.get_child_from_connection_table(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
         
         # Get the calibration details
@@ -185,7 +189,7 @@ class DeviceTab(Tab):
             
     def create_dds_outputs(self,dds_properties):
         for hardware_name,properties in dds_properties.items():
-            device = self.connection_table.find_child(self.device_name,hardware_name)
+            device = self.get_child_from_connection_table(self.device_name,hardware_name)
             connection_name = device.name if device else '-'
         
             subchnl_name_list = ['freq','amp','phase']
@@ -199,7 +203,10 @@ class DeviceTab(Tab):
                 sub_chnls['gate'] = self._create_DO_object(connection_name,hardware_name+'_gate','gate',properties)
             
             self._DDS[hardware_name] = DDS(hardware_name,connection_name,sub_chnls)
-        
+    
+    def get_child_from_connection_table(self, parent_device_name, port):
+        return self.connection_table.find_child(parent_device_name, port)
+    
     def create_digital_widgets(self,channel_properties):
         widgets = {}
         for hardware_name,properties in channel_properties.items():
@@ -437,7 +444,7 @@ class DeviceTab(Tab):
                         changed = True
                         
                 if changed:
-                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
+                    ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed_dds.ui'))
                     ui.channel_label.setText(self._DDS[channel].name)
                     for sub_chnl in front_value:
                         ui.__getattribute__('front_%s_value'%sub_chnl).setText(front_values_formatted[sub_chnl])
@@ -456,7 +463,7 @@ class DeviceTab(Tab):
                 remote_value = str(bool(int(remote_value)))
                 if front_value != remote_value:
                     changed = True
-                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
+                    ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
                     ui.channel_label.setText(self._DO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)
@@ -466,7 +473,7 @@ class DeviceTab(Tab):
                 remote_value = ("%."+str(self._AO[channel]._decimals)+"f")%remote_value
                 if front_value != remote_value:
                     changed = True
-                    ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
+                    ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_value_changed.ui'))
                     ui.channel_label.setText(self._AO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)

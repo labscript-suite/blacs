@@ -26,9 +26,12 @@ from types import GeneratorType
 import zprocess
 #import labscript_utils.excepthook
 
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 from qtutils import *
 
@@ -48,6 +51,19 @@ MODE_TRANSITION_TO_MANUAL = 4
 MODE_BUFFERED = 8  
             
 class StateQueue(object):
+    # NOTE:
+    #
+    # It is theoretically possible to remove the dependency on the Qt Mainloop (remove inmain decorators and fnuction calls)
+    # by introducing a local lock object instead. However, be aware that right now, the Qt inmain lock is preventing the 
+    # statemachine loop (Tab.mainloop) from getting any states uot of the queue until after the entire tab is initialised 
+    # and the Qt mainloop starts.
+    #
+    # This is particularly important because we exploit this behaviour to make sure that Tab._initialise_worker is placed at the
+    # start of the StateQueue, and so the Tab.mainloop method is guaranteed to get this initialisation method as the first state 
+    # regardless of whether the mainloop is started before the state is inserted (the state should always be inserted as part of  
+    # the call to Tab.create_worker, in DeviceTab.initialise_workers in DeviceTab.__init__ )
+    #
+    
     def __init__(self,device_name):
         self.logger = logging.getLogger('BLACS.%s.state_queue'%(device_name))
         self.logging_enabled = False
@@ -55,9 +71,21 @@ class StateQueue(object):
             self.logger.debug("started")
         
         self.list_of_states = []
-        self.last_requested_state = None
+        self._last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
         self.get_blocking_queue = Queue()  
+    
+    @property
+    @inmain_decorator(True)    
+    # This is always done in main so that we avoid a race condition between the get method and
+    # the put method accessing this property
+    def last_requested_state(self):
+        return self._last_requested_state
+    
+    @last_requested_state.setter
+    @inmain_decorator(True)
+    def last_requested_state(self, value):
+        self._last_requested_state = value
      
     def log_current_states(self):
         if self.logging_enabled:
@@ -71,7 +99,7 @@ class StateQueue(object):
         else:
             self.list_of_states.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
         # if this state is one the get command is waiting for, notify it!
-        if self.last_requested_state and allowed_states&self.last_requested_state:
+        if self.last_requested_state is not None and allowed_states&self.last_requested_state:
             self.get_blocking_queue.put('new item')
         
         if self.logging_enabled:
@@ -211,7 +239,7 @@ class Tab(object):
         self._restart_receiver = []
         
         # Load the UI
-        self._ui = QUiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
+        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
         self._layout = self._ui.device_layout
         self._device_widget = self._ui.device_controls
         self._changed_widget = self._ui.changed_widget
@@ -370,25 +398,14 @@ class Tab(object):
         worker = WorkerClass()
         to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
-        self._initialise_worker(name)
+        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
        
-    @define_state(MODE_MANUAL,True)  
-    def _initialise_worker(self,worker_name):
+    def _initialise_worker(self, worker_name):
         yield(self.queue_work(worker_name,'init'))
                 
         if self.error_message:
             raise Exception('Device failed to initialise')
-        
-        
-    # def btn_release(self,widget,event):
-        # if event.button == 3:
-            # menu = gtk.Menu()
-            # menu_item = gtk.MenuItem("Restart device tab")
-            # menu_item.connect("activate",self.restart)
-            # menu_item.show()
-            # menu.append(menu_item)
-            # menu.popup(None,None,None,event.button,event.time)
-        
+               
     @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)  
     def _timeout_add(self,delay,execute_timeout):
         QTimer.singleShot(delay,execute_timeout)

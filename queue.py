@@ -17,11 +17,18 @@ import platform
 import Queue
 import threading
 import time
+import sys
+
+if 'PySide' in sys.modules.copy():
+    from PySide.QtCore import *
+    from PySide.QtGui import *
+else:
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
 
 import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS.queuemanager')
-from PySide.QtCore import *
-from PySide.QtGui import *
+
 from qtutils import *
 
 # Connection Table Code
@@ -63,7 +70,7 @@ class QueueTreeview(QTreeView):
             event.accept()
             
             for url in event.mimeData().urls():
-                path = url.toLocalFile()
+                path = str(url.toLocalFile())
                 if path.endswith('.h5') or path.endswith('.hdf5'):
                     self._logger.info('Acceptable file dropped. Path is %s'%path)
                     if self.add_to_queue:
@@ -307,7 +314,7 @@ class QueueManager(object):
                 message = "Error: Queue is not running\n"
             return message
         else:
-            # TODO: Parse and display the contents of "error" for a more detailed analysis of what is wrong!
+            # TODO: Parse and display the contents of "error" in a more human readable format for analysis of what is wrong!
             message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
                        "You may have:\n"
                        "    Submitted your file to the wrong control PC\n"
@@ -315,8 +322,10 @@ class QueueManager(object):
                        "    Renamed a channel at the top of your script\n"
                        "    Submitted an old file, and the experiment has since been rewired\n"
                        "\n"
-                       "Please verify your experiment script matches the current experiment configuration, and try again\n")
+                       "Please verify your experiment script matches the current experiment configuration, and try again\n"
+                       "The error was %s\n"%error)
             return message
+            
     
     def new_rep_name(self,h5_filepath):
         basename = os.path.basename(h5_filepath).split('.h5')[0]
