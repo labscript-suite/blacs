@@ -72,7 +72,7 @@ def check_version(module_name, at_least, less_than, version=None):
         raise VersionException(
             '{module_name} {version} found. {at_least} <= {module_name} < {less_than} required.'.format(**locals()))
 
-check_version('labscript_utils', '1.1', '2')
+check_version('labscript_utils', '2.0', '3')
 check_version('qtutils', '1.5.1', '2')
 check_version('zprocess', '1.1.2', '2')
 
