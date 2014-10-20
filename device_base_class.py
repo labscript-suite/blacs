@@ -28,7 +28,7 @@ from qtutils import UiLoader
 
 from tab_base_classes import Tab, Worker, define_state
 from tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
-from output_classes import AO, DO, DDS
+from output_classes import AO, DO, DDS, IMAGE
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
 
 
@@ -41,6 +41,7 @@ class DeviceTab(Tab):
         self._AO = {}
         self._DO = {}
         self._DDS = {}
+        self._IMAGE = {}
         
         self._final_values = {}
         self._last_programmed_values = {}
@@ -164,6 +165,26 @@ class DeviceTab(Tab):
         
         # Instantiate the DO object
         return DO(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings)
+        
+    def create_image_outputs(self,image_properties):
+        for hardware_name,properties in image_properties.items():
+            # Save the DO object
+            self._IMAGE[hardware_name] = self._create_IMAGE_object(self.device_name,hardware_name,hardware_name,properties)
+    
+    def _create_IMAGE_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
+        # Find the connection name
+        device = self.get_child_from_connection_table(parent_device,labscript_hardware_name)
+        connection_name = device.name if device else '-'
+        
+        # sanitise properties dictionary
+        prop = {}
+        accepted_kwargs = ['width', 'height', 'x', 'y']
+        for kwarg in accepted_kwargs:
+            if kwarg in properties:
+                prop[kwarg] = properties[kwarg]                
+        
+        # Instantiate the DO object
+        return IMAGE(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings, **prop)
     
     def create_analog_outputs(self,analog_properties):
         for hardware_name,properties in analog_properties.items():                    
@@ -217,6 +238,16 @@ class DeviceTab(Tab):
         
         return widgets
         
+    def create_image_widgets(self,channel_properties):
+        widgets = {}
+        for hardware_name,properties in channel_properties.items():
+            properties.setdefault('args',[])
+            properties.setdefault('kwargs',{})
+            if hardware_name in self._IMAGE:
+                widgets[hardware_name] = self._IMAGE[hardware_name].create_widget(*properties['args'],**properties['kwargs'])
+        
+        return widgets
+        
     def create_analog_widgets(self,channel_properties):
         widgets = {}
         for hardware_name,properties in channel_properties.items():
@@ -243,16 +274,28 @@ class DeviceTab(Tab):
         for channel,output in self._DDS.items():
             dds_properties[channel] = {}
         dds_widgets = self.create_dds_widgets(dds_properties)
+        
         ao_properties = {}
         for channel,output in self._AO.items():
             ao_properties[channel] = {}
         ao_widgets = self.create_analog_widgets(ao_properties)
+        
         do_properties = {}
         for channel,output in self._DO.items():
             do_properties[channel] = {}
         do_widgets = self.create_digital_widgets(do_properties)
         
-        return dds_widgets,ao_widgets,do_widgets
+        image_properties = {}
+        for channel,output in self._IMAGE.items():
+            image_properties[channel] = {}
+        image_widgets = self.create_image_widgets(image_properties)        
+        
+        # Hack to maintain backwards compatibility with devices implemented
+        # prior to the introduction of the IMAGE output class 
+        if self._IMAGE:
+            return dds_widgets, ao_widgets, do_widgets, image_widgets
+        else:
+            return dds_widgets, ao_widgets, do_widgets
     
     def auto_place_widgets(self,*args):
         widget = QWidget()
@@ -274,6 +317,8 @@ class DeviceTab(Tab):
                     name = 'Analog Outputs'
                 elif isinstance(self.get_channel(arg.keys()[0]),DO):
                     name = 'Digital Outputs'
+                elif isinstance(self.get_channel(arg.keys()[0]),IMAGE):
+                    name = 'Image Outputs'
                 elif isinstance(self.get_channel(arg.keys()[0]),DDS):
                     name = 'DDS Outputs'
                 else:
@@ -294,7 +339,7 @@ class DeviceTab(Tab):
         self.get_tab_layout().addItem(QSpacerItem(0,0,QSizePolicy.Minimum,QSizePolicy.MinimumExpanding))
     
     # This method should be overridden in your device class if you want to save any data not
-    # stored in an AO, DO or DDS object
+    # stored in an AO, DO, IMAGE or DDS object
     # This method should return a dictionary, and this dictionary will be passed to the restore_save_data()
     # method when the tab is initialised
     def get_save_data(self):
@@ -313,7 +358,7 @@ class DeviceTab(Tab):
         self.restore_save_data(settings['saved_data'])
     
         self.settings = settings
-        for output in [self._AO,self._DO]:
+        for output in [self._AO, self._DO, self._IMAGE]:
             for name,channel in output.items():
                 if not channel._locked:
                     channel._update_from_settings(settings)
@@ -326,13 +371,15 @@ class DeviceTab(Tab):
                         subchnl._update_from_settings(settings)
     
     def get_front_panel_values(self):
-        return {channel:item.value for output in [self._AO,self._DO,self._DDS] for channel,item in output.items()}
+        return {channel:item.value for output in [self._AO,self._DO,self._IMAGE,self._DDS] for channel,item in output.items()}
     
     def get_channel(self,channel):
         if channel in self._AO:
             return self._AO[channel]
         elif channel in self._DO:
             return self._DO[channel]
+        elif channel in self._IMAGE:
+            return self._IMAGE[channel]
         elif channel in self._DDS:
             return self._DDS[channel]
         else:
@@ -614,6 +661,8 @@ class DeviceTab(Tab):
                 self._AO[channel].set_value(value,program=False)
             elif channel in self._DO:
                 self._DO[channel].set_value(value,program=False)
+            elif channel in self._IMAGE:
+                self._IMAGE[channel].set_value(value,program=False)
             elif channel in self._DDS:
                 self._DDS[channel].set_value(value,program=False)
         
