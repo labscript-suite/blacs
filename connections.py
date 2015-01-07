@@ -12,6 +12,7 @@
 #####################################################################
 
 import labscript_utils.h5_lock, h5py
+import labscript_utils.properties
 import logging
 import labscript_utils.excepthook
 import numpy as np
@@ -178,7 +179,11 @@ class Connection(object):
         self.unit_conversion_class = unit_conversion_class
         self.unit_conversion_params = unit_conversion_params
         self.BLACS_connection = BLACS_connection
-        self.properties = eval(properties)
+        # DEPRECATED: backwards compatibility for old way of storing properties in connection table
+        if properties.startswith(labscript_utils.properties.JSON_IDENTIFIER):
+            self.properties = labscript_utils.properties.deserialise(properties)
+        else:
+            self.properties = eval(properties)
         
         # Create children
         for row in table:
