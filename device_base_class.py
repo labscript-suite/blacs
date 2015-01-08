@@ -181,7 +181,7 @@ class DeviceTab(Tab):
         if device:
             # get the AO from the connection table, find its calibration details
             calib_class = device.unit_conversion_class if device.unit_conversion_class != "None" else None
-            calib_params = eval(device.unit_conversion_params)
+            calib_params = device.unit_conversion_params
         
         # Instantiate the AO object
         return AO(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings, calib_class, calib_params,
