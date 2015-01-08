@@ -406,7 +406,7 @@ class QueueManager(object):
         self.current_queue = Queue.Queue()
         
         #TODO: put in general configuration
-        timeout_limit = 130 #seconds
+        timeout_limit = 300 #seconds
         self.set_status("Idle") 
         
         while self.manager_running:
