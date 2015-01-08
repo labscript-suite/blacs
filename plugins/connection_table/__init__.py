@@ -48,7 +48,7 @@ class Plugin(object):
         return [Setting]
         
     def get_callbacks(self):
-        {'settings_changed':self.notifications[Notification].setup_filewatching}
+        return {'settings_changed':self.notifications[Notification].setup_filewatching}
         
     def set_menu_instance(self,menu):
         self.menu = menu

@@ -11,6 +11,7 @@
 #                                                                   #
 #####################################################################
 
+import logging
 import os
 import sys
 
@@ -23,12 +24,17 @@ else:
     
 from qtutils import UiLoader
 
+logger = logging.getLogger('BLACS.NotificationManager') 
+
 class Notifications(object):
     def __init__(self, BLACS):
         self._BLACS = BLACS
         self._notifications = {}
         self._widgets = {}
         self._minimized_widgets = {}
+        self._closed_callbacks = {}
+        self._hidden_callbacks = {}
+        self._shown_callbacks = {}
         
     def add_notification(self, notification_class):
         if notification_class in self._notifications:
@@ -46,19 +52,36 @@ class Notifications(object):
             properties = self._notifications[notification_class].get_properties()
             
             # Function shortcuts
-            show_func = lambda: self.show_notification(notification_class)
-            hide_func = lambda: self.minimize_notification(notification_class)
-            close_func = lambda: self.close_notification(notification_class)
+            show_func = lambda callback=False: self.show_notification(notification_class, callback)
+            hide_func = lambda callback=False: self.minimize_notification(notification_class, callback)
+            close_func = lambda callback=False: self.close_notification(notification_class, callback)
             get_state = lambda: self.get_state(notification_class)
             
             # create layout/widget with appropriate buttons and the widget from the notification class
             ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification_widget.ui'))            
             ui.hide_button.setVisible(bool(properties['can_hide']))
-            ui.hide_button.clicked.connect(hide_func)
+            ui.hide_button.clicked.connect(lambda: hide_func(True))
             ui.close_button.setVisible(bool(properties['can_close']))
-            ui.close_button.clicked.connect(close_func)
+            ui.close_button.clicked.connect(lambda: close_func(True))
             ui.widget_layout.addWidget(widget)
             #ui.hide()
+            
+            #save callbacks
+            if 'closed_callback' in properties and callable(properties['closed_callback']):
+                self._closed_callbacks[notification_class] = properties['closed_callback']
+            elif 'closed_callback' in properties:
+                logger.warning('"Closed" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.'%(notification_class,properties['closed_callback']))
+            
+            if 'hidden_callback' in properties and callable(properties['hidden_callback']):
+                self._hidden_callbacks[notification_class] = properties['hidden_callback']
+            elif 'hidden_callback' in properties:
+                logger.warning('"Hidden" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.'%(notification_class,properties['hidden_callback']))
+            
+            if 'shown_callback' in properties and callable(properties['shown_callback']):
+                self._shown_callbacks[notification_class] = properties['shown_callback']
+            elif 'shown_callback' in properties:
+                logger.warning('"Shown" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.'%(notification_class,properties['shown_callback']))
+                        
             
             #TODO: Make the minimized widget
             ui2 = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification_minimized_widget.ui'))
@@ -67,9 +90,9 @@ class Notifications(object):
                 self._notifications[notification_class].name = notification_class.__name__
             ui2.name.setText(self._notifications[notification_class].name)
             ui2.show_button.setVisible(bool(properties['can_hide'])) #If you can hide, you can also show
-            ui2.show_button.clicked.connect(show_func)
+            ui2.show_button.clicked.connect(lambda: show_func(True))
             ui2.close_button.setVisible(bool(properties['can_close']))
-            ui2.close_button.clicked.connect(close_func)
+            ui2.close_button.clicked.connect(lambda: close_func(True))
             
             # pass the show/hide/close functions to the notfication class
             self._widgets[notification_class] = ui
@@ -77,6 +100,7 @@ class Notifications(object):
             self._notifications[notification_class].set_functions(show_func,hide_func,close_func,get_state)            
             
         except:
+            logger.exception('Failed to instantiate Notification class %s.'%notification_class)
             # Cleanup 
             # TODO: cleanup a little more
             if notification_class in self._notifications:
@@ -86,8 +110,8 @@ class Notifications(object):
         # add the widgets, initially hidden
         ui.setVisible(False)
         ui2.setVisible(False)
-        self._BLACS['ui'].notifications.addWidget(ui)
-        self._BLACS['ui'].notifications_minimized.addWidget(ui2)
+        self._BLACS['ui'].notifications.insertWidget(1,ui)
+        self._BLACS['ui'].notifications_minimized.insertWidget(0,ui2)
         
         return True
     
@@ -96,17 +120,32 @@ class Notifications(object):
             return self._notifications[notification_class]
         return None
     
-    def show_notification(self, notification_class):
+    def show_notification(self, notification_class, callback):
         self._widgets[notification_class].setVisible(True)
         self._minimized_widgets[notification_class].setVisible(False)
+        if callback and notification_class in self._shown_callbacks:
+            try:
+                self._shown_callbacks[notification_class]()
+            except:
+                logger.exception('Failed to run "shown" callback for notification class %s'%notification_class)
         
-    def close_notification(self, notification_class):
+    def close_notification(self, notification_class, callback):
         self._widgets[notification_class].setVisible(False)
         self._minimized_widgets[notification_class].setVisible(False)
+        if callback and notification_class in self._closed_callbacks:
+            try:
+                self._closed_callbacks[notification_class]()
+            except:
+                logger.exception('Failed to run "closed" callback for notification class %s'%notification_class)
         
-    def minimize_notification(self,notification_class):
+    def minimize_notification(self,notification_class, callback):
         self._widgets[notification_class].setVisible(False)
         self._minimized_widgets[notification_class].setVisible(True)
+        if callback and notification_class in self._hidden_callbacks:
+            try:
+                self._hidden_callbacks[notification_class]()
+            except:
+                logger.exception('Failed to run "hidden" callback for notification class %s'%notification_class)
     
     def get_state(self,notification_class):
         if self._widgets[notification_class].isVisible():

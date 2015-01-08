@@ -339,6 +339,7 @@ class BLACS(object):
                       'plugins':self.plugins,
                       'connection_table_h5file':self.connection_table_h5file,
                       'connection_table_labscript':self.connection_table_labscript,
+                      'experiment_queue':self.queue
                      }
 
         def create_menu(parent, menu_parameters):
