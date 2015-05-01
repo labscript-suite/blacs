@@ -20,6 +20,7 @@ import copy
 
 class ConnectionTable(object):    
     def __init__(self, h5file):
+        self.filepath = h5file
         self.logger = logging.getLogger('BLACS.ConnectionTable') 
         self.toplevel_children = {}
         self.logger.debug('Parsing connection table from %s'%h5file)
