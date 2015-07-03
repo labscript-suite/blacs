@@ -522,19 +522,22 @@ class Tab(object):
         currentpage = self.close_tab()
         self.logger.info('***RESTART***')
         self.settings['saved_data'] = self.get_save_data()
-        inthread(self.wait_for_mainloop_to_stop, currentpage)
+        self._restart_thread = inthread(self.wait_for_mainloop_to_stop, currentpage)
         
     def wait_for_mainloop_to_stop(self, currentpage):
         self._mainloop_thread.join()
+        inmain(self.clean_ui_on_restart)
         inmain(self.finalise_restart, currentpage)
         
-    def finalise_restart(self, currentpage):
+    def clean_ui_on_restart(self):
         # Clean up UI
         ui = self._ui
         self._ui = None
         ui.setParent(None)
+        ui.deleteLater()
         del ui
         
+    def finalise_restart(self, currentpage):
         # Note: the following function call will break if the user hasn't
         # overridden the __init__ function to take these arguments. So
         # make sure you do that!
