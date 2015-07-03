@@ -500,7 +500,7 @@ class QueueManager(object):
                             break
                             
                         if result == 'fail':
-                            logger.info('abort signal received during transition to buffered of ' % device_name)
+                            logger.info('abort signal received during transition to buffered of %s' % device_name)
                             error_condition = True
                             break
                         elif result == 'restart':
