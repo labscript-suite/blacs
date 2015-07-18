@@ -37,6 +37,7 @@ class Plugin(object):
         self.menu = None
         self.notifications = {}
         self.initial_settings = initial_settings
+        self.BLACS = None
         
     def get_menu_class(self):
         return Menu
@@ -56,7 +57,8 @@ class Plugin(object):
     def set_notification_instances(self,notifications):
         self.notifications = notifications
         
-    def plugin_setup_complete(self):
+    def plugin_setup_complete(self, BLACS):
+        self.BLACS = BLACS
         modified_times = self.initial_settings['modified_times'] if 'modified_times' in self.initial_settings else None
         self.notifications[Notification].setup_filewatching(modified_times)
         self.menu.close_notification_func = self.notifications[Notification]._close
