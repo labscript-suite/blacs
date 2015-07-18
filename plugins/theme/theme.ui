@@ -44,7 +44,10 @@
        <item>
         <widget class="QLabel" name="label">
          <property name="text">
-          <string>Enter the custom Qt stylesheets here.</string>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter the custom &lt;a href=&quot;http://doc.qt.io/qt-4.8/stylesheet-reference.html&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Qt stylesheets&lt;/span&gt;&lt;/a&gt; here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="openExternalLinks">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
