@@ -404,9 +404,14 @@ class BLACS(object):
 
         for module_name, plugin in self.plugins.items():
             try:
-                plugin.plugin_setup_complete()
+                plugin.plugin_setup_complete(blacs_data)
             except Exception:
-                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
+                # backwards compatibility for old plugins
+                try:
+                    plugin.plugin_setup_complete()
+                    logger.warning('Plugin \'%s\' using old API. Please update Plugin.plugin_setup_complete method to accept a dictionary of blacs_data as the only argument.'%module_name)
+                except Exception:
+                    logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
 
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
