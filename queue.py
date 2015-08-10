@@ -40,6 +40,8 @@ FILEPATH_COLUMN = 0
 class QueueTreeview(QTreeView):
     def __init__(self,*args,**kwargs):
         QTreeView.__init__(self,*args,**kwargs)
+        self.header().setResizeMode(QHeaderView.ResizeToContents)
+        self.header().setStretchLastSection(False)
         self.add_to_queue = None
         self.delete_selection = None
         self._logger = logging.getLogger('BLACS.QueueManager') 
