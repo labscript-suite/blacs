@@ -42,6 +42,7 @@ class QueueTreeview(QTreeView):
         QTreeView.__init__(self,*args,**kwargs)
         self.header().setResizeMode(QHeaderView.ResizeToContents)
         self.header().setStretchLastSection(False)
+        self.setAutoScroll(False)
         self.add_to_queue = None
         self.delete_selection = None
         self._logger = logging.getLogger('BLACS.QueueManager') 
