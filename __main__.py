@@ -71,13 +71,13 @@ import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS')
 ###
 from zprocess import zmq_get, ZMQServer
-from setup_logging import setup_logging
+from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 
 # Custom Excepthook
 import labscript_utils.excepthook
 # Setup logging
-logger = setup_logging()
+logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
 
 # now log versions (must be after setup logging)

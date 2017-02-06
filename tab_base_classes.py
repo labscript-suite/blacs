@@ -716,8 +716,8 @@ class Worker(Process):
         for argname in extraargs:
             setattr(self,argname,extraargs[argname])
         # Total fudge, should be replaced with zmq logging in future:
-        from setup_logging import setup_logging
-        setup_logging()
+        from labscript_utils.setup_logging import setup_logging
+        setup_logging('BLACS')
         log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
         self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
