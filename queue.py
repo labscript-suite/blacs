@@ -40,9 +40,9 @@ FILEPATH_COLUMN = 0
 class QueueTreeview(QTreeView):
     def __init__(self,*args,**kwargs):
         QTreeView.__init__(self,*args,**kwargs)
-        self.header().setResizeMode(QHeaderView.ResizeToContents)
-        self.header().setStretchLastSection(False)
+        self.header().setStretchLastSection(True)
         self.setAutoScroll(False)
+        self.setTextElideMode(Qt.ElideLeft)
         self.add_to_queue = None
         self.delete_selection = None
         self._logger = logging.getLogger('BLACS.QueueManager') 
@@ -276,7 +276,9 @@ class QueueManager(object):
     @inmain_decorator(True)
     def append(self, h5files):
         for file in h5files:
-            self._model.appendRow(QStandardItem(file))
+            item = QStandardItem(file)
+            item.setToolTip(file)
+            self._model.appendRow(item)
     
     @inmain_decorator(True)
     def prepend(self,h5file):
