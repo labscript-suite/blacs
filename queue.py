@@ -595,10 +595,10 @@ class QueueManager(object):
                 # Wait for notification of the end of run:
                 abort = False
                 restarted = False
-                result = None
-                while result != 'done':
+                experiment_finished = False
+                while not experiment_finished:
                     try:
-                        result = experiment_finished_queue.get(timeout=0.5)
+                        experiment_finished = (experiment_finished_queue.get(timeout=0.5) == 'done')
                     except Queue.Empty:
                         pass
                     try:
