@@ -601,8 +601,6 @@ class QueueManager(object):
                             break
                     except Queue.Empty:
                         pass
-                    else:
-                        continue
                     try:
                         # Poll self.current_queue for abort signal from button or device restart
                         device_name, result = self.current_queue.get(timeout=0.5)                        
