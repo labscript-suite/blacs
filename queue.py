@@ -595,28 +595,23 @@ class QueueManager(object):
                 # Wait for notification of the end of run:
                 abort = False
                 restarted = False
-                while True:
+                done = False
+                while not (abort or restarted or done):
                     try:
-                        if experiment_finished_queue.get(timeout=0.5) == 'done':
-                            break
+                        done = experiment_finished_queue.get(timeout=0.5) == 'done'
                     except Queue.Empty:
                         pass
                     try:
                         # Poll self.current_queue for abort signal from button or device restart
-                        device_name, result = self.current_queue.get(timeout=0.5)                        
+                        device_name, result = self.current_queue.get_nowait()
                         if (device_name == 'Queue Manager' and result == 'abort'):
                             abort = True
-                            break
-                        elif result == 'restart':
+                        if result == 'restart':
                             restarted = True
-                            break
                         # Check for error states in tabs
                         for device_name, tab in devices_in_use.items():
                             if self.get_device_error_state(device_name,devices_in_use):
                                 restarted = True
-                                break
-                        if restarted:
-                            break
                     except Queue.Empty:
                         pass
                         
