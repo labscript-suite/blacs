@@ -61,6 +61,10 @@
        <property name="text">
         <string>Refresh smart programming</string>
        </property>
+       <property name="icon">
+        <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+         <normaloff>:/qtutils/fugue/arrow-circle-double-135.png</normaloff>:/qtutils/fugue/arrow-circle-double-135.png</iconset>
+       </property>
       </widget>
      </item>
      <item>
@@ -83,6 +87,10 @@
        </property>
        <property name="text">
         <string>Restart device</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+         <normaloff>:/qtutils/fugue/arrow-circle-135-left.png</normaloff>:/qtutils/fugue/arrow-circle-135-left.png</iconset>
        </property>
        <property name="flat">
         <bool>false</bool>
@@ -177,7 +185,11 @@
                </size>
               </property>
               <property name="text">
-               <string>X</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                <normaloff>:/qtutils/fugue/cross.png</normaloff>:/qtutils/fugue/cross.png</iconset>
               </property>
              </widget>
             </item>
@@ -204,7 +216,7 @@
          <x>0</x>
          <y>0</y>
          <width>873</width>
-         <height>330</height>
+         <height>317</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -239,7 +251,7 @@
               </widget>
              </item>
              <item>
-              <layout class="QVBoxLayout" name="changed_layout" stretch="">
+              <layout class="QVBoxLayout" name="changed_layout">
                <property name="spacing">
                 <number>0</number>
                </property>
@@ -276,6 +288,8 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

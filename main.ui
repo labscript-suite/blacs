@@ -14,10 +14,76 @@
    <string>blacs - the labscript suite</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
     <normaloff>:/qtutils/custom/blacs.png</normaloff>:/qtutils/custom/blacs.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true">QPushButton {
+     border: none;
+     padding: 4px;
+ }
+
+QPushButton:hover {
+     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                       stop: 0 #f6f7fa, stop: 1 #dadbde);
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+
+ QPushButton:pressed {
+     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                       stop: 0 #dadbde, stop: 1 #f6f7fa);
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+
+QPushButton:checked {
+     background-color: #dadbde;
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+
+QPushButton:hover:checked {
+     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                       stop: 0 #dadbde, stop: 1 #f6f7fa);
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+
+QToolButton {
+     border: none;
+     padding: 2px;
+ }
+
+QToolButton:hover {
+     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                       stop: 0 #f6f7fa, stop: 1 #dadbde);
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+
+ QToolButton:pressed {
+     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                       stop: 0 #dadbde, stop: 1 #f6f7fa);
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+
+QToolButton:checked {
+     background-color: #dadbde;
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+
+QToolButton:hover:checked {
+     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                       stop: 0 #dadbde, stop: 1 #f6f7fa);
+     border: 1px solid #8f8f91;
+     border-radius: 3px;
+ }
+</string>
+   </property>
    <layout class="QVBoxLayout" name="verticalLayout_13">
     <item>
      <layout class="QVBoxLayout" name="notifications">
@@ -107,9 +173,18 @@
                   <height>16777215</height>
                  </size>
                 </property>
+                <property name="focusPolicy">
+                 <enum>Qt::NoFocus</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Move to top</string>
+                </property>
                 <property name="text">
-                 <string>^
-^</string>
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                  <normaloff>:/qtutils/fugue/arrow-stop-090.png</normaloff>:/qtutils/fugue/arrow-stop-090.png</iconset>
                 </property>
                </widget>
               </item>
@@ -133,8 +208,18 @@
                   <height>16777215</height>
                  </size>
                 </property>
+                <property name="focusPolicy">
+                 <enum>Qt::NoFocus</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Move up</string>
+                </property>
                 <property name="text">
-                 <string>^</string>
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                  <normaloff>:/qtutils/fugue/arrow-090.png</normaloff>:/qtutils/fugue/arrow-090.png</iconset>
                 </property>
                </widget>
               </item>
@@ -158,8 +243,18 @@
                   <height>16777215</height>
                  </size>
                 </property>
+                <property name="focusPolicy">
+                 <enum>Qt::NoFocus</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Move down</string>
+                </property>
                 <property name="text">
-                 <string>v</string>
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                  <normaloff>:/qtutils/fugue/arrow-270.png</normaloff>:/qtutils/fugue/arrow-270.png</iconset>
                 </property>
                </widget>
               </item>
@@ -183,9 +278,18 @@
                   <height>16777215</height>
                  </size>
                 </property>
+                <property name="focusPolicy">
+                 <enum>Qt::NoFocus</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Move to bottom</string>
+                </property>
                 <property name="text">
-                 <string>V
-V</string>
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                  <normaloff>:/qtutils/fugue/arrow-stop-270.png</normaloff>:/qtutils/fugue/arrow-stop-270.png</iconset>
                 </property>
                </widget>
               </item>
@@ -223,8 +327,18 @@ V</string>
                 </item>
                 <item>
                  <widget class="QPushButton" name="queue_pause_button">
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Pause the queue</string>
+                  </property>
                   <property name="text">
-                   <string>Pause Queue</string>
+                   <string>Pause</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/control-pause.png</normaloff>:/qtutils/fugue/control-pause.png</iconset>
                   </property>
                   <property name="checkable">
                    <bool>true</bool>
@@ -249,8 +363,18 @@ V</string>
                 </item>
                 <item>
                  <widget class="QPushButton" name="queue_repeat_button">
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Re-add shots to the end of the queue after completion</string>
+                  </property>
                   <property name="text">
                    <string>Repeat</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/arrow-repeat.png</normaloff>:/qtutils/fugue/arrow-repeat.png</iconset>
                   </property>
                   <property name="checkable">
                    <bool>true</bool>
@@ -275,8 +399,18 @@ V</string>
                   <property name="enabled">
                    <bool>false</bool>
                   </property>
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Abort current shot in progress</string>
+                  </property>
                   <property name="text">
                    <string>Abort</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/cross-octagon.png</normaloff>:/qtutils/fugue/cross-octagon.png</iconset>
                   </property>
                  </widget>
                 </item>
@@ -295,8 +429,18 @@ V</string>
                 </item>
                 <item>
                  <widget class="QPushButton" name="queue_delete_button">
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Delete selected shots from queue</string>
+                  </property>
                   <property name="text">
-                   <string>Delete Selected</string>
+                   <string>Delete</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/minus.png</normaloff>:/qtutils/fugue/minus.png</iconset>
                   </property>
                  </widget>
                 </item>
@@ -444,7 +588,7 @@ V</string>
      <x>0</x>
      <y>0</y>
      <width>1030</width>
-     <height>21</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -519,7 +663,7 @@ V</string>
   <tabstop>queue_push_to_bottom</tabstop>
  </tabstops>
  <resources>
-  <include location="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc"/>
+  <include location="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
  </resources>
  <connections>
   <connection>
