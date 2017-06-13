@@ -30,6 +30,20 @@
     <number>2</number>
    </property>
    <item>
+    <widget class="QPushButton" name="show_button">
+     <property name="toolTip">
+      <string>Show the notification</string>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+       <normaloff>:/qtutils/fugue/toggle-expand.png</normaloff>:/qtutils/fugue/toggle-expand.png</iconset>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QLabel" name="name">
      <property name="text">
       <string>Notification Name</string>
@@ -37,21 +51,23 @@
     </widget>
    </item>
    <item>
-    <widget class="QPushButton" name="show_button">
-     <property name="text">
-      <string>Show</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QPushButton" name="close_button">
+     <property name="toolTip">
+      <string>Close the notification</string>
+     </property>
      <property name="text">
-      <string>Close</string>
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+       <normaloff>:/qtutils/fugue/cross.png</normaloff>:/qtutils/fugue/cross.png</iconset>
      </property>
     </widget>
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>
