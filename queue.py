@@ -93,6 +93,7 @@ class QueueManager(object):
 
     ICON_REPEAT = ':qtutils/fugue/arrow-repeat'
     ICON_REPEAT_LAST = ':qtutils/fugue/arrow-repeat-once'
+    ICON_REPEAT_ALL = ':qtutils/fugue/arrow-retweet'
 
     def __init__(self, BLACS, ui):
         self._ui = ui
@@ -113,7 +114,6 @@ class QueueManager(object):
         
         # set up buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
-        # self._ui.queue_repeat_button.clicked.connect(self._click_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
@@ -136,6 +136,10 @@ class QueueManager(object):
         self.repeat_button_menu.addAction(self.action_repeat_all)
 
         self._ui.queue_repeat_button.setMenu(self.repeat_button_menu)
+
+        # The menu indicator cuts the text of the button off when there is an
+        # icon, and makes the button bigger than other buttons. Get rid of it:
+        self._ui.queue_repeat_button.setStyleSheet("QPushButton::menu-indicator{width: 0;}")
 
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
@@ -194,35 +198,6 @@ class QueueManager(object):
         if value != self._ui.queue_pause_button.isChecked():
             self._ui.queue_pause_button.setChecked(value)
     
-    def _click_repeat(self, checked):
-
-        button = self._ui.queue_repeat_button
-
-        # Pop up a menu asking which repeat mode:
-        menu = QMenu(button)
-        action_repeat_off = QAction('Don\'t repeat', button)
-        action_repeat_last = QAction(QIcon(self.ICON_REPEAT_LAST), 'Repeat last', button)
-        action_repeat_all = QAction(QIcon(self.ICON_REPEAT), 'Repeat all', button)
-        menu.addAction(action_repeat_off)
-        menu.addAction(action_repeat_last)
-        menu.addAction(action_repeat_all)
-        button.setMenu(menu)
-
-        return
-
-        action = menu.exec_(QCursor.pos())
-
-        if action is None:
-            return
-        elif action is action_repeat_off:
-            self.manager_repeat_mode = self.REPEAT_OFF
-        elif action is action_repeat_last:
-            self.manager_repeat_mode = self.REPEAT_LAST
-        elif action is action_repeat_all:
-            self.manager_repeat_mode = self.REPEAT_ALL
-        else:
-            raise ValueError('invalid menu selection')
-        
     @property
     @inmain_decorator(True)
     def manager_repeat_mode(self):
@@ -246,7 +221,7 @@ class QueueManager(object):
 
         elif value == self.REPEAT_ALL:
             button.setChecked(True)
-            button.setIcon(QIcon(self.ICON_REPEAT))
+            button.setIcon(QIcon(self.ICON_REPEAT_ALL))
 
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
