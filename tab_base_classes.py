@@ -347,7 +347,7 @@ class Tab(object):
                     raise Exception('')
                 else:
                     if self._tab_icon is None:
-                        icon = None
+                        icon = QIcon()
                     else:
                         icon = QIcon(self._tab_icon)
                     self.notebook.tabBar().setTabIcon(currentpage, icon)
