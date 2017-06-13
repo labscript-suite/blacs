@@ -87,12 +87,19 @@ class QueueTreeview(QTreeView):
 
 class QueueManager(object):
     
+    REPEAT_OFF = 0
+    REPEAT_LAST= 1
+    REPEAT_ALL = 2 
+
+    ICON_REPEAT = ':qtutils/fugue/arrow-repeat'
+    ICON_REPEAT_LAST = ':qtutils/fugue/arrow-repeat-once'
+
     def __init__(self, BLACS, ui):
         self._ui = ui
         self.BLACS = BLACS
         self._manager_running = True
         self._manager_paused = False
-        self._manager_repeat = False
+        self._manager_repeat_mode = self.REPEAT_OFF
         self.master_pseudoclock = self.BLACS.connection_table.master_pseudoclock
         
         self._logger = logging.getLogger('BLACS.QueueManager')   
@@ -106,7 +113,7 @@ class QueueManager(object):
         
         # set up buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
-        self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
+        self._ui.queue_repeat_button.clicked.connect(self._click_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
@@ -127,15 +134,15 @@ class QueueManager(object):
             file_list.append(self._model.item(i).text())
         # get button states
         return {'manager_paused':self.manager_paused,
-                'manager_repeat':self.manager_repeat,
+                'manager_repeat_mode':self.manager_repeat_mode,
                 'files_queued':file_list,
                }
     
     def restore_save_data(self,data):
         if 'manager_paused' in data:
             self.manager_paused = data['manager_paused']
-        if 'manager_repeat' in data:
-            self.manager_repeat = data['manager_repeat']
+        if 'manager_repeat_mode' in data:
+            self.manager_repeat_mode = data['manager_repeat_mode']
         if 'files_queued' in data:
             file_list = list(data['files_queued'])
             self._model.clear()
@@ -170,22 +177,57 @@ class QueueManager(object):
         if value != self._ui.queue_pause_button.isChecked():
             self._ui.queue_pause_button.setChecked(value)
     
-    def _toggle_repeat(self,checked):    
-        self.manager_repeat = checked
+    def _click_repeat(self, checked):
+
+        button = self._ui.queue_repeat_button
+
+        # Pop up a menu asking which repeat mode:
+        menu = QMenu(button)
+        action_repeat_off = QAction('Don\'t repeat', button)
+        action_repeat_last = QAction(QIcon(self.ICON_REPEAT_LAST), 'Repeat last', button)
+        action_repeat_all = QAction(QIcon(self.ICON_REPEAT), 'Repeat all', button)
+        menu.addAction(action_repeat_off)
+        menu.addAction(action_repeat_last)
+        menu.addAction(action_repeat_all)
+
+        action = menu.exec_(QCursor.pos())
+
+        if action is None:
+            return
+        elif action is action_repeat_off:
+            self.manager_repeat_mode = self.REPEAT_OFF
+        elif action is action_repeat_last:
+            self.manager_repeat_mode = self.REPEAT_LAST
+        elif action is action_repeat_all:
+            self.manager_repeat_mode = self.REPEAT_ALL
+        else:
+            raise ValueError('invalid menu selection')
         
     @property
     @inmain_decorator(True)
-    def manager_repeat(self):
-        return self._manager_repeat
+    def manager_repeat_mode(self):
+        return self._manager_repeat_mode
     
-    @manager_repeat.setter
+    @manager_repeat_mode.setter
     @inmain_decorator(True)
-    def manager_repeat(self,value):
-        value = bool(value)
-        self._manager_repeat = value
-        if value != self._ui.queue_repeat_button.isChecked():
-            self._ui.queue_repeat_button.setChecked(value)
-        
+    def manager_repeat_mode(self, value):
+
+        assert value in [self.REPEAT_OFF, self.REPEAT_LAST, self.REPEAT_ALL]
+        self._manager_repeat_mode = value
+        button = self._ui.queue_repeat_button
+
+        if value == self.REPEAT_OFF:
+            button.setChecked(False)
+            button.setIcon(QIcon(self.ICON_REPEAT))
+
+        elif value == self.REPEAT_LAST:
+            button.setChecked(True)
+            button.setIcon(QIcon(self.ICON_REPEAT_LAST))
+
+        elif value == self.REPEAT_ALL:
+            button.setChecked(True)
+            button.setIcon(QIcon(self.ICON_REPEAT))
+
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
         while index_list:
@@ -768,7 +810,8 @@ class QueueManager(object):
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
             ########################################################################################################################################## 
-            if self.manager_repeat:
+            if ((self.manager_repeat_mode == self.REPEAT_ALL) or
+                (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
                 # Resubmit job to the bottom of the queue:
                 try:
                     message = self.process_request(path)

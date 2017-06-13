@@ -701,6 +701,7 @@ if __name__ == '__main__':
     logger.info('connection table loaded')
 
     qapplication = QApplication(sys.argv)
+    qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
     logger.info('QApplication instantiated')
     app = BLACS(qapplication)
 
