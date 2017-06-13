@@ -35,6 +35,8 @@ else:
 
 from qtutils import *
 
+import qtutils.icons
+
 class Counter(object):
     """A class with a single method that 
     returns a different integer each time it's called."""
@@ -219,9 +221,9 @@ class Tab(object):
         
         # Setup the timer for updating that tab text label when the tab is not 
         # actively part of a notebook
-        self._tab_text_timer = QTimer()
-        self._tab_text_timer.timeout.connect(self.update_tab_text_colour)
-        self._tab_text_colour = 'black'
+        self._tab_icon_timer = QTimer()
+        self._tab_icon_timer.timeout.connect(self.update_tab_icon)
+        self._tab_icon = None
         
         # Create instance variables
         self._not_responding_error_message = ''
@@ -317,15 +319,21 @@ class Tab(object):
         self._ui.error_message.setHtml(prefix+self._not_responding_error_message+self._error+suffix)
         if self._error or self._not_responding_error_message:
             self._ui.notresponding.show()
-            self._tab_text_colour = 'red'
-            self.update_tab_text_colour()
+            if self.error_message:
+                if self.state == 'fatal error':
+                    self._tab_icon = ':/qtutils/fugue/exclamation-red'
+                else: 
+                    self._tab_icon = ':/qtutils/fugue/exclamation'
         else:
             self._ui.notresponding.hide()
-            self._tab_text_colour = 'black'
-            self.update_tab_text_colour()
+            if self.state == 'idle':
+                self._tab_icon = None
+            else:
+                ':/qtutils/fugue/hourglass'
+        self.update_tab_icon()
     
     @inmain_decorator(True)
-    def update_tab_text_colour(self):
+    def update_tab_icon(self):
         try:
             self.notebook = self._ui.parentWidget().parentWidget()
             currentpage = None
@@ -335,13 +343,17 @@ class Tab(object):
                 if currentpage == -1:
                     raise Exception('')
                 else:
-                    self.notebook.tabBar().setTabTextColor(currentpage,QColor(self._tab_text_colour))
-                    self._tab_text_timer.stop()
+                    if self._tab_icon is None:
+                        icon = None
+                    else:
+                        icon = QIcon(self._tab_icon)
+                    self.notebook.tabBar().setTabIcon(currentpage, icon)
+                    self._tab_icon_timer.stop()
             else:
                 raise Exception('')
         except Exception:
-            if not self._tab_text_timer.isActive():
-                self._tab_text_timer.start(100)
+            if not self._tab_icon_timer.isActive():
+                self._tab_icon_timer.start(100)
     
     def get_tab_layout(self):
         return self._layout
@@ -369,6 +381,11 @@ class Tab(object):
         self._state = state        
         self._time_of_last_state_change = time.time()
         self._update_state_label()
+        if state == 'idle':
+            self._tab_icon = None
+        elif state not in ['error', 'fatal error']:
+            self._tab_icon = ':/qtutils/fugue/hourglass'
+        self.update_tab_icon()
     
     @inmain_decorator(True)
     def _update_state_label(self):
@@ -481,7 +498,7 @@ class Tab(object):
     def close_tab(self,*args):
         self.logger.info('close_tab called')
         self._timeout.stop()
-        self._tab_text_timer.stop()
+        self._tab_icon_timer.stop()
         for name,worker_data in self.workers.items():            
             worker_data[0].terminate()
             # The mainloop is blocking waiting for something out of the
@@ -941,7 +958,7 @@ class MyWorker(Worker):
         # the former.
         global serial; import serial
         self.logger.info('got x! %d' % self.x)
-        raise Exception('bad import!')
+        # raise Exception('bad import!')
         
     # Here's a function that will be called when requested by the parent
     # process. There's nothing special about it really. Its return
