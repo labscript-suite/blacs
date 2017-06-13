@@ -113,13 +113,30 @@ class QueueManager(object):
         
         # set up buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
-        self._ui.queue_repeat_button.clicked.connect(self._click_repeat)
+        # self._ui.queue_repeat_button.clicked.connect(self._click_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
         
+        # Set up repeat button menu:
+        self.repeat_button_menu = QMenu(self._ui)
+
+        self.action_repeat_off = QAction('Don\'t repeat', self._ui)
+        self.action_repeat_last = QAction(QIcon(self.ICON_REPEAT_LAST), 'Repeat last', self._ui)
+        self.action_repeat_all = QAction(QIcon(self.ICON_REPEAT), 'Repeat all', self._ui)
+
+        self.action_repeat_off.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_OFF))
+        self.action_repeat_last.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_LAST))
+        self.action_repeat_all.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_ALL))
+
+        self.repeat_button_menu.addAction(self.action_repeat_off)
+        self.repeat_button_menu.addAction(self.action_repeat_last)
+        self.repeat_button_menu.addAction(self.action_repeat_all)
+
+        self._ui.queue_repeat_button.setMenu(self.repeat_button_menu)
+
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
         self.manager.start()
@@ -189,6 +206,9 @@ class QueueManager(object):
         menu.addAction(action_repeat_off)
         menu.addAction(action_repeat_last)
         menu.addAction(action_repeat_all)
+        button.setMenu(menu)
+
+        return
 
         action = menu.exec_(QCursor.pos())
 
