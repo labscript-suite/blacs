@@ -125,7 +125,7 @@ class QueueManager(object):
 
         self.action_repeat_off = QAction('Don\'t repeat', self._ui)
         self.action_repeat_last = QAction(QIcon(self.ICON_REPEAT_LAST), 'Repeat last', self._ui)
-        self.action_repeat_all = QAction(QIcon(self.ICON_REPEAT), 'Repeat all', self._ui)
+        self.action_repeat_all = QAction(QIcon(self.ICON_REPEAT_ALL), 'Repeat all', self._ui)
 
         self.action_repeat_off.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_OFF))
         self.action_repeat_last.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_LAST))
