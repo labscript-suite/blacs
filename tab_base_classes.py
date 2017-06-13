@@ -719,6 +719,7 @@ class Tab(object):
             self.state = 'fatal error'
             # do this in the main thread
             inmain(self._ui.button_close.setEnabled,False)
+            self._update_error()
         logger.info('Exiting')
         
         
