@@ -221,10 +221,11 @@ class Tab(object):
         
         # Setup the timer for updating that tab text label when the tab is not 
         # actively part of a notebook
-        self._tab_icon_timer = QTimer()
-        self._tab_icon_timer.timeout.connect(self.update_tab_icon)
+        self._tab_icon_and_colour_timer = QTimer()
+        self._tab_icon_and_colour_timer.timeout.connect(self.update_tab_icon_and_colour)
         self._tab_icon = None
-        
+        self._tab_text_colour = 'black'
+
         # Create instance variables
         self._not_responding_error_message = ''
         self._error = ''
@@ -319,6 +320,7 @@ class Tab(object):
         self._ui.error_message.setHtml(prefix+self._not_responding_error_message+self._error+suffix)
         if self._error or self._not_responding_error_message:
             self._ui.notresponding.show()
+            self._tab_text_colour = 'red'
             if self.error_message:
                 if self.state == 'fatal error':
                     self._tab_icon = ':/qtutils/fugue/exclamation-red'
@@ -326,14 +328,15 @@ class Tab(object):
                     self._tab_icon = ':/qtutils/fugue/exclamation'
         else:
             self._ui.notresponding.hide()
+            self._tab_text_colour = 'black'
             if self.state == 'idle':
                 self._tab_icon = None
             else:
                 ':/qtutils/fugue/hourglass'
-        self.update_tab_icon()
+        self.update_tab_icon_and_colour()
     
     @inmain_decorator(True)
-    def update_tab_icon(self):
+    def update_tab_icon_and_colour(self):
         try:
             self.notebook = self._ui.parentWidget().parentWidget()
             currentpage = None
@@ -348,12 +351,13 @@ class Tab(object):
                     else:
                         icon = QIcon(self._tab_icon)
                     self.notebook.tabBar().setTabIcon(currentpage, icon)
+                    self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
                     self._tab_icon_timer.stop()
             else:
                 raise Exception('')
         except Exception:
-            if not self._tab_icon_timer.isActive():
-                self._tab_icon_timer.start(100)
+            if not self._tab_icon_and_colour_timer.isActive():
+                self._tab_icon_and_colour_timer.start(100)
     
     def get_tab_layout(self):
         return self._layout
@@ -385,7 +389,7 @@ class Tab(object):
             self._tab_icon = None
         elif state not in ['error', 'fatal error']:
             self._tab_icon = ':/qtutils/fugue/hourglass'
-        self.update_tab_icon()
+        self.update_tab_icon_and_colour()
     
     @inmain_decorator(True)
     def _update_state_label(self):
@@ -498,7 +502,7 @@ class Tab(object):
     def close_tab(self,*args):
         self.logger.info('close_tab called')
         self._timeout.stop()
-        self._tab_icon_timer.stop()
+        self._tab_icon_and_colour_timer.stop()
         for name,worker_data in self.workers.items():            
             worker_data[0].terminate()
             # The mainloop is blocking waiting for something out of the
