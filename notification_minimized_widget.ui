@@ -39,7 +39,7 @@
      </property>
      <property name="icon">
       <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-       <normaloff>:/qtutils/fugue/toggle-expand.png</normaloff>:/qtutils/fugue/toggle-expand.png</iconset>
+       <normaloff>:/qtutils/fugue/toggle-small-expand.png</normaloff>:/qtutils/fugue/toggle-small-expand.png</iconset>
      </property>
     </widget>
    </item>

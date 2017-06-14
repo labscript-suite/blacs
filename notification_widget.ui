@@ -44,7 +44,7 @@
        </property>
        <property name="icon">
         <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-         <normaloff>:/qtutils/fugue/toggle.png</normaloff>:/qtutils/fugue/toggle.png</iconset>
+         <normaloff>:/qtutils/fugue/toggle-small.png</normaloff>:/qtutils/fugue/toggle-small.png</iconset>
        </property>
       </widget>
      </item>
