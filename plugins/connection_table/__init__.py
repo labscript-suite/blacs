@@ -79,13 +79,16 @@ class Menu(object):
     def get_menu_items(self):
         return {'name':name,        
                 'menu_items':[{'name':'Edit',
-                               'action':self.on_edit_connection_table
+                               'action':self.on_edit_connection_table,
+                               'icon': ':/qtutils/fugue/document--pencil'
                               },
                               {'name':'Select Globals',
-                               'action':self.on_select_globals                              
+                               'action':self.on_select_globals,
+                               'icon': ':/qtutils/fugue/table--pencil'
                               },
                               {'name':'Recompile',
-                               'action':self.on_recompile_connection_table                              
+                               'action':self.on_recompile_connection_table,
+                               'icon': ':/qtutils/fugue/arrow-circle'
                               }
                              ]                                
                }

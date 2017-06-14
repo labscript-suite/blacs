@@ -351,7 +351,10 @@ class BLACS(object):
                     for child_menu_params in menu_parameters['menu_items']:
                         create_menu(child,child_menu_params)
                 else:
-                    child = parent.addAction(menu_parameters['name'])
+                    if 'icon' in menu_parameters:
+                        child = parent.addAction(QIcon(menu_parameters['icon']), menu_parameters['name'])
+                    else:
+                        child = parent.addAction(menu_parameters['name'])
 
                 if 'action' in menu_parameters:
                     child.triggered.connect(menu_parameters['action'])

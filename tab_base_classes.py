@@ -209,6 +209,12 @@ def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=Fals
     
         
 class Tab(object):
+
+    ICON_OK = ':/qtutils/fugue/tick'
+    ICON_BUSY = ':/qtutils/fugue/hourglass'
+    ICON_ERROR = ':/qtutils/fugue/exclamation'
+    ICON_FATAL_ERROR = ':/qtutils/fugue/exclamation-red'
+
     def __init__(self,notebook,settings,restart=False):  
         # Store important parameters
         self.notebook = notebook
@@ -223,7 +229,7 @@ class Tab(object):
         # actively part of a notebook
         self._tab_icon_and_colour_timer = QTimer()
         self._tab_icon_and_colour_timer.timeout.connect(self.update_tab_icon_and_colour)
-        self._tab_icon = None
+        self._tab_icon = self.ICON_OK
         self._tab_text_colour = 'black'
 
         # Create instance variables
@@ -323,16 +329,16 @@ class Tab(object):
             self._tab_text_colour = 'red'
             if self.error_message:
                 if self.state == 'fatal error':
-                    self._tab_icon = ':/qtutils/fugue/exclamation-red'
+                    self._tab_icon = self.ICON_FATAL_ERROR
                 else: 
-                    self._tab_icon = ':/qtutils/fugue/exclamation'
+                    self._tab_icon = self.ICON_ERROR
         else:
             self._ui.notresponding.hide()
             self._tab_text_colour = 'black'
             if self.state == 'idle':
-                self._tab_icon = None
+                self._tab_icon = self.ICON_OK
             else:
-                ':/qtutils/fugue/hourglass'
+                self._tab_icon = self.ICON_BUSY
         self.update_tab_icon_and_colour()
     
     @inmain_decorator(True)
@@ -346,10 +352,7 @@ class Tab(object):
                 if currentpage == -1:
                     raise Exception('')
                 else:
-                    if self._tab_icon is None:
-                        icon = QIcon()
-                    else:
-                        icon = QIcon(self._tab_icon)
+                    icon = QIcon(self._tab_icon)
                     self.notebook.tabBar().setTabIcon(currentpage, icon)
                     self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
                     self._tab_icon_timer.stop()
@@ -386,9 +389,9 @@ class Tab(object):
         self._time_of_last_state_change = time.time()
         self._update_state_label()
         if state == 'idle':
-            self._tab_icon = None
+            self._tab_icon = self.ICON_OK
         elif state not in ['error', 'fatal error']:
-            self._tab_icon = ':/qtutils/fugue/hourglass'
+            self._tab_icon = self.ICON_BUSY
         self.update_tab_icon_and_colour()
     
     @inmain_decorator(True)
