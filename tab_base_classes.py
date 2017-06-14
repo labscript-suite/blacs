@@ -388,11 +388,7 @@ class Tab(object):
         self._state = state        
         self._time_of_last_state_change = time.time()
         self._update_state_label()
-        if state == 'idle':
-            self._tab_icon = self.ICON_OK
-        elif state not in ['error', 'fatal error']:
-            self._tab_icon = self.ICON_BUSY
-        self.update_tab_icon_and_colour()
+        self._update_error()
     
     @inmain_decorator(True)
     def _update_state_label(self):
@@ -592,7 +588,9 @@ class Tab(object):
         # dont show the error again until the not responding time has doubled:
         self.hide_not_responding_error_until = 2*self.not_responding_for
         self._ui.notresponding.hide()  
-        self.error_message = '' 
+        self.error_message = ''
+        self._tab_text_colour = 'black'
+        self.update_tab_icon_and_colour()
         #self.tab_label_widgets['error'].hide()
         #if self.state == 'idle':
         #    self.tab_label_widgets['ready'].show()
