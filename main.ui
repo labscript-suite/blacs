@@ -14,7 +14,7 @@
    <string>blacs - the labscript suite</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc">
+   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
     <normaloff>:/qtutils/custom/blacs.png</normaloff>:/qtutils/custom/blacs.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -208,9 +208,9 @@ V</string>
              <layout class="QVBoxLayout" name="verticalLayout_5">
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_2">
-                 <property name="spacing">
+                <property name="spacing">
                  <number>0</number>
-                 </property>
+                </property>
                 <item>
                  <spacer name="horizontalSpacer_2">
                   <property name="orientation">
@@ -266,13 +266,23 @@ V</string>
                    <string>Select repeat mode</string>
                   </property>
                   <property name="text">
-                   <string>...</string>
+                   <string/>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/control-270.png</normaloff>:/qtutils/fugue/control-270.png</iconset>
+                  </property>
+                  <property name="iconSize">
+                   <size>
+                    <width>8</width>
+                    <height>19</height>
+                   </size>
                   </property>
                   <property name="popupMode">
                    <enum>QToolButton::InstantPopup</enum>
                   </property>
                   <property name="arrowType">
-                   <enum>Qt::DownArrow</enum>
+                   <enum>Qt::NoArrow</enum>
                   </property>
                  </widget>
                 </item>
@@ -538,7 +548,7 @@ V</string>
   <tabstop>queue_push_to_bottom</tabstop>
  </tabstops>
  <resources>
-  <include location="../../Anaconda/Lib/site-packages/qtutils/icons/icons.qrc"/>
+  <include location="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
  </resources>
  <connections>
   <connection>
