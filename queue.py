@@ -319,9 +319,7 @@ class QueueManager(object):
     @inmain_decorator(True)
     def append(self, h5files):
         for file in h5files:
-            item = QStandardItem(file)
-            item.setToolTip(file)
-            self._model.appendRow(item)
+            self._model.appendRow(QStandardItem(file))
     
     @inmain_decorator(True)
     def prepend(self,h5file):
