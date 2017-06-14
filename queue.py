@@ -40,9 +40,9 @@ FILEPATH_COLUMN = 0
 class QueueTreeview(QTreeView):
     def __init__(self,*args,**kwargs):
         QTreeView.__init__(self,*args,**kwargs)
-        self.header().setResizeMode(QHeaderView.ResizeToContents)
-        self.header().setStretchLastSection(False)
+        self.header().setStretchLastSection(True)
         self.setAutoScroll(False)
+        self.setTextElideMode(Qt.ElideLeft)
         self.add_to_queue = None
         self.delete_selection = None
         self._logger = logging.getLogger('BLACS.QueueManager') 
@@ -87,20 +87,19 @@ class QueueTreeview(QTreeView):
 
 class QueueManager(object):
     
-    REPEAT_OFF = 0
-    REPEAT_LAST= 1
-    REPEAT_ALL = 2 
+    REPEAT_ALL = 0
+    REPEAT_LAST = 1
 
     ICON_REPEAT = ':qtutils/fugue/arrow-repeat'
     ICON_REPEAT_LAST = ':qtutils/fugue/arrow-repeat-once'
-    ICON_REPEAT_ALL = ':qtutils/fugue/arrow-retweet'
 
     def __init__(self, BLACS, ui):
         self._ui = ui
         self.BLACS = BLACS
         self._manager_running = True
         self._manager_paused = False
-        self._manager_repeat_mode = self.REPEAT_OFF
+        self._manager_repeat = False
+        self._manager_repeat_mode = self.REPEAT_ALL
         self.master_pseudoclock = self.BLACS.connection_table.master_pseudoclock
         
         self._logger = logging.getLogger('BLACS.QueueManager')   
@@ -114,32 +113,29 @@ class QueueManager(object):
         
         # set up buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
+        self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
         
-        # Set up repeat button menu:
-        self.repeat_button_menu = QMenu(self._ui)
+        # Set up repeat mode button menu:
+        self.repeat_mode_menu = QMenu(self._ui)
 
-        self.action_repeat_off = QAction('Don\'t repeat', self._ui)
+        self.action_repeat_all = QAction(QIcon(self.ICON_REPEAT), 'Repeat all', self._ui)
         self.action_repeat_last = QAction(QIcon(self.ICON_REPEAT_LAST), 'Repeat last', self._ui)
-        self.action_repeat_all = QAction(QIcon(self.ICON_REPEAT_ALL), 'Repeat all', self._ui)
 
-        self.action_repeat_off.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_OFF))
-        self.action_repeat_last.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_LAST))
         self.action_repeat_all.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_ALL))
+        self.action_repeat_last.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_LAST))
 
-        self.repeat_button_menu.addAction(self.action_repeat_off)
-        self.repeat_button_menu.addAction(self.action_repeat_last)
-        self.repeat_button_menu.addAction(self.action_repeat_all)
+        self.repeat_mode_menu.addAction(self.action_repeat_all)
+        self.repeat_mode_menu.addAction(self.action_repeat_last)
 
-        self._ui.queue_repeat_button.setMenu(self.repeat_button_menu)
+        self._ui.repeat_mode_select_button.setMenu(self.repeat_mode_menu)
 
-        # The menu indicator cuts the text of the button off when there is an
-        # icon, and makes the button bigger than other buttons. Get rid of it:
-        self._ui.queue_repeat_button.setStyleSheet("QPushButton::menu-indicator{width: 0;}")
+        # The button already has an arrow indicating a menu, don't draw another one:
+        self._ui.repeat_mode_select_button.setStyleSheet("QToolButton::menu-indicator{width: 0;}")
 
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
@@ -155,6 +151,7 @@ class QueueManager(object):
             file_list.append(self._model.item(i).text())
         # get button states
         return {'manager_paused':self.manager_paused,
+                'manager_repeat':self.manager_repeat,
                 'manager_repeat_mode':self.manager_repeat_mode,
                 'files_queued':file_list,
                }
@@ -162,6 +159,8 @@ class QueueManager(object):
     def restore_save_data(self,data):
         if 'manager_paused' in data:
             self.manager_paused = data['manager_paused']
+        if 'manager_repeat' in data:
+            self.manager_repeat = data['manager_repeat']
         if 'manager_repeat_mode' in data:
             self.manager_repeat_mode = data['manager_repeat_mode']
         if 'files_queued' in data:
@@ -198,31 +197,38 @@ class QueueManager(object):
         if value != self._ui.queue_pause_button.isChecked():
             self._ui.queue_pause_button.setChecked(value)
     
+    def _toggle_repeat(self,checked):    
+        self.manager_repeat = checked
+        
+    @property
+    @inmain_decorator(True)
+    def manager_repeat(self):
+        return self._manager_repeat
+
+    @manager_repeat.setter
+    @inmain_decorator(True)
+    def manager_repeat(self,value):
+        value = bool(value)
+        self._manager_repeat = value
+        if value != self._ui.queue_repeat_button.isChecked():
+            self._ui.queue_repeat_button.setChecked(value)
+
     @property
     @inmain_decorator(True)
     def manager_repeat_mode(self):
         return self._manager_repeat_mode
-    
+
     @manager_repeat_mode.setter
     @inmain_decorator(True)
     def manager_repeat_mode(self, value):
-
-        assert value in [self.REPEAT_OFF, self.REPEAT_LAST, self.REPEAT_ALL]
+        assert value in [self.REPEAT_LAST, self.REPEAT_ALL]
         self._manager_repeat_mode = value
         button = self._ui.queue_repeat_button
-
-        if value == self.REPEAT_OFF:
-            button.setChecked(False)
+        if value == self.REPEAT_ALL:
             button.setIcon(QIcon(self.ICON_REPEAT))
-
         elif value == self.REPEAT_LAST:
-            button.setChecked(True)
             button.setIcon(QIcon(self.ICON_REPEAT_LAST))
-
-        elif value == self.REPEAT_ALL:
-            button.setChecked(True)
-            button.setIcon(QIcon(self.ICON_REPEAT_ALL))
-
+        
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
         while index_list:
@@ -313,7 +319,9 @@ class QueueManager(object):
     @inmain_decorator(True)
     def append(self, h5files):
         for file in h5files:
-            self._model.appendRow(QStandardItem(file))
+            item = QStandardItem(file)
+            item.setToolTip(file)
+            self._model.appendRow(item)
     
     @inmain_decorator(True)
     def prepend(self,h5file):
@@ -805,15 +813,16 @@ class QueueManager(object):
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
             ########################################################################################################################################## 
-            if ((self.manager_repeat_mode == self.REPEAT_ALL) or
-                (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
-                # Resubmit job to the bottom of the queue:
-                try:
-                    message = self.process_request(path)
-                except:
-                    # TODO: make this error popup for the user
-                    self.logger.error('Failed to copy h5_file (%s) for repeat run'%s)
-                logger.info(message)      
+            if self.manager_repeat:
+                if ((self.manager_repeat_mode == self.REPEAT_ALL) or
+                    (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
+                    # Resubmit job to the bottom of the queue:
+                    try:
+                        message = self.process_request(path)
+                    except Exception:
+                        # TODO: make this error popup for the user
+                        self.logger.error('Failed to copy h5_file (%s) for repeat run'%s)
+                    logger.info(message)      
 
             self.set_status("Idle")
         logger.info('Stopping')
