@@ -498,7 +498,9 @@ class DeviceTab(Tab):
             self._changed_widget.show()
         
             # Add an "apply" button and link to on_resolve_value_inconsistency
-            ui.button_apply.clicked.connect(self.on_resolve_value_inconsistency)
+            button = QPushButton("Apply")
+            button.clicked.connect(self.on_resolve_value_inconsistency)
+            self._ui.changed_layout.addWidget(button)
               
     def on_resolve_value_inconsistency(self):
         # get the values and update the device/front panel
