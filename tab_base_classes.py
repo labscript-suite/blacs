@@ -343,24 +343,20 @@ class Tab(object):
     
     @inmain_decorator(True)
     def update_tab_icon_and_colour(self):
-        try:
-            self.notebook = self._ui.parentWidget().parentWidget()
-            currentpage = None
-            if self.notebook:
-                #currentpage = self.notebook.get_current_page()
-                currentpage = self.notebook.indexOf(self._ui)
-                if currentpage == -1:
-                    raise Exception('')
-                else:
-                    icon = QIcon(self._tab_icon)
-                    self.notebook.tabBar().setTabIcon(currentpage, icon)
-                    self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
-                    self._tab_icon_timer.stop()
-            else:
-                raise Exception('')
-        except Exception:
-            if not self._tab_icon_and_colour_timer.isActive():
-                self._tab_icon_and_colour_timer.start(100)
+        if self._ui.parentWidget() is None:
+            return
+        self.notebook = self._ui.parentWidget().parentWidget()
+        currentpage = None
+        if self.notebook is not None:
+            #currentpage = self.notebook.get_current_page()
+            currentpage = self.notebook.indexOf(self._ui)
+        if self.notebook is not None and currentpage != -1:
+            icon = QIcon(self._tab_icon)
+            self.notebook.tabBar().setTabIcon(currentpage, icon)
+            self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
+            self._tab_icon_and_colour_timer.stop()
+        elif not self._tab_icon_and_colour_timer.isActive():
+            self._tab_icon_and_colour_timer.start(100)
     
     def get_tab_layout(self):
         return self._layout
