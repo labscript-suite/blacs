@@ -124,9 +124,9 @@ class AnalysisSubmission(object):
                     'offline': 'Server not responding',
                     '': 'Disabled'}
 
-        icon = QIcon(icon_names[self._server_online])
+        icon = QIcon(icon_names.get(self._server_online, ':/qtutils/fugue/exclamation-red'))
         pixmap = icon.pixmap(QSize(16, 16))
-        tooltip = tooltips[self._server_online]
+        tooltip = tooltips.get(self._server_online, "Invalid server status: %s" % self._server_online)
 
         # Update GUI:
         self._ui.server_online.setPixmap(pixmap)
