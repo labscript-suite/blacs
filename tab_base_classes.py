@@ -257,8 +257,8 @@ class Tab(object):
         self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
         self._ui.device_name.setText("<b>%s</b> <br />Connection: %s"%(str(self.device_name),str(self.BLACS_connection)))
         # connect signals
-        self._ui.smart_programming.toggled.connect(self.on_force_full_buffered_reprogram)
-        self._ui.smart_programming.setEnabled(False)
+        self._ui.button_clear_smart_programming.clicked.connect(self.on_force_full_buffered_reprogram)
+        self._ui.button_clear_smart_programming.setEnabled(False)
         self.force_full_buffered_reprogram = True
         self._ui.button_close.clicked.connect(self.hide_error)
         self._ui.button_restart.clicked.connect(self.restart)        
@@ -288,13 +288,13 @@ class Tab(object):
     def supports_smart_programming(self,support):
         self._supports_smart_programming = bool(support)
         if self._supports_smart_programming:
-            self._ui.smart_programming.show()
+            self._ui.button_clear_smart_programming.show()
         else:
-            self._ui.smart_programming.hide()
+            self._ui.button_clear_smart_programming.hide()
     
-    def on_force_full_buffered_reprogram(self,toggled):
-        self.force_full_buffered_reprogram = toggled
-    
+    def on_force_full_buffered_reprogram(self):
+        self.force_full_buffered_reprogram = True
+
     @property
     def force_full_buffered_reprogram(self):
         return self._force_full_buffered_reprogram
@@ -302,7 +302,7 @@ class Tab(object):
     @force_full_buffered_reprogram.setter
     def force_full_buffered_reprogram(self,value):
         self._force_full_buffered_reprogram = bool(value)
-        self._ui.smart_programming.setChecked(bool(value))
+        self._ui.button_clear_smart_programming.setEnabled(not bool(value))
     
     @property
     @inmain_decorator(True)
