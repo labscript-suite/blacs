@@ -562,7 +562,7 @@ class DeviceTab(Tab):
         else:
             if self._supports_smart_programming:
                 self.force_full_buffered_reprogram = False
-                self._ui.smart_programming.setEnabled(True)
+                self._ui.button_clear_smart_programming.setEnabled(True)
             # Tell the queue manager that we're done:
             self.mode = MODE_BUFFERED
             notify_queue.put([self.device_name,'success'])
