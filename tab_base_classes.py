@@ -228,7 +228,7 @@ class Tab(object):
         # Setup the timer for updating that tab text label when the tab is not 
         # actively part of a notebook
         self._tab_icon_and_colour_timer = QTimer()
-        self._tab_icon_and_colour_timer.timeout.connect(self.update_tab_icon_and_colour)
+        self._tab_icon_and_colour_timer.timeout.connect(self.set_tab_icon_and_colour)
         self._tab_icon = self.ICON_OK
         self._tab_text_colour = 'black'
 
@@ -262,7 +262,7 @@ class Tab(object):
         self.force_full_buffered_reprogram = True
         self._ui.button_close.clicked.connect(self.hide_error)
         self._ui.button_restart.clicked.connect(self.restart)        
-        self._update_error()
+        self._update_error_and_tab_icon()
         self.supports_smart_programming(False)
         
         # This should be done beofre the main_loop starts or else there is a race condition as to whether the 
@@ -316,10 +316,12 @@ class Tab(object):
         #print self._error
         if message != self._error:
             self._error = message
-            self._update_error()
+            self._update_error_and_tab_icon()
     
     @inmain_decorator(True)
-    def _update_error(self):
+    def _update_error_and_tab_icon(self):
+        """Udate and show the error message for the tab, and update the icon
+        and text colour on the tab"""
         prefix = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:"MS Shell Dlg 2"; font-size:7.8pt; font-weight:400; font-style:normal;">'
         suffix = '</body></html>'
         #print threading.current_thread().name
@@ -339,10 +341,12 @@ class Tab(object):
                 self._tab_icon = self.ICON_OK
             else:
                 self._tab_icon = self.ICON_BUSY
-        self.update_tab_icon_and_colour()
+        self.set_tab_icon_and_colour()
     
     @inmain_decorator(True)
-    def update_tab_icon_and_colour(self):
+    def set_tab_icon_and_colour(self):
+        """Set the tab icon and the colour of its text to the values of
+        self._tab_icon and self._tab_text_colour respectively"""
         if self._ui.parentWidget() is None:
             return
         self.notebook = self._ui.parentWidget().parentWidget()
@@ -384,7 +388,7 @@ class Tab(object):
         self._state = state        
         self._time_of_last_state_change = time.time()
         self._update_state_label()
-        self._update_error()
+        self._update_error_and_tab_icon()
     
     @inmain_decorator(True)
     def _update_state_label(self):
@@ -586,7 +590,7 @@ class Tab(object):
         self._ui.notresponding.hide()  
         self.error_message = ''
         self._tab_text_colour = 'black'
-        self.update_tab_icon_and_colour()
+        self.set_tab_icon_and_colour()
         #self.tab_label_widgets['error'].hide()
         #if self.state == 'idle':
         #    self.tab_label_widgets['ready'].show()
@@ -596,7 +600,7 @@ class Tab(object):
             self.not_responding_for = 0
             if self._not_responding_error_message:
                 self._not_responding_error_message = ''
-                self._update_error()
+                self._update_error_and_tab_icon()
         else:
             self.not_responding_for = time.time() - self._time_of_last_state_change
         if self.not_responding_for > 5 + self.hide_not_responding_error_until:
@@ -611,7 +615,7 @@ class Tab(object):
             else:
                 s = '%s seconds'%seconds
             self._not_responding_error_message = 'The hardware process has not responded for %s.<br /><br />'%s
-            self._update_error()
+            self._update_error_and_tab_icon()
         return True
         
     def mainloop(self):
@@ -720,7 +724,6 @@ class Tab(object):
             self.state = 'fatal error'
             # do this in the main thread
             inmain(self._ui.button_close.setEnabled,False)
-            self._update_error()
         logger.info('Exiting')
         
         
@@ -960,7 +963,7 @@ class MyWorker(Worker):
         # the former.
         global serial; import serial
         self.logger.info('got x! %d' % self.x)
-        # raise Exception('bad import!')
+        raise Exception('bad import!')
         
     # Here's a function that will be called when requested by the parent
     # process. There's nothing special about it really. Its return
