@@ -409,6 +409,7 @@ class BLACS(object):
             try:
                 plugin.plugin_setup_complete(blacs_data)
             except Exception:
+                raise
                 # backwards compatibility for old plugins
                 try:
                     plugin.plugin_setup_complete()
