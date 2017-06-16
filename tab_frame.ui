@@ -92,25 +92,13 @@ all buffered instructions next shot</string>
      <property name="childrenCollapsible">
       <bool>false</bool>
      </property>
-     <widget class="QWidget" name="layout" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
+     <widget class="QWidget" name="notresponding" native="true">
       <layout class="QVBoxLayout" name="verticalLayout">
        <property name="margin">
         <number>0</number>
        </property>
        <item>
-        <widget class="QWidget" name="notresponding" native="true">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
+        <widget class="QWidget" name="notresponding_sub" native="true">
          <layout class="QVBoxLayout" name="verticalLayout_4">
           <property name="margin">
            <number>0</number>
@@ -118,19 +106,9 @@ all buffered instructions next shot</string>
           <item>
            <layout class="QHBoxLayout" name="notresponding_layout">
             <item>
-             <widget class="QLabel" name="to_become_an_icon">
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
-            <item>
              <widget class="QTextEdit" name="error_message">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
+              <property name="lineWrapMode">
+               <enum>QTextEdit::WidgetWidth</enum>
               </property>
               <property name="readOnly">
                <bool>true</bool>
@@ -192,7 +170,7 @@ all buffered instructions next shot</string>
          <x>0</x>
          <y>0</y>
          <width>875</width>
-         <height>344</height>
+         <height>345</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
