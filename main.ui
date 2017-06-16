@@ -324,7 +324,7 @@ QToolButton:hover:checked {
              </layout>
             </item>
             <item>
-             <layout class="QVBoxLayout" name="verticalLayout_5">
+             <layout class="QVBoxLayout" name="queue_verticalLayout">
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_2">
                 <property name="spacing">
@@ -523,6 +523,13 @@ QToolButton:hover:checked {
                </widget>
               </item>
               <item>
+               <widget class="QLabel" name="running_shot_name">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QueueTreeview" name="treeview">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -632,7 +639,7 @@ QToolButton:hover:checked {
      <x>0</x>
      <y>0</y>
      <width>1030</width>
-     <height>25</height>
+     <height>28</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
