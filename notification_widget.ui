@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>852</width>
+    <width>1028</width>
     <height>258</height>
    </rect>
   </property>
@@ -27,13 +27,27 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,1,0,0">
      <property name="spacing">
       <number>0</number>
      </property>
      <property name="sizeConstraint">
       <enum>QLayout::SetMinimumSize</enum>
      </property>
+     <item>
+      <widget class="QPushButton" name="hide_button">
+       <property name="toolTip">
+        <string>Hide the notification</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+         <normaloff>:/qtutils/fugue/toggle-small.png</normaloff>:/qtutils/fugue/toggle-small.png</iconset>
+       </property>
+      </widget>
+     </item>
      <item>
       <spacer name="horizontalSpacer_3">
        <property name="orientation">
@@ -76,60 +90,26 @@
        </property>
       </spacer>
      </item>
-    </layout>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="button_layout">
-     <property name="spacing">
-      <number>2</number>
-     </property>
-     <property name="sizeConstraint">
-      <enum>QLayout::SetMinimumSize</enum>
-     </property>
-     <item>
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="hide_button">
-       <property name="text">
-        <string>Hide</string>
-       </property>
-      </widget>
-     </item>
      <item>
       <widget class="QPushButton" name="close_button">
+       <property name="toolTip">
+        <string>Close the notification</string>
+       </property>
        <property name="text">
-        <string>Close</string>
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+         <normaloff>:/qtutils/fugue/cross.png</normaloff>:/qtutils/fugue/cross.png</iconset>
        </property>
       </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

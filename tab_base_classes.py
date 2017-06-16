@@ -35,6 +35,8 @@ else:
 
 from qtutils import *
 
+import qtutils.icons
+
 class Counter(object):
     """A class with a single method that 
     returns a different integer each time it's called."""
@@ -207,6 +209,12 @@ def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=Fals
     
         
 class Tab(object):
+
+    ICON_OK = ':/qtutils/fugue/tick'
+    ICON_BUSY = ':/qtutils/fugue/hourglass'
+    ICON_ERROR = ':/qtutils/fugue/exclamation'
+    ICON_FATAL_ERROR = ':/qtutils/fugue/exclamation-red'
+
     def __init__(self,notebook,settings,restart=False):  
         # Store important parameters
         self.notebook = notebook
@@ -219,10 +227,11 @@ class Tab(object):
         
         # Setup the timer for updating that tab text label when the tab is not 
         # actively part of a notebook
-        self._tab_text_timer = QTimer()
-        self._tab_text_timer.timeout.connect(self.update_tab_text_colour)
+        self._tab_icon_and_colour_timer = QTimer()
+        self._tab_icon_and_colour_timer.timeout.connect(self.set_tab_icon_and_colour)
+        self._tab_icon = self.ICON_OK
         self._tab_text_colour = 'black'
-        
+
         # Create instance variables
         self._not_responding_error_message = ''
         self._error = ''
@@ -248,12 +257,12 @@ class Tab(object):
         self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
         self._ui.device_name.setText("<b>%s</b> <br />Connection: %s"%(str(self.device_name),str(self.BLACS_connection)))
         # connect signals
-        self._ui.smart_programming.toggled.connect(self.on_force_full_buffered_reprogram)
-        self._ui.smart_programming.setEnabled(False)
+        self._ui.button_clear_smart_programming.clicked.connect(self.on_force_full_buffered_reprogram)
+        self._ui.button_clear_smart_programming.setEnabled(False)
         self.force_full_buffered_reprogram = True
         self._ui.button_close.clicked.connect(self.hide_error)
         self._ui.button_restart.clicked.connect(self.restart)        
-        self._update_error()
+        self._update_error_and_tab_icon()
         self.supports_smart_programming(False)
         
         # This should be done beofre the main_loop starts or else there is a race condition as to whether the 
@@ -279,13 +288,13 @@ class Tab(object):
     def supports_smart_programming(self,support):
         self._supports_smart_programming = bool(support)
         if self._supports_smart_programming:
-            self._ui.smart_programming.show()
+            self._ui.button_clear_smart_programming.show()
         else:
-            self._ui.smart_programming.hide()
+            self._ui.button_clear_smart_programming.hide()
     
-    def on_force_full_buffered_reprogram(self,toggled):
-        self.force_full_buffered_reprogram = toggled
-    
+    def on_force_full_buffered_reprogram(self):
+        self.force_full_buffered_reprogram = True
+
     @property
     def force_full_buffered_reprogram(self):
         return self._force_full_buffered_reprogram
@@ -293,7 +302,7 @@ class Tab(object):
     @force_full_buffered_reprogram.setter
     def force_full_buffered_reprogram(self,value):
         self._force_full_buffered_reprogram = bool(value)
-        self._ui.smart_programming.setChecked(bool(value))
+        self._ui.button_clear_smart_programming.setEnabled(not bool(value))
     
     @property
     @inmain_decorator(True)
@@ -307,10 +316,12 @@ class Tab(object):
         #print self._error
         if message != self._error:
             self._error = message
-            self._update_error()
+            self._update_error_and_tab_icon()
     
     @inmain_decorator(True)
-    def _update_error(self):
+    def _update_error_and_tab_icon(self):
+        """Udate and show the error message for the tab, and update the icon
+        and text colour on the tab"""
         prefix = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:"MS Shell Dlg 2"; font-size:7.8pt; font-weight:400; font-style:normal;">'
         suffix = '</body></html>'
         #print threading.current_thread().name
@@ -318,30 +329,38 @@ class Tab(object):
         if self._error or self._not_responding_error_message:
             self._ui.notresponding.show()
             self._tab_text_colour = 'red'
-            self.update_tab_text_colour()
+            if self.error_message:
+                if self.state == 'fatal error':
+                    self._tab_icon = self.ICON_FATAL_ERROR
+                else: 
+                    self._tab_icon = self.ICON_ERROR
         else:
             self._ui.notresponding.hide()
             self._tab_text_colour = 'black'
-            self.update_tab_text_colour()
+            if self.state == 'idle':
+                self._tab_icon = self.ICON_OK
+            else:
+                self._tab_icon = self.ICON_BUSY
+        self.set_tab_icon_and_colour()
     
     @inmain_decorator(True)
-    def update_tab_text_colour(self):
-        try:
-            self.notebook = self._ui.parentWidget().parentWidget()
-            currentpage = None
-            if self.notebook:
-                #currentpage = self.notebook.get_current_page()
-                currentpage = self.notebook.indexOf(self._ui)
-                if currentpage == -1:
-                    raise Exception('')
-                else:
-                    self.notebook.tabBar().setTabTextColor(currentpage,QColor(self._tab_text_colour))
-                    self._tab_text_timer.stop()
-            else:
-                raise Exception('')
-        except Exception:
-            if not self._tab_text_timer.isActive():
-                self._tab_text_timer.start(100)
+    def set_tab_icon_and_colour(self):
+        """Set the tab icon and the colour of its text to the values of
+        self._tab_icon and self._tab_text_colour respectively"""
+        if self._ui.parentWidget() is None:
+            return
+        self.notebook = self._ui.parentWidget().parentWidget()
+        currentpage = None
+        if self.notebook is not None:
+            #currentpage = self.notebook.get_current_page()
+            currentpage = self.notebook.indexOf(self._ui)
+        if self.notebook is not None and currentpage != -1:
+            icon = QIcon(self._tab_icon)
+            self.notebook.tabBar().setTabIcon(currentpage, icon)
+            self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
+            self._tab_icon_and_colour_timer.stop()
+        elif not self._tab_icon_and_colour_timer.isActive():
+            self._tab_icon_and_colour_timer.start(100)
     
     def get_tab_layout(self):
         return self._layout
@@ -369,6 +388,7 @@ class Tab(object):
         self._state = state        
         self._time_of_last_state_change = time.time()
         self._update_state_label()
+        self._update_error_and_tab_icon()
     
     @inmain_decorator(True)
     def _update_state_label(self):
@@ -481,7 +501,7 @@ class Tab(object):
     def close_tab(self,*args):
         self.logger.info('close_tab called')
         self._timeout.stop()
-        self._tab_text_timer.stop()
+        self._tab_icon_and_colour_timer.stop()
         for name,worker_data in self.workers.items():            
             worker_data[0].terminate()
             # The mainloop is blocking waiting for something out of the
@@ -568,7 +588,9 @@ class Tab(object):
         # dont show the error again until the not responding time has doubled:
         self.hide_not_responding_error_until = 2*self.not_responding_for
         self._ui.notresponding.hide()  
-        self.error_message = '' 
+        self.error_message = ''
+        self._tab_text_colour = 'black'
+        self.set_tab_icon_and_colour()
         #self.tab_label_widgets['error'].hide()
         #if self.state == 'idle':
         #    self.tab_label_widgets['ready'].show()
@@ -578,7 +600,7 @@ class Tab(object):
             self.not_responding_for = 0
             if self._not_responding_error_message:
                 self._not_responding_error_message = ''
-                self._update_error()
+                self._update_error_and_tab_icon()
         else:
             self.not_responding_for = time.time() - self._time_of_last_state_change
         if self.not_responding_for > 5 + self.hide_not_responding_error_until:
@@ -593,7 +615,7 @@ class Tab(object):
             else:
                 s = '%s seconds'%seconds
             self._not_responding_error_message = 'The hardware process has not responded for %s.<br /><br />'%s
-            self._update_error()
+            self._update_error_and_tab_icon()
         return True
         
     def mainloop(self):

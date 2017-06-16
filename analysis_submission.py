@@ -26,6 +26,7 @@ else:
     from PyQt4.QtGui import *
     
 from qtutils import *
+import qtutils.icons
 from zprocess import zmq_get
 import labscript_utils.shared_drive
 
@@ -43,6 +44,7 @@ class AnalysisSubmission(object):
         # connect signals
         self._ui.send_to_server.toggled.connect(lambda state:self._set_send_to_server(state))
         self._ui.server.editingFinished.connect(lambda: self._set_server(self._ui.server.text()))
+        self._ui.clear_unsent_shots_button.clicked.connect(lambda: self.inqueue.put(['clear', None]))
         
         self._waiting_for_submission = []
         self.mainloop_thread = threading.Thread(target=self.mainloop)
@@ -112,9 +114,32 @@ class AnalysisSubmission(object):
         if self.server_online:
             self.inqueue.put(['try again', None])
         
-        # update GUI
-        self._ui.server_online.setText(value+(' (Files to send: %d)'%len(self._waiting_for_submission) if self._waiting_for_submission else ''))
-    
+        icon_names = {'checking': ':/qtutils/fugue/hourglass',
+                      'online': ':/qtutils/fugue/tick',
+                      'offline': ':/qtutils/fugue/exclamation', 
+                      '': ':/qtutils/fugue/status-offline'}
+
+        tooltips = {'checking': 'Checking...',
+                    'online': 'Server is responding',
+                    'offline': 'Server not responding',
+                    '': 'Disabled'}
+
+        icon = QIcon(icon_names.get(self._server_online, ':/qtutils/fugue/exclamation-red'))
+        pixmap = icon.pixmap(QSize(16, 16))
+        tooltip = tooltips.get(self._server_online, "Invalid server status: %s" % self._server_online)
+
+        # Update GUI:
+        self._ui.server_online.setPixmap(pixmap)
+        self._ui.server_online.setToolTip(tooltip)
+
+        if self._waiting_for_submission:
+            self._ui.resend_shots_label.setText('Files to send: %d' % len(self._waiting_for_submission))
+            self._ui.resend_shots_label.show()
+            self._ui.clear_unsent_shots_button.show()
+        else:
+            self._ui.resend_shots_label.hide()
+            self._ui.clear_unsent_shots_button.hide()
+
     def get_queue(self):
         return self.inqueue
                  
@@ -127,7 +152,8 @@ class AnalysisSubmission(object):
             elif signal == 'file':
                 if self.send_to_server:
                     self._waiting_for_submission.append(data)
-                self.submit_waiting_files()
+                if self.server_online == 'online':
+                    self.submit_waiting_files()
             elif signal == 'try again':
                 self.submit_waiting_files()
             elif signal == 'clear':

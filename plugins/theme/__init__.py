@@ -51,7 +51,7 @@ class Plugin(object):
     def update_stylesheet(self):
         if self.BLACS is not None:
             stylesheet_settings = self.BLACS['settings'].get_value(Setting,"stylesheet")
-            QApplication.instance().setStyleSheet(stylesheet_settings)
+            self.BLACS['ui'].centralwidget.setStyleSheet(self.unmodified_stylesheet + stylesheet_settings)
         
     def set_menu_instance(self,menu):
         self.menu = menu
@@ -61,6 +61,7 @@ class Plugin(object):
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
+        self.unmodified_stylesheet = self.BLACS['ui'].centralwidget.styleSheet()
         self.update_stylesheet()
     
     def get_save_data(self):
