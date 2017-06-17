@@ -259,8 +259,8 @@ class BLACS(object):
         # Setup the UI
         self.ui.main_splitter.setStretchFactor(0,0)
         self.ui.main_splitter.setStretchFactor(1,1)
-        elide_label(self.ui.queue_status, self.ui.queue_verticalLayout, Qt.ElideRight)
-        elide_label(self.ui.running_shot_name, self.ui.queue_verticalLayout, Qt.ElideLeft)
+        elide_label(self.ui.queue_status, self.ui.queue_status_verticalLayout, Qt.ElideRight)
+        elide_label(self.ui.running_shot_name, self.ui.queue_status_verticalLayout, Qt.ElideLeft)
 
         self.tablist = {}
         self.panes = {}
