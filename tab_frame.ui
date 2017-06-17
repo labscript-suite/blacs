@@ -17,13 +17,31 @@
    <enum>QFrame::NoFrame</enum>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
-   <property name="margin">
-    <number>5</number>
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>3</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>3</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
    </property>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0">
      <property name="spacing">
       <number>6</number>
+     </property>
+     <property name="topMargin">
+      <number>3</number>
+     </property>
+     <property name="bottomMargin">
+      <number>3</number>
      </property>
      <item>
       <widget class="QLabel" name="device_name">
@@ -34,7 +52,7 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>TextLabel</string>
+        <string>&lt;b&gt;Device&lt;/b&gt; [connection]</string>
        </property>
        <property name="textFormat">
         <enum>Qt::RichText</enum>
@@ -105,6 +123,12 @@ all buffered instructions next shot</string>
           </property>
           <item>
            <layout class="QHBoxLayout" name="notresponding_layout">
+            <property name="spacing">
+             <number>3</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
             <item>
              <widget class="QTextEdit" name="error_message">
               <property name="lineWrapMode">
@@ -169,8 +193,8 @@ all buffered instructions next shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>875</width>
-         <height>345</height>
+         <width>879</width>
+         <height>362</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -235,8 +259,14 @@ all buffered instructions next shot</string>
    </item>
    <item>
     <widget class="QLabel" name="state_label">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="text">
-      <string/>
+      <string>&lt;b&gt;[Mode]&lt;/b&gt; - State: [state]</string>
      </property>
     </widget>
    </item>

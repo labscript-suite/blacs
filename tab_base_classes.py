@@ -259,7 +259,7 @@ class Tab(object):
         self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
         self._ui.device_name.setText("<b>%s</b> [%s]"%(str(self.device_name),str(self.BLACS_connection)))
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
-        elide_label(self._ui.state_label, self._ui.splitter, Qt.ElideRight)
+        elide_label(self._ui.state_label, self._ui.layout(), Qt.ElideRight)
         # connect signals
         self._ui.button_clear_smart_programming.clicked.connect(self.on_force_full_buffered_reprogram)
         self._ui.button_clear_smart_programming.setEnabled(False)

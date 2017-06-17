@@ -47,7 +47,7 @@
    <item>
     <widget class="QPushButton" name="button">
      <property name="text">
-      <string>Recompile connection table</string>
+      <string>Recompile</string>
      </property>
      <property name="icon">
       <iconset resource="../../../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
