@@ -42,7 +42,6 @@ class QueueTreeview(QTreeView):
         QTreeView.__init__(self,*args,**kwargs)
         self.header().setStretchLastSection(True)
         self.setAutoScroll(False)
-        self.setTextElideMode(Qt.ElideLeft)
         self.add_to_queue = None
         self.delete_selection = None
         self._logger = logging.getLogger('BLACS.QueueManager') 
@@ -115,6 +114,7 @@ class QueueManager(object):
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
+        self._ui.queue_add_button.setDefaultAction(self._ui.actionAdd_to_queue)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)

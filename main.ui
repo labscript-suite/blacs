@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1030</width>
+    <width>361</width>
     <height>723</height>
    </rect>
   </property>
@@ -148,175 +148,153 @@ QToolButton:hover:checked {
           <property name="topMargin">
            <number>6</number>
           </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout">
+           <layout class="QVBoxLayout" name="queue_verticalLayout">
             <item>
-             <layout class="QVBoxLayout" name="verticalLayout">
-              <property name="sizeConstraint">
-               <enum>QLayout::SetMinimumSize</enum>
+             <layout class="QHBoxLayout" name="queue_controls_horizontalLayout">
+              <property name="spacing">
+               <number>0</number>
               </property>
               <item>
-               <spacer name="verticalSpacer">
+               <spacer name="horizontalSpacer_2">
                 <property name="orientation">
-                 <enum>Qt::Vertical</enum>
+                 <enum>Qt::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
-                  <width>20</width>
-                  <height>40</height>
+                  <width>40</width>
+                  <height>20</height>
                  </size>
                 </property>
                </spacer>
               </item>
               <item>
-               <widget class="QPushButton" name="queue_push_to_top">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>20</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <property name="maximumSize">
-                 <size>
-                  <width>20</width>
-                  <height>16777215</height>
-                 </size>
-                </property>
+               <widget class="QPushButton" name="queue_pause_button">
                 <property name="focusPolicy">
                  <enum>Qt::NoFocus</enum>
                 </property>
                 <property name="toolTip">
-                 <string>Move to top</string>
+                 <string>Pause the queue</string>
                 </property>
                 <property name="text">
-                 <string/>
+                 <string>Pause</string>
                 </property>
                 <property name="icon">
                  <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                  <normaloff>:/qtutils/fugue/arrow-stop-090.png</normaloff>:/qtutils/fugue/arrow-stop-090.png</iconset>
+                  <normaloff>:/qtutils/fugue/control-pause.png</normaloff>:/qtutils/fugue/control-pause.png</iconset>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+                <property name="checked">
+                 <bool>false</bool>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QPushButton" name="queue_push_up">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>20</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <property name="maximumSize">
-                 <size>
-                  <width>20</width>
-                  <height>16777215</height>
-                 </size>
-                </property>
-                <property name="focusPolicy">
-                 <enum>Qt::NoFocus</enum>
-                </property>
-                <property name="toolTip">
-                 <string>Move up</string>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-                <property name="icon">
-                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                  <normaloff>:/qtutils/fugue/arrow-090.png</normaloff>:/qtutils/fugue/arrow-090.png</iconset>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="queue_push_down">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>20</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <property name="maximumSize">
-                 <size>
-                  <width>20</width>
-                  <height>16777215</height>
-                 </size>
-                </property>
-                <property name="focusPolicy">
-                 <enum>Qt::NoFocus</enum>
-                </property>
-                <property name="toolTip">
-                 <string>Move down</string>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-                <property name="icon">
-                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                  <normaloff>:/qtutils/fugue/arrow-270.png</normaloff>:/qtutils/fugue/arrow-270.png</iconset>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="queue_push_to_bottom">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>20</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <property name="maximumSize">
-                 <size>
-                  <width>20</width>
-                  <height>16777215</height>
-                 </size>
-                </property>
-                <property name="focusPolicy">
-                 <enum>Qt::NoFocus</enum>
-                </property>
-                <property name="toolTip">
-                 <string>Move to bottom</string>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-                <property name="icon">
-                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                  <normaloff>:/qtutils/fugue/arrow-stop-270.png</normaloff>:/qtutils/fugue/arrow-stop-270.png</iconset>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <spacer name="verticalSpacer_2">
+               <spacer name="horizontalSpacer">
                 <property name="orientation">
-                 <enum>Qt::Vertical</enum>
+                 <enum>Qt::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
-                  <width>20</width>
-                  <height>40</height>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="queue_repeat_button">
+                <property name="focusPolicy">
+                 <enum>Qt::NoFocus</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Re-add shots to the end of the queue after completion</string>
+                </property>
+                <property name="text">
+                 <string>Repeat</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                  <normaloff>:/qtutils/fugue/arrow-repeat.png</normaloff>:/qtutils/fugue/arrow-repeat.png</iconset>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="repeat_mode_select_button">
+                <property name="toolTip">
+                 <string>Select repeat mode</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                  <normaloff>:/qtutils/fugue/control-270.png</normaloff>:/qtutils/fugue/control-270.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>8</width>
+                  <height>19</height>
+                 </size>
+                </property>
+                <property name="popupMode">
+                 <enum>QToolButton::InstantPopup</enum>
+                </property>
+                <property name="arrowType">
+                 <enum>Qt::NoArrow</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_5">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="queue_abort_button">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="focusPolicy">
+                 <enum>Qt::NoFocus</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Abort current shot in progress</string>
+                </property>
+                <property name="text">
+                 <string>Abort</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                  <normaloff>:/qtutils/fugue/cross-octagon.png</normaloff>:/qtutils/fugue/cross-octagon.png</iconset>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_3">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
                  </size>
                 </property>
                </spacer>
@@ -324,155 +302,63 @@ QToolButton:hover:checked {
              </layout>
             </item>
             <item>
-             <layout class="QVBoxLayout" name="queue_verticalLayout">
+             <widget class="QLabel" name="queue_status">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="running_shot_name">
+              <property name="text">
+               <string/>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="queue_treeview_horizontalLayout">
+              <property name="spacing">
+               <number>3</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
               <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_2">
-                <property name="spacing">
-                 <number>0</number>
+               <layout class="QVBoxLayout" name="verticalLayout">
+                <property name="sizeConstraint">
+                 <enum>QLayout::SetMinimumSize</enum>
                 </property>
                 <item>
-                 <spacer name="horizontalSpacer_2">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>40</width>
-                    <height>20</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="queue_pause_button">
-                  <property name="focusPolicy">
-                   <enum>Qt::NoFocus</enum>
-                  </property>
+                 <widget class="QToolButton" name="queue_add_button">
                   <property name="toolTip">
-                   <string>Pause the queue</string>
-                  </property>
-                  <property name="text">
-                   <string>Pause</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                    <normaloff>:/qtutils/fugue/control-pause.png</normaloff>:/qtutils/fugue/control-pause.png</iconset>
-                  </property>
-                  <property name="checkable">
-                   <bool>true</bool>
-                  </property>
-                  <property name="checked">
-                   <bool>false</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <spacer name="horizontalSpacer">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>40</width>
-                    <height>20</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="queue_repeat_button">
-                  <property name="focusPolicy">
-                   <enum>Qt::NoFocus</enum>
-                  </property>
-                  <property name="toolTip">
-                   <string>Re-add shots to the end of the queue after completion</string>
-                  </property>
-                  <property name="text">
-                   <string>Repeat</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                    <normaloff>:/qtutils/fugue/arrow-repeat.png</normaloff>:/qtutils/fugue/arrow-repeat.png</iconset>
-                  </property>
-                  <property name="checkable">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QToolButton" name="repeat_mode_select_button">
-                  <property name="toolTip">
-                   <string>Select repeat mode</string>
+                   <string>Add to queue</string>
                   </property>
                   <property name="text">
                    <string/>
                   </property>
                   <property name="icon">
                    <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                    <normaloff>:/qtutils/fugue/control-270.png</normaloff>:/qtutils/fugue/control-270.png</iconset>
-                  </property>
-                  <property name="iconSize">
-                   <size>
-                    <width>8</width>
-                    <height>19</height>
-                   </size>
-                  </property>
-                  <property name="popupMode">
-                   <enum>QToolButton::InstantPopup</enum>
-                  </property>
-                  <property name="arrowType">
-                   <enum>Qt::NoArrow</enum>
+                    <normaloff>:/qtutils/fugue/plus.png</normaloff>:/qtutils/fugue/plus.png</iconset>
                   </property>
                  </widget>
                 </item>
                 <item>
-                 <spacer name="horizontalSpacer_5">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>40</width>
-                    <height>20</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="queue_abort_button">
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                  <property name="focusPolicy">
-                   <enum>Qt::NoFocus</enum>
-                  </property>
-                  <property name="toolTip">
-                   <string>Abort current shot in progress</string>
-                  </property>
-                  <property name="text">
-                   <string>Abort</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
-                    <normaloff>:/qtutils/fugue/cross-octagon.png</normaloff>:/qtutils/fugue/cross-octagon.png</iconset>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <spacer name="horizontalSpacer_3">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>40</width>
-                    <height>20</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="queue_delete_button">
+                 <widget class="QToolButton" name="queue_delete_button">
                   <property name="focusPolicy">
                    <enum>Qt::NoFocus</enum>
                   </property>
@@ -480,7 +366,7 @@ QToolButton:hover:checked {
                    <string>Delete selected shots from queue</string>
                   </property>
                   <property name="text">
-                   <string>Delete</string>
+                   <string/>
                   </property>
                   <property name="icon">
                    <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
@@ -489,45 +375,124 @@ QToolButton:hover:checked {
                  </widget>
                 </item>
                 <item>
-                 <spacer name="horizontalSpacer_4">
+                 <spacer name="verticalSpacer">
                   <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
+                   <enum>Qt::Vertical</enum>
                   </property>
                   <property name="sizeHint" stdset="0">
                    <size>
-                    <width>40</width>
-                    <height>20</height>
+                    <width>20</width>
+                    <height>40</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="queue_push_to_top">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Move to top</string>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/arrow-stop-090.png</normaloff>:/qtutils/fugue/arrow-stop-090.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="queue_push_up">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Move up</string>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/arrow-090.png</normaloff>:/qtutils/fugue/arrow-090.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="queue_push_down">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Move down</string>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/arrow-270.png</normaloff>:/qtutils/fugue/arrow-270.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="queue_push_to_bottom">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="focusPolicy">
+                   <enum>Qt::NoFocus</enum>
+                  </property>
+                  <property name="toolTip">
+                   <string>Move to bottom</string>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                    <normaloff>:/qtutils/fugue/arrow-stop-270.png</normaloff>:/qtutils/fugue/arrow-stop-270.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="verticalSpacer_2">
+                  <property name="orientation">
+                   <enum>Qt::Vertical</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>20</width>
+                    <height>40</height>
                    </size>
                   </property>
                  </spacer>
                 </item>
                </layout>
-              </item>
-              <item>
-               <widget class="QLabel" name="queue_status">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-                <property name="alignment">
-                 <set>Qt::AlignCenter</set>
-                </property>
-                <property name="wordWrap">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="running_shot_name">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
               </item>
               <item>
                <widget class="QueueTreeview" name="treeview">
@@ -551,6 +516,12 @@ QToolButton:hover:checked {
                 </property>
                 <property name="selectionMode">
                  <enum>QAbstractItemView::ExtendedSelection</enum>
+                </property>
+                <property name="textElideMode">
+                 <enum>Qt::ElideLeft</enum>
+                </property>
+                <property name="indentation">
+                 <number>0</number>
                 </property>
                 <property name="animated">
                  <bool>true</bool>
@@ -638,7 +609,7 @@ QToolButton:hover:checked {
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1030</width>
+     <width>361</width>
      <height>28</height>
     </rect>
    </property>
@@ -727,7 +698,6 @@ QToolButton:hover:checked {
  <tabstops>
   <tabstop>queue_pause_button</tabstop>
   <tabstop>queue_repeat_button</tabstop>
-  <tabstop>queue_delete_button</tabstop>
   <tabstop>queue_push_to_top</tabstop>
   <tabstop>queue_push_up</tabstop>
   <tabstop>queue_push_down</tabstop>
@@ -748,7 +718,7 @@ QToolButton:hover:checked {
      <y>-1</y>
     </hint>
     <hint type="destinationlabel">
-     <x>399</x>
+     <x>360</x>
      <y>299</y>
     </hint>
    </hints>
