@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>361</width>
+    <width>372</width>
     <height>723</height>
    </rect>
   </property>
@@ -156,7 +156,7 @@ QToolButton:hover:checked {
             <item>
              <layout class="QHBoxLayout" name="queue_controls_horizontalLayout">
               <property name="spacing">
-               <number>0</number>
+               <number>6</number>
               </property>
               <item>
                <spacer name="horizontalSpacer_2">
@@ -303,20 +303,11 @@ QToolButton:hover:checked {
             </item>
             <item>
              <widget class="QLabel" name="queue_status">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
               <property name="text">
                <string/>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
-              </property>
-              <property name="wordWrap">
-               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -609,7 +600,7 @@ QToolButton:hover:checked {
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>361</width>
+     <width>372</width>
      <height>28</height>
     </rect>
    </property>

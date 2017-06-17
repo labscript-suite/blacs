@@ -257,7 +257,7 @@ class Tab(object):
         self._changed_layout = self._ui.changed_layout
         self._changed_widget.hide()        
         self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
-        self._ui.device_name.setText("<b>%s</b> - [%s]"%(str(self.device_name),str(self.BLACS_connection)))
+        self._ui.device_name.setText("<b>%s</b> [%s]"%(str(self.device_name),str(self.BLACS_connection)))
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
         elide_label(self._ui.state_label, self._ui.splitter, Qt.ElideRight)
         # connect signals

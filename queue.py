@@ -26,6 +26,7 @@ else:
     from PyQt4.QtCore import *
     from PyQt4.QtGui import *
 
+import zprocess
 import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS.queuemanager')
 
@@ -409,9 +410,12 @@ class QueueManager(object):
             return False
 
     @inmain_decorator(wait_for_return=True)
-    def set_status(self,text):
-        # TODO: make this fancier!
-        self._ui.queue_status.setText(str(text))
+    def set_status(self, queue_status, shot_filepath=None):
+        self._ui.queue_status.setText(str(queue_status))
+        if shot_filepath is not None:
+            self._ui.running_shot_name.setText('<b>%s</b>'% str(os.path.basename(shot_filepath)))
+        else:
+            self._ui.running_shot_name.setText('')
         
     @inmain_decorator(wait_for_return=True)
     def get_status(self):
@@ -455,22 +459,21 @@ class QueueManager(object):
         
         #TODO: put in general configuration
         timeout_limit = 300 #seconds
-        self.set_status("Idle") 
+        self.set_status("Idle")
         
         while self.manager_running:
             # If the pause button is pushed in, sleep
             if self.manager_paused:
                 if self.get_status() == "Idle":
                     logger.info('Paused')
-                    self.set_status("Queue Paused") 
+                    self.set_status("Queue paused") 
                 time.sleep(1)
                 continue
             
             # Get the top file
             try:
                 path = self.get_next_file()
-                now_running_text = 'Now running: <b>%s</b>'%os.path.basename(path)
-                self.set_status(now_running_text)
+                self.set_status('Preparing shot...', path)
                 logger.info('Got a file: %s'%path)
             except:
                 # If no files, sleep for 1s,
@@ -509,7 +512,7 @@ class QueueManager(object):
                 error_condition = False
                 abort = False
                 restarted = False
-                self.set_status(now_running_text+"<br>Transitioning to Buffered")
+                self.set_status("Transitioning to buffered...", path)
                 
                 # Enable abort button, and link in current_queue:
                 inmain(self._ui.queue_abort_button.clicked.connect,abort_function)
@@ -590,13 +593,13 @@ class QueueManager(object):
                         self.manager_paused = True
                         self.prepend(path)                
                     if timed_out:
-                        self.set_status("Device programming timed out. Queue Paused...")
+                        self.set_status("Programming timed out. Queue paused")
                     elif abort:
-                        self.set_status("Shot aborted")
+                        self.set_status("Aborted")
                     elif restarted:
-                        self.set_status('A device was restarted during transition_to_buffered. Shot aborted')
+                        self.set_status("Device(s) restarted. Queue paused")
                     else:
-                        self.set_status("One or more devices is in an error state. Queue Paused...")
+                        self.set_status("Device(s) in error state. Queue Paused")
                         
                     # Abort the run for all devices in use:
                     # need to recreate the queue here because we don't want to hear from devices that are still transitioning to buffered mode
@@ -627,7 +630,7 @@ class QueueManager(object):
             
                 # Get front panel data, but don't save it to the h5 file until the experiment ends:
                 states,tab_positions,window_data,plugin_data = self.BLACS.front_panel_settings.get_save_data()
-                self.set_status(now_running_text+"<br>Running...(program time: %.3fs)"%(time.time() - start_time))
+                self.set_status("Running (program time: %.3fs)..."%(time.time() - start_time), path)
                     
                 # A Queue for event-based notification of when the experiment has finished.
                 experiment_finished_queue = Queue.Queue()               
@@ -674,19 +677,22 @@ class QueueManager(object):
                 if restarted:                    
                     self.manager_paused = True
                     self.prepend(path)  
-                    self.set_status("Device restarted mid-shot. Shot aborted, Queue paused.")
+                    self.set_status("Device(s) restarted. Queue paused")
                 elif abort:
-                    self.set_status("Shot aborted")
+                    self.set_status("Aborted")
                     
                 if abort or restarted:
                     # after disabling the abort button, we now start a new iteration
                     continue                
                 
                 logger.info('Run complete')
-                self.set_status(now_running_text+"<br>Sequence done, saving data...")
+                self.set_status("Saving data...")
             # End try/except block here
             except Exception:
                 logger.exception("Error in queue manager execution. Queue paused.")
+
+                # Raise the error in a thread for visibility
+                zprocess.raise_exception_in_thread(sys.exc_info())
                 # clean up the h5 file
                 self.manager_paused = True
                 # clean the h5 file:
@@ -708,8 +714,8 @@ class QueueManager(object):
                         tab.abort_buffered(self.current_queue)
                     # disconnect restart signal from tabs 
                     inmain(tab.disconnect_restart_receiver,restart_function)
-                self.set_status("Error occured in Queue Manager. Queue Paused. \nPlease make sure all devices are back in manual mode before unpausing the queue")
-                
+                self.set_status("Error in queue manager. Queue paused")
+
                 # disconnect and disable abort button
                 inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
                 inmain(self._ui.queue_abort_button.setEnabled,False)
@@ -771,12 +777,16 @@ class QueueManager(object):
                     inmain(tab.disconnect_restart_receiver,restart_function)
                     
                 if error_condition:                
-                    self.set_status("Error during transtion to manual. Queue Paused.")
+                    self.set_status("Error in transtion to manual. Queue Paused")
                     # TODO: Kind of dodgy raising an exception here...
                     raise Exception('A device failed during transition to manual')
                                        
             except Exception as e:
                 logger.exception("Error in queue manager execution. Queue paused.")
+
+                # Raise the error in a thread for visibility
+                zprocess.raise_exception_in_thread(sys.exc_info())
+                
                 # clean up the h5 file
                 self.manager_paused = True
                 # clean the h5 file:
@@ -800,7 +810,7 @@ class QueueManager(object):
                         tab.transition_to_manual(self.current_queue)
                     # disconnect restart signal from tabs 
                     inmain(tab.disconnect_restart_receiver,restart_function)
-                self.set_status("Error occured in Queue Manager. Queue Paused. \nPlease make sure all devices are back in manual mode before unpausing the queue")
+                self.set_status("Error in queue manager. Queue paused")
                 continue
             
             ##########################################################################################################################################
