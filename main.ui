@@ -331,6 +331,19 @@ QToolButton:hover:checked {
                  <number>0</number>
                 </property>
                 <item>
+                 <spacer name="horizontalSpacer_2">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
                  <widget class="QPushButton" name="queue_pause_button">
                   <property name="focusPolicy">
                    <enum>Qt::NoFocus</enum>
@@ -475,13 +488,19 @@ QToolButton:hover:checked {
                   </property>
                  </widget>
                 </item>
-               </layout>
-              </item>
-              <item>
-               <layout class="QVBoxLayout" name="delete_repeated_shots_layout">
-                <property name="spacing">
-                 <number>0</number>
-                </property>
+                <item>
+                 <spacer name="horizontalSpacer_4">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
                </layout>
               </item>
               <item>
