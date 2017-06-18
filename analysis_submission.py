@@ -133,12 +133,10 @@ class AnalysisSubmission(object):
         self._ui.server_online.setToolTip(tooltip)
 
         if self._waiting_for_submission:
-            self._ui.resend_shots_label.setText('Files to send: %d' % len(self._waiting_for_submission))
-            self._ui.resend_shots_label.show()
-            self._ui.clear_unsent_shots_button.show()
+            self._ui.resend_shots_label.setText('Failed to send %s file(s)' % len(self._waiting_for_submission))
+            self._ui.failed_to_send_frame.show()
         else:
-            self._ui.resend_shots_label.hide()
-            self._ui.clear_unsent_shots_button.hide()
+            self._ui.failed_to_send_frame.hide()
 
     def get_queue(self):
         return self.inqueue
