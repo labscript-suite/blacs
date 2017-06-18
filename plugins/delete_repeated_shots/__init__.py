@@ -57,7 +57,7 @@ class Plugin(object):
 
         # Add our controls to the BLACS UI:
         self.ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'controls.ui'))
-        BLACS['ui'].delete_repeated_shots_layout.addWidget(self.ui)
+        BLACS['ui'].queue_controls_frame.addWidget(self.ui)
 
         # Restore settings to the GUI controls:
         self.ui.spinBox.setValue(self.n_shots_to_keep)
