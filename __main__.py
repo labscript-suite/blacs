@@ -166,8 +166,6 @@ from front_panel_settings import FrontPanelSettings
 from notifications import Notifications
 # Preferences system
 from labscript_utils.settings import Settings
-# For eliding text labels in the GUI:
-from labscript_utils.qtwidgets.elide_label import elide_label
 #import settings_pages
 import plugins
 
@@ -259,8 +257,6 @@ class BLACS(object):
         # Setup the UI
         self.ui.main_splitter.setStretchFactor(0,0)
         self.ui.main_splitter.setStretchFactor(1,1)
-        elide_label(self.ui.queue_status, self.ui.queue_status_verticalLayout, Qt.ElideRight)
-        elide_label(self.ui.running_shot_name, self.ui.queue_status_verticalLayout, Qt.ElideLeft)
 
         self.tablist = {}
         self.panes = {}

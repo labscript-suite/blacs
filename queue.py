@@ -32,6 +32,8 @@ zprocess.locking.set_client_process_name('BLACS.queuemanager')
 
 from qtutils import *
 
+from labscript_utils.qtwidgets.elide_label import elide_label
+
 # Connection Table Code
 from connections import ConnectionTable
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
@@ -122,6 +124,10 @@ class QueueManager(object):
         self._ui.queue_push_down.clicked.connect(self._move_down)
         self._ui.queue_push_to_top.clicked.connect(self._move_top)
         self._ui.queue_push_to_bottom.clicked.connect(self._move_bottom)
+
+        # Set the elision of the status labels:
+        elide_label(self._ui.queue_status, self._ui.queue_status_verticalLayout, Qt.ElideRight)
+        elide_label(self._ui.running_shot_name, self._ui.queue_status_verticalLayout, Qt.ElideLeft)
         
         # Set up repeat mode button menu:
         self.repeat_mode_menu = QMenu(self._ui)
@@ -243,7 +249,7 @@ class QueueManager(object):
             # User cancelled selection
             return
         # Convert to standard platform specific path, otherwise Qt likes forward slashes:
-        shot_files = [os.path.abspath(shot_file) for shot_file in shot_files]
+        shot_files = [os.path.abspath(str(shot_file)) for shot_file in shot_files]
 
         # Save the containing folder for use next time we open the dialog box:
         self.last_opened_shots_folder = os.path.dirname(shot_files[0])
