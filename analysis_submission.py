@@ -69,7 +69,8 @@ class AnalysisSubmission(object):
             self.send_to_server = data["send_to_server"]
         if "waiting_for_submission" in data:
             self._waiting_for_submission = list(data["waiting_for_submission"])
-            self.check_retry()
+        self.inqueue.put(['save data restored', None])
+        self.check_retry()
             
     def get_save_data(self):
         return {"waiting_for_submission":list(self._waiting_for_submission),
@@ -175,7 +176,10 @@ class AnalysisSubmission(object):
         self.inqueue.put(['check/retry', None])
 
     def mainloop(self):
-        self._mainloop_logger = logging.getLogger('BLACS.AnalysisSubmission.mainloop') 
+        self._mainloop_logger = logging.getLogger('BLACS.AnalysisSubmission.mainloop')
+        # Ignore signals until save data is restored:
+        while self.inqueue.get()[0] != 'save data restored':
+            pass
         while True:
             try:
                 try:
@@ -208,7 +212,7 @@ class AnalysisSubmission(object):
                 else:
                     raise ValueError('Invalid signal: %s'%str(signal))
 
-                self._mainloop_logger.error('Processed signal: %s'%str(signal))
+                self._mainloop_logger.info('Processed signal: %s'%str(signal))
             except Exception:
                 # Raise in a thread for visibility, but keep going
                 raise_exception_in_thread(sys.exc_info())
