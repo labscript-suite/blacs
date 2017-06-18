@@ -57,7 +57,7 @@
          <number>3</number>
         </property>
         <item>
-         <widget class="QToolButton" name="send_to_server">
+         <widget class="QPushButton" name="send_to_server">
           <property name="focusPolicy">
            <enum>Qt::NoFocus</enum>
           </property>
@@ -65,7 +65,7 @@
            <string>Send completed shot files for analysis</string>
           </property>
           <property name="text">
-           <string/>
+           <string>Analyse</string>
           </property>
           <property name="icon">
            <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
@@ -130,9 +130,9 @@
           </widget>
          </item>
          <item>
-          <widget class="QToolButton" name="toolButton">
+          <widget class="QToolButton" name="retry_button">
            <property name="toolTip">
-            <string>Retry</string>
+            <string>Retry now</string>
            </property>
            <property name="text">
             <string>...</string>
