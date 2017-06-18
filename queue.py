@@ -374,13 +374,18 @@ class QueueManager(object):
                        "The error was %s\n"%error)
             return message
             
-    
-    def new_rep_name(self,h5_filepath):
-        basename = os.path.basename(h5_filepath).split('.h5')[0]
-        if '_rep' in basename:
-            reps = int(basename.split('_rep')[1])
-            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
-        return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
+    def new_rep_name(self, h5_filepath):
+        basename, ext = os.path.splitext(h5_filepath)
+        if '_rep' in basename and ext == '.h5':
+            reps = basename.split('_rep')[-1]
+            try:
+                reps = int(reps)
+            except ValueError:
+                # not a rep
+                pass
+            else:
+                return ''.join(basename.split('_rep')[:-1]) + '_rep%05d.h5'% (reps + 1)
+        return basename + '_rep%05d.h5'%1
         
     def clean_h5_file(self,h5file,new_h5_file):
         try:

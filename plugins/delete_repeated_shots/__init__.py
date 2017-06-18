@@ -101,11 +101,11 @@ class Plugin(object):
             return
 
         # Is the file a repeated shot?
-        basename = os.path.basename(h5_filepath).split('.h5')[0]
-        if '_rep' in basename:
-            reps = int(basename.split('_rep')[1])
+        basename, ext = os.path.splitext(os.path.basename(h5_filepath))
+        if '_rep' in basename and ext == '.h5':
+            repno = basename.split('_rep')[-1]
             try:
-                int(reps)
+                int(repno)
             except ValueError:
                 # not a rep:
                 return
