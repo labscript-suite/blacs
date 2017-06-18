@@ -27,7 +27,8 @@ else:
     
 from qtutils import *
 import qtutils.icons
-from zprocess import zmq_get, TimeoutError
+from zprocess import zmq_get, TimeoutError, raise_exception_in_thread
+from socket import gaierror
 import labscript_utils.shared_drive
 from labscript_utils.qtwidgets.elide_label import elide_label
 
@@ -48,9 +49,9 @@ class AnalysisSubmission(object):
         self._ui.retry_button.clicked.connect(lambda _: self.check_retry())
 
         self._waiting_for_submission = []
+        self.server_online = 'offline'
         self.send_to_server = False
         self.server = ''
-        self.server_online = 'offline'
         self.time_of_last_connectivity_check = 0
 
         self.mainloop_thread = threading.Thread(target=self.mainloop)
@@ -145,6 +146,10 @@ class AnalysisSubmission(object):
 
     @inmain_decorator(True)
     def update_waiting_files_message(self):
+        # if there is only one shot and we haven't encountered failure yet, do
+        # not show the error frame:
+        if (self.server_online == 'checking') and (len(self._waiting_for_submission) == 1) and not self._ui.failed_to_send_frame.isVisible():
+            return
         if self._waiting_for_submission:
             self._ui.failed_to_send_frame.show()
             if self.server_online == 'checking':
@@ -173,38 +178,41 @@ class AnalysisSubmission(object):
         self._mainloop_logger = logging.getLogger('BLACS.AnalysisSubmission.mainloop') 
         while True:
             try:
-                signal, data = self.inqueue.get(timeout=10)
-                print(signal)
-            except Queue.Empty:
-                print('empty')
-                # Periodic checking of connectivity and resending of files.
-                # Don't trigger a re-check if we already failed a connectivity
-                # check within the last second:
-                if (time.time() - self.time_of_last_connectivity_check) > 1:
-                    signal == 'check/retry'
-                else:
-                    continue
-            if signal == 'check/retry':
-                self.check_connectivity()
-                if self.server_online == 'online':
-                    self.submit_waiting_files()
-            elif signal == 'close':
-                break
-            elif signal == 'file':
-                if self.send_to_server:
-                    self._waiting_for_submission.append(data)
-                    if self.server_online != 'online':
-                        # Don't stack connectivity checks if many files are
-                        # arriving. If we failed a connectivity check less
-                        # than a second ago then don't check again.
-                        if (time.time() - self.time_of_last_connectivity_check) > 1:
-                            self.check_connectivity()
+                try:
+                    signal, data = self.inqueue.get(timeout=10)
+                except Queue.Empty:
+                    # Periodic checking of connectivity and resending of files.
+                    # Don't trigger a re-check if we already failed a connectivity
+                    # check within the last second:
+                    if (time.time() - self.time_of_last_connectivity_check) > 1:
+                        signal == 'check/retry'
+                    else:
+                        continue
+                if signal == 'check/retry':
+                    self.check_connectivity()
                     if self.server_online == 'online':
                         self.submit_waiting_files()
-            else:
-                self._mainloop_logger.error('Invalid signal: %s'%str(signal))
+                elif signal == 'file':
+                    if self.send_to_server:
+                        self._waiting_for_submission.append(data)
+                        if self.server_online != 'online':
+                            # Don't stack connectivity checks if many files are
+                            # arriving. If we failed a connectivity check less
+                            # than a second ago then don't check again.
+                            if (time.time() - self.time_of_last_connectivity_check) > 1:
+                                self.check_connectivity()
+                        if self.server_online == 'online':
+                            self.submit_waiting_files()
+                elif signal == 'close':
+                    break
+                else:
+                    raise ValueError('Invalid signal: %s'%str(signal))
 
-            self._mainloop_logger.error('Processed signal: %s'%str(signal))
+                self._mainloop_logger.error('Processed signal: %s'%str(signal))
+            except Exception:
+                # Raise in a thread for visibility, but keep going
+                raise_exception_in_thread(sys.exc_info())
+                self._mainloop_logger.exception("Exception in mainloop, continuing")
             
     def check_connectivity(self):
         host = self.server
@@ -212,8 +220,8 @@ class AnalysisSubmission(object):
         if host and send_to_server:       
             self.server_online = 'checking'         
             try:
-                response = zmq_get(self.port, host, 'hello', timeout=2)
-            except TimeoutError:
+                response = zmq_get(self.port, host, 'hello', timeout=1)
+            except (TimeoutError, gaierror):
                 success = False
             else:
                 success = (response == 'hello')
@@ -233,8 +241,8 @@ class AnalysisSubmission(object):
             data = {'filepath': labscript_utils.shared_drive.path_to_agnostic(path)}
             self.server_online = 'checking'
             try:
-                response = zmq_get(self.port, self.server, data, timeout=2)
-            except TimeoutError:
+                response = zmq_get(self.port, self.server, data, timeout=1)
+            except (TimeoutError, gaierror):
                 success = False
             else:
                 success = (response == 'added successfully')
