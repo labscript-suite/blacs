@@ -96,6 +96,7 @@ class QueueManager(object):
     def __init__(self, BLACS, ui):
         self._ui = ui
         self.BLACS = BLACS
+        self.last_opened_shots_folder = BLACS.exp_config.get('paths', 'experiment_shot_storage')
         self._manager_running = True
         self._manager_paused = False
         self._manager_repeat = False
@@ -115,6 +116,7 @@ class QueueManager(object):
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
+        self._ui.actionAdd_to_queue.triggered.connect(self.on_add_shots_triggered)
         self._ui.queue_add_button.setDefaultAction(self._ui.actionAdd_to_queue)
         self._ui.queue_push_up.clicked.connect(self._move_up)
         self._ui.queue_push_down.clicked.connect(self._move_down)
@@ -155,6 +157,7 @@ class QueueManager(object):
                 'manager_repeat':self.manager_repeat,
                 'manager_repeat_mode':self.manager_repeat_mode,
                 'files_queued':file_list,
+                'last_opened_shots_folder': self.last_opened_shots_folder
                }
     
     def restore_save_data(self,data):
@@ -170,6 +173,8 @@ class QueueManager(object):
             self._create_headers()
             for file in file_list:
                 self.process_request(str(file))
+        if 'last_opened_shots_folder' in data:
+            self.last_opened_shots_folder = data['last_opened_shots_folder']
         
     @property
     @inmain_decorator(True)
@@ -230,6 +235,22 @@ class QueueManager(object):
         elif value == self.REPEAT_LAST:
             button.setIcon(QIcon(self.ICON_REPEAT_LAST))
         
+    def on_add_shots_triggered(self):
+        shot_files = QFileDialog.getOpenFileNames(self._ui, 'Select shot files',
+                                                  self.last_opened_shots_folder,
+                                                  "HDF5 files (*.h5)")
+        if not shot_files:
+            # User cancelled selection
+            return
+        # Convert to standard platform specific path, otherwise Qt likes forward slashes:
+        shot_files = [os.path.abspath(shot_file) for shot_file in shot_files]
+
+        # Save the containing folder for use next time we open the dialog box:
+        self.last_opened_shots_folder = os.path.dirname(shot_files[0])
+        # Queue the files to be opened:
+        for filepath in shot_files:
+            self.process_request(str(filepath))
+
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
         while index_list:
