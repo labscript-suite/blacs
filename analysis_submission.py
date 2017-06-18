@@ -29,6 +29,7 @@ from qtutils import *
 import qtutils.icons
 from zprocess import zmq_get
 import labscript_utils.shared_drive
+from labscript_utils.qtwidgets.elide_label import elide_label
 
 class AnalysisSubmission(object):        
     def __init__(self, BLACS, blacs_ui):
@@ -41,11 +42,13 @@ class AnalysisSubmission(object):
         
         self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'analysis_submission.ui'))
         blacs_ui.analysis.addWidget(self._ui)
+        self._ui.frame.setMinimumWidth(blacs_ui.queue_controls_frame.sizeHint().width())
+        elide_label(self._ui.resend_shots_label, self._ui.failed_to_send_frame.layout(), Qt.ElideRight)
         # connect signals
         self._ui.send_to_server.toggled.connect(lambda state:self._set_send_to_server(state))
         self._ui.server.editingFinished.connect(lambda: self._set_server(self._ui.server.text()))
         self._ui.clear_unsent_shots_button.clicked.connect(lambda: self.inqueue.put(['clear', None]))
-        
+
         self._waiting_for_submission = []
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
@@ -133,7 +136,7 @@ class AnalysisSubmission(object):
         self._ui.server_online.setToolTip(tooltip)
 
         if self._waiting_for_submission:
-            self._ui.resend_shots_label.setText('Failed to send %s file(s)' % len(self._waiting_for_submission))
+            self._ui.resend_shots_label.setText('%s shot(s) to send' % len(self._waiting_for_submission))
             self._ui.failed_to_send_frame.show()
         else:
             self._ui.failed_to_send_frame.hide()
