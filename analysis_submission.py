@@ -189,7 +189,7 @@ class AnalysisSubmission(object):
                     # Don't trigger a re-check if we already failed a connectivity
                     # check within the last second:
                     if (time.time() - self.time_of_last_connectivity_check) > 1:
-                        signal == 'check/retry'
+                        signal = 'check/retry'
                     else:
                         continue
                 if signal == 'check/retry':
