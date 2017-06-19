@@ -29,6 +29,37 @@ name = "GUI Theme"
 module = "theme" # should be folder name
 logger = logging.getLogger('BLACS.plugin.%s'%module)
 
+
+DEFAULT_STYLESHEET = """
+DigitalOutput {
+    font-size: 12px;
+    background-color: rgb(20,75,20,192);
+    border: 1px solid rgb(20,75,20,128);
+    border-radius: 3px;
+    padding: 2px;
+    color: #404040;
+}
+
+DigitalOutput:hover {
+    background-color: #148214;
+    border: None;
+}
+ 
+DigitalOutput:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #48dd48, stop: 1 #20ff20);
+    border: 1px solid #8f8f91;
+    color: #000000;
+}
+ 
+DigitalOutput:hover:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #48dd48, stop: 1 #78ff78);
+    border: 1px solid #8f8f91;
+}
+ """
+
+
 class Plugin(object):
     def __init__(self,initial_settings):
         self.menu = None
@@ -79,36 +110,10 @@ class Setting(object):
         self.data = data
         
         if 'stylesheet' not in self.data:
-            self.data['stylesheet'] = ''
+            self.data['stylesheet'] = DEFAULT_STYLESHEET
     
     def on_set_green_button_theme(self):
-        self.widgets['stylesheet'].appendPlainText("""DigitalOutput {
-    background-color: rgb(20,75,20,192);
-    border: 1px solid rgb(20,75,20,128);
-    border-radius: 3px;
-    padding: 4px;
-}
-
-DigitalOutput:hover {
-    background-color: #148214;
-    border: None;
-    border-radius: 3px;
-}
- 
-DigitalOutput:checked {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #48dd48, stop: 1 #20ff20);
-    border: 1px solid #8f8f91;
-    border-radius: 3px;
-}
- 
-DigitalOutput:hover:checked {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #48dd48, stop: 1 #78ff78);
-    border: 1px solid #8f8f91;
-    border-radius: 3px;
-}
- """)
+        self.widgets['stylesheet'].appendPlainText(DEFAULT_STYLESHEET)
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
