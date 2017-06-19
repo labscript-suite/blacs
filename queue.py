@@ -255,7 +255,8 @@ class QueueManager(object):
         self.last_opened_shots_folder = os.path.dirname(shot_files[0])
         # Queue the files to be opened:
         for filepath in shot_files:
-            self.process_request(str(filepath))
+            if filepath.endswith('.h5'):
+                self.process_request(str(filepath))
 
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
@@ -620,13 +621,13 @@ class QueueManager(object):
                         self.manager_paused = True
                         self.prepend(path)                
                     if timed_out:
-                        self.set_status("Programming timed out. Queue paused")
+                        self.set_status("Programming timed out\nQueue paused")
                     elif abort:
                         self.set_status("Aborted")
                     elif restarted:
-                        self.set_status("Device(s) restarted. Queue paused")
+                        self.set_status("Device restarted in transition to\nbuffered. Aborted. Queue paused.")
                     else:
-                        self.set_status("Device(s) in error state. Queue Paused")
+                        self.set_status("Device(s) in error state\nQueue Paused")
                         
                     # Abort the run for all devices in use:
                     # need to recreate the queue here because we don't want to hear from devices that are still transitioning to buffered mode
@@ -704,7 +705,7 @@ class QueueManager(object):
                 if restarted:                    
                     self.manager_paused = True
                     self.prepend(path)  
-                    self.set_status("Device(s) restarted. Queue paused")
+                    self.set_status("Device restarted during run.\nAborted. Queue paused")
                 elif abort:
                     self.set_status("Aborted")
                     
@@ -713,7 +714,7 @@ class QueueManager(object):
                     continue                
                 
                 logger.info('Run complete')
-                self.set_status("Saving data...")
+                self.set_status("Saving data...", path)
             # End try/except block here
             except Exception:
                 logger.exception("Error in queue manager execution. Queue paused.")
@@ -741,7 +742,7 @@ class QueueManager(object):
                         tab.abort_buffered(self.current_queue)
                     # disconnect restart signal from tabs 
                     inmain(tab.disconnect_restart_receiver,restart_function)
-                self.set_status("Error in queue manager. Queue paused")
+                self.set_status("Error in queue manager\nQueue paused")
 
                 # disconnect and disable abort button
                 inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
@@ -804,7 +805,7 @@ class QueueManager(object):
                     inmain(tab.disconnect_restart_receiver,restart_function)
                     
                 if error_condition:                
-                    self.set_status("Error in transtion to manual. Queue Paused")
+                    self.set_status("Error in transtion to manual\nQueue Paused")
                     # TODO: Kind of dodgy raising an exception here...
                     raise Exception('A device failed during transition to manual')
                                        
@@ -837,7 +838,7 @@ class QueueManager(object):
                         tab.transition_to_manual(self.current_queue)
                     # disconnect restart signal from tabs 
                     inmain(tab.disconnect_restart_receiver,restart_function)
-                self.set_status("Error in queue manager. Queue paused")
+                self.set_status("Error in queue manager\nQueue paused")
                 continue
             
             ##########################################################################################################################################
