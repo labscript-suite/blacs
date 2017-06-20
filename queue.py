@@ -806,15 +806,15 @@ class QueueManager(object):
                     
                 if error_condition:                
                     self.set_status("Error in transtion to manual\nQueue Paused")
-                    # TODO: Kind of dodgy raising an exception here...
-                    raise Exception('A device failed during transition to manual')
                                        
             except Exception as e:
+                error_condition = True
                 logger.exception("Error in queue manager execution. Queue paused.")
 
                 # Raise the error in a thread for visibility
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 
+            if error_condition:
                 # clean up the h5 file
                 self.manager_paused = True
                 # clean the h5 file:
