@@ -810,6 +810,7 @@ class QueueManager(object):
             except Exception as e:
                 error_condition = True
                 logger.exception("Error in queue manager execution. Queue paused.")
+                self.set_status("Error in queue manager\nQueue paused")
 
                 # Raise the error in a thread for visibility
                 zprocess.raise_exception_in_thread(sys.exc_info())
@@ -838,7 +839,7 @@ class QueueManager(object):
                         tab.transition_to_manual(self.current_queue)
                     # disconnect restart signal from tabs 
                     inmain(tab.disconnect_restart_receiver,restart_function)
-                self.set_status("Error in queue manager\nQueue paused")
+                
                 continue
             
             ##########################################################################################################################################
