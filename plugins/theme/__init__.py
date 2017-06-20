@@ -30,8 +30,7 @@ module = "theme" # should be folder name
 logger = logging.getLogger('BLACS.plugin.%s'%module)
 
 
-DEFAULT_STYLESHEET = """
-DigitalOutput {
+DEFAULT_STYLESHEET = """DigitalOutput {
     font-size: 12px;
     background-color: rgb(20,75,20,192);
     border: 1px solid rgb(20,75,20,128);
@@ -129,7 +128,8 @@ class Setting(object):
         # This is our data store!
         self.data = data
         
-        if 'stylesheet' not in self.data:
+        if 'stylesheet' not in self.data or not self.data['stylesheet']:
+            # If it's absent or an empty string, use the default stylesheet:
             self.data['stylesheet'] = DEFAULT_STYLESHEET
     
     def on_set_green_button_theme(self):
@@ -158,6 +158,12 @@ class Setting(object):
     
     def save(self):
         stylesheet = str(self.widgets['stylesheet'].toPlainText())
+        if not stylesheet.endswith('\n'):
+            # This is a way to distinguish between an intentionally blank
+            # stylesheet, and an empty string, which used to be what was
+            # stored When the user had made no changes, which now we take to
+            # imply that they want to use the default stylesheet:
+            stylesheet += '\n'
         self.data['stylesheet'] = stylesheet
         data = self.data.copy()
         if is_default_stylesheet(stylesheet):
