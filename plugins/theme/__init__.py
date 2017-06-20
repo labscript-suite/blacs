@@ -44,18 +44,29 @@ DigitalOutput:hover {
     background-color: #148214;
     border: None;
 }
- 
+
+DigitalOutput:disabled{
+   background-color: rgb(20,75,20,120);
+   color: #505050;
+}
+
 DigitalOutput:checked {
     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                       stop: 0 #48dd48, stop: 1 #20ff20);
     border: 1px solid #8f8f91;
     color: #000000;
 }
- 
+
 DigitalOutput:hover:checked {
     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                       stop: 0 #48dd48, stop: 1 #78ff78);
     border: 1px solid #8f8f91;
+}
+
+DigitalOutput:checked:disabled{
+   background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #7ee77e, stop: 1 #62ff62);
+   color: #606060;
 }
  """
 
