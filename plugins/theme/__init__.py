@@ -71,6 +71,15 @@ DigitalOutput:checked:disabled{
  """
 
 
+def is_default_stylesheet(stylesheet):
+    """Return whether a stylesheet is the same as the default stylesheet, modulo whitespace"""
+
+    def no_whitespace(s):
+        return "".join(s.split())
+
+    return no_whitespace(str(stylesheet)) == no_whitespace(DEFAULT_STYLESHEET) 
+
+
 class Plugin(object):
     def __init__(self,initial_settings):
         self.menu = None
@@ -148,8 +157,13 @@ class Setting(object):
         return None
     
     def save(self):
-        self.data['stylesheet'] = str(self.widgets['stylesheet'].toPlainText())
-        return self.data
+        stylesheet = str(self.widgets['stylesheet'].toPlainText())
+        self.data['stylesheet'] = stylesheet
+        data = self.data.copy()
+        if is_default_stylesheet(stylesheet):
+            # Only save if it is not the default stylesheet:
+            del data['stylesheet']
+        return data
         
     def close(self):
         self.widgets['example_button'].clicked.disconnect(self.on_set_green_button_theme)
