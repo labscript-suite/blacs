@@ -37,7 +37,7 @@ DigitalOutput {
     border: 1px solid rgb(20,75,20,128);
     border-radius: 3px;
     padding: 2px;
-    color: #404040;
+    color: #202020;
 }
 
 DigitalOutput:hover {
