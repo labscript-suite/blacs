@@ -553,6 +553,9 @@ QToolButton:hover:checked {
           </property>
           <widget class="QWidget" name="widget_2" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_3">
+            <property name="margin">
+             <number>3</number>
+            </property>
             <item>
              <layout class="QVBoxLayout" name="tab_container_0"/>
             </item>
@@ -560,6 +563,9 @@ QToolButton:hover:checked {
           </widget>
           <widget class="QWidget" name="widget_5" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_4">
+            <property name="margin">
+             <number>3</number>
+            </property>
             <item>
              <layout class="QVBoxLayout" name="tab_container_1"/>
             </item>
@@ -578,6 +584,9 @@ QToolButton:hover:checked {
           </property>
           <widget class="QWidget" name="widget_3" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_6">
+            <property name="margin">
+             <number>3</number>
+            </property>
             <item>
              <layout class="QVBoxLayout" name="tab_container_2"/>
             </item>
@@ -585,6 +594,9 @@ QToolButton:hover:checked {
           </widget>
           <widget class="QWidget" name="widget_6" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_8">
+            <property name="margin">
+             <number>3</number>
+            </property>
             <item>
              <layout class="QVBoxLayout" name="tab_container_3"/>
             </item>
