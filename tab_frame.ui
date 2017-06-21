@@ -194,7 +194,7 @@ all buffered instructions next shot</string>
          <x>0</x>
          <y>0</y>
          <width>879</width>
-         <height>362</height>
+         <height>358</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -258,17 +258,30 @@ all buffered instructions next shot</string>
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="state_label">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
+    <layout class="QHBoxLayout" name="state_label_layout">
+     <property name="spacing">
+      <number>0</number>
      </property>
-     <property name="text">
-      <string>&lt;b&gt;[Mode]&lt;/b&gt; - State: [state]</string>
+     <property name="topMargin">
+      <number>2</number>
      </property>
-    </widget>
+     <property name="bottomMargin">
+      <number>2</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="state_label">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>&lt;b&gt;[Mode]&lt;/b&gt; - State: [state]</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
