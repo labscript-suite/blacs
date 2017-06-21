@@ -137,9 +137,6 @@ QToolButton:hover:checked {
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
-        <property name="handleWidth">
-         <number>12</number>
-        </property>
         <widget class="QWidget" name="verticalLayoutWidget_2">
          <layout class="QVBoxLayout" name="verticalLayout_10">
           <property name="sizeConstraint">
@@ -544,9 +541,6 @@ QToolButton:hover:checked {
          <property name="orientation">
           <enum>Qt::Vertical</enum>
          </property>
-         <property name="handleWidth">
-          <number>12</number>
-         </property>
          <widget class="QSplitter" name="tab_top_vertical_splitter">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -556,9 +550,6 @@ QToolButton:hover:checked {
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="handleWidth">
-           <number>12</number>
           </property>
           <widget class="QWidget" name="widget_2" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -584,9 +575,6 @@ QToolButton:hover:checked {
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="handleWidth">
-           <number>12</number>
           </property>
           <widget class="QWidget" name="widget_3" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_6">
