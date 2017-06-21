@@ -180,11 +180,13 @@ class AnalysisSubmission(object):
         # Ignore signals until save data is restored:
         while self.inqueue.get()[0] != 'save data restored':
             pass
+        timeout = 10
         while True:
             try:
                 try:
-                    signal, data = self.inqueue.get(timeout=10)
+                    signal, data = self.inqueue.get(timeout=timeout)
                 except Queue.Empty:
+                    timeout = 10
                     # Periodic checking of connectivity and resending of files.
                     # Don't trigger a re-check if we already failed a connectivity
                     # check within the last second:
@@ -205,6 +207,10 @@ class AnalysisSubmission(object):
                             # than a second ago then don't check again.
                             if (time.time() - self.time_of_last_connectivity_check) > 1:
                                 self.check_connectivity()
+                            else:
+                                # But do queue up a check for when we have
+                                # been idle for one second:
+                                timeout = 1
                         if self.server_online == 'online':
                             self.submit_waiting_files()
                 elif signal == 'close':
