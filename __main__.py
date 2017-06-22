@@ -421,6 +421,7 @@ class BLACS(object):
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
         self.ui.actionOpen.triggered.connect(self.on_load_front_panel)
+        self.ui.actionExit.triggered.connect(self.ui.close)
 
         # Connect the windows AppId stuff:
         if os.name == 'nt':
