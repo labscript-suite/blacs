@@ -27,33 +27,40 @@ else:
     
 from qtutils import *
 import qtutils.icons
-from zprocess import zmq_get
+from zprocess import zmq_get, TimeoutError, raise_exception_in_thread
+from socket import gaierror
 import labscript_utils.shared_drive
+from labscript_utils.qtwidgets.elide_label import elide_label
 
 class AnalysisSubmission(object):        
     def __init__(self, BLACS, blacs_ui):
         self.inqueue = Queue.Queue()
         self.BLACS = BLACS
         self.port = int(self.BLACS.exp_config.get('ports', 'lyse'))
-        self._send_to_server = False
-        self._server = ''
-        self._server_online = 'offline'
         
         self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'analysis_submission.ui'))
         blacs_ui.analysis.addWidget(self._ui)
+        self._ui.frame.setMinimumWidth(blacs_ui.queue_controls_frame.sizeHint().width())
+        elide_label(self._ui.resend_shots_label, self._ui.failed_to_send_frame.layout(), Qt.ElideRight)
         # connect signals
-        self._ui.send_to_server.toggled.connect(lambda state:self._set_send_to_server(state))
+        self._ui.send_to_server.toggled.connect(lambda state: self._set_send_to_server(state))
         self._ui.server.editingFinished.connect(lambda: self._set_server(self._ui.server.text()))
-        self._ui.clear_unsent_shots_button.clicked.connect(lambda: self.inqueue.put(['clear', None]))
-        
+        self._ui.clear_unsent_shots_button.clicked.connect(lambda _: self.clear_waiting_files())
+        self._ui.retry_button.clicked.connect(lambda _: self.check_retry())
+
         self._waiting_for_submission = []
+        self.server_online = 'offline'
+        self.send_to_server = False
+        self.server = ''
+        self.time_of_last_connectivity_check = 0
+
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
         self.mainloop_thread.start()
         
-        self.checking_thread = threading.Thread(target=self.check_connectivity_loop)
-        self.checking_thread.daemon = True
-        self.checking_thread.start()
+        # self.checking_thread = threading.Thread(target=self.check_connectivity_loop)
+        # self.checking_thread.daemon = True
+        # self.checking_thread.start()
     
     def restore_save_data(self,data):
         if "server" in data:
@@ -62,7 +69,8 @@ class AnalysisSubmission(object):
             self.send_to_server = data["send_to_server"]
         if "waiting_for_submission" in data:
             self._waiting_for_submission = list(data["waiting_for_submission"])
-            self.inqueue.put(['try again', None])
+        self.inqueue.put(['save data restored', None])
+        self.check_retry()
             
     def get_save_data(self):
         return {"waiting_for_submission":list(self._waiting_for_submission),
@@ -75,6 +83,7 @@ class AnalysisSubmission(object):
         
     def _set_server(self,server):
         self.server = server
+        self.check_retry()
     
     @property
     @inmain_decorator(True)
@@ -83,11 +92,17 @@ class AnalysisSubmission(object):
         
     @send_to_server.setter
     @inmain_decorator(True)
-    def send_to_server(self,value):
+    def send_to_server(self, value):
         self._send_to_server = bool(value)
         self._ui.send_to_server.setChecked(self.send_to_server)
-        if not self.send_to_server:
-            self.inqueue.put(['clear', None])
+        if self.send_to_server:
+            self._ui.server.setEnabled(True)
+            self._ui.server_online.show()
+            self.check_retry()
+        else:
+            self.clear_waiting_files()
+            self._ui.server.setEnabled(False)
+            self._ui.server_online.hide()
     
     @property
     @inmain_decorator(True)
@@ -99,7 +114,7 @@ class AnalysisSubmission(object):
     def server(self,value):
         self._server = value
         self._ui.server.setText(self.server)
-        
+
     @property
     @inmain_decorator(True)
     def server_online(self):
@@ -109,10 +124,6 @@ class AnalysisSubmission(object):
     @inmain_decorator(True)
     def server_online(self,value):
         self._server_online = str(value)
-        
-        # resend any files not sent
-        if self.server_online:
-            self.inqueue.put(['try again', None])
         
         icon_names = {'checking': ':/qtutils/fugue/hourglass',
                       'online': ':/qtutils/fugue/tick',
@@ -131,84 +142,128 @@ class AnalysisSubmission(object):
         # Update GUI:
         self._ui.server_online.setPixmap(pixmap)
         self._ui.server_online.setToolTip(tooltip)
+        self.update_waiting_files_message()
 
+
+    @inmain_decorator(True)
+    def update_waiting_files_message(self):
+        # if there is only one shot and we haven't encountered failure yet, do
+        # not show the error frame:
+        if (self.server_online == 'checking') and (len(self._waiting_for_submission) == 1) and not self._ui.failed_to_send_frame.isVisible():
+            return
         if self._waiting_for_submission:
-            self._ui.resend_shots_label.setText('Files to send: %d' % len(self._waiting_for_submission))
-            self._ui.resend_shots_label.show()
-            self._ui.clear_unsent_shots_button.show()
+            self._ui.failed_to_send_frame.show()
+            if self.server_online == 'checking':
+                self._ui.retry_button.hide()
+                text = 'Sending %s shot(s)...' % len(self._waiting_for_submission)
+            else:
+                self._ui.retry_button.show()
+                text = '%s shot(s) to send' % len(self._waiting_for_submission)
+            self._ui.resend_shots_label.setText(text)
         else:
-            self._ui.resend_shots_label.hide()
-            self._ui.clear_unsent_shots_button.hide()
+            self._ui.failed_to_send_frame.hide()
 
     def get_queue(self):
         return self.inqueue
-                 
+               
+    @inmain_decorator(True)  
+    def clear_waiting_files(self):
+        self._waiting_for_submission = []
+        self.update_waiting_files_message()
+
+    @inmain_decorator(True)
+    def check_retry(self):
+        self.inqueue.put(['check/retry', None])
+
     def mainloop(self):
-        self._mainloop_logger = logging.getLogger('BLACS.AnalysisSubmission.mainloop') 
+        self._mainloop_logger = logging.getLogger('BLACS.AnalysisSubmission.mainloop')
+        # Ignore signals until save data is restored:
+        while self.inqueue.get()[0] != 'save data restored':
+            pass
+        timeout = 10
         while True:
-            signal, data = self.inqueue.get()
-            if signal == 'close':
-                break
-            elif signal == 'file':
-                if self.send_to_server:
-                    self._waiting_for_submission.append(data)
-                if self.server_online == 'online':
-                    self.submit_waiting_files()
-            elif signal == 'try again':
-                self.submit_waiting_files()
-            elif signal == 'clear':
-                self._waiting_for_submission = []
-            else:
-                self._mainloop_logger.error('Invalid signal: %s'%str(signal))
-            
-                   
-    def check_connectivity_loop(self):
-        time_to_sleep = 1
-        #self._check_connectivity_logger = logging.getLogger('BLACS.AnalysisSubmission.check_connectivity_loop') 
-        while True:
-            # get the current host:
-            host = self.server
-            send_to_server = self.send_to_server
-            if host and send_to_server:                
-                try:
-                    self.server_online = 'checking'
-                    response = zmq_get(self.port, host, 'hello', timeout = 2)
-                    if response == 'hello':
-                        success = True
-                    else:
-                        success = False
-                except Exception:
-                    success = False
-                    
-                # update GUI
-                self.server_online = 'online' if success else 'offline'
-                
-                # update how long we should sleep
-                if success:
-                    time_to_sleep = 10
-                else:
-                    time_to_sleep = 1
-            else:
-                self.server_online = ''
-            
-            # stop sleeping if the host changes
-            for i in range(time_to_sleep*5):
-                if host == self.server and send_to_server == self.send_to_server:
-                    time.sleep(0.2)
-                     
-    def submit_waiting_files(self):
-        if not self._waiting_for_submission:
-            return
-        while self._waiting_for_submission:
-            path = self._waiting_for_submission[0]
             try:
-                self._mainloop_logger.info('Submitting run file %s.\n'%os.path.basename(path))
-                data = {'filepath': labscript_utils.shared_drive.path_to_agnostic(path)}
-                response = zmq_get(self.port, self.server, data, timeout = 2)
-                if response != 'added successfully':
-                    raise Exception
-            except:
-                return
+                try:
+                    signal, data = self.inqueue.get(timeout=timeout)
+                except Queue.Empty:
+                    timeout = 10
+                    # Periodic checking of connectivity and resending of files.
+                    # Don't trigger a re-check if we already failed a connectivity
+                    # check within the last second:
+                    if (time.time() - self.time_of_last_connectivity_check) > 1:
+                        signal = 'check/retry'
+                    else:
+                        continue
+                if signal == 'check/retry':
+                    self.check_connectivity()
+                    if self.server_online == 'online':
+                        self.submit_waiting_files()
+                elif signal == 'file':
+                    if self.send_to_server:
+                        self._waiting_for_submission.append(data)
+                        if self.server_online != 'online':
+                            # Don't stack connectivity checks if many files are
+                            # arriving. If we failed a connectivity check less
+                            # than a second ago then don't check again.
+                            if (time.time() - self.time_of_last_connectivity_check) > 1:
+                                self.check_connectivity()
+                            else:
+                                # But do queue up a check for when we have
+                                # been idle for one second:
+                                timeout = 1
+                        if self.server_online == 'online':
+                            self.submit_waiting_files()
+                elif signal == 'close':
+                    break
+                else:
+                    raise ValueError('Invalid signal: %s'%str(signal))
+
+                self._mainloop_logger.info('Processed signal: %s'%str(signal))
+            except Exception:
+                # Raise in a thread for visibility, but keep going
+                raise_exception_in_thread(sys.exc_info())
+                self._mainloop_logger.exception("Exception in mainloop, continuing")
+            
+    def check_connectivity(self):
+        host = self.server
+        send_to_server = self.send_to_server
+        if host and send_to_server:       
+            self.server_online = 'checking'         
+            try:
+                response = zmq_get(self.port, host, 'hello', timeout=1)
+            except (TimeoutError, gaierror):
+                success = False
             else:
-                self._waiting_for_submission.pop(0) 
+                success = (response == 'hello')
+                
+            # update GUI
+            self.server_online = 'online' if success else 'offline'
+        else:
+            self.server_online = ''
+
+        self.time_of_last_connectivity_check = time.time()
+
+    def submit_waiting_files(self):
+        success = True
+        while self._waiting_for_submission and success:
+            path = self._waiting_for_submission[0]
+            self._mainloop_logger.info('Submitting run file %s.\n'%os.path.basename(path))
+            data = {'filepath': labscript_utils.shared_drive.path_to_agnostic(path)}
+            self.server_online = 'checking'
+            try:
+                response = zmq_get(self.port, self.server, data, timeout=1)
+            except (TimeoutError, gaierror):
+                success = False
+            else:
+                success = (response == 'added successfully')
+                try:
+                    self._waiting_for_submission.pop(0) 
+                except IndexError:
+                    # Queue has been cleared
+                    pass
+            if not success:
+                break
+        # update GUI
+        self.server_online = 'online' if success else 'offline'
+        self.time_of_last_connectivity_check = time.time()
         
