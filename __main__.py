@@ -54,27 +54,16 @@ else:
         from PySide.QtGui import *
 
 
-def check_version(module_name, at_least, less_than, version=None):
+try:
+    from labscript_utils import check_version
+except ImportError:
+    raise ImportError('Require labscript_utils > 2.1.0')
 
-    class VersionException(Exception):
-        pass
-
-    def get_version_tuple(version_string):
-        version_tuple = [int(v.replace('+', '-').split('-')[0]) for v in version_string.split('.')]
-        while len(version_tuple) < 3:
-            version_tuple += (0,)
-        return version_tuple
-
-    if version is None:
-        version = __import__(module_name).__version__
-    at_least_tuple, less_than_tuple, version_tuple = [get_version_tuple(v) for v in [at_least, less_than, version]]
-    if not at_least_tuple <= version_tuple < less_than_tuple:
-        raise VersionException(
-            '{module_name} {version} found. {at_least} <= {module_name} < {less_than} required.'.format(**locals()))
-
-check_version('labscript_utils', '2.0', '3')
+check_version('labscript_utils', '2.3', '3')
 check_version('qtutils', '1.5.1', '2')
-check_version('zprocess', '1.1.2', '2')
+check_version('zprocess', '1.1.2', '3')
+check_version('labscript_devices', '2.0', '3')
+
 
 # Pythonlib imports
 ### Must be in this order
@@ -82,13 +71,13 @@ import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS')
 ###
 from zprocess import zmq_get, ZMQServer
-from setup_logging import setup_logging
+from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 
 # Custom Excepthook
 import labscript_utils.excepthook
 # Setup logging
-logger = setup_logging()
+logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
 
 # now log versions (must be after setup logging)
@@ -299,6 +288,7 @@ class BLACS(object):
         logger.info('Creating tab widgets')
         for i in range(4):
             self.tab_widgets[i] = DragDropTabWidget(self.tab_widget_ids)
+            self.tab_widgets[i].setElideMode(Qt.ElideRight)
             getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
 
         logger.info('Instantiating devices')
@@ -352,6 +342,7 @@ class BLACS(object):
                       'plugins':self.plugins,
                       'connection_table_h5file':self.connection_table_h5file,
                       'connection_table_labscript':self.connection_table_labscript,
+                      'experiment_queue':self.queue
                      }
 
         def create_menu(parent, menu_parameters):
@@ -361,7 +352,10 @@ class BLACS(object):
                     for child_menu_params in menu_parameters['menu_items']:
                         create_menu(child,child_menu_params)
                 else:
-                    child = parent.addAction(menu_parameters['name'])
+                    if 'icon' in menu_parameters:
+                        child = parent.addAction(QIcon(menu_parameters['icon']), menu_parameters['name'])
+                    else:
+                        child = parent.addAction(menu_parameters['name'])
 
                 if 'action' in menu_parameters:
                     child.triggered.connect(menu_parameters['action'])
@@ -414,14 +408,20 @@ class BLACS(object):
 
         for module_name, plugin in self.plugins.items():
             try:
-                plugin.plugin_setup_complete()
+                plugin.plugin_setup_complete(blacs_data)
             except Exception:
-                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
+                # backwards compatibility for old plugins
+                try:
+                    plugin.plugin_setup_complete()
+                    logger.warning('Plugin \'%s\' using old API. Please update Plugin.plugin_setup_complete method to accept a dictionary of blacs_data as the only argument.'%module_name)
+                except Exception:
+                    logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
 
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
         self.ui.actionOpen.triggered.connect(self.on_load_front_panel)
+        self.ui.actionExit.triggered.connect(self.ui.close)
 
         # Connect the windows AppId stuff:
         if os.name == 'nt':
@@ -706,6 +706,7 @@ if __name__ == '__main__':
     logger.info('connection table loaded')
 
     qapplication = QApplication(sys.argv)
+    qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
     logger.info('QApplication instantiated')
     app = BLACS(qapplication)
 

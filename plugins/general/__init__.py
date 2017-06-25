@@ -26,6 +26,7 @@ class Plugin(object):
     def __init__(self, initial_settings):
         self.menu = None
         self.notifications = {}
+        self.BLACS = None
         
     def get_menu_class(self):
         return None
@@ -45,7 +46,13 @@ class Plugin(object):
     def set_notification_instances(self,notifications):
         self.notifications = notifications
 
-    def plugin_setup_complete(self):
+    def plugin_setup_complete(self, BLACS):
+        self.BLACS = BLACS
+        
+    def get_save_data(self):
+        return {}
+        
+    def close(self):
         pass
         
 # class Menu(object):

@@ -35,6 +35,7 @@ class Plugin(object):
         self.menu = None
         self.notifications = {}
         self.initial_settings = initial_settings
+        self.BLACS = None
         
     def get_menu_class(self):
         return Menu
@@ -54,8 +55,8 @@ class Plugin(object):
     def set_notification_instances(self,notifications):
         pass
         
-    def plugin_setup_complete(self):
-        pass
+    def plugin_setup_complete(self, BLACS):
+        self.BLACS = BLACS
         
     def get_save_data(self):
         return {}
@@ -72,13 +73,16 @@ class Menu(object):
     def get_menu_items(self):
         return {'name':name,        
                 'menu_items':[{'name':'Garbage collect',
-                               'action':gc.collect
+                               'action':gc.collect,
+                               'icon': ':/qtutils/fugue/memory'
                               },
                               {'name':'Reset profiler',
-                               'action':memprof.start                              
+                               'action':memprof.start,
+                               'icon': ':/qtutils/fugue/counter-reset'
                               },
                               {'name':'Diff memory usage',
-                               'action':memprof.check                              
+                               'action':memprof.check,
+                               'icon': ':/qtutils/fugue/tables'
                               }
                              ]                                
                }

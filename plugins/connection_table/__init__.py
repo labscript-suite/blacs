@@ -37,6 +37,7 @@ class Plugin(object):
         self.menu = None
         self.notifications = {}
         self.initial_settings = initial_settings
+        self.BLACS = None
         
     def get_menu_class(self):
         return Menu
@@ -48,7 +49,7 @@ class Plugin(object):
         return [Setting]
         
     def get_callbacks(self):
-        {'settings_changed':self.notifications[Notification].setup_filewatching}
+        return {'settings_changed':self.notifications[Notification].setup_filewatching}
         
     def set_menu_instance(self,menu):
         self.menu = menu
@@ -56,7 +57,8 @@ class Plugin(object):
     def set_notification_instances(self,notifications):
         self.notifications = notifications
         
-    def plugin_setup_complete(self):
+    def plugin_setup_complete(self, BLACS):
+        self.BLACS = BLACS
         modified_times = self.initial_settings['modified_times'] if 'modified_times' in self.initial_settings else None
         self.notifications[Notification].setup_filewatching(modified_times)
         self.menu.close_notification_func = self.notifications[Notification]._close
@@ -77,13 +79,16 @@ class Menu(object):
     def get_menu_items(self):
         return {'name':name,        
                 'menu_items':[{'name':'Edit',
-                               'action':self.on_edit_connection_table
+                               'action':self.on_edit_connection_table,
+                               'icon': ':/qtutils/fugue/document--pencil'
                               },
                               {'name':'Select Globals',
-                               'action':self.on_select_globals                              
+                               'action':self.on_select_globals,
+                               'icon': ':/qtutils/fugue/table--pencil'
                               },
                               {'name':'Recompile',
-                               'action':self.on_recompile_connection_table                              
+                               'action':self.on_recompile_connection_table,
+                               'icon': ':/qtutils/fugue/arrow-circle'
                               }
                              ]                                
                }

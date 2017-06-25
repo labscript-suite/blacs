@@ -202,7 +202,7 @@ class DeviceTab(Tab):
         if device:
             # get the AO from the connection table, find its calibration details
             calib_class = device.unit_conversion_class if device.unit_conversion_class != "None" else None
-            calib_params = eval(device.unit_conversion_params)
+            calib_params = device.unit_conversion_params
         
         # Instantiate the AO object
         return AO(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings, calib_class, calib_params,
@@ -545,10 +545,15 @@ class DeviceTab(Tab):
             self._changed_widget.show()
         
             # Add an "apply" button and link to on_resolve_value_inconsistency
-            button = QPushButton("Apply")
+            buttonWidget = QWidget()
+            buttonlayout = QHBoxLayout(buttonWidget)
+            button = QPushButton(QIcon(':/qtutils/fugue/arrow-turn-000-left'), "Apply")
             button.clicked.connect(self.on_resolve_value_inconsistency)
-            self._ui.changed_layout.addWidget(button)
-              
+            buttonlayout.addWidget(button)
+            buttonlayout.addStretch()
+
+            self._ui.changed_layout.addWidget(buttonWidget)
+
     def on_resolve_value_inconsistency(self):
         # get the values and update the device/front panel
         needs_programming = False
@@ -604,7 +609,7 @@ class DeviceTab(Tab):
         else:
             if self._supports_smart_programming:
                 self.force_full_buffered_reprogram = False
-                self._ui.smart_programming.setEnabled(True)
+                self._ui.button_clear_smart_programming.setEnabled(True)
             # Tell the queue manager that we're done:
             self.mode = MODE_BUFFERED
             notify_queue.put([self.device_name,'success'])

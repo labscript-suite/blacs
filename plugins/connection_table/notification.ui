@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1064</width>
+    <width>1048</width>
     <height>148</height>
    </rect>
   </property>
@@ -25,16 +25,36 @@
   <property name="frameShadow">
    <enum>QFrame::Raised</enum>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout">
+  <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0">
    <property name="spacing">
     <number>3</number>
    </property>
    <property name="sizeConstraint">
     <enum>QLayout::SetMinimumSize</enum>
    </property>
-   <property name="margin">
-    <number>0</number>
+   <property name="leftMargin">
+    <number>9</number>
    </property>
+   <property name="topMargin">
+    <number>3</number>
+   </property>
+   <property name="rightMargin">
+    <number>3</number>
+   </property>
+   <property name="bottomMargin">
+    <number>3</number>
+   </property>
+   <item>
+    <widget class="QPushButton" name="button">
+     <property name="text">
+      <string>Recompile</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../../../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+       <normaloff>:/qtutils/fugue/arrow-circle.png</normaloff>:/qtutils/fugue/arrow-circle.png</iconset>
+     </property>
+    </widget>
+   </item>
    <item>
     <widget class="QLabel" name="label">
      <property name="sizePolicy">
@@ -45,7 +65,7 @@
      </property>
      <property name="maximumSize">
       <size>
-       <width>890</width>
+       <width>2000</width>
        <height>40</height>
       </size>
      </property>
@@ -53,7 +73,7 @@
       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600; color:#ff0000;&quot;&gt;Your connection table, or related files, have been modified. Please recompile your connection table for these changes to take effect.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="alignment">
-      <set>Qt::AlignCenter</set>
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -61,14 +81,22 @@
     </widget>
    </item>
    <item>
-    <widget class="QPushButton" name="button">
-     <property name="text">
-      <string>Recompile connection table</string>
+    <spacer name="horizontalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
      </property>
-    </widget>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>10</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../../../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>
