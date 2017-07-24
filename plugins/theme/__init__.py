@@ -13,15 +13,6 @@
 
 import logging
 import os
-import subprocess
-import sys
-
-if 'PySide' in sys.modules.copy():
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-else:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
 
 from qtutils import *
 
