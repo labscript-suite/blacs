@@ -67,6 +67,44 @@ DigitalOutput:checked:disabled{
                                       stop: 0 #7ee77e, stop: 1 #62ff62);
    color: #606060;
 }
+
+InvertedDigitalOutput {
+    font-size: 12px;
+    background-color: #595fed;
+    border: 1px solid rgb(20,75,20,128);
+    border-radius: 3px;
+    padding: 2px;
+    color: #202020;
+}
+
+InvertedDigitalOutput:hover {
+    background-color: #487de4;
+    border: None;
+}
+
+InvertedDigitalOutput:disabled{
+   background-color: #899ec1;
+   color: #505050;
+}
+
+InvertedDigitalOutput:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #487de4, stop: 1 #5abbf1);
+    border: 1px solid #8f8f91;
+    color: #000000;
+}
+
+InvertedDigitalOutput:hover:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #487de4, stop: 1 #71d1d7);
+    border: 1px solid #8f8f91;
+}
+
+InvertedDigitalOutput:checked:disabled{
+   background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #7ee77e, stop: 1 #c7ecf4);
+   color: #606060;
+}
  """
 
 
