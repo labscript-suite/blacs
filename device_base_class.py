@@ -160,7 +160,15 @@ class DeviceTab(Tab):
     def _create_DO_object(self,parent_device,BLACS_hardware_name,labscript_hardware_name,properties):
         # Find the connection name
         device = self.get_child_from_connection_table(parent_device,labscript_hardware_name)
-        connection_name = device.name if device else '-'
+        if device:
+            connection_name = device.name
+            if 'inverted_BLACS' in device.properties:
+                inverted = bool(device.properties['inverted_BLACS'])
+            else:
+                inverted = False
+        else:
+            inverted = False
+            connection_name = '-'
         
         # Instantiate the DO object
         return DO(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings)

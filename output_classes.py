@@ -23,7 +23,7 @@ else:
     from PyQt4.QtGui import *
 
 from labscript_utils.qtwidgets.analogoutput import AnalogOutput
-from labscript_utils.qtwidgets.digitaloutput import DigitalOutput
+from labscript_utils.qtwidgets.digitaloutput import DigitalOutput, InvertedDigitalOutput
 from labscript_utils.qtwidgets.ddsoutput import DDSOutput
 try:
     from labscript_utils.unitconversions import *
@@ -434,13 +434,14 @@ class AO(object):
         return self._hardware_name + ' - ' + self._connection_name
             
 class DO(object):
-    def __init__(self, hardware_name, connection_name, device_name, program_function, settings):
+    def __init__(self, hardware_name, connection_name, device_name, program_function, settings, inverted=False):
         self._hardware_name = hardware_name
         self._connection_name = connection_name
         self._widget_list = []
         
         self._device_name = device_name
         self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name)) 
+        self._inverted = inverted
                 
         # Note that while we could store self._current_state and self._locked in the
         # settings dictionary, this dictionary is available to other parts of BLACS
@@ -478,7 +479,10 @@ class DO(object):
         self._update_lock(self._settings['locked'])
     
     def create_widget(self,*args,**kwargs):
-        widget = DigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
+        if not self._inverted:
+            widget = DigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
+        else:
+            widget = InvertedDigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
         self.add_widget(widget)
         return widget
     
@@ -524,6 +528,8 @@ class DO(object):
         # conversion to integer, then bool means we can safely pass in
         # either a string '1' or '0', True or False or 1 or 0
         state = bool(int(state))    
+        if program and self._inverted:
+            state = not state 
         
         # We are programatically setting the state, so break the check lock function logic
         self._current_state = state
