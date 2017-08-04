@@ -91,6 +91,9 @@ class Plugin(object):
         
     def update_stylesheet(self):
         if self.BLACS is not None:
+            # show centralwidget as a workaround to fix stylsheets
+            # not beeing applied under PyQt5 on first draw
+            self.BLACS['ui'].centralwidget.show()
             stylesheet_settings = self.BLACS['settings'].get_value(Setting,"stylesheet")
             self.BLACS['ui'].centralwidget.setStyleSheet(self.unmodified_stylesheet + stylesheet_settings)
         
