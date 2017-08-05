@@ -34,6 +34,7 @@ except:
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
+from qtutils.qt import QT_ENV
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
 try:
@@ -90,8 +91,9 @@ except Exception:
     logger.error('Failed to find h5py version')
 
 try:
+    logger.info('Qt Enviroment: %s' % QT_ENV)
     logger.info('PySide/PyQt Version: %s' % PYQT_VERSION_STR)
-    logger.info('PySide/PyQt Version: %s' % QT_VERSION_STR)
+    logger.info('Qt Version: %s' % QT_VERSION_STR)
 except Exception:
     logger.error('Failed to find PySide/PyQt version')
 
