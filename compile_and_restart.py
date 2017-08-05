@@ -79,9 +79,6 @@ class CompileAndRestart(QDialog):
         self.ui.compile.setEnabled(True)
         self.ui.cancel.setEnabled(True)
         if success:
-            self.ui.restart.setEnabled(True)
-            self.ui.cancel.setEnabled(False)
-            self.ui.label.setText('Compilation succeeded, restart when ready')
             try:
                 os.remove(self.output_path)
             except OSError:
@@ -94,6 +91,11 @@ class CompileAndRestart(QDialog):
                 self.ui.label.setText('Compilation failed.')
                 self.ui.restart.setEnabled(False)
                 os.remove(self.tempfilename)
+            else:
+                self.ui.restart.setEnabled(True)
+                self.ui.cancel.setEnabled(False)
+                self.ui.label.setText('Compilation succeeded, restart when ready')
+                self.output_box.output('Compilation succeeded, restart when ready')
         else:
             self.ui.restart.setEnabled(False)
             self.ui.label.setText('Compilation failed. Please fix the errors in the connection table (python file) and try again')
