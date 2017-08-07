@@ -71,6 +71,7 @@ class CompileAndRestart(QDialog):
         self.ui.cancel.setEnabled(False)
         self.ui.restart.setEnabled(False)
         self.ui.label.setText('Recompiling connection table')
+        self.output_box.output('Recompiling connection table')
         runmanager.compile_labscript_with_globals_files_async(self.labscript_file,
             self.globals_files, self.tempfilename, self.output_box.port, self.finished_compiling)
     
@@ -99,6 +100,7 @@ class CompileAndRestart(QDialog):
         else:
             self.ui.restart.setEnabled(False)
             self.ui.label.setText('Compilation failed. Please fix the errors in the connection table (python file) and try again')
+            self.output_box.output('Compilation failed. Please fix the errors in the connection table (python file) and try again')
             try:
                 os.remove(self.tempfilename)
             except Exception:
