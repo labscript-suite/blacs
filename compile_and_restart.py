@@ -16,6 +16,8 @@ import os
 import subprocess
 from Queue import Queue
 
+import qtutils
+
 if 'PySide' in sys.modules.copy():
     from PySide.QtCore import *
     from PySide.QtGui import *
@@ -70,8 +72,9 @@ class CompileAndRestart(QDialog):
         self.ui.compile.setEnabled(False)
         self.ui.cancel.setEnabled(False)
         self.ui.restart.setEnabled(False)
-        self.ui.label.setText('Recompiling connection table')
-        self.output_box.output('Recompiling connection table')
+        msg = 'Recompiling connection table'
+        self.ui.label.setText(msg)
+        self.output_box.output(msg + '\n')
         runmanager.compile_labscript_with_globals_files_async(self.labscript_file,
             self.globals_files, self.tempfilename, self.output_box.port, self.finished_compiling)
     
@@ -88,19 +91,21 @@ class CompileAndRestart(QDialog):
             try:
                 os.rename(self.tempfilename,self.output_path)
             except OSError:
-                self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?', red=True)
+                self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?\n', red=True)
                 self.ui.label.setText('Compilation failed.')
                 self.ui.restart.setEnabled(False)
                 os.remove(self.tempfilename)
             else:
                 self.ui.restart.setEnabled(True)
                 self.ui.cancel.setEnabled(False)
-                self.ui.label.setText('Compilation succeeded, restart when ready')
-                self.output_box.output('Compilation succeeded, restart when ready')
+                msg = 'Compilation succeeded, restart when ready'
+                self.ui.label.setText(msg)
+                self.output_box.output(msg + '\n')
         else:
             self.ui.restart.setEnabled(False)
-            self.ui.label.setText('Compilation failed. Please fix the errors in the connection table (python file) and try again')
-            self.output_box.output('Compilation failed. Please fix the errors in the connection table (python file) and try again')
+            msg = 'Compilation failed. Please fix the errors in the connection table (python file) and try again'
+            self.ui.label.setText(msg)
+            self.output_box.output(msg + '\n')
             try:
                 os.remove(self.tempfilename)
             except Exception:

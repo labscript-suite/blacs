@@ -59,7 +59,7 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.3', '3')
+check_version('labscript_utils', '2.3.1', '3')
 check_version('qtutils', '1.5.1', '2')
 check_version('zprocess', '1.1.2', '3')
 check_version('labscript_devices', '2.0', '3')
