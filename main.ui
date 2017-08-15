@@ -707,7 +707,7 @@ QToolButton:hover:checked {
  <connections>
   <connection>
    <sender>actionExit</sender>
-   <signal>activated()</signal>
+   <signal>triggered()</signal>
    <receiver>BLACS</receiver>
    <slot>close()</slot>
    <hints>

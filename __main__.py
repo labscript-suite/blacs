@@ -11,14 +11,12 @@
 #                                                                   #
 #####################################################################
 
-import cgi
-import ctypes
+
 import logging, logging.handlers
 import os
 import socket
 import subprocess
 import sys
-import threading
 import time
 
 import signal
@@ -33,26 +31,11 @@ try:
 except:
     print 'You should specify "--delay x" where x is an integer'
 
-
-lower_argv = [s.lower() for s in sys.argv]
-if 'pyside' in lower_argv:
-    # Import Qt
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-    # from PySide.QtUiTools import QUiLoader
-elif 'pyqt' in lower_argv:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
-    from PyQt4.QtCore import pyqtSignal as Signal
-else:
-    try:
-        from PyQt4.QtCore import *
-        from PyQt4.QtGui import *
-        from PyQt4.QtCore import pyqtSignal as Signal
-    except Exception:
-        from PySide.QtCore import *
-        from PySide.QtGui import *
-
+from qtutils.qt.QtCore import *
+from qtutils.qt.QtGui import *
+from qtutils.qt.QtWidgets import *
+from qtutils.qt import QT_ENV
+from qtutils.qt.QtCore import pyqtSignal as Signal
 
 try:
     from labscript_utils import check_version
@@ -60,7 +43,7 @@ except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
 check_version('labscript_utils', '2.3.1', '3')
-check_version('qtutils', '1.5.1', '2')
+check_version('qtutils', '2.0.0', '3.0.0')
 check_version('zprocess', '1.1.2', '3')
 check_version('labscript_devices', '2.0', '3')
 
@@ -108,14 +91,9 @@ except Exception:
     logger.error('Failed to find h5py version')
 
 try:
-    if 'PySide' in sys.modules.copy():
-        import PySide
-        logger.info('PySide Version: %s'%PySide.__version__)
-        logger.info('Qt Version: %s'%PySide.QtCore.__version__)
-    else:
-        import PyQt4.QtCore
-        logger.info('PyQt Version: %s'%PyQt4.QtCore.PYQT_VERSION_STR)
-        logger.info('Qt Version: %s'%PyQt4.QtCore.QT_VERSION_STR)
+    logger.info('Qt Enviroment: %s' % QT_ENV)
+    logger.info('PySide/PyQt Version: %s' % PYQT_VERSION_STR)
+    logger.info('Qt Version: %s' % QT_VERSION_STR)
 except Exception:
     logger.error('Failed to find PySide/PyQt version')
 

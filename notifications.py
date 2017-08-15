@@ -13,15 +13,7 @@
 
 import logging
 import os
-import sys
 
-if 'PySide' in sys.modules.copy():
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-else:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
-    
 from qtutils import UiLoader
 
 logger = logging.getLogger('BLACS.NotificationManager') 
@@ -161,4 +153,4 @@ class Notifications(object):
                 notification.close()
             except:
                 pass
-                
+                
