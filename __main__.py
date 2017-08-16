@@ -299,7 +299,11 @@ class BLACS(object):
         if 'queue_data' not in tab_data['BLACS settings']:
             tab_data['BLACS settings']['queue_data'] = {}
         else:
-            tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+            # quick fix for qt objects not loading that were saved before qtutil 2 changes
+            try:
+                tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+            except NameError:
+                tab_data['BLACS settings']['queue_data'] = {}
         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
 
         logger.info('instantiating plugins')
@@ -517,7 +521,11 @@ class BLACS(object):
                         if 'queue_data' not in tab_data['BLACS settings']:
                             tab_data['BLACS settings']['queue_data'] = {}
                         else:
-                            tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+                            # quick fix for qt objects not loading that were saved before qtutil 2 changes
+                            try:
+                                tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+                            except NameError:
+                                tab_data['BLACS settings']['queue_data'] = {}
                         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
                         # restore analysis data
                         if 'analysis_data' not in tab_data['BLACS settings']:
