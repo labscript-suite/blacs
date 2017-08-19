@@ -27,9 +27,9 @@ from qtutils.qt.QtWidgets import *
 import labscript_utils.excepthook
 from qtutils import UiLoader
 
-from tab_base_classes import Tab, Worker, define_state
-from tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
-from output_classes import AO, DO, DDS
+from blacs.tab_base_classes import Tab, Worker, define_state
+from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED
+from blacs.output_classes import AO, DO, DDS
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
 
 
