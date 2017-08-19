@@ -10,7 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import logging, logging.handlers
 import os
@@ -29,7 +32,7 @@ try:
         delay = int(sys.argv[sys.argv.index('--delay')+1])
         time.sleep(delay)
 except:
-    print 'You should specify "--delay x" where x is an integer'
+    print('You should specify "--delay x" where x is an integer')
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -614,7 +617,7 @@ class BLACS(object):
 
 class ExperimentServer(ZMQServer):
     def handler(self, h5_filepath):
-        print h5_filepath
+        print(h5_filepath)
         message = self.process(h5_filepath)
         logger.info('Request handler: %s ' % message.strip())
         return message

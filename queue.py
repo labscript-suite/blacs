@@ -10,11 +10,17 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    import Queue as queue
+else:
+    import queue
 
 import logging
 import os
 import platform
-import Queue
 import threading
 import time
 import sys
@@ -480,8 +486,8 @@ class QueueManager(object):
         # communicate with tabs, so that abort signals can be put
         # to it when those tabs never respond and are restarted by
         # the user.
-        self.current_queue = Queue.Queue()
-        
+        self.current_queue = queue.Queue()
+
         #TODO: put in general configuration
         timeout_limit = 300 #seconds
         self.set_status("Idle")
@@ -509,8 +515,8 @@ class QueueManager(object):
             devices_in_use = {}
             transition_list = {}   
             start_time = time.time()
-            self.current_queue = Queue.Queue()   
-            
+            self.current_queue = queue.Queue()
+
             # Function to be run when abort button is clicked
             def abort_function():
                 try:
@@ -591,9 +597,9 @@ class QueueManager(object):
                             logger.error('%s has an error condition, aborting run' % device_name)
                             error_condition = True
                             break
-                            
-                        del transition_list[device_name]                   
-                    except Queue.Empty:
+
+                        del transition_list[device_name]
+                    except queue.Empty:
                         # It's been 2 seconds without a device finishing
                         # transitioning to buffered. Is there an error?
                         for name in transition_list:
@@ -628,8 +634,8 @@ class QueueManager(object):
                         
                     # Abort the run for all devices in use:
                     # need to recreate the queue here because we don't want to hear from devices that are still transitioning to buffered mode
-                    self.current_queue = Queue.Queue()
-                    for tab in devices_in_use.values():                        
+                    self.current_queue = queue.Queue()
+                    for tab in devices_in_use.values():
                         # We call abort buffered here, because if each tab is either in mode=BUFFERED or transition_to_buffered failed in which case
                         # it should have called abort_transition_to_buffered itself and returned to manual mode
                         # Since abort buffered will only run in mode=BUFFERED, and the state is not queued indefinitely (aka it is deleted if we are not in mode=BUFFERED)
@@ -658,7 +664,7 @@ class QueueManager(object):
                 self.set_status("Running (program time: %.3fs)..."%(time.time() - start_time), path)
                     
                 # A Queue for event-based notification of when the experiment has finished.
-                experiment_finished_queue = Queue.Queue()               
+                experiment_finished_queue = queue.Queue()
                 logger.debug('About to start the master pseudoclock')
                 run_time = time.localtime()
                 #TODO: fix potential race condition if BLACS is closing when this line executes?
@@ -672,7 +678,7 @@ class QueueManager(object):
                 while not (abort or restarted or done):
                     try:
                         done = experiment_finished_queue.get(timeout=0.5) == 'done'
-                    except Queue.Empty:
+                    except queue.Empty:
                         pass
                     try:
                         # Poll self.current_queue for abort signal from button or device restart
@@ -685,7 +691,7 @@ class QueueManager(object):
                         for device_name, tab in devices_in_use.items():
                             if self.get_device_error_state(device_name,devices_in_use):
                                 restarted = True
-                    except Queue.Empty:
+                    except queue.Empty:
                         pass
                         
                 if abort or restarted:
@@ -733,7 +739,7 @@ class QueueManager(object):
                 self.prepend(path)
                 
                 # Need to put devices back in manual mode
-                self.current_queue = Queue.Queue()
+                self.current_queue = queue.Queue()
                 for devicename, tab in devices_in_use.items():
                     if tab.mode == MODE_BUFFERED or tab.mode == MODE_TRANSITION_TO_BUFFERED:
                         tab.abort_buffered(self.current_queue)
@@ -830,7 +836,7 @@ class QueueManager(object):
                 # Need to put devices back in manual mode. Since the experiment is over before this try/except block begins, we can 
                 # safely call transition_to_manual() on each device tab
                 # TODO: Not serialised...could be bad with older BIAS versions :(
-                self.current_queue = Queue.Queue()
+                self.current_queue = queue.Queue()
                 for devicename, tab in devices_in_use.items():
                     if tab.mode == MODE_BUFFERED:
                         tab.transition_to_manual(self.current_queue)

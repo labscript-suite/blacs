@@ -10,6 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import labscript_utils.h5_lock, h5py
 import labscript_utils.properties
@@ -109,7 +113,7 @@ class ConnectionTable(object):
 
     def print_details(self):
         for key,value in self.toplevel_children.items():
-            print key
+            print(key)
             value.print_details('    ')
     
     def get_attached_devices(self):
@@ -252,7 +256,7 @@ class Connection(object):
         
     def print_details(self,indent):
         for key, value in self.child_list.items():
-            print indent + key
+            print(indent + key)
             value.print_details(indent+'    ')
     
     def find_child(self,device_name,parent_port):

@@ -10,9 +10,15 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    from Queue import Queue
+else:
+    from queue import Queue
 
 from zprocess import Process
-from Queue import Queue as Queue
 import time
 import sys
 import threading

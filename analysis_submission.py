@@ -10,10 +10,16 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    import Queue as queue
+else:
+    import queue
 
 import logging
 import os
-import Queue
 import threading
 import time
 import sys
@@ -30,7 +36,7 @@ from labscript_utils.qtwidgets.elide_label import elide_label
 
 class AnalysisSubmission(object):        
     def __init__(self, BLACS, blacs_ui):
-        self.inqueue = Queue.Queue()
+        self.inqueue = queue.Queue()
         self.BLACS = BLACS
         self.port = int(self.BLACS.exp_config.get('ports', 'lyse'))
         

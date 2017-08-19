@@ -10,6 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 from hardware_interfaces.output_types.DO import *
 from hardware_interfaces.output_types.AO import *
@@ -79,4 +83,4 @@ class shutter(object):
                 # update calls for matching GUI objects in other parts of the program
                 self.do_array[i].update_value(widget.get_active())
                 return
-                
+                

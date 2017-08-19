@@ -10,6 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import logging
 import math
@@ -26,8 +30,8 @@ from labscript_utils.qtwidgets.ddsoutput import DDSOutput
 try:
     from labscript_utils.unitconversions import *
 except Exception:
-    print 'failed to import unit conversion classes'
-    
+    print('failed to import unit conversion classes')
+
 
 class AO(object):
     def __init__(self, hardware_name, connection_name, device_name, program_function, settings, calib_class, calib_params, default_units, min, max, step, decimals):
@@ -657,8 +661,8 @@ if __name__ == '__main__':
         }
     
     def print_something():
-        print 'program_function called'
-    
+        print('program_function called')
+
     # Create a DO object
     my_DO = DO(hardware_name='do0', connection_name='my first digital output', program_function=print_something, settings=settings)
     
