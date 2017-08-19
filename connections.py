@@ -61,8 +61,8 @@ class ConnectionTable(object):
     def assert_superset(self,other):
         # let's check that we're a superset of the connection table in "other"
         if not isinstance(other,ConnectionTable):
-            raise TypeError, "Loaded file is not a valid connection table"
-        
+            raise TypeError("Loaded file is not a valid connection table")
+
         missing = []    # things i don't know exist
         incompat = []   # things that are different from what i expect
         
@@ -83,8 +83,8 @@ class ConnectionTable(object):
         
         # if there is no error message, then everything must be good!
         if len(errmsg) > 0:
-            raise Exception, "Cannot execute script as connection tables do not match."+errmsg
-        
+            raise Exception("Cannot execute script as connection tables do not match."+errmsg)
+
     def compare_to(self,other_table):
         if not isinstance(other_table,ConnectionTable):
             return False,{"error":"The connection table passed in is not a valid connection table"}

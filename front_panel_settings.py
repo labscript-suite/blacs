@@ -28,7 +28,7 @@ import labscript_utils.h5_lock, h5py
 from qtutils import *
 
 # Connection Table Code
-from connections import ConnectionTable
+from blacs.connections import ConnectionTable
 
 logger = logging.getLogger('BLACS.FrontPanelSettings')  
 
@@ -113,7 +113,7 @@ class FrontPanelSettings(object):
                             for i in range(len(row)):
                                 data_dict[columns[i]] = row[i]
                             settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
-        except Exception,e:
+        except Exception as e:
             logger.info("Could not load saved settings")
             logger.info(e.message)
         return settings,question,error,tab_data

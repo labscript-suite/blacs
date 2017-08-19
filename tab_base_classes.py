@@ -15,14 +15,15 @@ from labscript_utils import PY2
 if PY2:
     str = unicode
     from Queue import Queue
+    import cPickle as _pickle
 else:
     from queue import Queue
+    import _pickle
 
 from zprocess import Process
 import time
 import sys
 import threading
-import cPickle
 import traceback
 import logging
 import cgi
@@ -923,14 +924,14 @@ class MyTab(Tab):
         
     @define_state(MODE_MANUAL,True)  
     def baz(self, button=None):
-        print threading.current_thread().name
+        print(threading.current_thread().name)
         self.logger.debug('entered baz')
         results = yield(self.queue_work('My worker','baz', 5,6,7,x='x',return_queue=self.checkbutton.isChecked()))
-        print results
-        print threading.current_thread().name
+        print(results)
+        print(threading.current_thread().name)
         results = yield(self.queue_work('My worker','baz', 4,6,7,x='x',return_queue=self.checkbutton.isChecked()))
-        print results
-        print threading.current_thread().name
+        print(results)
+        print(threading.current_thread().name)
         self.logger.debug('leaving baz')
         
     # This event shows what happens if you try to send a unpickleable
