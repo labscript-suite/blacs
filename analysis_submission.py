@@ -211,6 +211,8 @@ class AnalysisSubmission(object):
                             self.submit_waiting_files()
                 elif signal == 'close':
                     break
+                elif signal == 'save data restored':
+                    break
                 else:
                     raise ValueError('Invalid signal: %s'%str(signal))
 
