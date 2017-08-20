@@ -271,11 +271,11 @@ class DeviceTab(Tab):
                 # ignore things that are not dictionaries or empty dictionaries
                 if type(arg) != type({}) or len(arg.keys()) < 1:
                     continue
-                if isinstance(self.get_channel(arg.keys()[0]),AO):
+                if isinstance(self.get_channel(list(arg.keys())[0]),AO):
                     name = 'Analog Outputs'
-                elif isinstance(self.get_channel(arg.keys()[0]),DO):
+                elif isinstance(self.get_channel(list(arg.keys())[0]),DO):
                     name = 'Digital Outputs'
-                elif isinstance(self.get_channel(arg.keys()[0]),DDS):
+                elif isinstance(self.get_channel(list(arg.keys())[0]),DDS):
                     name = 'DDS Outputs'
                 else:
                     # If it isn't DO, DDS or AO, we should forget about them and move on to the next argument
@@ -772,7 +772,10 @@ if __name__ == '__main__':
     
             # Create buttons to test things!
             button1 = QPushButton("Transition to Buffered")
-            from Queue import Queue
+            if PY2:
+                from Queue import Queue
+            else:
+                from queue import Queue
             button1.clicked.connect(lambda: self.transition_to_buffered('',Queue()))
             self.get_tab_layout().addWidget(button1)
             button2 = QPushButton("Transition to Manual")
