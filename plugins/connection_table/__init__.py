@@ -95,7 +95,7 @@ class Menu(object):
                }
     
     def on_select_globals(self,*args,**kwargs):
-        print 'aaaaaa'
+        print('aaaaaa')
         self.BLACS['settings'].create_dialog(goto_page=Setting)
       
     def on_edit_connection_table(self,*args,**kwargs):

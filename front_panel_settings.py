@@ -337,8 +337,11 @@ class FrontPanelSettings(object):
         data_group = hdf5_file['/'].create_group('front_panel')
         
         front_panel_list = []
-        other_data_list = []       
-        front_panel_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
+        other_data_list = []
+        if PY2:
+            front_panel_dtype = [(b'name',b'a256'),(b'device_name',b'a256'),(b'channel',b'a256'),(b'base_value',float),(b'locked',bool),(b'base_step_size',float),(b'current_units',b'a256')]
+        else:
+            front_panel_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
         max_od_length = 2 # empty dictionary
             
         # Iterate over each device within a class
@@ -371,7 +374,10 @@ class FrontPanelSettings(object):
                 
         # Save tab data
         i = 0
-        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))])
+        if PY2:
+            tab_data = numpy.empty(len(notebook_data),dtype=[(b'tab_name',b'a256'),(b'notebook',b'a2'),(b'page',int),(b'visible',bool),(b'data',b'a'+str(max_od_length))])
+        else:
+            tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))])
         for device_name,data in notebook_data.items():
             tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
             i += 1

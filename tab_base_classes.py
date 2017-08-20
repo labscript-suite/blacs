@@ -198,8 +198,12 @@ get_unique_id = Counter().get
 
 def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
     def wrap(function):
-        unescaped_name = function.__name__
-        escapedname = '_' + function.__name__
+        if PY2:
+            unescaped_name = function.__name__
+            escapedname = b'_' + function.__name__
+        else:
+            unescaped_name = function.__name__
+            escapedname = '_' + function.__name__
         if allowed_modes < 1 or allowed_modes > 15:
             raise RuntimeError('Function %s has been set to run in unknown states. Please make sure allowed states is one or more of MODE_MANUAL,'%unescaped_name+
             'MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL and MODE_BUFFERED (or-ed together using the | symbol, eg MODE_MANUAL|MODE_BUFFERED')
@@ -663,7 +667,7 @@ class Tab(object):
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
-                                cPickle.dumps(worker_arg_list)
+                                _pickle.dumps(worker_arg_list)
                             except:
                                 self.error_message += 'Attempt to pass unserialisable object to child process:'
                                 raise
@@ -789,7 +793,7 @@ class Worker(Process):
                     self.logger.error('Exception in job:\n%s'%message)
                 # Check if results object is serialisable:
                 try:
-                    cPickle.dumps(results)
+                    _pickle.dumps(results)
                 except:
                     message = traceback.format_exc()
                     self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)

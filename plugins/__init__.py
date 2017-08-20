@@ -22,7 +22,7 @@ logger = logging.getLogger('BLACS.plugins')
 modules = {}
 this_dir = os.path.dirname(os.path.abspath(__file__))
 for module_name in os.listdir(this_dir):
-    if os.path.isdir(os.path.join(this_dir, module_name)):
+    if os.path.isdir(os.path.join(this_dir, module_name)) and module_name != '__pycache__':
         try:
             module = importlib.import_module('blacs.plugins.'+module_name)
         except Exception:

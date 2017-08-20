@@ -148,7 +148,7 @@ from blacs.notifications import Notifications
 # Preferences system
 from labscript_utils.settings import Settings
 #import settings_pages
-import blacs.plugins
+import blacs.plugins as plugins
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 

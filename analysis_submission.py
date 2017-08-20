@@ -187,7 +187,7 @@ class AnalysisSubmission(object):
             try:
                 try:
                     signal, data = self.inqueue.get(timeout=timeout)
-                except Queue.Empty:
+                except queue.Empty:
                     timeout = 10
                     # Periodic checking of connectivity and resending of files.
                     # Don't trigger a re-check if we already failed a connectivity
