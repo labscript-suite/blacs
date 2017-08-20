@@ -662,7 +662,7 @@ class Tab(object):
                     if PY2:
                         worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
                     else:
-                        worker_process,worker_function,worker_args,worker_kwargs = inmain(next(generator))
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.__next__)
                     # Continue until we get a StopIteration exception, or the user requests a restart
                     while generator_running:
                         try:
