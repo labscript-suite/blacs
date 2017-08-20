@@ -115,7 +115,7 @@ class FrontPanelSettings(object):
                             settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
         except Exception as e:
             logger.info("Could not load saved settings")
-            logger.info(e.message)
+            logger.info(str(e))
         return settings,question,error,tab_data
     
     def handle_return_code(self,row,result,settings,question,error):

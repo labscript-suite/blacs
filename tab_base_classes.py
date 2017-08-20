@@ -14,10 +14,10 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from labscript_utils import PY2
 if PY2:
     str = unicode
-    from Queue import Queue
+    import Queue as queue
     import cPickle as _pickle
 else:
-    from queue import Queue
+    import queue
     import _pickle
 
 from zprocess import Process
@@ -80,8 +80,8 @@ class StateQueue(object):
         self.list_of_states = []
         self._last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
-        self.get_blocking_queue = Queue()  
-    
+        self.get_blocking_queue = queue.Queue()
+
     @property
     @inmain_decorator(True)    
     # This is always done in main so that we avoid a race condition between the get method and
@@ -123,8 +123,8 @@ class StateQueue(object):
         # So it's best if the queue is empty now!
         if self.logging_enabled:
             self.logger.debug('Re-initialsing self._get_blocking_queue')
-        self.get_blocking_queue = Queue()
-        
+        self.get_blocking_queue = queue.Queue()
+
         # traverse the list
         delete_index_list = []
         success = False
@@ -659,7 +659,10 @@ class Tab(object):
                     generator_running = True
                     break_main_loop = False
                     # get the data from the first yield function
-                    worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
+                    if PY2:
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
+                    else:
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(next(generator))
                     # Continue until we get a StopIteration exception, or the user requests a restart
                     while generator_running:
                         try:
@@ -995,7 +998,7 @@ class MyWorker(Worker):
         self.logger.debug('working on baz: time is %s'%repr(time.time()))
         time.sleep(0.5)
         if kwargs['return_queue']:
-            return Queue()
+            return queue.Queue()
         return 'results%d!!!'%zzz
 
 if __name__ == '__main__':

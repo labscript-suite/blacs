@@ -40,8 +40,8 @@ class ConnectionTable(object):
                     else:
                         self.table = np.array([])
                     for row in self.table:
+                        row = Row(row)
                         if row[3] == "None":
-                            row = Row(row)
                             self.toplevel_children[row[0]] = Connection(row[0],row[1],None,row[3],row[4],row[5],row[6],row[7],self.table)
                     try:
                         self.master_pseudoclock = table.attrs['master_pseudoclock']
@@ -127,8 +127,8 @@ class ConnectionTable(object):
                 # The device is connected to BLACS.
                 # What's it's name, and it's labscript class name?
                 # What's its labscript class name?
-                instance_name = device['name']
-                labscript_device_class_name = device['class']
+                instance_name = device['name'].astype('U')
+                labscript_device_class_name = device['class'].astype('U')
                 attached_devices[instance_name] = labscript_device_class_name
         return attached_devices
         
@@ -171,6 +171,8 @@ class Row(object):
         if index >= len(self.row):
             return self.defaults[index]
         else:
+            if isinstance(self.row[index], bytes):
+                return self.row[index].astype('U')
             return self.row[index]
             
     
@@ -200,8 +202,8 @@ class Connection(object):
         
         # Create children
         for row in table:
+            row = Row(row)
             if row[2] == self.name:
-                row = Row(row)
                 self.child_list[row[0]] = Connection(row[0],row[1],self,row[3],row[4],row[5],row[6],row[7],table)
         
     @property
