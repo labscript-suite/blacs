@@ -138,7 +138,7 @@ import qtutils.icons
 # Analysis Submission code
 from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
-from blacs.queue import QueueManager, QueueTreeview
+from blacs.blacs_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
 import labscript_devices
 # Save/restore frontpanel code
