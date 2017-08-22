@@ -792,10 +792,111 @@ class Worker(Process):
                 # Report to the parent whether work was successful or not,
                 # and what the results were:
                 self.to_parent.put((success,message,results))
- 
- 
- 
-     
+
+
+class PluginTab(object):
+    def __init__(self, notebook, settings):
+        # Store important parameters
+        self.notebook = notebook
+        self.settings = settings
+        self._tab_name = self.settings["tab_name"]
+
+        # Load the UI
+        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tab_frame.ui'))
+        self._layout = self._ui.device_layout
+
+        self._ui.device_name.setText("<b>%s</b> [Plugin]" % (str(self.tab_name)))
+        elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
+
+        # hide device ui
+        self._ui.button_clear_smart_programming.hide()
+        self._ui.button_restart.hide()
+        self._ui.notresponding.hide()
+        self._ui.state_label.hide()
+        self._ui.changed_widget.hide()
+
+        # Add the tab to the notebook
+        self.notebook.addTab(self._ui, self.tab_name)
+
+        self._ui.show()
+        self.destroy_complete = False
+
+        # Call the initialise GUI function
+        self.initialise_GUI()
+        self.restore_save_data(self.settings['saved_data'] if 'saved_data' in self.settings else {})
+
+        self._tab_icon_and_colour_timer = QTimer()
+        self._tab_icon_and_colour_timer.timeout.connect(self.set_tab_icon_and_colour)
+        self._tab_icon = QIcon(':/qtutils/custom/lyse')
+        self._tab_text_colour = 'blue'
+        self._tab_icon_and_colour_timer.start(100)
+
+    @inmain_decorator(True)
+    def set_tab_icon_and_colour(self):
+        """Set the tab icon and the colour of its text to the values of
+        self._tab_icon and self._tab_text_colour respectively"""
+        if self._ui.parentWidget() is None:
+            return
+        self.notebook = self._ui.parentWidget().parentWidget()
+        currentpage = None
+        if self.notebook is not None:
+            # currentpage = self.notebook.get_current_page()
+            currentpage = self.notebook.indexOf(self._ui)
+        if self.notebook is not None and currentpage != -1:
+            icon = QIcon(self._tab_icon)
+            self.notebook.tabBar().setTabIcon(currentpage, icon)
+            self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
+            self._tab_icon_and_colour_timer.stop()
+        elif not self._tab_icon_and_colour_timer.isActive():
+            self._tab_icon_and_colour_timer.start(100)
+
+    @property
+    def tab_name(self):
+        return self._tab_name
+
+    def get_tab_layout(self):
+        return self._layout
+
+    def close_tab(self,*args):
+        self._tab_icon_and_colour_timer.stop()
+        self.notebook = self._ui.parentWidget().parentWidget()
+        currentpage = None
+        if self.notebook:
+            #currentpage = self.notebook.get_current_page()
+            currentpage = self.notebook.indexOf(self._ui)
+            self.notebook.removeTab(currentpage)
+            temp_widget = QWidget()
+            self.notebook.insertTab(currentpage, temp_widget, self.tab_name)
+            self.notebook.setCurrentWidget(temp_widget)
+        return currentpage
+
+    def initialise_GUI(self):
+        return
+
+    # This method should be overridden in your device class if you want to save any data not
+    # stored in an AO, DO or DDS object
+    # This method should return a dictionary, and this dictionary will be passed to the restore_save_data()
+    # method when the tab is initialised
+    def get_save_data(self):
+        return {}
+
+    # This method should be overridden in your device class if you want to restore data
+    # (saved by get_save_data()) when teh tab is initialised.
+    # You will be passed a dictionary of the form specified by your get_save_data() method
+    #
+    # Note: You must handle the case where the data dictionary is empty (or one or more keys are missing)
+    #       This case will occur the first time BLACS is started on a PC, or if the BLACS datastore is destroyed
+    def restore_save_data(self,data):
+        return
+
+    def update_from_settings(self,settings):
+        self.restore_save_data(settings['saved_data'])
+
+    def destroy(self):
+        self.close_tab()
+        self.destroy_complete = True
+
+
 # Example code! Two classes are defined below, which are subclasses
 # of the ones defined above.  They show how to make a Tab class,
 # and a Worker class, and get the Tab to request work to be done by

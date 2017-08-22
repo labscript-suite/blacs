@@ -281,6 +281,32 @@ class BLACS(object):
             TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
             self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
 
+        logger.info('instantiating plugins')
+        # setup the plugin system
+        settings_pages = []
+        self.plugins = {}
+        plugin_settings = eval(tab_data['BLACS settings']['plugin_data']) if 'plugin_data' in tab_data['BLACS settings'] else {}
+        for module_name, module in plugins.modules.items():
+            try:
+                # instantiate the plugin
+                self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})
+            except Exception:
+                logger.exception('Could not instantiate plugin \'%s\'. Skipping')
+
+        logger.info('creating plugin tabs')
+        # setup the plugin tabs
+        for module_name, plugin in self.plugins.items():
+            try:
+                if hasattr(plugin, 'get_tab_classes'):
+                    for tab_name, TabClass in plugin.get_tab_classes().items():
+                        self.settings_dict.setdefault(tab_name, {"tab_name": tab_name})
+                        self.settings_dict[tab_name]["front_panel_settings"] = settings[tab_name] if tab_name in settings else {}
+                        self.settings_dict[tab_name]["saved_data"] = tab_data[tab_name]['data'] if tab_name in tab_data else {}
+
+                        self.tablist[tab_name] = TabClass(self.tab_widgets[0], self.settings_dict[tab_name])
+            except Exception:
+                logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping')
+
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
 
@@ -305,18 +331,6 @@ class BLACS(object):
             except NameError:
                 tab_data['BLACS settings']['queue_data'] = {}
         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
-
-        logger.info('instantiating plugins')
-        # setup the plugin system
-        settings_pages = []
-        self.plugins = {}
-        plugin_settings = eval(tab_data['BLACS settings']['plugin_data']) if 'plugin_data' in tab_data['BLACS settings'] else {}
-        for module_name, module in plugins.modules.items():
-            try:
-                # instantiate the plugin
-                self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})
-            except Exception:
-                logger.exception('Could not instantiate plugin \'%s\'. Skipping')
 
         blacs_data = {'exp_config':self.exp_config,
                       'ui':self.ui,
@@ -444,42 +458,42 @@ class BLACS(object):
 
     def order_tabs(self,tab_data):
         # Move the tabs to the correct notebook
-        for device_name in self.attached_devices:
+        for tab_name in self.tablist.keys():
             notebook_num = 0
-            if device_name in tab_data:
-                notebook_num = int(tab_data[device_name]["notebook"])
+            if tab_name in tab_data:
+                notebook_num = int(tab_data[tab_name]["notebook"])
                 if notebook_num not in self.tab_widgets:
                     notebook_num = 0
 
             #Find the notebook the tab is in, and remove it:
             for notebook in self.tab_widgets.values():
-                tab_index = notebook.indexOf(self.tablist[device_name]._ui)
+                tab_index = notebook.indexOf(self.tablist[tab_name]._ui)
                 if tab_index != -1:
                     notebook.removeTab(tab_index)
-                    self.tab_widgets[notebook_num].addTab(self.tablist[device_name]._ui,device_name)
+                    self.tab_widgets[notebook_num].addTab(self.tablist[tab_name]._ui,tab_name)
                     break
 
         # splash.update_text('restoring tab positions...')
         # # Now that all the pages are created, reorder them!
-        for device_name in self.attached_devices:
-            if device_name in tab_data:
-                notebook_num = int(tab_data[device_name]["notebook"])
+        for tab_name in self.tablist.keys():
+            if tab_name in tab_data:
+                notebook_num = int(tab_data[tab_name]["notebook"])
                 if notebook_num in self.tab_widgets:
-                    self.tab_widgets[notebook_num].tab_bar.moveTab(self.tab_widgets[notebook_num].indexOf(self.tablist[device_name]._ui),int(tab_data[device_name]["page"]))
+                    self.tab_widgets[notebook_num].tab_bar.moveTab(self.tab_widgets[notebook_num].indexOf(self.tablist[tab_name]._ui),int(tab_data[tab_name]["page"]))
 
         # # Now that they are in the correct order, set the correct one visible
-        for device_name,device_data in tab_data.items():
-            if device_name == 'BLACS settings':
+        for tab_name, data in tab_data.items():
+            if tab_name == 'BLACS settings':
                 continue
             # if the notebook still exists and we are on the entry that is visible
-            if bool(device_data["visible"]) and int(device_data["notebook"]) in self.tab_widgets:
-                self.tab_widgets[int(device_data["notebook"])].tab_bar.setCurrentIndex(int(device_data["page"]))
+            if bool(data["visible"]) and int(data["notebook"]) in self.tab_widgets:
+                self.tab_widgets[int(data["notebook"])].tab_bar.setCurrentIndex(int(data["page"]))
 
     def update_all_tab_settings(self,settings,tab_data):
-        for device_name,tab in self.tablist.items():
-            self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
-            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
-            tab.update_from_settings(self.settings_dict[device_name])
+        for tab_name,tab in self.tablist.items():
+            self.settings_dict[tab_name]["front_panel_settings"] = settings[tab_name] if tab_name in settings else {}
+            self.settings_dict[tab_name]["saved_data"] = tab_data[tab_name]['data'] if tab_name in tab_data else {}
+            tab.update_from_settings(self.settings_dict[tab_name])
 
 
     def on_load_front_panel(self,*args,**kwargs):
