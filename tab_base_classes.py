@@ -827,7 +827,7 @@ class PluginTab(object):
 
         self._tab_icon_and_colour_timer = QTimer()
         self._tab_icon_and_colour_timer.timeout.connect(self.set_tab_icon_and_colour)
-        self._tab_icon = QIcon(':/qtutils/custom/lyse')
+        self._tab_icon = QIcon(':/qtutils/fugue/block')
         self._tab_text_colour = 'blue'
         self._tab_icon_and_colour_timer.start(100)
 
