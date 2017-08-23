@@ -298,12 +298,20 @@ class BLACS(object):
         for module_name, plugin in self.plugins.items():
             try:
                 if hasattr(plugin, 'get_tab_classes'):
-                    for tab_name, TabClass in plugin.get_tab_classes().items():
-                        self.settings_dict.setdefault(tab_name, {"tab_name": tab_name})
-                        self.settings_dict[tab_name]["front_panel_settings"] = settings[tab_name] if tab_name in settings else {}
-                        self.settings_dict[tab_name]["saved_data"] = tab_data[tab_name]['data'] if tab_name in tab_data else {}
+                    tab_dict = {}
 
-                        self.tablist[tab_name] = TabClass(self.tab_widgets[0], self.settings_dict[tab_name])
+                    for tab_name, TabClass in plugin.get_tab_classes().items():
+                        settings_key = "{}: {}".format(module_name, tab_name)
+                        self.settings_dict.setdefault(settings_key, {"tab_name": tab_name})
+                        self.settings_dict[settings_key]["front_panel_settings"] = settings[settings_key] if settings_key in settings else {}
+                        self.settings_dict[settings_key]["saved_data"] = tab_data[settings_key]['data'] if settings_key in tab_data else {}
+
+                        self.tablist[settings_key] = TabClass(self.tab_widgets[0], self.settings_dict[settings_key])
+                        tab_dict[tab_name] = self.tablist[settings_key]
+
+                    if hasattr(plugin, 'tabs_created'):
+                        plugin.tabs_created(tab_dict)
+
             except Exception:
                 logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping')
 
@@ -470,7 +478,13 @@ class BLACS(object):
                 tab_index = notebook.indexOf(self.tablist[tab_name]._ui)
                 if tab_index != -1:
                     notebook.removeTab(tab_index)
-                    self.tab_widgets[notebook_num].addTab(self.tablist[tab_name]._ui,tab_name)
+
+                    if hasattr(self.tablist[tab_name], 'tab_name'):
+                        tab_label = self.tablist[tab_name].tab_name
+                    else:
+                        tab_label = self.tablist[tab_name].device_name
+
+                    self.tab_widgets[notebook_num].addTab(self.tablist[tab_name]._ui,tab_label)
                     break
 
         # splash.update_text('restoring tab positions...')
