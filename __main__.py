@@ -477,14 +477,9 @@ class BLACS(object):
             for notebook in self.tab_widgets.values():
                 tab_index = notebook.indexOf(self.tablist[tab_name]._ui)
                 if tab_index != -1:
+                    tab_text = notebook.tabText(tab_index)
                     notebook.removeTab(tab_index)
-
-                    if hasattr(self.tablist[tab_name], 'tab_name'):
-                        tab_label = self.tablist[tab_name].tab_name
-                    else:
-                        tab_label = self.tablist[tab_name].device_name
-
-                    self.tab_widgets[notebook_num].addTab(self.tablist[tab_name]._ui,tab_label)
+                    self.tab_widgets[notebook_num].addTab(self.tablist[tab_name]._ui,tab_text)
                     break
 
         # splash.update_text('restoring tab positions...')
