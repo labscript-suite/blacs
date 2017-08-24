@@ -802,18 +802,11 @@ class PluginTab(object):
         self._tab_name = self.settings["tab_name"]
 
         # Load the UI
-        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tab_frame.ui'))
+        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'plugin_tab_frame.ui'))
         self._layout = self._ui.device_layout
 
         self._ui.device_name.setText("<b>%s</b> [Plugin]" % (str(self.tab_name)))
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
-
-        # hide device ui
-        self._ui.button_clear_smart_programming.hide()
-        self._ui.button_restart.hide()
-        self._ui.notresponding.hide()
-        self._ui.state_label.hide()
-        self._ui.changed_widget.hide()
 
         # Add the tab to the notebook
         self.notebook.addTab(self._ui, self.tab_name)
