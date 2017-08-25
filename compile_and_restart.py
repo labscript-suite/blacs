@@ -11,17 +11,11 @@
 #                                                                   #
 #####################################################################
 
-import sys
 import os
-import subprocess
-from Queue import Queue
 
-if 'PySide' in sys.modules.copy():
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-else:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
+from qtutils.qt.QtCore import *
+from qtutils.qt.QtGui import *
+from qtutils.qt.QtWidgets import *
 
 from qtutils import *
 import runmanager
@@ -70,7 +64,9 @@ class CompileAndRestart(QDialog):
         self.ui.compile.setEnabled(False)
         self.ui.cancel.setEnabled(False)
         self.ui.restart.setEnabled(False)
-        self.ui.label.setText('Recompiling connection table')
+        msg = 'Recompiling connection table'
+        self.ui.label.setText(msg)
+        self.output_box.output(msg + '\n')
         runmanager.compile_labscript_with_globals_files_async(self.labscript_file,
             self.globals_files, self.tempfilename, self.output_box.port, self.finished_compiling)
     
@@ -79,9 +75,6 @@ class CompileAndRestart(QDialog):
         self.ui.compile.setEnabled(True)
         self.ui.cancel.setEnabled(True)
         if success:
-            self.ui.restart.setEnabled(True)
-            self.ui.cancel.setEnabled(False)
-            self.ui.label.setText('Compilation succeeded, restart when ready')
             try:
                 os.remove(self.output_path)
             except OSError:
@@ -90,13 +83,21 @@ class CompileAndRestart(QDialog):
             try:
                 os.rename(self.tempfilename,self.output_path)
             except OSError:
-                self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?', red=True)
+                self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?\n', red=True)
                 self.ui.label.setText('Compilation failed.')
                 self.ui.restart.setEnabled(False)
                 os.remove(self.tempfilename)
+            else:
+                self.ui.restart.setEnabled(True)
+                self.ui.cancel.setEnabled(False)
+                msg = 'Compilation succeeded, restart when ready'
+                self.ui.label.setText(msg)
+                self.output_box.output(msg + '\n')
         else:
             self.ui.restart.setEnabled(False)
-            self.ui.label.setText('Compilation failed. Please fix the errors in the connection table (python file) and try again')
+            msg = 'Compilation failed. Please fix the errors in the connection table (python file) and try again'
+            self.ui.label.setText(msg)
+            self.output_box.output(msg + '\n')
             try:
                 os.remove(self.tempfilename)
             except Exception:

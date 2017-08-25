@@ -19,12 +19,9 @@ import threading
 import time
 import sys
 
-if 'PySide' in sys.modules.copy():
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-else:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
+from qtutils.qt.QtCore import *
+from qtutils.qt.QtGui import *
+from qtutils.qt.QtWidgets import *
 
 import zprocess
 import zprocess.locking, labscript_utils.h5_lock, h5py

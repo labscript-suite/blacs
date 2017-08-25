@@ -11,14 +11,12 @@
 #                                                                   #
 #####################################################################
 
-import cgi
-import ctypes
+
 import logging, logging.handlers
 import os
 import socket
 import subprocess
 import sys
-import threading
 import time
 
 import signal
@@ -33,34 +31,19 @@ try:
 except:
     print 'You should specify "--delay x" where x is an integer'
 
-
-lower_argv = [s.lower() for s in sys.argv]
-if 'pyside' in lower_argv:
-    # Import Qt
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-    # from PySide.QtUiTools import QUiLoader
-elif 'pyqt' in lower_argv:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
-    from PyQt4.QtCore import pyqtSignal as Signal
-else:
-    try:
-        from PyQt4.QtCore import *
-        from PyQt4.QtGui import *
-        from PyQt4.QtCore import pyqtSignal as Signal
-    except Exception:
-        from PySide.QtCore import *
-        from PySide.QtGui import *
-
+from qtutils.qt.QtCore import *
+from qtutils.qt.QtGui import *
+from qtutils.qt.QtWidgets import *
+from qtutils.qt import QT_ENV
+from qtutils.qt.QtCore import pyqtSignal as Signal
 
 try:
     from labscript_utils import check_version
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.3', '3')
-check_version('qtutils', '1.5.1', '2')
+check_version('labscript_utils', '2.3.1', '3')
+check_version('qtutils', '2.0.0', '3.0.0')
 check_version('zprocess', '1.1.2', '3')
 check_version('labscript_devices', '2.0', '3')
 
@@ -108,14 +91,9 @@ except Exception:
     logger.error('Failed to find h5py version')
 
 try:
-    if 'PySide' in sys.modules.copy():
-        import PySide
-        logger.info('PySide Version: %s'%PySide.__version__)
-        logger.info('Qt Version: %s'%PySide.QtCore.__version__)
-    else:
-        import PyQt4.QtCore
-        logger.info('PyQt Version: %s'%PyQt4.QtCore.PYQT_VERSION_STR)
-        logger.info('Qt Version: %s'%PyQt4.QtCore.QT_VERSION_STR)
+    logger.info('Qt Enviroment: %s' % QT_ENV)
+    logger.info('PySide/PyQt Version: %s' % PYQT_VERSION_STR)
+    logger.info('Qt Version: %s' % QT_VERSION_STR)
 except Exception:
     logger.error('Failed to find PySide/PyQt version')
 
@@ -149,7 +127,7 @@ from connections import ConnectionTable
 #Draggable Tab Widget Code
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
-from labscript_utils.labconfig import LabConfig, config_prefix
+from labscript_utils.labconfig import LabConfig, config_prefix, hostname
 # Qt utils for running functions in the main thread
 from qtutils import *
 # And for icons:
@@ -321,7 +299,11 @@ class BLACS(object):
         if 'queue_data' not in tab_data['BLACS settings']:
             tab_data['BLACS settings']['queue_data'] = {}
         else:
-            tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+            # quick fix for qt objects not loading that were saved before qtutil 2 changes
+            try:
+                tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+            except NameError:
+                tab_data['BLACS settings']['queue_data'] = {}
         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
 
         logger.info('instantiating plugins')
@@ -539,7 +521,11 @@ class BLACS(object):
                         if 'queue_data' not in tab_data['BLACS settings']:
                             tab_data['BLACS settings']['queue_data'] = {}
                         else:
-                            tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+                            # quick fix for qt objects not loading that were saved before qtutil 2 changes
+                            try:
+                                tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
+                            except NameError:
+                                tab_data['BLACS settings']['queue_data'] = {}
                         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
                         # restore analysis data
                         if 'analysis_data' not in tab_data['BLACS settings']:
@@ -671,8 +657,7 @@ if __name__ == '__main__':
         ##########
 
 
-    config_path = os.path.join(config_prefix,'%s.ini'%socket.gethostname())
-    settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%socket.gethostname())
+    settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%hostname)
     required_config_params = {"DEFAULT":["experiment_name"],
                               "programs":["text_editor",
                                           "text_editor_arguments",
@@ -683,7 +668,7 @@ if __name__ == '__main__':
                                       ],
                               "ports":["BLACS", "lyse"],
                              }
-    exp_config = LabConfig(config_path,required_config_params)
+    exp_config = LabConfig(required_params = required_config_params)
 
     port = int(exp_config.get('ports','BLACS'))
 
