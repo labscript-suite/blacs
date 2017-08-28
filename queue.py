@@ -115,6 +115,7 @@ class QueueManager(object):
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
+        self._ui.queue_clear_button.clicked.connect(self._toggle_clear)
         self._ui.actionAdd_to_queue.triggered.connect(self.on_add_shots_triggered)
         self._ui.queue_add_button.setDefaultAction(self._ui.actionAdd_to_queue)
         self._ui.queue_push_up.clicked.connect(self._move_up)
@@ -192,7 +193,11 @@ class QueueManager(object):
         
     def _toggle_pause(self,checked):    
         self.manager_paused = checked
-    
+
+    def _toggle_clear(self):
+        self._model.clear()
+        self._create_headers()
+
     @property
     @inmain_decorator(True)
     def manager_paused(self):
