@@ -284,6 +284,23 @@ QToolButton:hover:checked {
                      </property>
                     </widget>
                    </item>
+                   <item>
+                    <widget class="QPushButton" name="queue_clear_button">
+                     <property name="focusPolicy">
+                      <enum>Qt::NoFocus</enum>
+                     </property>
+                     <property name="toolTip">
+                      <string>Clear queue of all shots</string>
+                     </property>
+                     <property name="text">
+                      <string>Clear</string>
+                     </property>
+                     <property name="icon">
+                      <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+                       <normaloff>:/qtutils/fugue/bin-metal-full.png</normaloff>:/qtutils/fugue/bin-metal-full.png</iconset>
+                     </property>
+                    </widget>
+                   </item>
                   </layout>
                  </item>
                 </layout>
