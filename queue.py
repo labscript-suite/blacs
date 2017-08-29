@@ -242,7 +242,7 @@ class QueueManager(object):
         shot_files = QFileDialog.getOpenFileNames(self._ui, 'Select shot files',
                                                   self.last_opened_shots_folder,
                                                   "HDF5 files (*.h5)")
-        if type(shot_files) is tuple:
+        if isinstance(shot_files, tuple):
             shot_files, _ = shot_files
 
         if not shot_files:
