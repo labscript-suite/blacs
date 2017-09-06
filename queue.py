@@ -848,9 +848,23 @@ class QueueManager(object):
             #                                                        Analysis Submission                                                             #
             ########################################################################################################################################## 
             logger.info('All devices are back in static mode.')  
+
+            # check for analysis Filters in Plugins
+            analysis_filter = False
+            for plugin in self.BLACS.plugins.values():
+                callbacks = plugin.get_callbacks()
+                if isinstance(callbacks, dict) and 'analysis_filter' in callbacks:
+                    try:
+                        if callbacks['analysis_filter'](path) is True:
+                            analysis_filter = True
+                            break
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
             # Submit to the analysis server
-            self.BLACS.analysis_submission.get_queue().put(['file', path])
-             
+            if not analysis_filter:
+                self.BLACS.analysis_submission.get_queue().put(['file', path])
+
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
             ########################################################################################################################################## 
