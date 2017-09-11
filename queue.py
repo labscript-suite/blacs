@@ -147,7 +147,9 @@ class QueueManager(object):
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
         self.manager.start()
-    
+
+        self._callbacks = None
+
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
         
@@ -242,7 +244,25 @@ class QueueManager(object):
             button.setIcon(QIcon(self.ICON_REPEAT))
         elif value == self.REPEAT_LAST:
             button.setIcon(QIcon(self.ICON_REPEAT_LAST))
-        
+
+    def get_callbacks(self, name, update_cache=False):
+        if update_cache or self._callbacks is None:
+            self._callbacks = {}
+            for plugin in self.BLACS.plugins.values():
+                callbacks = plugin.get_callbacks()
+                if isinstance(callbacks, dict):
+                    for callback_name, callback in callbacks.items():
+                        if callback_name not in self._callbacks:
+                            self._callbacks[callback_name] = []
+                        self._callbacks[callback_name].append(callback)
+
+        if name in self._callbacks:
+            return self._callbacks[name]
+        else:
+            return []
+
+
+
     def on_add_shots_triggered(self):
         shot_files = QFileDialog.getOpenFileNames(self._ui, 'Select shot files',
                                                   self.last_opened_shots_folder,
@@ -850,19 +870,17 @@ class QueueManager(object):
             logger.info('All devices are back in static mode.')  
 
             # check for analysis Filters in Plugins
-            analysis_filter = False
-            for plugin in self.BLACS.plugins.values():
-                callbacks = plugin.get_callbacks()
-                if isinstance(callbacks, dict) and 'analysis_filter' in callbacks:
-                    try:
-                        if callbacks['analysis_filter'](path) is True:
-                            analysis_filter = True
-                            break
-                    except Exception:
-                        logger.exception("Plugin callback raised an exception")
+            send_to_analysis = True
+            for callback in self.get_callbacks('analysis_cancel_send'):
+                try:
+                    if callback(path) is True:
+                        send_to_analysis = False
+                        break
+                except Exception:
+                    logger.exception("Plugin callback raised an exception")
 
             # Submit to the analysis server
-            if not analysis_filter:
+            if send_to_analysis:
                 self.BLACS.analysis_submission.get_queue().put(['file', path])
 
             ##########################################################################################################################################
