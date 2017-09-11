@@ -261,8 +261,6 @@ class QueueManager(object):
         else:
             return []
 
-
-
     def on_add_shots_triggered(self):
         shot_files = QFileDialog.getOpenFileNames(self._ui, 'Select shot files',
                                                   self.last_opened_shots_folder,
