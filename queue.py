@@ -245,16 +245,20 @@ class QueueManager(object):
         elif value == self.REPEAT_LAST:
             button.setIcon(QIcon(self.ICON_REPEAT_LAST))
 
+    @inmain_decorator(True)
     def get_callbacks(self, name, update_cache=False):
         if update_cache or self._callbacks is None:
             self._callbacks = {}
-            for plugin in self.BLACS.plugins.values():
-                callbacks = plugin.get_callbacks()
-                if isinstance(callbacks, dict):
-                    for callback_name, callback in callbacks.items():
-                        if callback_name not in self._callbacks:
-                            self._callbacks[callback_name] = []
-                        self._callbacks[callback_name].append(callback)
+            try:
+                for plugin in self.BLACS.plugins.values():
+                    callbacks = plugin.get_callbacks()
+                    if isinstance(callbacks, dict):
+                        for callback_name, callback in callbacks.items():
+                            if callback_name not in self._callbacks:
+                                self._callbacks[callback_name] = []
+                            self._callbacks[callback_name].append(callback)
+            except Exception as e:
+                self._logger.error('A Error occurred during get_callbacks: {}'.format(e))
 
         if name in self._callbacks:
             return self._callbacks[name]
