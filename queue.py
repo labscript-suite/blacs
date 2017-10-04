@@ -258,7 +258,7 @@ class QueueManager(object):
                                 self._callbacks[callback_name] = []
                             self._callbacks[callback_name].append(callback)
             except Exception as e:
-                self._logger.error('A Error occurred during get_callbacks: {}'.format(e))
+                self._logger.exception('A Error occurred during get_callbacks.')
 
         if name in self._callbacks:
             return self._callbacks[name]
@@ -451,7 +451,7 @@ class QueueManager(object):
                         new_file.attrs[name] = old_file.attrs[name]
         except Exception as e:
             #raise
-            self._logger.error('Clean H5 File Error: %s' %str(e))
+            self._logger.exception('Clean H5 File Error.')
             return False
             
         return True
@@ -586,7 +586,7 @@ class QueueManager(object):
                             error_condition = True
                             break
                     except Exception as e:
-                        logger.error('Exception while transitioning %s to buffered mode. Exception was: %s'%(name,str(e)))
+                        logger.exception('Exception while transitioning %s to buffered mode.'%(name))
                         error_condition = True
                         break
                         
@@ -899,7 +899,7 @@ class QueueManager(object):
                         message = self.process_request(path)
                     except Exception:
                         # TODO: make this error popup for the user
-                        self.logger.error('Failed to copy h5_file (%s) for repeat run'%s)
+                        self.logger.exception('Failed to copy h5_file (%s) for repeat run'%s)
                     logger.info(message)      
 
             self.set_status("Idle")
