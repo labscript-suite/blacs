@@ -121,6 +121,7 @@ class QueueManager(object):
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
+        self._ui.queue_clear_button.clicked.connect(self._toggle_clear)
         self._ui.actionAdd_to_queue.triggered.connect(self.on_add_shots_triggered)
         self._ui.queue_add_button.setDefaultAction(self._ui.actionAdd_to_queue)
         self._ui.queue_push_up.clicked.connect(self._move_up)
@@ -152,7 +153,9 @@ class QueueManager(object):
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
         self.manager.start()
-    
+
+        self._callbacks = None
+
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
         
@@ -198,7 +201,11 @@ class QueueManager(object):
         
     def _toggle_pause(self,checked):    
         self.manager_paused = checked
-    
+
+    def _toggle_clear(self):
+        self._model.clear()
+        self._create_headers()
+
     @property
     @inmain_decorator(True)
     def manager_paused(self):
@@ -243,11 +250,34 @@ class QueueManager(object):
             button.setIcon(QIcon(self.ICON_REPEAT))
         elif value == self.REPEAT_LAST:
             button.setIcon(QIcon(self.ICON_REPEAT_LAST))
-        
+
+    @inmain_decorator(True)
+    def get_callbacks(self, name, update_cache=False):
+        if update_cache or self._callbacks is None:
+            self._callbacks = {}
+            try:
+                for plugin in self.BLACS.plugins.values():
+                    callbacks = plugin.get_callbacks()
+                    if isinstance(callbacks, dict):
+                        for callback_name, callback in callbacks.items():
+                            if callback_name not in self._callbacks:
+                                self._callbacks[callback_name] = []
+                            self._callbacks[callback_name].append(callback)
+            except Exception as e:
+                self._logger.exception('A Error occurred during get_callbacks.')
+
+        if name in self._callbacks:
+            return self._callbacks[name]
+        else:
+            return []
+
     def on_add_shots_triggered(self):
         shot_files = QFileDialog.getOpenFileNames(self._ui, 'Select shot files',
                                                   self.last_opened_shots_folder,
                                                   "HDF5 files (*.h5)")
+        if isinstance(shot_files, tuple):
+            shot_files, _ = shot_files
+
         if not shot_files:
             # User cancelled selection
             return
@@ -427,7 +457,7 @@ class QueueManager(object):
                         new_file.attrs[name] = old_file.attrs[name]
         except Exception as e:
             #raise
-            self._logger.error('Clean H5 File Error: %s' %str(e))
+            self._logger.exception('Clean H5 File Error.')
             return False
             
         return True
@@ -562,7 +592,7 @@ class QueueManager(object):
                             error_condition = True
                             break
                     except Exception as e:
-                        logger.error('Exception while transitioning %s to buffered mode. Exception was: %s'%(name,str(e)))
+                        logger.exception('Exception while transitioning %s to buffered mode.'%(name))
                         error_condition = True
                         break
                         
@@ -849,9 +879,21 @@ class QueueManager(object):
             #                                                        Analysis Submission                                                             #
             ########################################################################################################################################## 
             logger.info('All devices are back in static mode.')  
+
+            # check for analysis Filters in Plugins
+            send_to_analysis = True
+            for callback in self.get_callbacks('analysis_cancel_send'):
+                try:
+                    if callback(path) is True:
+                        send_to_analysis = False
+                        break
+                except Exception:
+                    logger.exception("Plugin callback raised an exception")
+
             # Submit to the analysis server
-            self.BLACS.analysis_submission.get_queue().put(['file', path])
-             
+            if send_to_analysis:
+                self.BLACS.analysis_submission.get_queue().put(['file', path])
+
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
             ########################################################################################################################################## 
@@ -863,7 +905,7 @@ class QueueManager(object):
                         message = self.process_request(path)
                     except Exception:
                         # TODO: make this error popup for the user
-                        self.logger.error('Failed to copy h5_file (%s) for repeat run'%s)
+                        self.logger.exception('Failed to copy h5_file (%s) for repeat run'%s)
                     logger.info(message)      
 
             self.set_status("Idle")

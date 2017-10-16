@@ -217,6 +217,8 @@ class AnalysisSubmission(object):
                             self.submit_waiting_files()
                 elif signal == 'close':
                     break
+                elif signal == 'save data restored':
+                    continue
                 else:
                     raise ValueError('Invalid signal: %s'%str(signal))
 
@@ -268,4 +270,4 @@ class AnalysisSubmission(object):
         # update GUI
         self.server_online = 'online' if success else 'offline'
         self.time_of_last_connectivity_check = time.time()
-        
+        
