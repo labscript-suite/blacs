@@ -80,9 +80,9 @@ class FrontPanelSettings(object):
                 dataset = hdf5_file['/front_panel'].get('_notebook_data',[])
                 
                 for row in dataset:
-                    tab_data.setdefault(row['tab_name'],{})
+                    tab_data.setdefault(row['tab_name'].astype('U'),{})
                     try:
-                        tab_data[row['tab_name']] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(row['data'])}
+                        tab_data[row['tab_name'].astype('U')] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(row['data'].astype('U'))}
                     except:
                         logger.info("Could not load tab data for %s"%row['tab_name'])
                 
@@ -97,7 +97,10 @@ class FrontPanelSettings(object):
                         columns = ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units']
                         data_dict = {}
                         for i in range(len(row)):
-                            data_dict[columns[i]] = row[i]
+                            if isinstance(row[i], bytes):
+                                data_dict[columns[i]] = row[i].astype('U')
+                            else:
+                                data_dict[columns[i]] = row[i]
                         settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
       
                 # Else Legacy restore from GTK save data!
@@ -111,7 +114,10 @@ class FrontPanelSettings(object):
                             columns = ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units']
                             data_dict = {}
                             for i in range(len(row)):
-                                data_dict[columns[i]] = row[i]
+                                if isinstance(row[i], bytes):
+                                    data_dict[columns[i]] = row[i].astype('U')
+                                else:
+                                    data_dict[columns[i]] = row[i]
                             settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
         except Exception as e:
             logger.info("Could not load saved settings")

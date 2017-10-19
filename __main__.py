@@ -138,7 +138,7 @@ import qtutils.icons
 # Analysis Submission code
 from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
-from blacs.blacs_queue import QueueManager, QueueTreeview
+from blacs.experiment_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
 import labscript_devices
 # Save/restore frontpanel code
@@ -574,11 +574,11 @@ class BLACS(object):
         logger.info('finalise_quit called')
         tab_close_timeout = 2
         # Kill any tabs which didn't close themselves:
-        for name, tab in self.tablist.items():
+        for name, tab in list(self.tablist.items()):
             if tab.destroy_complete:
                 del self.tablist[name]
         if self.tablist:
-            for name, tab in self.tablist.items():
+            for name, tab in list(self.tablist.items()):
                 # If a tab has a fatal error or is taking too long to close, force close it:
                 if (time.time() - initial_time > tab_close_timeout) or tab.state == 'fatal error':
                     try:
