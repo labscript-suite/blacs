@@ -436,7 +436,7 @@ class QueueManager(object):
         if '_rep' in basename:
             reps = int(basename.split('_rep')[1])
             return h5_filepath.split('_rep')[-2] + '_rep%05d.h5' % (reps + 1), reps + 1
-        return h5_filepath.split('.h5')[0] + '_rep%05d.h5' % 1
+        return h5_filepath.split('.h5')[0] + '_rep%05d.h5' % 1, 1
         
     def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
         try:
