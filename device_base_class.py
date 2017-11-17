@@ -708,7 +708,7 @@ if __name__ == '__main__':
     handler.setFormatter(formatter)
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
-    if sys.stdout.isatty():
+    if sys.stdout is not None and sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
         terminalhandler.setFormatter(formatter)
         terminalhandler.setLevel(logging.DEBUG)
