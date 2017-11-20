@@ -404,7 +404,7 @@ class QueueManager(object):
                 # Keep counting up until we get a filename that isn't in the filesystem:
                 while os.path.exists(new_h5_filepath):
                     new_h5_filepath, repeat_number = self.new_rep_name(new_h5_filepath)
-                success = self.clean_h5_file(h5_filepath, new_h5_filepath)
+                success = self.clean_h5_file(h5_filepath, new_h5_filepath, repeat_number=repeat_number)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
                 self.append([new_h5_filepath])
@@ -751,8 +751,11 @@ class QueueManager(object):
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 # clean up the h5 file
                 self.manager_paused = True
+                # is this a repeat?
+                with h5py.File(path) as h5_file:
+                    repeat_number = h5_file.attrs.get('run repeat', 0)
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5')
+                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
                     os.remove(path)
                     os.rename('temp.h5', path)
@@ -843,11 +846,14 @@ class QueueManager(object):
                 # Raise the error in a thread for visibility
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 
-            if error_condition:
+            if error_condition:                
                 # clean up the h5 file
                 self.manager_paused = True
+                # is this a repeat?
+                with h5py.File(path) as h5_file:
+                    repeat_number = h5_file.attrs.get('run repeat', 0)
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5')
+                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
                     os.remove(path)
                     os.rename('temp.h5', path)
