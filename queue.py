@@ -752,8 +752,11 @@ class QueueManager(object):
                 # clean up the h5 file
                 self.manager_paused = True
                 # is this a repeat?
-                with h5py.File(path) as h5_file:
-                    repeat_number = h5_file.attrs.get('run repeat', 0)
+                try:
+                    with h5py.File(path, 'r') as h5_file:
+                        repeat_number = h5_file.attrs.get('run repeat', 0)
+                except:
+                    repeat_numer = 0
                 # clean the h5 file:
                 self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
@@ -850,8 +853,11 @@ class QueueManager(object):
                 # clean up the h5 file
                 self.manager_paused = True
                 # is this a repeat?
-                with h5py.File(path) as h5_file:
-                    repeat_number = h5_file.attrs.get('run repeat', 0)
+                try:
+                    with h5py.File(path, 'r') as h5_file:
+                        repeat_number = h5_file.attrs.get('run repeat', 0)
+                except:
+                    repeat_number = 0
                 # clean the h5 file:
                 self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
