@@ -400,11 +400,11 @@ class QueueManager(object):
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath = self.new_rep_name(h5_filepath)
+                new_h5_filepath, repeat_number = self.new_rep_name(h5_filepath)
                 # Keep counting up until we get a filename that isn't in the filesystem:
                 while os.path.exists(new_h5_filepath):
-                    new_h5_filepath = self.new_rep_name(new_h5_filepath)
-                success = self.clean_h5_file(h5_filepath, new_h5_filepath)
+                    new_h5_filepath, repeat_number = self.new_rep_name(new_h5_filepath)
+                success = self.clean_h5_file(h5_filepath, new_h5_filepath, repeat_number=repeat_number)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
                 self.append([new_h5_filepath])
@@ -431,14 +431,14 @@ class QueueManager(object):
             return message
             
     
-    def new_rep_name(self,h5_filepath):
+    def new_rep_name(self, h5_filepath):
         basename = os.path.basename(h5_filepath).split('.h5')[0]
         if '_rep' in basename:
             reps = int(basename.split('_rep')[1])
-            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
-        return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
+            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5' % (reps + 1), reps + 1
+        return h5_filepath.split('.h5')[0] + '_rep%05d.h5' % 1, 1
         
-    def clean_h5_file(self,h5file,new_h5_file):
+    def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
         try:
             with h5py.File(h5file,'r') as old_file:
                 with h5py.File(new_h5_file,'w') as new_file:
@@ -449,6 +449,7 @@ class QueueManager(object):
                             new_file.copy(old_file[group], group)
                     for name in old_file.attrs:
                         new_file.attrs[name] = old_file.attrs[name]
+                    new_file.attrs['run repeat'] = repeat_number
         except Exception as e:
             #raise
             self._logger.exception('Clean H5 File Error.')
@@ -750,8 +751,14 @@ class QueueManager(object):
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 # clean up the h5 file
                 self.manager_paused = True
+                # is this a repeat?
+                try:
+                    with h5py.File(path, 'r') as h5_file:
+                        repeat_number = h5_file.attrs.get('run repeat', 0)
+                except:
+                    repeat_numer = 0
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5')
+                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
                     os.remove(path)
                     os.rename('temp.h5', path)
@@ -842,11 +849,17 @@ class QueueManager(object):
                 # Raise the error in a thread for visibility
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 
-            if error_condition:
+            if error_condition:                
                 # clean up the h5 file
                 self.manager_paused = True
+                # is this a repeat?
+                try:
+                    with h5py.File(path, 'r') as h5_file:
+                        repeat_number = h5_file.attrs.get('run repeat', 0)
+                except:
+                    repeat_number = 0
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5')
+                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
                     os.remove(path)
                     os.rename('temp.h5', path)
