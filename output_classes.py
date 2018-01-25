@@ -432,15 +432,14 @@ class AO(object):
         return self._hardware_name + ' - ' + self._connection_name
             
 class DO(object):
-    def __init__(self, hardware_name, connection_name, device_name, program_function, settings, inverted=False):
+    def __init__(self, hardware_name, connection_name, device_name, program_function, settings):
         self._hardware_name = hardware_name
         self._connection_name = connection_name
         self._widget_list = []
         
         self._device_name = device_name
-        self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name)) 
-        self._inverted = inverted
-                
+        self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name))
+
         # Note that while we could store self._current_state and self._locked in the
         # settings dictionary, this dictionary is available to other parts of BLACS
         # and using separate variables avoids those parts from being able to directly
@@ -475,19 +474,20 @@ class DO(object):
 
         # Update the lock state
         self._update_lock(self._settings['locked'])
-    
-    def create_widget(self,*args,**kwargs):
-        if not self._inverted:
+
+    def create_widget(self, *args, **kwargs):
+        inverted = kwargs.pop("inverted", False)
+        if not inverted:
             widget = DigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
         else:
             widget = InvertedDigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
-        self.add_widget(widget)
+        self.add_widget(widget, inverted=inverted)
         return widget
-    
-    def add_widget(self,widget):
+
+    def add_widget(self, widget, inverted=False):
         if widget not in self._widget_list:
             widget.set_DO(self,True,False)
-            widget.toggled.connect(self.set_value)
+            widget.toggled.connect(self.set_value if not inverted else lambda state: self.set_value(not state))
             self._widget_list.append(widget)
             self.set_value(self._current_state,False)
             self._update_lock(self._locked)
@@ -525,10 +525,8 @@ class DO(object):
     def set_value(self,state,program=True):
         # conversion to integer, then bool means we can safely pass in
         # either a string '1' or '0', True or False or 1 or 0
-        state = bool(int(state))    
-        if program and self._inverted:
-            state = not state 
-        
+        state = bool(int(state))
+
         # We are programatically setting the state, so break the check lock function logic
         self._current_state = state
         
