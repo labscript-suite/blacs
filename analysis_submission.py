@@ -18,15 +18,11 @@ import threading
 import time
 import sys
 
-if 'PySide' in sys.modules.copy():
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-else:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
-    
+from qtutils.qt.QtCore import *
+from qtutils.qt.QtGui import *
+from qtutils.qt.QtWidgets import *
+
 from qtutils import *
-import qtutils.icons
 from zprocess import zmq_get, TimeoutError, raise_exception_in_thread
 from socket import gaierror
 import labscript_utils.shared_drive
@@ -165,8 +161,8 @@ class AnalysisSubmission(object):
 
     def get_queue(self):
         return self.inqueue
-               
-    @inmain_decorator(True)  
+
+    @inmain_decorator(True)
     def clear_waiting_files(self):
         self._waiting_for_submission = []
         self.update_waiting_files_message()
@@ -215,6 +211,8 @@ class AnalysisSubmission(object):
                             self.submit_waiting_files()
                 elif signal == 'close':
                     break
+                elif signal == 'save data restored':
+                    continue
                 else:
                     raise ValueError('Invalid signal: %s'%str(signal))
 
