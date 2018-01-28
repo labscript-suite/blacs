@@ -15,8 +15,13 @@ import os
 import sys
 import logging
 import importlib
+from labscript_utils.labconfig import LabConfig
 
 logger = logging.getLogger('BLACS.plugins')
+
+exp_config = LabConfig()
+if not exp_config.has_section('BLACS/plugins'):
+    exp_config.add_section('BLACS/plugins')
 
 modules = {}
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,4 +32,11 @@ for module_name in os.listdir(this_dir):
         except Exception:
             logger.exception('Could not import plugin \'%s\'. Skipping.'%module_name)
         else:
-            modules[module_name] = module
+            # is it a new plugin?
+            # If so lets add it to the config and activate it
+            if not module_name in exp_config['BLACS/plugins']:
+                exp_config.set('BLACS/plugins', module_name, 'True')
+
+            # only add activated plugins to modules
+            if exp_config.getboolean('BLACS/plugins', module_name):
+                modules[module_name] = module
