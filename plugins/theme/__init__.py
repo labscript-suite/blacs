@@ -13,21 +13,62 @@
 
 import logging
 import os
-import subprocess
-import sys
-
-if 'PySide' in sys.modules.copy():
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-else:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
 
 from qtutils import *
 
 name = "GUI Theme"
 module = "theme" # should be folder name
 logger = logging.getLogger('BLACS.plugin.%s'%module)
+
+
+DEFAULT_STYLESHEET = """DigitalOutput {
+    font-size: 12px;
+    background-color: rgb(20,75,20,192);
+    border: 1px solid rgb(20,75,20,128);
+    border-radius: 3px;
+    padding: 2px;
+    color: #202020;
+}
+
+DigitalOutput:hover {
+    background-color: #148214;
+    border: None;
+}
+
+DigitalOutput:disabled{
+   background-color: rgb(20,75,20,120);
+   color: #505050;
+}
+
+DigitalOutput:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #48dd48, stop: 1 #20ff20);
+    border: 1px solid #8f8f91;
+    color: #000000;
+}
+
+DigitalOutput:hover:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #48dd48, stop: 1 #78ff78);
+    border: 1px solid #8f8f91;
+}
+
+DigitalOutput:checked:disabled{
+   background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #7ee77e, stop: 1 #62ff62);
+   color: #606060;
+}
+ """
+
+
+def is_default_stylesheet(stylesheet):
+    """Return whether a stylesheet is the same as the default stylesheet, modulo whitespace"""
+
+    def no_whitespace(s):
+        return "".join(s.split())
+
+    return no_whitespace(str(stylesheet)) == no_whitespace(DEFAULT_STYLESHEET) 
+
 
 class Plugin(object):
     def __init__(self,initial_settings):
@@ -50,6 +91,9 @@ class Plugin(object):
         
     def update_stylesheet(self):
         if self.BLACS is not None:
+            # show centralwidget as a workaround to fix stylsheets
+            # not beeing applied under PyQt5 on first draw
+            self.BLACS['ui'].centralwidget.show()
             stylesheet_settings = self.BLACS['settings'].get_value(Setting,"stylesheet")
             self.BLACS['ui'].centralwidget.setStyleSheet(self.unmodified_stylesheet + stylesheet_settings)
         
@@ -78,37 +122,12 @@ class Setting(object):
         # This is our data store!
         self.data = data
         
-        if 'stylesheet' not in self.data:
-            self.data['stylesheet'] = ''
+        if 'stylesheet' not in self.data or not self.data['stylesheet']:
+            # If it's absent or an empty string, use the default stylesheet:
+            self.data['stylesheet'] = DEFAULT_STYLESHEET
     
     def on_set_green_button_theme(self):
-        self.widgets['stylesheet'].appendPlainText("""DigitalOutput {
-    background-color: rgb(20,75,20,192);
-    border: 1px solid rgb(20,75,20,128);
-    border-radius: 3px;
-    padding: 4px;
-}
-
-DigitalOutput:hover {
-    background-color: #148214;
-    border: None;
-    border-radius: 3px;
-}
- 
-DigitalOutput:checked {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #48dd48, stop: 1 #20ff20);
-    border: 1px solid #8f8f91;
-    border-radius: 3px;
-}
- 
-DigitalOutput:hover:checked {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #48dd48, stop: 1 #78ff78);
-    border: 1px solid #8f8f91;
-    border-radius: 3px;
-}
- """)
+        self.widgets['stylesheet'].appendPlainText(DEFAULT_STYLESHEET)
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
@@ -132,8 +151,19 @@ DigitalOutput:hover:checked {
         return None
     
     def save(self):
-        self.data['stylesheet'] = str(self.widgets['stylesheet'].toPlainText())
-        return self.data
+        stylesheet = str(self.widgets['stylesheet'].toPlainText())
+        if not stylesheet.endswith('\n'):
+            # This is a way to distinguish between an intentionally blank
+            # stylesheet, and an empty string, which used to be what was
+            # stored When the user had made no changes, which now we take to
+            # imply that they want to use the default stylesheet:
+            stylesheet += '\n'
+        self.data['stylesheet'] = stylesheet
+        data = self.data.copy()
+        if is_default_stylesheet(stylesheet):
+            # Only save if it is not the default stylesheet:
+            del data['stylesheet']
+        return data
         
     def close(self):
         self.widgets['example_button'].clicked.disconnect(self.on_set_green_button_theme)
