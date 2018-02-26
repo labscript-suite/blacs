@@ -18,14 +18,7 @@ import threading
 import sys
 from Queue import Queue
 
-if 'PySide' in sys.modules.copy():
-    from PySide.QtCore import *
-    from PySide.QtGui import *
-else:
-    from PyQt4.QtCore import *
-    from PyQt4.QtGui import *
-
-from qtutils import *
+from qtutils import UiLoader
 
 from labscript_utils.shared_drive import path_to_agnostic
 import zprocess.locking
