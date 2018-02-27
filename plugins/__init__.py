@@ -31,7 +31,7 @@ for module_name in os.listdir(this_dir):
     if os.path.isdir(os.path.join(this_dir, module_name)):
         # is it a new plugin?
         # If so lets add it to the config
-        if not module_name in exp_config['BLACS/plugins']:
+        if not module_name in [name for name, val in exp_config.items('BLACS/plugins')]:
             exp_config.set('BLACS/plugins', module_name, str(module_name in default_plugins))
 
         # only load activated plugins
