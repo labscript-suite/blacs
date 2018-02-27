@@ -430,13 +430,18 @@ class QueueManager(object):
                        "The error was %s\n"%error)
             return message
             
-    
     def new_rep_name(self, h5_filepath):
-        basename = os.path.basename(h5_filepath).split('.h5')[0]
-        if '_rep' in basename:
-            reps = int(basename.split('_rep')[1])
-            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5' % (reps + 1), reps + 1
-        return h5_filepath.split('.h5')[0] + '_rep%05d.h5' % 1, 1
+        basename, ext = os.path.splitext(h5_filepath)
+        if '_rep' in basename and ext == '.h5':
+            reps = basename.split('_rep')[-1]
+            try:
+                reps = int(reps)
+            except ValueError:
+                # not a rep
+                pass
+            else:
+                return ''.join(basename.split('_rep')[:-1]) + '_rep%05d.h5' % (reps + 1), reps + 1
+        return basename + '_rep%05d.h5' % 1, 1
         
     def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
         try:
@@ -900,6 +905,17 @@ class QueueManager(object):
             # Submit to the analysis server
             if send_to_analysis:
                 self.BLACS.analysis_submission.get_queue().put(['file', path])
+
+            ##########################################################################################################################################
+            #                                                        Plugin callbacks                                                                #
+            ########################################################################################################################################## 
+            for plugin in self.BLACS.plugins.values():
+                callbacks = plugin.get_callbacks()
+                if isinstance(callbacks, dict) and 'shot_complete' in callbacks:
+                    try:
+                        callbacks['shot_complete'](path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
 
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
