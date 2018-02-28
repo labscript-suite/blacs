@@ -1,6 +1,6 @@
 #####################################################################
 #                                                                   #
-# /queue.py                                                         #
+# /experiment_queue.py                                                         #
 #                                                                   #
 # Copyright 2013, Monash University                                 #
 #                                                                   #
