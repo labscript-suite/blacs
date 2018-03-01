@@ -15,6 +15,7 @@ from labscript_utils import PY2
 if PY2:
     str = unicode
 
+from labscript_utils.numpy_dtype_workaround import dtype_workaround
 import os
 import logging
 
@@ -27,8 +28,7 @@ import numpy
 import labscript_utils.h5_lock, h5py
 from qtutils import *
 
-# Connection Table Code
-from blacs.connections import ConnectionTable
+from labscript_utils.connections import ConnectionTable
 
 logger = logging.getLogger('BLACS.FrontPanelSettings')  
 
@@ -72,7 +72,7 @@ class FrontPanelSettings(object):
         error = {}
         tab_data = {'BLACS settings':{}}
         try:
-            saved_ct = ConnectionTable(self.settings_path)
+            saved_ct = ConnectionTable(self.settings_path, logging_prefix='BLACS')
             ct_match,error = self.connection_table.compare_to(saved_ct)
             
             with h5py.File(self.settings_path,'r') as hdf5_file:
@@ -338,13 +338,13 @@ class FrontPanelSettings(object):
         if save_conn_table:
             if 'connection table' in hdf5_file:
                 del hdf5_file['connection table']
-            hdf5_file.create_dataset('connection table',data=self.connection_table.table)
-        
+            hdf5_file.create_dataset('connection table', data=self.connection_table.raw_table)
+
         data_group = hdf5_file['/'].create_group('front_panel')
         
         front_panel_list = []
         other_data_list = []
-        front_panel_dtype = {'names': ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units'], 'formats': ['a256', 'a256', 'a256', float, bool, float, 'a256']}
+        front_panel_dtype = dtype_workaround([('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')])
         max_od_length = 2 # empty dictionary
             
         # Iterate over each device within a class
@@ -377,7 +377,7 @@ class FrontPanelSettings(object):
                 
         # Save tab data
         i = 0
-        tab_data = numpy.empty(len(notebook_data),dtype={'names': ['tab_name', 'notebook', 'page', 'visible', 'data'], 'formats': ['a256', 'a2', int, bool, 'a'+str(max_od_length)]})
+        tab_data = numpy.empty(len(notebook_data),dtype=dtype_workaround([('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))]))
         for device_name,data in notebook_data.items():
             tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
             i += 1
