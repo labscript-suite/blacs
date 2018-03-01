@@ -10,13 +10,18 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    from Queue import Queue
+else:
+    from queue import Queue
 
 import logging
 import os
 import subprocess
 import threading
 import sys
-from Queue import Queue
 
 from qtutils import UiLoader
 
@@ -154,4 +159,4 @@ class Plugin(object):
     def set_notification_instances(self, notifications):
         self.notifications = notifications
         
-    
+    
