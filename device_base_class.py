@@ -209,6 +209,10 @@ class DeviceTab(Tab):
         for hardware_name,properties in channel_properties.items():
             properties.setdefault('args',[])
             properties.setdefault('kwargs',{})
+
+            device = self.get_child_from_connection_table(self.device_name,hardware_name)
+            properties['kwargs']['inverted'] = bool(device.properties.get('inverted', False) if device else properties['kwargs'].get('inverted', False))
+
             if hardware_name in self._DO:
                 widgets[hardware_name] = self._DO[hardware_name].create_widget(*properties['args'],**properties['kwargs'])
         
@@ -230,11 +234,6 @@ class DeviceTab(Tab):
         for hardware_name,properties in channel_properties.items():
             properties.setdefault('args',[])
             properties.setdefault('kwargs',{})
-
-            device = self.get_child_from_connection_table(self.device_name,hardware_name)
-            inverted = bool(device.properties.get('inverted', False)) if device else False
-            properties['kwargs']['inverted'] = inverted
-
             if hardware_name in self._DDS:
                 widgets[hardware_name] = self._DDS[hardware_name].create_widget(*properties['args'],**properties['kwargs'])
         
