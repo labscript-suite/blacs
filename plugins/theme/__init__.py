@@ -23,39 +23,77 @@ logger = logging.getLogger('BLACS.plugin.%s'%module)
 
 DEFAULT_STYLESHEET = """DigitalOutput {
     font-size: 12px;
-    background-color: rgb(20,75,20,192);
-    border: 1px solid rgb(20,75,20,128);
+    background-color: rgb(50,100,50,255);
+    border: 1px solid rgb(50,100,50,128);
     border-radius: 3px;
     padding: 2px;
     color: #202020;
 }
 
 DigitalOutput:hover {
-    background-color: #148214;
+    background-color: rgb(50,130,50);
     border: None;
 }
 
 DigitalOutput:disabled{
-   background-color: rgb(20,75,20,120);
+   background-color: rgb(50,100,50,128);
    color: #505050;
 }
 
 DigitalOutput:checked {
     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #48dd48, stop: 1 #20ff20);
+                                      stop: 0 rgb(32,200,32), stop: 1 rgb(32,255,32));
     border: 1px solid #8f8f91;
     color: #000000;
 }
 
 DigitalOutput:hover:checked {
     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #48dd48, stop: 1 #78ff78);
+                                      stop: 0 rgb(32,200,32), stop: 1 rgb(120,255,120));
     border: 1px solid #8f8f91;
 }
 
 DigitalOutput:checked:disabled{
    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #7ee77e, stop: 1 #62ff62);
+                                      stop: 0 rgba(32,200,32,128), stop: 1 rgba(32,255,32,128));
+   color: #606060;
+}
+
+InvertedDigitalOutput {
+    font-size: 12px;
+    background-color: rgb(70,100,170,255);
+    border: 1px solid rgb(70,100,170,128);
+    border-radius: 3px;
+    padding: 2px;
+    color: #202020;
+}
+
+InvertedDigitalOutput:hover {
+    background-color: rgb(70, 130, 220);
+    border: None;
+}
+
+InvertedDigitalOutput:disabled{
+   background-color: rgba(70,100,170,128);
+   color: #505050;
+}
+
+InvertedDigitalOutput:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 rgb(50,150,221), stop: 1 rgb(32,192,255));
+    border: 1px solid #8f8f91;
+    color: #000000;
+}
+
+InvertedDigitalOutput:hover:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 rgb(50,150,221), stop: 1 rgb(120,192,255));
+    border: 1px solid #8f8f91;
+}
+
+InvertedDigitalOutput:checked:disabled{
+   background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 rgba(50,150,221,128), stop: 1 rgba(32,192,255,128));
    color: #606060;
 }
  """
