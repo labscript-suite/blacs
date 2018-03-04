@@ -162,10 +162,10 @@ class DeviceTab(Tab):
         # Find the connection name
         device = self.get_child_from_connection_table(parent_device,labscript_hardware_name)
         connection_name = device.name if device else '-'
-        
+
         # Instantiate the DO object
         return DO(BLACS_hardware_name, connection_name, self.device_name, self.program_device, self.settings)
-    
+
     def create_analog_outputs(self,analog_properties):
         for hardware_name,properties in analog_properties.items():                    
             # Create and save the AO object
@@ -213,6 +213,10 @@ class DeviceTab(Tab):
         for hardware_name,properties in channel_properties.items():
             properties.setdefault('args',[])
             properties.setdefault('kwargs',{})
+
+            device = self.get_child_from_connection_table(self.device_name,hardware_name)
+            properties['kwargs']['inverted'] = bool(device.properties.get('inverted', False) if device else properties['kwargs'].get('inverted', False))
+
             if hardware_name in self._DO:
                 widgets[hardware_name] = self._DO[hardware_name].create_widget(*properties['args'],**properties['kwargs'])
         
