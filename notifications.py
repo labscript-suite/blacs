@@ -15,6 +15,7 @@ import logging
 import os
 
 from qtutils import UiLoader
+from blacs import BLACS_DIR
 
 logger = logging.getLogger('BLACS.NotificationManager') 
 
@@ -50,7 +51,7 @@ class Notifications(object):
             get_state = lambda: self.get_state(notification_class)
             
             # create layout/widget with appropriate buttons and the widget from the notification class
-            ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification_widget.ui'))            
+            ui = UiLoader().load(os.path.join(BLACS_DIR, 'notification_widget.ui'))            
             ui.hide_button.setVisible(bool(properties['can_hide']))
             ui.hide_button.clicked.connect(lambda: hide_func(True))
             ui.close_button.setVisible(bool(properties['can_close']))
@@ -76,7 +77,7 @@ class Notifications(object):
                         
             
             #TODO: Make the minimized widget
-            ui2 = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification_minimized_widget.ui'))
+            ui2 = UiLoader().load(os.path.join(BLACS_DIR, 'notification_minimized_widget.ui'))
             #ui2.hide()
             if not hasattr(self._notifications[notification_class], 'name'):
                 self._notifications[notification_class].name = notification_class.__name__
@@ -153,4 +154,4 @@ class Notifications(object):
                 notification.close()
             except:
                 pass
-                
+                

@@ -12,3 +12,8 @@
 #####################################################################
 
 __version__ = '2.2.0'
+
+
+import os
+from labscript_utils import labscript_suite_install_dir
+BLACS_DIR = os.path.join(labscript_suite_install_dir, 'blacs')

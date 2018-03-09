@@ -27,6 +27,8 @@ from zprocess import zmq_get, TimeoutError, raise_exception_in_thread
 from socket import gaierror
 import labscript_utils.shared_drive
 from labscript_utils.qtwidgets.elide_label import elide_label
+from blacs import BLACS_DIR
+
 
 class AnalysisSubmission(object):        
     def __init__(self, BLACS, blacs_ui):
@@ -34,7 +36,7 @@ class AnalysisSubmission(object):
         self.BLACS = BLACS
         self.port = int(self.BLACS.exp_config.get('ports', 'lyse'))
         
-        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'analysis_submission.ui'))
+        self._ui = UiLoader().load(os.path.join(BLACS_DIR, 'analysis_submission.ui'))
         blacs_ui.analysis.addWidget(self._ui)
         self._ui.frame.setMinimumWidth(blacs_ui.queue_controls_frame.sizeHint().width())
         elide_label(self._ui.resend_shots_label, self._ui.failed_to_send_frame.layout(), Qt.ElideRight)
