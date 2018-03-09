@@ -896,7 +896,7 @@ class QueueManager(object):
             send_to_analysis = True
             for callback in self.get_callbacks('analysis_cancel_send'):
                 try:
-                    if callback(path) is True:
+                    if callback(path):
                         send_to_analysis = False
                         break
                 except Exception:
@@ -924,7 +924,7 @@ class QueueManager(object):
             repeat_shot = self.manager_repeat
             for callback in self.get_callbacks('shot_ignore_repeat'):
                 try:
-                    if callback(path) is True:
+                    if callback(path):
                         repeat_shot = False
                         break
                 except Exception:
