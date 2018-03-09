@@ -133,19 +133,19 @@ from qtutils import *
 # And for icons:
 import qtutils.icons
 # Analysis Submission code
-from blacs.analysis_submission import AnalysisSubmission
+from analysis_submission import AnalysisSubmission
 # Queue Manager Code
-from blacs.experiment_queue import QueueManager, QueueTreeview
+from experiment_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
 import labscript_devices
 # Save/restore frontpanel code
-from blacs.front_panel_settings import FrontPanelSettings
+from front_panel_settings import FrontPanelSettings
 # Notifications system
-from blacs.notifications import Notifications
+from notifications import Notifications
 # Preferences system
 from labscript_utils.settings import Settings
 #import settings_pages
-import blacs.plugins as plugins
+import plugins
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
