@@ -123,7 +123,7 @@ except Exception:
 
 
 # Connection Table Code
-from connections import ConnectionTable
+from blacs.connections import ConnectionTable
 #Draggable Tab Widget Code
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
