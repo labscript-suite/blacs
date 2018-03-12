@@ -123,7 +123,7 @@ except Exception:
 
 
 # Connection Table Code
-from connections import ConnectionTable
+from blacs.connections import ConnectionTable
 #Draggable Tab Widget Code
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
@@ -133,21 +133,21 @@ from qtutils import *
 # And for icons:
 import qtutils.icons
 # Analysis Submission code
-from analysis_submission import AnalysisSubmission
+from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
-from experiment_queue import QueueManager, QueueTreeview
+from blacs.experiment_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
 import labscript_devices
 # Save/restore frontpanel code
-from front_panel_settings import FrontPanelSettings
+from blacs.front_panel_settings import FrontPanelSettings
 # Notifications system
-from notifications import Notifications
+from blacs.notifications import Notifications
 # Preferences system
 from labscript_utils.settings import Settings
 #import settings_pages
-import plugins
+import blacs.plugins as plugins
 
-os.chdir(os.path.abspath(os.path.dirname(__file__)))
+from blacs import BLACS_DIR
 
 
 def set_win_appusermodel(window_id):
@@ -156,7 +156,7 @@ def set_win_appusermodel(window_id):
     executable = sys.executable.lower()
     if not executable.endswith('w.exe'):
         executable = executable.replace('.exe', 'w.exe')
-    relaunch_command = executable + ' ' + os.path.abspath(__file__.replace('.pyc', '.py'))
+    relaunch_command = executable + ' ' + os.path.join(BLACS_DIR, '__main__.py')
     relaunch_display_name = app_descriptions['blacs']
     set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
 
@@ -222,7 +222,7 @@ class BLACS(object):
         loader = UiLoader()
         loader.registerCustomWidget(QueueTreeview)
         #loader.registerCustomPromotion('BLACS',BLACSWindow)
-        self.ui = loader.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'main.ui'), BLACSWindow())
+        self.ui = loader.load(os.path.join(BLACS_DIR, 'main.ui'), BLACSWindow())
         logger.info('BLACS ui loaded')
         self.ui.blacs=self
         self.tab_widgets = {}

@@ -32,7 +32,7 @@ from qtutils import *
 from labscript_utils.qtwidgets.elide_label import elide_label
 
 # Connection Table Code
-from connections import ConnectionTable
+from blacs.connections import ConnectionTable
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 
 FILEPATH_COLUMN = 0
