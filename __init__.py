@@ -25,3 +25,7 @@ else:
     # with python 2 using "python -m blacs" whilst the current directory is the
     # parent of the blacs directory):
     BLACS_DIR = os.path.dirname(os.path.realpath(__file__))
+if not os.path.isdir(BLACS_DIR):
+    # Don't want to continue if we have not found the directory:
+    msg = "Cannot locate the directory BLACS is installed in."
+    raise RuntimeError(msg)
