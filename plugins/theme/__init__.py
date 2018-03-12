@@ -171,7 +171,7 @@ class Setting(object):
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = UiLoader().load(PLUGINS_DIR, module, 'theme.ui')
+        ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'theme.ui'))
         
         # restore current stylesheet
         ui.stylesheet_text.setPlainText(self.data['stylesheet'])
