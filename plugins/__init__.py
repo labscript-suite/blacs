@@ -16,6 +16,8 @@ import sys
 import logging
 import importlib
 from labscript_utils.labconfig import LabConfig
+from blacs import BLACS_DIR
+PLUGINS_DIR = os.path.join(BLACS_DIR, 'plugins')
 
 default_plugins = ['connection_table', 'general', 'memory', 'theme']
 
@@ -26,9 +28,8 @@ if not exp_config.has_section('BLACS/plugins'):
     exp_config.add_section('BLACS/plugins')
 
 modules = {}
-this_dir = os.path.dirname(os.path.abspath(__file__))
-for module_name in os.listdir(this_dir):
-    if os.path.isdir(os.path.join(this_dir, module_name)):
+for module_name in os.listdir(PLUGINS_DIR):
+    if os.path.isdir(os.path.join(PLUGINS_DIR, module_name)):
         # is it a new plugin?
         # If so lets add it to the config
         if not module_name in [name for name, val in exp_config.items('BLACS/plugins')]:

@@ -16,6 +16,8 @@ import os
 
 from qtutils import *
 
+from blacs.plugins import PLUGINS_DIR
+
 name = "GUI Theme"
 module = "theme" # should be folder name
 logger = logging.getLogger('BLACS.plugin.%s'%module)
@@ -169,7 +171,7 @@ class Setting(object):
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'theme.ui'))
+        ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'theme.ui'))
         
         # restore current stylesheet
         ui.stylesheet_text.setPlainText(self.data['stylesheet'])

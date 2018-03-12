@@ -23,6 +23,7 @@ from qtutils.qt.QtWidgets import *
 from blacs.compile_and_restart import CompileAndRestart
 from labscript_utils.filewatcher import FileWatcher
 from qtutils import *
+from blacs.plugins import PLUGINS_DIR
 
 FILEPATH_COLUMN = 0
 name = "Connection Table"
@@ -128,7 +129,7 @@ class Notification(object):
         self.filewatcher = None
         
         # Create the widget
-        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
+        self._ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'notification.ui'))
         self._ui.button.clicked.connect(self.on_recompile_connection_table)
         #self._ui.hide()
             
@@ -198,7 +199,7 @@ class Setting(object):
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.ui'))
+        ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'connection_table.ui'))
         
         # Create the models, get the views, and link them!!
         self.models = {}

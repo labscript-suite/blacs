@@ -21,6 +21,9 @@ from qtutils import *
 import runmanager
 from qtutils.outputbox import OutputBox
 
+from blacs import BLACS_DIR
+
+
 class CompileAndRestart(QDialog):
     def __init__(self, blacs, globals_files,connection_table_labscript, output_path, close_notification_func=None):
         QDialog.__init__(self,blacs['ui'])
@@ -33,7 +36,7 @@ class CompileAndRestart(QDialog):
         self.blacs = blacs
         self.close_notification_func = close_notification_func
         
-        self.ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'compile_and_restart.ui'))
+        self.ui = UiLoader().load(os.path.join(BLACS_DIR, 'compile_and_restart.ui'))
         self.output_box = OutputBox(self.ui.verticalLayout)       
         self.ui.restart.setEnabled(False)
         
