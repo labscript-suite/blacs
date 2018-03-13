@@ -23,8 +23,7 @@ import numpy
 import labscript_utils.h5_lock, h5py
 from qtutils import *
 
-# Connection Table Code
-from connections import ConnectionTable
+from labscript_utils.connections import ConnectionTable
 
 logger = logging.getLogger('BLACS.FrontPanelSettings')  
 
@@ -68,7 +67,7 @@ class FrontPanelSettings(object):
         error = {}
         tab_data = {'BLACS settings':{}}
         try:
-            saved_ct = ConnectionTable(self.settings_path)
+            saved_ct = ConnectionTable(self.settings_path, logging_prefix='BLACS')
             ct_match,error = self.connection_table.compare_to(saved_ct)
             
             with h5py.File(self.settings_path,'r') as hdf5_file:
@@ -328,7 +327,7 @@ class FrontPanelSettings(object):
         if save_conn_table:
             if 'connection table' in hdf5_file:
                 del hdf5_file['connection table']
-            hdf5_file.create_dataset('connection table',data=self.connection_table.table)
+            hdf5_file.create_dataset('connection table', data=self.connection_table.raw_table)
         
         data_group = hdf5_file['/'].create_group('front_panel')
         
