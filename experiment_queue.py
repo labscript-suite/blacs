@@ -896,7 +896,7 @@ class QueueManager(object):
             send_to_analysis = True
             for callback in self.get_callbacks('analysis_cancel_send'):
                 try:
-                    if callback(path) is True:
+                    if callback(path):
                         send_to_analysis = False
                         break
                 except Exception:
@@ -919,8 +919,18 @@ class QueueManager(object):
 
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
-            ########################################################################################################################################## 
-            if self.manager_repeat:
+            ##########################################################################################################################################
+            # check for repeat Filters in Plugins
+            repeat_shot = self.manager_repeat
+            for callback in self.get_callbacks('shot_ignore_repeat'):
+                try:
+                    if callback(path):
+                        repeat_shot = False
+                        break
+                except Exception:
+                    logger.exception("Plugin callback raised an exception")
+
+            if repeat_shot:
                 if ((self.manager_repeat_mode == self.REPEAT_ALL) or
                     (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
                     # Resubmit job to the bottom of the queue:
