@@ -45,7 +45,7 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.6.', '3')
+check_version('labscript_utils', '2.6.1', '3')
 check_version('qtutils', '2.0.0', '3.0.0')
 check_version('zprocess', '1.1.2', '3')
 check_version('labscript_devices', '2.0', '3')
@@ -150,7 +150,7 @@ from labscript_utils.settings import Settings
 #import settings_pages
 import blacs.plugins as plugins
 
-os.chdir(os.path.abspath(os.path.dirname(__file__)))
+from blacs import BLACS_DIR
 
 
 def set_win_appusermodel(window_id):
@@ -159,7 +159,7 @@ def set_win_appusermodel(window_id):
     executable = sys.executable.lower()
     if not executable.endswith('w.exe'):
         executable = executable.replace('.exe', 'w.exe')
-    relaunch_command = executable + ' ' + os.path.abspath(__file__.replace('.pyc', '.py'))
+    relaunch_command = executable + ' ' + os.path.join(BLACS_DIR, '__main__.py')
     relaunch_display_name = app_descriptions['blacs']
     set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
 
@@ -225,7 +225,7 @@ class BLACS(object):
         loader = UiLoader()
         loader.registerCustomWidget(QueueTreeview)
         #loader.registerCustomPromotion('BLACS',BLACSWindow)
-        self.ui = loader.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'main.ui'), BLACSWindow())
+        self.ui = loader.load(os.path.join(BLACS_DIR, 'main.ui'), BLACSWindow())
         logger.info('BLACS ui loaded')
         self.ui.blacs=self
         self.tab_widgets = {}
@@ -635,28 +635,29 @@ if __name__ == '__main__':
     if 'tracelog' in sys.argv:
         ##########
         import labscript_utils.tracelog
-        labscript_utils.tracelog.log('blacs_trace.log',['__main__','BLACS.tab_base_classes',
-                                        'qtutils',
-                                        'labscript_utils.qtwidgets.ddsoutput',
-                                        'labscript_utils.qtwidgets.analogoutput',
-                                        'BLACS.hardware_interfaces.ni_pcie_6363',
-                                        'BLACS.hardware_interfaces.output_classes',
-                                        'BLACS.device_base_class',
-                                        'BLACS.tab_base_classes',
-                                        'BLACS.plugins.connection_table',
-                                        'BLACS.recompile_and_restart',
-                                        'filewatcher',
-                                        'queue',
-                                        'notifications',
-                                        'connections',
-                                        'analysis_submission',
-                                        'settings',
-                                        'front_panel_settings',
-                                        'labscript_utils.h5_lock',
-                                        'labscript_utils.shared_drive',
-                                        'labscript_utils.labconfig',
-                                        'zprocess',
-                                       ], sub=True)
+        labscript_utils.tracelog.log(os.path.join(BLACS_DIR, 'blacs_trace.log'),
+                                     ['__main__','BLACS.tab_base_classes',
+                                      'qtutils',
+                                      'labscript_utils.qtwidgets.ddsoutput',
+                                      'labscript_utils.qtwidgets.analogoutput',
+                                      'BLACS.hardware_interfaces.ni_pcie_6363',
+                                      'BLACS.hardware_interfaces.output_classes',
+                                      'BLACS.device_base_class',
+                                      'BLACS.tab_base_classes',
+                                      'BLACS.plugins.connection_table',
+                                      'BLACS.recompile_and_restart',
+                                      'filewatcher',
+                                      'queue',
+                                      'notifications',
+                                      'connections',
+                                      'analysis_submission',
+                                      'settings',
+                                      'front_panel_settings',
+                                      'labscript_utils.h5_lock',
+                                      'labscript_utils.shared_drive',
+                                      'labscript_utils.labconfig',
+                                      'zprocess',
+                                     ], sub=True)
         ##########
 
 

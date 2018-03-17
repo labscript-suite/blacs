@@ -10,12 +10,7 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
 
-from labscript_utils.numpy_dtype_workaround import dtype_workaround
 import os
 import logging
 
@@ -80,9 +75,9 @@ class FrontPanelSettings(object):
                 dataset = hdf5_file['/front_panel'].get('_notebook_data',[])
                 
                 for row in dataset:
-                    tab_data.setdefault(row['tab_name'].astype('U'),{})
+                    tab_data.setdefault(row['tab_name'],{})
                     try:
-                        tab_data[row['tab_name'].astype('U')] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(row['data'].astype('U'))}
+                        tab_data[row['tab_name']] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(row['data'])}
                     except:
                         logger.info("Could not load tab data for %s"%row['tab_name'])
                 
@@ -97,10 +92,7 @@ class FrontPanelSettings(object):
                         columns = ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units']
                         data_dict = {}
                         for i in range(len(row)):
-                            if isinstance(row[i], bytes):
-                                data_dict[columns[i]] = row[i].astype('U')
-                            else:
-                                data_dict[columns[i]] = row[i]
+                            data_dict[columns[i]] = row[i]
                         settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
       
                 # Else Legacy restore from GTK save data!
@@ -114,14 +106,11 @@ class FrontPanelSettings(object):
                             columns = ['name', 'device_name', 'channel', 'base_value', 'locked', 'base_step_size', 'current_units']
                             data_dict = {}
                             for i in range(len(row)):
-                                if isinstance(row[i], bytes):
-                                    data_dict[columns[i]] = row[i].astype('U')
-                                else:
-                                    data_dict[columns[i]] = row[i]
+                                data_dict[columns[i]] = row[i]
                             settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
-        except Exception as e:
+        except Exception,e:
             logger.info("Could not load saved settings")
-            logger.info(str(e))
+            logger.info(e.message)
         return settings,question,error,tab_data
     
     def handle_return_code(self,row,result,settings,question,error):
@@ -339,12 +328,12 @@ class FrontPanelSettings(object):
             if 'connection table' in hdf5_file:
                 del hdf5_file['connection table']
             hdf5_file.create_dataset('connection table', data=self.connection_table.raw_table)
-
+        
         data_group = hdf5_file['/'].create_group('front_panel')
         
         front_panel_list = []
-        other_data_list = []
-        front_panel_dtype = dtype_workaround([('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')])
+        other_data_list = []       
+        front_panel_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
         max_od_length = 2 # empty dictionary
             
         # Iterate over each device within a class
@@ -377,7 +366,7 @@ class FrontPanelSettings(object):
                 
         # Save tab data
         i = 0
-        tab_data = numpy.empty(len(notebook_data),dtype=dtype_workaround([('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))]))
+        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))])
         for device_name,data in notebook_data.items():
             tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
             i += 1
