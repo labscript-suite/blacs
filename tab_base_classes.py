@@ -704,6 +704,8 @@ class Tab(object):
                             if not success:
                                 logger.info('Worker reported exception during job')
                                 now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+                                if PY2:
+                                    now = now.decode('utf-8')
                                 self.error_message += ('Exception in worker - %s:<br />' % now +
                                                '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             else:
@@ -733,6 +735,8 @@ class Tab(object):
             message = traceback.format_exc()
             logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+            if PY2:
+                now = now.decode('utf-8')
             self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
                            '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             
