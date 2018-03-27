@@ -773,6 +773,10 @@ class QueueManager(object):
                 try:
                     shutil.move('temp.h5', path)
                 except Exception:
+                    msg = ('Couldn\'t delete failed run file %s, ' % path + 
+                           'another process may be using it. Using alternate ' 
+                           'filename for second attempt.')
+                    logger.warning(msg, exc_info=True)
                     shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
@@ -872,6 +876,10 @@ class QueueManager(object):
                 try:
                     shutil.move('temp.h5', path)
                 except Exception:
+                    msg = ('Couldn\'t delete failed run file %s, ' % path + 
+                           'another process may be using it. Using alternate ' 
+                           'filename for second attempt.')
+                    logger.warning(msg, exc_info=True)
                     shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:

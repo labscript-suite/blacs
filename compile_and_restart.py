@@ -82,8 +82,11 @@ class CompileAndRestart(QDialog):
         if success:
             try:
                 shutil.move(self.tempfilename,self.output_path)
-            except Exception:
-                self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?\n', red=True)
+            except Exception as e:
+                msg = ('Couldn\'t replace existing connection table h5 file. ' + 
+                       'Is it open in another process? ' +
+                       'error was:\n %s\n') % str(e)
+                self.output_box.output(msg, red=True)
                 self.ui.label.setText('Compilation failed.')
                 self.ui.restart.setEnabled(False)
                 os.remove(self.tempfilename)
