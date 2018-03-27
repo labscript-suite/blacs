@@ -770,11 +770,9 @@ class QueueManager(object):
                 # clean the h5 file:
                 self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
-                    os.remove(path)
-                    os.rename('temp.h5', path)
-                except WindowsError if platform.system() == 'Windows' else None:
-                    logger.warning('Couldn\'t delete failed run file %s, another process may be using it. Using alternate filename for second attempt.'%path)
-                    os.rename('temp.h5', path.replace('.h5','_retry.h5'))
+                    shutil.move('temp.h5', path)
+                except Exception:
+                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
@@ -871,11 +869,9 @@ class QueueManager(object):
                 # clean the h5 file:
                 self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
                 try:
-                    os.remove(path)
-                    os.rename('temp.h5', path)
-                except WindowsError if platform.system() == 'Windows' else None:
-                    logger.warning('Couldn\'t delete failed run file %s, another process may be using it. Using alternate filename for second attempt.'%path)
-                    os.rename('temp.h5', path.replace('.h5','_retry.h5'))
+                    shutil.move('temp.h5', path)
+                except Exception:
+                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)

@@ -13,6 +13,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
+import shutil
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -80,13 +81,8 @@ class CompileAndRestart(QDialog):
         self.ui.cancel.setEnabled(True)
         if success:
             try:
-                os.remove(self.output_path)
-            except OSError:
-                 # File doesn't exist, no need to delete then:
-                pass
-            try:
-                os.rename(self.tempfilename,self.output_path)
-            except OSError:
+                shutil.move(self.tempfilename,self.output_path)
+            except Exception:
                 self.output_box.output('Couldn\'t replace existing connection table h5 file. Is it open in another process?\n', red=True)
                 self.ui.label.setText('Compilation failed.')
                 self.ui.restart.setEnabled(False)
@@ -106,19 +102,19 @@ class CompileAndRestart(QDialog):
                 os.remove(self.tempfilename)
             except Exception:
                 pass
-                
+
     def restart(self):
         #gobject.timeout_add(100, self.blacs.destroy)
         if self.close_notification_func:
             self.close_notification_func()
         QTimer.singleShot(100, self.blacs['ui'].close)
-        self.accept()        
+        self.accept()
         self.blacs['set_relaunch'](True)
-        
+
         #self.blacs.qt_application.aboutToQuit.connect(self.relaunch)
         #gtk.quit_add(0,self.relaunch)
-    
-        
+
+
 if __name__ == '__main__':
     #gtk.threads_init()
     globals_file = '/home/bilbo/labconfig/bilbo-laptop_calibrations.h5'
