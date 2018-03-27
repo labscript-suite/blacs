@@ -24,6 +24,7 @@ import platform
 import threading
 import time
 import sys
+import shutil
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
