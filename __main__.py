@@ -45,7 +45,7 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.6.1', '3')
+check_version('labscript_utils', '2.7.0', '3')
 check_version('qtutils', '2.0.0', '3.0.0')
 check_version('zprocess', '1.1.2', '3')
 check_version('labscript_devices', '2.0', '3')
@@ -56,7 +56,7 @@ check_version('labscript_devices', '2.0', '3')
 import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS')
 ###
-from zprocess import zmq_get, ZMQServer
+from zprocess import zmq_get, ZMQServer, raise_exception_in_thread
 from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 
@@ -273,16 +273,24 @@ class BLACS(object):
             getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
 
         logger.info('Instantiating devices')
+        self.failed_device_settings = {}
         for device_name, labscript_device_class_name in self.attached_devices.items():
-            self.settings_dict.setdefault(device_name,{"device_name":device_name})
-            # add common keys to settings:
-            self.settings_dict[device_name]["connection_table"] = self.connection_table
-            self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
-            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
-            # Instantiate the device
-            logger.info('instantiating %s'%device_name)
-            TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
-            self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
+            try:
+                self.settings_dict.setdefault(device_name,{"device_name":device_name})
+                # add common keys to settings:
+                self.settings_dict[device_name]["connection_table"] = self.connection_table
+                self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
+                self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
+                # Instantiate the device
+                logger.info('instantiating %s'%device_name)
+                TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
+                self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
+            except Exception:
+                self.failed_device_settings[device_name] = {"front_panel": self.settings_dict[device_name]["front_panel_settings"], "save_data": self.settings_dict[device_name]["saved_data"]}
+                del self.settings_dict[device_name]
+                del self.attached_devices[device_name]
+                self.connection_table.remove_device(device_name)
+                raise_exception_in_thread(sys.exc_info())
 
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
@@ -558,6 +566,13 @@ class BLACS(object):
         # Save front panel
         data = self.front_panel_settings.get_save_data()
 
+        if len(self.failed_device_settings) > 0:
+            message = ('Save data from broken tabs? \n Broken tabs are: \n {}'.format(list(self.failed_device_settings.keys())))
+            reply = QMessageBox.question(self.ui, 'Save broken tab data?', message,
+                                               QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                data[0].update(self.failed_device_settings)
+
         # with h5py.File(self.settings_path,'r+') as h5file:
            # if 'connection table' in h5file:
                # del h5file['connection table']
@@ -682,16 +697,8 @@ if __name__ == '__main__':
     # Create Connection Table object
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     connection_table_h5_file = exp_config.get('paths','connection_table_h5')
-    try:
-        connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS')
-    except Exception:
-        # dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%self.connection_table_h5file)
+    connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS')
 
-        # dialog.run()
-        # dialog.destroy()
-        logger.exception('connection table failed to load')
-        raise
-        sys.exit("Invalid Connection Table")
     logger.info('connection table loaded')
 
     qapplication = QApplication(sys.argv)
