@@ -10,13 +10,20 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    import Queue as queue
+    import cPickle as pickle
+else:
+    import queue
+    import pickle
 
 from zprocess import Process
-from Queue import Queue as Queue
 import time
 import sys
 import threading
-import cPickle
 import traceback
 import logging
 import cgi
@@ -74,8 +81,8 @@ class StateQueue(object):
         self.list_of_states = []
         self._last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
-        self.get_blocking_queue = Queue()  
-    
+        self.get_blocking_queue = queue.Queue()
+
     @property
     @inmain_decorator(True)    
     # This is always done in main so that we avoid a race condition between the get method and
@@ -117,8 +124,8 @@ class StateQueue(object):
         # So it's best if the queue is empty now!
         if self.logging_enabled:
             self.logger.debug('Re-initialsing self._get_blocking_queue')
-        self.get_blocking_queue = Queue()
-        
+        self.get_blocking_queue = queue.Queue()
+
         # traverse the list
         delete_index_list = []
         success = False
@@ -192,8 +199,12 @@ get_unique_id = Counter().get
 
 def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
     def wrap(function):
-        unescaped_name = function.__name__
-        escapedname = '_' + function.__name__
+        if PY2:
+            unescaped_name = function.__name__
+            escapedname = b'_' + function.__name__
+        else:
+            unescaped_name = function.__name__
+            escapedname = '_' + function.__name__
         if allowed_modes < 1 or allowed_modes > 15:
             raise RuntimeError('Function %s has been set to run in unknown states. Please make sure allowed states is one or more of MODE_MANUAL,'%unescaped_name+
             'MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL and MODE_BUFFERED (or-ed together using the | symbol, eg MODE_MANUAL|MODE_BUFFERED')
@@ -649,7 +660,10 @@ class Tab(object):
                     generator_running = True
                     break_main_loop = False
                     # get the data from the first yield function
-                    worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
+                    if PY2:
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
+                    else:
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.__next__)
                     # Continue until we get a StopIteration exception, or the user requests a restart
                     while generator_running:
                         try:
@@ -657,7 +671,7 @@ class Tab(object):
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
-                                cPickle.dumps(worker_arg_list)
+                                pickle.dumps(worker_arg_list)
                             except:
                                 self.error_message += 'Attempt to pass unserialisable object to child process:'
                                 raise
@@ -690,6 +704,8 @@ class Tab(object):
                             if not success:
                                 logger.info('Worker reported exception during job')
                                 now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+                                if PY2:
+                                    now = now.decode('utf-8')
                                 self.error_message += ('Exception in worker - %s:<br />' % now +
                                                '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             else:
@@ -719,6 +735,8 @@ class Tab(object):
             message = traceback.format_exc()
             logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+            if PY2:
+                now = now.decode('utf-8')
             self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
                            '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             
@@ -783,7 +801,7 @@ class Worker(Process):
                     self.logger.error('Exception in job:\n%s'%message)
                 # Check if results object is serialisable:
                 try:
-                    cPickle.dumps(results)
+                    pickle.dumps(results)
                 except:
                     message = traceback.format_exc()
                     self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)
@@ -918,14 +936,14 @@ class MyTab(Tab):
         
     @define_state(MODE_MANUAL,True)  
     def baz(self, button=None):
-        print threading.current_thread().name
+        print(threading.current_thread().name)
         self.logger.debug('entered baz')
         results = yield(self.queue_work('My worker','baz', 5,6,7,x='x',return_queue=self.checkbutton.isChecked()))
-        print results
-        print threading.current_thread().name
+        print(results)
+        print(threading.current_thread().name)
         results = yield(self.queue_work('My worker','baz', 4,6,7,x='x',return_queue=self.checkbutton.isChecked()))
-        print results
-        print threading.current_thread().name
+        print(results)
+        print(threading.current_thread().name)
         self.logger.debug('leaving baz')
         
     # This event shows what happens if you try to send a unpickleable
@@ -985,7 +1003,7 @@ class MyWorker(Worker):
         self.logger.debug('working on baz: time is %s'%repr(time.time()))
         time.sleep(0.5)
         if kwargs['return_queue']:
-            return Queue()
+            return queue.Queue()
         return 'results%d!!!'%zzz
 
 if __name__ == '__main__':
@@ -998,7 +1016,7 @@ if __name__ == '__main__':
     handler.setFormatter(formatter)
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
-    if sys.stdout.isatty():
+    if sys.stdout is not None and sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
         terminalhandler.setFormatter(formatter)
         terminalhandler.setLevel(logging.INFO)

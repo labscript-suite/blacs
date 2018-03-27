@@ -10,7 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import logging, logging.handlers
 import os
@@ -29,7 +32,7 @@ try:
         delay = int(sys.argv[sys.argv.index('--delay')+1])
         time.sleep(delay)
 except:
-    print 'You should specify "--delay x" where x is an integer'
+    print('You should specify "--delay x" where x is an integer')
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -571,11 +574,11 @@ class BLACS(object):
         logger.info('finalise_quit called')
         tab_close_timeout = 2
         # Kill any tabs which didn't close themselves:
-        for name, tab in self.tablist.items():
+        for name, tab in list(self.tablist.items()):
             if tab.destroy_complete:
                 del self.tablist[name]
         if self.tablist:
-            for name, tab in self.tablist.items():
+            for name, tab in list(self.tablist.items()):
                 # If a tab has a fatal error or is taking too long to close, force close it:
                 if (time.time() - initial_time > tab_close_timeout) or tab.state == 'fatal error':
                     try:
@@ -614,7 +617,7 @@ class BLACS(object):
 
 class ExperimentServer(ZMQServer):
     def handler(self, h5_filepath):
-        print h5_filepath
+        print(h5_filepath)
         message = self.process(h5_filepath)
         logger.info('Request handler: %s ' % message.strip())
         return message

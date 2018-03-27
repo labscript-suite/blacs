@@ -10,10 +10,16 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    import Queue as queue
+else:
+    import queue
 
 import logging
 import os
-import Queue
 import threading
 import time
 import sys
@@ -32,7 +38,7 @@ from blacs import BLACS_DIR
 
 class AnalysisSubmission(object):        
     def __init__(self, BLACS, blacs_ui):
-        self.inqueue = Queue.Queue()
+        self.inqueue = queue.Queue()
         self.BLACS = BLACS
         self.port = int(self.BLACS.exp_config.get('ports', 'lyse'))
         
@@ -183,7 +189,7 @@ class AnalysisSubmission(object):
             try:
                 try:
                     signal, data = self.inqueue.get(timeout=timeout)
-                except Queue.Empty:
+                except queue.Empty:
                     timeout = 10
                     # Periodic checking of connectivity and resending of files.
                     # Don't trigger a re-check if we already failed a connectivity

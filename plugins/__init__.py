@@ -10,6 +10,7 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
 import sys
@@ -29,7 +30,7 @@ if not exp_config.has_section('BLACS/plugins'):
 
 modules = {}
 for module_name in os.listdir(PLUGINS_DIR):
-    if os.path.isdir(os.path.join(PLUGINS_DIR, module_name)):
+    if os.path.isdir(os.path.join(PLUGINS_DIR, module_name)) and module_name != '__pycache__':
         # is it a new plugin?
         # If so lets add it to the config
         if not module_name in [name for name, val in exp_config.items('BLACS/plugins')]:
