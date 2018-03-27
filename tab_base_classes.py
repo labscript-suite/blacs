@@ -15,10 +15,10 @@ from labscript_utils import PY2
 if PY2:
     str = unicode
     import Queue as queue
-    import cPickle as _pickle
+    import cPickle as pickle
 else:
     import queue
-    import _pickle
+    import pickle
 
 from zprocess import Process
 import time
@@ -671,7 +671,7 @@ class Tab(object):
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
-                                _pickle.dumps(worker_arg_list)
+                                pickle.dumps(worker_arg_list)
                             except:
                                 self.error_message += 'Attempt to pass unserialisable object to child process:'
                                 raise
@@ -801,7 +801,7 @@ class Worker(Process):
                     self.logger.error('Exception in job:\n%s'%message)
                 # Check if results object is serialisable:
                 try:
-                    _pickle.dumps(results)
+                    pickle.dumps(results)
                 except:
                     message = traceback.format_exc()
                     self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)
