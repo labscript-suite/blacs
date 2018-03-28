@@ -271,6 +271,7 @@ class Tab(object):
 
         # Insert an OutputBox into the splitter, initially hidden:
         self._output_box = OutputBox(self._ui.splitter)
+        self._ui.splitter.setCollapsible(self._ui.splitter.count() - 2, True)
         self._output_box.output_textedit.hide()
 
         # connect signals
