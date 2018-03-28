@@ -345,7 +345,7 @@ class DeviceTab(Tab):
     def restore_builtin_save_data(self, data):
         """Restore builtin settings to be restored like whether the terminal is
         visible. Not to be overridden."""
-        self.set_terminal_visible(data.get('_terminal_visible', True))
+        self.set_terminal_visible(data.get('_terminal_visible', False))
         if '_splitter_sizes' in data:
             self._ui.splitter.setSizes(data['_splitter_sizes'])
 
