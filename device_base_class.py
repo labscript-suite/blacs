@@ -55,7 +55,9 @@ class DeviceTab(Tab):
         
         # Call the initialise GUI function
         self.initialise_GUI() 
-        self.restore_save_data(self.settings['saved_data'] if 'saved_data' in self.settings else {})
+        save_data = self.settings.get('saved_data', {})
+        self.restore_save_data(save_data)
+        self.restore_builtin_save_data(save_data)
         self.initialise_workers()
         self._last_programmed_values = self.get_front_panel_values()
         if self._can_check_remote_values:
@@ -317,7 +319,7 @@ class DeviceTab(Tab):
     
     def update_from_settings(self,settings):
         self.restore_save_data(settings['saved_data'])
-    
+        self.restore_builtin_save_data(settings['saved_data'])
         self.settings = settings
         for output in [self._AO,self._DO]:
             for name,channel in output.items():
@@ -330,10 +332,23 @@ class DeviceTab(Tab):
                     subchnl = getattr(channel,subchnl_name)
                     if not subchnl._locked:
                         subchnl._update_from_settings(settings)
-    
+
     def get_front_panel_values(self):
         return {channel:item.value for output in [self._AO,self._DO,self._DDS] for channel,item in output.items()}
     
+    def get_builtin_save_data(self):
+        """Get builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        return {'_terminal_visible': self._ui.button_show_terminal.isChecked(),
+                '_splitter_sizes': self._ui.splitter.sizes()}
+
+    def restore_builtin_save_data(self, data):
+        """Restore builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        self.set_terminal_visible(data.get('_terminal_visible', True))
+        if '_splitter_sizes' in data:
+            self._ui.splitter.setSizes(data['_splitter_sizes'])
+
     def get_channel(self,channel):
         if channel in self._AO:
             return self._AO[channel]

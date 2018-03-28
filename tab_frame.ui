@@ -33,7 +33,7 @@
     <number>0</number>
    </property>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0,0">
      <property name="spacing">
       <number>6</number>
      </property>
@@ -74,6 +74,23 @@ all buffered instructions next shot</string>
        <property name="icon">
         <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
          <normaloff>:/qtutils/fugue/brain--minus.png</normaloff>:/qtutils/fugue/brain--minus.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="button_show_terminal">
+       <property name="toolTip">
+        <string>Show terminal output from the worker process(es)</string>
+       </property>
+       <property name="text">
+        <string>...</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+         <normaloff>:/qtutils/fugue/terminal.png</normaloff>:/qtutils/fugue/terminal.png</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
