@@ -918,15 +918,14 @@ class PluginTab(object):
     def initialise_GUI(self):
         return
 
-    # This method should be overridden in your device class if you want to save any data not
-    # stored in an AO, DO or DDS object
+    # This method should be overridden in your plugin class if you want to save any data
     # This method should return a dictionary, and this dictionary will be passed to the restore_save_data()
     # method when the tab is initialised
     def get_save_data(self):
         return {}
 
-    # This method should be overridden in your device class if you want to restore data
-    # (saved by get_save_data()) when teh tab is initialised.
+    # This method should be overridden in your plugin class if you want to restore data
+    # (saved by get_save_data()) when the tab is initialised.
     # You will be passed a dictionary of the form specified by your get_save_data() method
     #
     # Note: You must handle the case where the data dictionary is empty (or one or more keys are missing)
@@ -936,6 +935,9 @@ class PluginTab(object):
 
     def update_from_settings(self,settings):
         self.restore_save_data(settings['saved_data'])
+
+    def get_builtin_save_data(self):
+        return {}
 
     def destroy(self):
         self.close_tab()
