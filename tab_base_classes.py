@@ -284,6 +284,9 @@ class Tab(object):
         self._update_error_and_tab_icon()
         self.supports_smart_programming(False)
         
+        # Restore settings:
+        self.restore_builtin_save_data(self.settings.get('saved_data', {}))
+
         # This should be done beofre the main_loop starts or else there is a race condition as to whether the 
         # self._mode variable is even defined!
         # However it must be done after the UI is created!
@@ -304,6 +307,22 @@ class Tab(object):
         self.notebook.addTab(self._ui,self.device_name)
         self._ui.show()
     
+    def get_builtin_save_data(self):
+        """Get builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        return {'_terminal_visible': self._ui.button_show_terminal.isChecked(),
+                '_splitter_sizes': self._ui.splitter.sizes()}
+
+    def restore_builtin_save_data(self, data):
+        """Restore builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        self.set_terminal_visible(data.get('_terminal_visible', False))
+        if '_splitter_sizes' in data:
+            self._ui.splitter.setSizes(data['_splitter_sizes'])
+
+    def update_from_settings(self, settings):
+        self.restore_builtin_save_data(settings['saved_data'])
+
     def supports_smart_programming(self,support):
         self._supports_smart_programming = bool(support)
         if self._supports_smart_programming:
