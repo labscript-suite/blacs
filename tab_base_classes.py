@@ -10,13 +10,20 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    import Queue as queue
+    import cPickle as pickle
+else:
+    import queue
+    import pickle
 
 from zprocess import Process
-from Queue import Queue as Queue
 import time
 import sys
 import threading
-import cPickle
 import traceback
 import logging
 import cgi
@@ -30,10 +37,11 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from qtutils import *
-
+from qtutils.outputbox import OutputBox
 import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
+from blacs import BLACS_DIR
 
 class Counter(object):
     """A class with a single method that 
@@ -73,8 +81,8 @@ class StateQueue(object):
         self.list_of_states = []
         self._last_requested_state = None
         # A queue that blocks the get(requested_state) method until an entry in the queue has a state that matches the requested_state
-        self.get_blocking_queue = Queue()  
-    
+        self.get_blocking_queue = queue.Queue()
+
     @property
     @inmain_decorator(True)    
     # This is always done in main so that we avoid a race condition between the get method and
@@ -116,8 +124,8 @@ class StateQueue(object):
         # So it's best if the queue is empty now!
         if self.logging_enabled:
             self.logger.debug('Re-initialsing self._get_blocking_queue')
-        self.get_blocking_queue = Queue()
-        
+        self.get_blocking_queue = queue.Queue()
+
         # traverse the list
         delete_index_list = []
         success = False
@@ -191,8 +199,12 @@ get_unique_id = Counter().get
 
 def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
     def wrap(function):
-        unescaped_name = function.__name__
-        escapedname = '_' + function.__name__
+        if PY2:
+            unescaped_name = function.__name__
+            escapedname = b'_' + function.__name__
+        else:
+            unescaped_name = function.__name__
+            escapedname = '_' + function.__name__
         if allowed_modes < 1 or allowed_modes > 15:
             raise RuntimeError('Function %s has been set to run in unknown states. Please make sure allowed states is one or more of MODE_MANUAL,'%unescaped_name+
             'MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL and MODE_BUFFERED (or-ed together using the | symbol, eg MODE_MANUAL|MODE_BUFFERED')
@@ -246,7 +258,7 @@ class Tab(object):
         self._restart_receiver = []
         
         # Load the UI
-        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'tab_frame.ui'))
+        self._ui = UiLoader().load(os.path.join(BLACS_DIR, 'tab_frame.ui'))
         self._layout = self._ui.device_layout
         self._device_widget = self._ui.device_controls
         self._changed_widget = self._ui.changed_widget
@@ -256,15 +268,25 @@ class Tab(object):
         self._ui.device_name.setText("<b>%s</b> [conn: %s]"%(str(self.device_name),str(self.BLACS_connection)))
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
         elide_label(self._ui.state_label, self._ui.state_label_layout, Qt.ElideRight)
+
+        # Insert an OutputBox into the splitter, initially hidden:
+        self._output_box = OutputBox(self._ui.splitter)
+        self._ui.splitter.setCollapsible(self._ui.splitter.count() - 2, True)
+        self._output_box.output_textedit.hide()
+
         # connect signals
         self._ui.button_clear_smart_programming.clicked.connect(self.on_force_full_buffered_reprogram)
         self._ui.button_clear_smart_programming.setEnabled(False)
         self.force_full_buffered_reprogram = True
+        self._ui.button_show_terminal.toggled.connect(self.set_terminal_visible)
         self._ui.button_close.clicked.connect(self.hide_error)
         self._ui.button_restart.clicked.connect(self.restart)        
         self._update_error_and_tab_icon()
         self.supports_smart_programming(False)
         
+        # Restore settings:
+        self.restore_builtin_save_data(self.settings.get('saved_data', {}))
+
         # This should be done beofre the main_loop starts or else there is a race condition as to whether the 
         # self._mode variable is even defined!
         # However it must be done after the UI is created!
@@ -285,6 +307,22 @@ class Tab(object):
         self.notebook.addTab(self._ui,self.device_name)
         self._ui.show()
     
+    def get_builtin_save_data(self):
+        """Get builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        return {'_terminal_visible': self._ui.button_show_terminal.isChecked(),
+                '_splitter_sizes': self._ui.splitter.sizes()}
+
+    def restore_builtin_save_data(self, data):
+        """Restore builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        self.set_terminal_visible(data.get('_terminal_visible', False))
+        if '_splitter_sizes' in data:
+            self._ui.splitter.setSizes(data['_splitter_sizes'])
+
+    def update_from_settings(self, settings):
+        self.restore_builtin_save_data(settings['saved_data'])
+
     def supports_smart_programming(self,support):
         self._supports_smart_programming = bool(support)
         if self._supports_smart_programming:
@@ -415,7 +453,7 @@ class Tab(object):
             # not in a worker process named GUI
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         
-        worker = WorkerClass()
+        worker = WorkerClass(output_redirection_port=self._output_box.port)
         to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
         self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
@@ -583,7 +621,14 @@ class Tab(object):
     
     def queue_work(self,worker_process,worker_function,*args,**kwargs):
         return worker_process,worker_function,args,kwargs
-            
+        
+    def set_terminal_visible(self, visible):
+        if visible:
+            self._output_box.output_textedit.show()
+        else:
+            self._output_box.output_textedit.hide()
+        self._ui.button_show_terminal.setChecked(visible)
+
     def hide_error(self):
         # dont show the error again until the not responding time has doubled:
         self.hide_not_responding_error_until = 2*self.not_responding_for
@@ -648,7 +693,10 @@ class Tab(object):
                     generator_running = True
                     break_main_loop = False
                     # get the data from the first yield function
-                    worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
+                    if PY2:
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
+                    else:
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.__next__)
                     # Continue until we get a StopIteration exception, or the user requests a restart
                     while generator_running:
                         try:
@@ -656,7 +704,7 @@ class Tab(object):
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
-                                cPickle.dumps(worker_arg_list)
+                                pickle.dumps(worker_arg_list)
                             except:
                                 self.error_message += 'Attempt to pass unserialisable object to child process:'
                                 raise
@@ -689,6 +737,8 @@ class Tab(object):
                             if not success:
                                 logger.info('Worker reported exception during job')
                                 now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+                                if PY2:
+                                    now = now.decode('utf-8')
                                 self.error_message += ('Exception in worker - %s:<br />' % now +
                                                '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             else:
@@ -718,6 +768,8 @@ class Tab(object):
             message = traceback.format_exc()
             logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
+            if PY2:
+                now = now.decode('utf-8')
             self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
                            '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             
@@ -782,7 +834,7 @@ class Worker(Process):
                     self.logger.error('Exception in job:\n%s'%message)
                 # Check if results object is serialisable:
                 try:
-                    cPickle.dumps(results)
+                    pickle.dumps(results)
                 except:
                     message = traceback.format_exc()
                     self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)
@@ -1011,14 +1063,14 @@ class MyTab(Tab):
         
     @define_state(MODE_MANUAL,True)  
     def baz(self, button=None):
-        print threading.current_thread().name
+        print(threading.current_thread().name)
         self.logger.debug('entered baz')
         results = yield(self.queue_work('My worker','baz', 5,6,7,x='x',return_queue=self.checkbutton.isChecked()))
-        print results
-        print threading.current_thread().name
+        print(results)
+        print(threading.current_thread().name)
         results = yield(self.queue_work('My worker','baz', 4,6,7,x='x',return_queue=self.checkbutton.isChecked()))
-        print results
-        print threading.current_thread().name
+        print(results)
+        print(threading.current_thread().name)
         self.logger.debug('leaving baz')
         
     # This event shows what happens if you try to send a unpickleable
@@ -1078,7 +1130,7 @@ class MyWorker(Worker):
         self.logger.debug('working on baz: time is %s'%repr(time.time()))
         time.sleep(0.5)
         if kwargs['return_queue']:
-            return Queue()
+            return queue.Queue()
         return 'results%d!!!'%zzz
 
 if __name__ == '__main__':
@@ -1086,12 +1138,12 @@ if __name__ == '__main__':
     import logging.handlers
     # Setup logging:
     logger = logging.getLogger('BLACS')
-    handler = logging.handlers.RotatingFileHandler('BLACS.log', maxBytes=1024**2, backupCount=0)
+    handler = logging.handlers.RotatingFileHandler(os.path.join(BLACS_DIR, 'BLACS.log'), maxBytes=1024**2, backupCount=0)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
     handler.setFormatter(formatter)
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
-    if sys.stdout.isatty():
+    if sys.stdout is not None and sys.stdout.isatty():
         terminalhandler = logging.StreamHandler(sys.stdout)
         terminalhandler.setFormatter(formatter)
         terminalhandler.setLevel(logging.INFO)

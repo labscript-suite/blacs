@@ -10,6 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import logging
 import os
@@ -23,6 +27,7 @@ from qtutils.qt.QtWidgets import *
 from blacs.compile_and_restart import CompileAndRestart
 from labscript_utils.filewatcher import FileWatcher
 from qtutils import *
+from blacs.plugins import PLUGINS_DIR
 
 FILEPATH_COLUMN = 0
 name = "Connection Table"
@@ -40,14 +45,14 @@ class Plugin(object):
         return Menu
         
     def get_notification_classes(self):
-        return [Notification]
-        
+        return [RecompileNotification, BrokenDevicesNotification]
+
     def get_setting_classes(self):
         return [Setting]
         
     def get_callbacks(self):
-        return {'settings_changed':self.notifications[Notification].setup_filewatching}
-        
+        return {'settings_changed':self.notifications[RecompileNotification].setup_filewatching}
+
     def set_menu_instance(self,menu):
         self.menu = menu
         
@@ -57,16 +62,21 @@ class Plugin(object):
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
         modified_times = self.initial_settings['modified_times'] if 'modified_times' in self.initial_settings else None
-        self.notifications[Notification].setup_filewatching(modified_times)
-        self.menu.close_notification_func = self.notifications[Notification]._close
-        if 'visible' in self.initial_settings and self.initial_settings['visible']:
-            self.notifications[Notification]._show()
-    
+        self.notifications[RecompileNotification].setup_filewatching(modified_times)
+        self.menu.close_notification_func = self.notifications[RecompileNotification]._close
+        failed_devices = list(self.BLACS['experiment_queue'].BLACS.failed_device_settings.keys())
+        if ('visible' in self.initial_settings and self.initial_settings['visible']) or len(failed_devices) > 0:
+            self.notifications[RecompileNotification]._show()
+            if len(failed_devices) > 0:
+                self.notifications[BrokenDevicesNotification].set_broken_devices(failed_devices)
+                self.notifications[BrokenDevicesNotification]._show()
+
     def get_save_data(self):
-        return self.notifications[Notification].get_save_data()
-    
+        return self.notifications[RecompileNotification].get_save_data()
+
     def close(self):
-        self.notifications[Notification].close()
+        self.notifications[RecompileNotification].close()
+        self.notifications[BrokenDevicesNotification].close()
 
 class Menu(object):
     def __init__(self,BLACS):
@@ -91,7 +101,7 @@ class Menu(object):
                }
     
     def on_select_globals(self,*args,**kwargs):
-        print 'aaaaaa'
+        print('aaaaaa')
         self.BLACS['settings'].create_dialog(goto_page=Setting)
       
     def on_edit_connection_table(self,*args,**kwargs):
@@ -118,9 +128,39 @@ class Menu(object):
         for i in range(len(globals_files)):
             globals_files[i] = str(globals_files[i])
         CompileAndRestart(self.BLACS, globals_files, self.BLACS['exp_config'].get('paths','connection_table_py'), self.BLACS['exp_config'].get('paths','connection_table_h5'),close_notification_func=self.close_notification_func)
-     
-    
-class Notification(object):
+
+
+class BrokenDevicesNotification(object):
+    name = 'Device initialization failed'
+    def __init__(self, BLACS):
+        # Create the widget
+        self._ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'broken_device_notification.ui'))
+
+    def get_widget(self):
+        return self._ui
+
+    def set_broken_devices(self, device_names):
+        self._ui.label.setText('''<html><head/><body><span style=" font-weight:600; color:#ff0000;">BLACS failed to initialize some of your devices.
+            It is advised that you solve this problem before using BLACS.
+            The devices causing problems were: {}</span></body></html>'''.format(', '.join(device_names)))
+
+    def get_properties(self):
+        return {'can_hide':False, 'can_close':False}
+
+    def set_functions(self,show_func,hide_func,close_func,get_state):
+        self._show = show_func
+        self._hide = hide_func
+        self._close = close_func
+        self._get_state = get_state
+
+    def get_save_data(self):
+        return {}
+
+    def close(self):
+        pass
+
+
+class RecompileNotification(object):
     name = name
     def __init__(self, BLACS):
         # set up the file watching
@@ -128,7 +168,7 @@ class Notification(object):
         self.filewatcher = None
         
         # Create the widget
-        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'notification.ui'))
+        self._ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'notification.ui'))
         self._ui.button.clicked.connect(self.on_recompile_connection_table)
         #self._ui.hide()
             
@@ -198,7 +238,7 @@ class Setting(object):
         
     # Create the page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'connection_table.ui'))
+        ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'connection_table.ui'))
         
         # Create the models, get the views, and link them!!
         self.models = {}

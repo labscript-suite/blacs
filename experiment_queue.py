@@ -1,6 +1,6 @@
 #####################################################################
 #                                                                   #
-# /queue.py                                                         #
+# /experiment_queue.py                                                         #
 #                                                                   #
 # Copyright 2013, Monash University                                 #
 #                                                                   #
@@ -10,14 +10,21 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    import Queue as queue
+else:
+    import queue
 
 import logging
 import os
 import platform
-import Queue
 import threading
 import time
 import sys
+import shutil
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -30,9 +37,8 @@ zprocess.locking.set_client_process_name('BLACS.queuemanager')
 from qtutils import *
 
 from labscript_utils.qtwidgets.elide_label import elide_label
+from labscript_utils.connections import ConnectionTable
 
-# Connection Table Code
-from connections import ConnectionTable
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 
 FILEPATH_COLUMN = 0
@@ -115,6 +121,7 @@ class QueueManager(object):
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
+        self._ui.queue_clear_button.clicked.connect(self._toggle_clear)
         self._ui.actionAdd_to_queue.triggered.connect(self.on_add_shots_triggered)
         self._ui.queue_add_button.setDefaultAction(self._ui.actionAdd_to_queue)
         self._ui.queue_push_up.clicked.connect(self._move_up)
@@ -146,7 +153,9 @@ class QueueManager(object):
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
         self.manager.start()
-    
+
+        self._callbacks = None
+
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
         
@@ -192,7 +201,11 @@ class QueueManager(object):
         
     def _toggle_pause(self,checked):    
         self.manager_paused = checked
-    
+
+    def _toggle_clear(self):
+        self._model.clear()
+        self._create_headers()
+
     @property
     @inmain_decorator(True)
     def manager_paused(self):
@@ -237,11 +250,34 @@ class QueueManager(object):
             button.setIcon(QIcon(self.ICON_REPEAT))
         elif value == self.REPEAT_LAST:
             button.setIcon(QIcon(self.ICON_REPEAT_LAST))
-        
+
+    @inmain_decorator(True)
+    def get_callbacks(self, name, update_cache=False):
+        if update_cache or self._callbacks is None:
+            self._callbacks = {}
+            try:
+                for plugin in self.BLACS.plugins.values():
+                    callbacks = plugin.get_callbacks()
+                    if isinstance(callbacks, dict):
+                        for callback_name, callback in callbacks.items():
+                            if callback_name not in self._callbacks:
+                                self._callbacks[callback_name] = []
+                            self._callbacks[callback_name].append(callback)
+            except Exception as e:
+                self._logger.exception('A Error occurred during get_callbacks.')
+
+        if name in self._callbacks:
+            return self._callbacks[name]
+        else:
+            return []
+
     def on_add_shots_triggered(self):
         shot_files = QFileDialog.getOpenFileNames(self._ui, 'Select shot files',
                                                   self.last_opened_shots_folder,
                                                   "HDF5 files (*.h5)")
+        if isinstance(shot_files, tuple):
+            shot_files, _ = shot_files
+
         if not shot_files:
             # User cancelled selection
             return
@@ -357,8 +393,8 @@ class QueueManager(object):
     def process_request(self,h5_filepath):
         # check connection table
         try:
-            new_conn = ConnectionTable(h5_filepath)
-        except:
+            new_conn = ConnectionTable(h5_filepath, logging_prefix='BLACS')
+        except Exception:
             return "H5 file not accessible to Control PC\n"
         result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
         if result:
@@ -370,11 +406,11 @@ class QueueManager(object):
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath = self.new_rep_name(h5_filepath)
+                new_h5_filepath, repeat_number = self.new_rep_name(h5_filepath)
                 # Keep counting up until we get a filename that isn't in the filesystem:
                 while os.path.exists(new_h5_filepath):
-                    new_h5_filepath = self.new_rep_name(new_h5_filepath)
-                success = self.clean_h5_file(h5_filepath, new_h5_filepath)
+                    new_h5_filepath, repeat_number = self.new_rep_name(new_h5_filepath)
+                success = self.clean_h5_file(h5_filepath, new_h5_filepath, repeat_number=repeat_number)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
                 self.append([new_h5_filepath])
@@ -400,15 +436,20 @@ class QueueManager(object):
                        "The error was %s\n"%error)
             return message
             
-    
-    def new_rep_name(self,h5_filepath):
-        basename = os.path.basename(h5_filepath).split('.h5')[0]
-        if '_rep' in basename:
-            reps = int(basename.split('_rep')[1])
-            return h5_filepath.split('_rep')[-2] + '_rep%05d.h5'% (int(reps) + 1)
-        return h5_filepath.split('.h5')[0] + '_rep%05d.h5'%1
+    def new_rep_name(self, h5_filepath):
+        basename, ext = os.path.splitext(h5_filepath)
+        if '_rep' in basename and ext == '.h5':
+            reps = basename.split('_rep')[-1]
+            try:
+                reps = int(reps)
+            except ValueError:
+                # not a rep
+                pass
+            else:
+                return ''.join(basename.split('_rep')[:-1]) + '_rep%05d.h5' % (reps + 1), reps + 1
+        return basename + '_rep%05d.h5' % 1, 1
         
-    def clean_h5_file(self,h5file,new_h5_file):
+    def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
         try:
             with h5py.File(h5file,'r') as old_file:
                 with h5py.File(new_h5_file,'w') as new_file:
@@ -419,9 +460,10 @@ class QueueManager(object):
                             new_file.copy(old_file[group], group)
                     for name in old_file.attrs:
                         new_file.attrs[name] = old_file.attrs[name]
+                    new_file.attrs['run repeat'] = repeat_number
         except Exception as e:
             #raise
-            self._logger.error('Clean H5 File Error: %s' %str(e))
+            self._logger.exception('Clean H5 File Error.')
             return False
             
         return True
@@ -480,8 +522,8 @@ class QueueManager(object):
         # communicate with tabs, so that abort signals can be put
         # to it when those tabs never respond and are restarted by
         # the user.
-        self.current_queue = Queue.Queue()
-        
+        self.current_queue = queue.Queue()
+
         #TODO: put in general configuration
         timeout_limit = 300 #seconds
         self.set_status("Idle")
@@ -509,8 +551,8 @@ class QueueManager(object):
             devices_in_use = {}
             transition_list = {}   
             start_time = time.time()
-            self.current_queue = Queue.Queue()   
-            
+            self.current_queue = queue.Queue()
+
             # Function to be run when abort button is clicked
             def abort_function():
                 try:
@@ -545,9 +587,9 @@ class QueueManager(object):
                                 
                 
                 with h5py.File(path,'r') as hdf5_file:
-                    h5_file_devices = hdf5_file['devices/'].keys()
-                
-                for name in h5_file_devices: 
+                    h5_file_devices = list(hdf5_file['devices/'].keys())
+
+                for name in h5_file_devices:
                     try:
                         # Connect restart signal from tabs to current_queue and transition the device to buffered mode
                         success = self.transition_device_to_buffered(name,transition_list,path,restart_function)
@@ -556,7 +598,7 @@ class QueueManager(object):
                             error_condition = True
                             break
                     except Exception as e:
-                        logger.error('Exception while transitioning %s to buffered mode. Exception was: %s'%(name,str(e)))
+                        logger.exception('Exception while transitioning %s to buffered mode.'%(name))
                         error_condition = True
                         break
                         
@@ -591,9 +633,9 @@ class QueueManager(object):
                             logger.error('%s has an error condition, aborting run' % device_name)
                             error_condition = True
                             break
-                            
-                        del transition_list[device_name]                   
-                    except Queue.Empty:
+
+                        del transition_list[device_name]
+                    except queue.Empty:
                         # It's been 2 seconds without a device finishing
                         # transitioning to buffered. Is there an error?
                         for name in transition_list:
@@ -628,7 +670,7 @@ class QueueManager(object):
                         
                     # Abort the run for all devices in use:
                     # need to recreate the queue here because we don't want to hear from devices that are still transitioning to buffered mode
-                    self.current_queue = Queue.Queue()
+                    self.current_queue = queue.Queue()
                     for tab in devices_in_use.values():                        
                         # We call abort buffered here, because if each tab is either in mode=BUFFERED or transition_to_buffered failed in which case
                         # it should have called abort_transition_to_buffered itself and returned to manual mode
@@ -658,7 +700,7 @@ class QueueManager(object):
                 self.set_status("Running (program time: %.3fs)..."%(time.time() - start_time), path)
                     
                 # A Queue for event-based notification of when the experiment has finished.
-                experiment_finished_queue = Queue.Queue()               
+                experiment_finished_queue = queue.Queue()
                 logger.debug('About to start the master pseudoclock')
                 run_time = time.localtime()
                 #TODO: fix potential race condition if BLACS is closing when this line executes?
@@ -672,7 +714,7 @@ class QueueManager(object):
                 while not (abort or restarted or done):
                     try:
                         done = experiment_finished_queue.get(timeout=0.5) == 'done'
-                    except Queue.Empty:
+                    except queue.Empty:
                         pass
                     try:
                         # Poll self.current_queue for abort signal from button or device restart
@@ -685,7 +727,7 @@ class QueueManager(object):
                         for device_name, tab in devices_in_use.items():
                             if self.get_device_error_state(device_name,devices_in_use):
                                 restarted = True
-                    except Queue.Empty:
+                    except queue.Empty:
                         pass
                         
                 if abort or restarted:
@@ -720,20 +762,28 @@ class QueueManager(object):
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 # clean up the h5 file
                 self.manager_paused = True
-                # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5')
+                # is this a repeat?
                 try:
-                    os.remove(path)
-                    os.rename('temp.h5', path)
-                except WindowsError if platform.system() == 'Windows' else None:
-                    logger.warning('Couldn\'t delete failed run file %s, another process may be using it. Using alternate filename for second attempt.'%path)
-                    os.rename('temp.h5', path.replace('.h5','_retry.h5'))
+                    with h5py.File(path, 'r') as h5_file:
+                        repeat_number = h5_file.attrs.get('run repeat', 0)
+                except:
+                    repeat_numer = 0
+                # clean the h5 file:
+                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
+                try:
+                    shutil.move('temp.h5', path)
+                except Exception:
+                    msg = ('Couldn\'t delete failed run file %s, ' % path + 
+                           'another process may be using it. Using alternate ' 
+                           'filename for second attempt.')
+                    logger.warning(msg, exc_info=True)
+                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
                 
                 # Need to put devices back in manual mode
-                self.current_queue = Queue.Queue()
+                self.current_queue = queue.Queue()
                 for devicename, tab in devices_in_use.items():
                     if tab.mode == MODE_BUFFERED or tab.mode == MODE_TRANSITION_TO_BUFFERED:
                         tab.abort_buffered(self.current_queue)
@@ -761,14 +811,14 @@ class QueueManager(object):
             try:
                 with h5py.File(path,'r+') as hdf5_file:
                     self.BLACS.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table = False)
-                with h5py.File(path,'r+') as hdf5_file:
+
                     data_group = hdf5_file['/'].create_group('data')
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
         
                 # A Queue for event-based notification of when the devices have transitioned to static mode:
-                # Shouldn't need to recreate the queue: self.current_queue = Queue.Queue()    
-                    
+                # Shouldn't need to recreate the queue: self.current_queue = queue.Queue()
+
                 # TODO: unserialise this if everything is using zprocess.locking
                 # only transition one device to static at a time,
                 # since writing data to the h5 file can potentially
@@ -812,17 +862,25 @@ class QueueManager(object):
                 # Raise the error in a thread for visibility
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 
-            if error_condition:
+            if error_condition:                
                 # clean up the h5 file
                 self.manager_paused = True
-                # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5')
+                # is this a repeat?
                 try:
-                    os.remove(path)
-                    os.rename('temp.h5', path)
-                except WindowsError if platform.system() == 'Windows' else None:
-                    logger.warning('Couldn\'t delete failed run file %s, another process may be using it. Using alternate filename for second attempt.'%path)
-                    os.rename('temp.h5', path.replace('.h5','_retry.h5'))
+                    with h5py.File(path, 'r') as h5_file:
+                        repeat_number = h5_file.attrs.get('run repeat', 0)
+                except:
+                    repeat_number = 0
+                # clean the h5 file:
+                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
+                try:
+                    shutil.move('temp.h5', path)
+                except Exception:
+                    msg = ('Couldn\'t delete failed run file %s, ' % path + 
+                           'another process may be using it. Using alternate ' 
+                           'filename for second attempt.')
+                    logger.warning(msg, exc_info=True)
+                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
@@ -830,7 +888,7 @@ class QueueManager(object):
                 # Need to put devices back in manual mode. Since the experiment is over before this try/except block begins, we can 
                 # safely call transition_to_manual() on each device tab
                 # TODO: Not serialised...could be bad with older BIAS versions :(
-                self.current_queue = Queue.Queue()
+                self.current_queue = queue.Queue()
                 for devicename, tab in devices_in_use.items():
                     if tab.mode == MODE_BUFFERED:
                         tab.transition_to_manual(self.current_queue)
@@ -843,13 +901,46 @@ class QueueManager(object):
             #                                                        Analysis Submission                                                             #
             ########################################################################################################################################## 
             logger.info('All devices are back in static mode.')  
+
+            # check for analysis Filters in Plugins
+            send_to_analysis = True
+            for callback in self.get_callbacks('analysis_cancel_send'):
+                try:
+                    if callback(path):
+                        send_to_analysis = False
+                        break
+                except Exception:
+                    logger.exception("Plugin callback raised an exception")
+
             # Submit to the analysis server
-            self.BLACS.analysis_submission.get_queue().put(['file', path])
-             
+            if send_to_analysis:
+                self.BLACS.analysis_submission.get_queue().put(['file', path])
+
+            ##########################################################################################################################################
+            #                                                        Plugin callbacks                                                                #
+            ########################################################################################################################################## 
+            for plugin in self.BLACS.plugins.values():
+                callbacks = plugin.get_callbacks()
+                if isinstance(callbacks, dict) and 'shot_complete' in callbacks:
+                    try:
+                        callbacks['shot_complete'](path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
             ##########################################################################################################################################
             #                                                        Repeat Experiment?                                                              #
-            ########################################################################################################################################## 
-            if self.manager_repeat:
+            ##########################################################################################################################################
+            # check for repeat Filters in Plugins
+            repeat_shot = self.manager_repeat
+            for callback in self.get_callbacks('shot_ignore_repeat'):
+                try:
+                    if callback(path):
+                        repeat_shot = False
+                        break
+                except Exception:
+                    logger.exception("Plugin callback raised an exception")
+
+            if repeat_shot:
                 if ((self.manager_repeat_mode == self.REPEAT_ALL) or
                     (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
                     # Resubmit job to the bottom of the queue:
@@ -857,7 +948,7 @@ class QueueManager(object):
                         message = self.process_request(path)
                     except Exception:
                         # TODO: make this error popup for the user
-                        self.logger.error('Failed to copy h5_file (%s) for repeat run'%s)
+                        self.logger.exception('Failed to copy h5_file (%s) for repeat run'%s)
                     logger.info(message)      
 
             self.set_status("Idle")

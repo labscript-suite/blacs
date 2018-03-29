@@ -10,6 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import logging
 import math
@@ -21,13 +25,13 @@ from qtutils.qt.QtWidgets import *
 
 
 from labscript_utils.qtwidgets.analogoutput import AnalogOutput
-from labscript_utils.qtwidgets.digitaloutput import DigitalOutput
+from labscript_utils.qtwidgets.digitaloutput import DigitalOutput, InvertedDigitalOutput
 from labscript_utils.qtwidgets.ddsoutput import DDSOutput
 try:
     from labscript_utils.unitconversions import *
 except Exception:
-    print 'failed to import unit conversion classes'
-    
+    print('failed to import unit conversion classes')
+
 
 class AO(object):
     def __init__(self, hardware_name, connection_name, device_name, program_function, settings, calib_class, calib_params, default_units, min, max, step, decimals):
@@ -438,8 +442,8 @@ class DO(object):
         self._widget_list = []
         
         self._device_name = device_name
-        self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name)) 
-                
+        self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name))
+
         # Note that while we could store self._current_state and self._locked in the
         # settings dictionary, this dictionary is available to other parts of BLACS
         # and using separate variables avoids those parts from being able to directly
@@ -474,16 +478,20 @@ class DO(object):
 
         # Update the lock state
         self._update_lock(self._settings['locked'])
-    
-    def create_widget(self,*args,**kwargs):
-        widget = DigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
-        self.add_widget(widget)
+
+    def create_widget(self, *args, **kwargs):
+        inverted = kwargs.pop("inverted", False)
+        if not inverted:
+            widget = DigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
+        else:
+            widget = InvertedDigitalOutput('%s\n%s'%(self._hardware_name,self._connection_name),*args,**kwargs)
+        self.add_widget(widget, inverted=inverted)
         return widget
-    
-    def add_widget(self,widget):
+
+    def add_widget(self, widget, inverted=False):
         if widget not in self._widget_list:
             widget.set_DO(self,True,False)
-            widget.toggled.connect(self.set_value)
+            widget.toggled.connect(self.set_value if not inverted else lambda state: self.set_value(not state))
             self._widget_list.append(widget)
             self.set_value(self._current_state,False)
             self._update_lock(self._locked)
@@ -521,8 +529,8 @@ class DO(object):
     def set_value(self,state,program=True):
         # conversion to integer, then bool means we can safely pass in
         # either a string '1' or '0', True or False or 1 or 0
-        state = bool(int(state))    
-        
+        state = bool(int(state))
+
         # We are programatically setting the state, so break the check lock function logic
         self._current_state = state
         
@@ -657,8 +665,8 @@ if __name__ == '__main__':
         }
     
     def print_something():
-        print 'program_function called'
-    
+        print('program_function called')
+
     # Create a DO object
     my_DO = DO(hardware_name='do0', connection_name='my first digital output', program_function=print_something, settings=settings)
     

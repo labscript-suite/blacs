@@ -10,7 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import logging, logging.handlers
 import os
@@ -29,7 +32,7 @@ try:
         delay = int(sys.argv[sys.argv.index('--delay')+1])
         time.sleep(delay)
 except:
-    print 'You should specify "--delay x" where x is an integer'
+    print('You should specify "--delay x" where x is an integer')
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -42,7 +45,7 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.3.1', '3')
+check_version('labscript_utils', '2.7.1', '3')
 check_version('qtutils', '2.0.0', '3.0.0')
 check_version('zprocess', '1.1.2', '3')
 check_version('labscript_devices', '2.0', '3')
@@ -53,7 +56,7 @@ check_version('labscript_devices', '2.0', '3')
 import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS')
 ###
-from zprocess import zmq_get, ZMQServer
+from zprocess import zmq_get, ZMQServer, raise_exception_in_thread
 from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 
@@ -123,7 +126,7 @@ except Exception:
 
 
 # Connection Table Code
-from connections import ConnectionTable
+from labscript_utils.connections import ConnectionTable
 #Draggable Tab Widget Code
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
@@ -133,21 +136,21 @@ from qtutils import *
 # And for icons:
 import qtutils.icons
 # Analysis Submission code
-from analysis_submission import AnalysisSubmission
+from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
-from queue import QueueManager, QueueTreeview
+from blacs.experiment_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
 import labscript_devices
 # Save/restore frontpanel code
-from front_panel_settings import FrontPanelSettings
+from blacs.front_panel_settings import FrontPanelSettings
 # Notifications system
-from notifications import Notifications
+from blacs.notifications import Notifications
 # Preferences system
 from labscript_utils.settings import Settings
 #import settings_pages
-import plugins
+import blacs.plugins as plugins
 
-os.chdir(os.path.abspath(os.path.dirname(__file__)))
+from blacs import BLACS_DIR
 
 
 def set_win_appusermodel(window_id):
@@ -156,7 +159,7 @@ def set_win_appusermodel(window_id):
     executable = sys.executable.lower()
     if not executable.endswith('w.exe'):
         executable = executable.replace('.exe', 'w.exe')
-    relaunch_command = executable + ' ' + os.path.abspath(__file__.replace('.pyc', '.py'))
+    relaunch_command = executable + ' ' + os.path.join(BLACS_DIR, '__main__.py')
     relaunch_display_name = app_descriptions['blacs']
     set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
 
@@ -222,7 +225,7 @@ class BLACS(object):
         loader = UiLoader()
         loader.registerCustomWidget(QueueTreeview)
         #loader.registerCustomPromotion('BLACS',BLACSWindow)
-        self.ui = loader.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'main.ui'), BLACSWindow())
+        self.ui = loader.load(os.path.join(BLACS_DIR, 'main.ui'), BLACSWindow())
         logger.info('BLACS ui loaded')
         self.ui.blacs=self
         self.tab_widgets = {}
@@ -270,16 +273,24 @@ class BLACS(object):
             getattr(self.ui,'tab_container_%d'%i).addWidget(self.tab_widgets[i])
 
         logger.info('Instantiating devices')
+        self.failed_device_settings = {}
         for device_name, labscript_device_class_name in self.attached_devices.items():
-            self.settings_dict.setdefault(device_name,{"device_name":device_name})
-            # add common keys to settings:
-            self.settings_dict[device_name]["connection_table"] = self.connection_table
-            self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
-            self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
-            # Instantiate the device
-            logger.info('instantiating %s'%device_name)
-            TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
-            self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
+            try:
+                self.settings_dict.setdefault(device_name,{"device_name":device_name})
+                # add common keys to settings:
+                self.settings_dict[device_name]["connection_table"] = self.connection_table
+                self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
+                self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
+                # Instantiate the device
+                logger.info('instantiating %s'%device_name)
+                TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
+                self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
+            except Exception:
+                self.failed_device_settings[device_name] = {"front_panel": self.settings_dict[device_name]["front_panel_settings"], "save_data": self.settings_dict[device_name]["saved_data"]}
+                del self.settings_dict[device_name]
+                del self.attached_devices[device_name]
+                self.connection_table.remove_device(device_name)
+                raise_exception_in_thread(sys.exc_info())
 
         logger.info('instantiating plugins')
         # setup the plugin system
@@ -578,6 +589,13 @@ class BLACS(object):
         # Save front panel
         data = self.front_panel_settings.get_save_data()
 
+        if len(self.failed_device_settings) > 0:
+            message = ('Save data from broken tabs? \n Broken tabs are: \n {}'.format(list(self.failed_device_settings.keys())))
+            reply = QMessageBox.question(self.ui, 'Save broken tab data?', message,
+                                               QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                data[0].update(self.failed_device_settings)
+
         # with h5py.File(self.settings_path,'r+') as h5file:
            # if 'connection table' in h5file:
                # del h5file['connection table']
@@ -594,11 +612,11 @@ class BLACS(object):
         logger.info('finalise_quit called')
         tab_close_timeout = 2
         # Kill any tabs which didn't close themselves:
-        for name, tab in self.tablist.items():
+        for name, tab in list(self.tablist.items()):
             if tab.destroy_complete:
                 del self.tablist[name]
         if self.tablist:
-            for name, tab in self.tablist.items():
+            for name, tab in list(self.tablist.items()):
                 # If a tab has a fatal error or is taking too long to close, force close it:
                 if (time.time() - initial_time > tab_close_timeout) or tab.state == 'fatal error':
                     try:
@@ -637,7 +655,7 @@ class BLACS(object):
 
 class ExperimentServer(ZMQServer):
     def handler(self, h5_filepath):
-        print h5_filepath
+        print(h5_filepath)
         message = self.process(h5_filepath)
         logger.info('Request handler: %s ' % message.strip())
         return message
@@ -655,28 +673,29 @@ if __name__ == '__main__':
     if 'tracelog' in sys.argv:
         ##########
         import labscript_utils.tracelog
-        labscript_utils.tracelog.log('blacs_trace.log',['__main__','BLACS.tab_base_classes',
-                                        'qtutils',
-                                        'labscript_utils.qtwidgets.ddsoutput',
-                                        'labscript_utils.qtwidgets.analogoutput',
-                                        'BLACS.hardware_interfaces.ni_pcie_6363',
-                                        'BLACS.hardware_interfaces.output_classes',
-                                        'BLACS.device_base_class',
-                                        'BLACS.tab_base_classes',
-                                        'BLACS.plugins.connection_table',
-                                        'BLACS.recompile_and_restart',
-                                        'filewatcher',
-                                        'queue',
-                                        'notifications',
-                                        'connections',
-                                        'analysis_submission',
-                                        'settings',
-                                        'front_panel_settings',
-                                        'labscript_utils.h5_lock',
-                                        'labscript_utils.shared_drive',
-                                        'labscript_utils.labconfig',
-                                        'zprocess',
-                                       ], sub=True)
+        labscript_utils.tracelog.log(os.path.join(BLACS_DIR, 'blacs_trace.log'),
+                                     ['__main__','BLACS.tab_base_classes',
+                                      'qtutils',
+                                      'labscript_utils.qtwidgets.ddsoutput',
+                                      'labscript_utils.qtwidgets.analogoutput',
+                                      'BLACS.hardware_interfaces.ni_pcie_6363',
+                                      'BLACS.hardware_interfaces.output_classes',
+                                      'BLACS.device_base_class',
+                                      'BLACS.tab_base_classes',
+                                      'BLACS.plugins.connection_table',
+                                      'BLACS.recompile_and_restart',
+                                      'filewatcher',
+                                      'queue',
+                                      'notifications',
+                                      'connections',
+                                      'analysis_submission',
+                                      'settings',
+                                      'front_panel_settings',
+                                      'labscript_utils.h5_lock',
+                                      'labscript_utils.shared_drive',
+                                      'labscript_utils.labconfig',
+                                      'zprocess',
+                                     ], sub=True)
         ##########
 
 
@@ -701,16 +720,8 @@ if __name__ == '__main__':
     # Create Connection Table object
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     connection_table_h5_file = exp_config.get('paths','connection_table_h5')
-    try:
-        connection_table = ConnectionTable(connection_table_h5_file)
-    except:
-        # dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%self.connection_table_h5file)
+    connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS')
 
-        # dialog.run()
-        # dialog.destroy()
-        logger.exception('connection table failed to load')
-        raise
-        sys.exit("Invalid Connection Table")
     logger.info('connection table loaded')
 
     qapplication = QApplication(sys.argv)
