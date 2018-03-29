@@ -37,7 +37,7 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from qtutils import *
-
+from qtutils.outputbox import OutputBox
 import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
@@ -268,15 +268,25 @@ class Tab(object):
         self._ui.device_name.setText("<b>%s</b> [conn: %s]"%(str(self.device_name),str(self.BLACS_connection)))
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
         elide_label(self._ui.state_label, self._ui.state_label_layout, Qt.ElideRight)
+
+        # Insert an OutputBox into the splitter, initially hidden:
+        self._output_box = OutputBox(self._ui.splitter)
+        self._ui.splitter.setCollapsible(self._ui.splitter.count() - 2, True)
+        self._output_box.output_textedit.hide()
+
         # connect signals
         self._ui.button_clear_smart_programming.clicked.connect(self.on_force_full_buffered_reprogram)
         self._ui.button_clear_smart_programming.setEnabled(False)
         self.force_full_buffered_reprogram = True
+        self._ui.button_show_terminal.toggled.connect(self.set_terminal_visible)
         self._ui.button_close.clicked.connect(self.hide_error)
         self._ui.button_restart.clicked.connect(self.restart)        
         self._update_error_and_tab_icon()
         self.supports_smart_programming(False)
         
+        # Restore settings:
+        self.restore_builtin_save_data(self.settings.get('saved_data', {}))
+
         # This should be done beofre the main_loop starts or else there is a race condition as to whether the 
         # self._mode variable is even defined!
         # However it must be done after the UI is created!
@@ -297,6 +307,22 @@ class Tab(object):
         self.notebook.addTab(self._ui,self.device_name)
         self._ui.show()
     
+    def get_builtin_save_data(self):
+        """Get builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        return {'_terminal_visible': self._ui.button_show_terminal.isChecked(),
+                '_splitter_sizes': self._ui.splitter.sizes()}
+
+    def restore_builtin_save_data(self, data):
+        """Restore builtin settings to be restored like whether the terminal is
+        visible. Not to be overridden."""
+        self.set_terminal_visible(data.get('_terminal_visible', False))
+        if '_splitter_sizes' in data:
+            self._ui.splitter.setSizes(data['_splitter_sizes'])
+
+    def update_from_settings(self, settings):
+        self.restore_builtin_save_data(settings['saved_data'])
+
     def supports_smart_programming(self,support):
         self._supports_smart_programming = bool(support)
         if self._supports_smart_programming:
@@ -427,7 +453,7 @@ class Tab(object):
             # not in a worker process named GUI
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         
-        worker = WorkerClass()
+        worker = WorkerClass(output_redirection_port=self._output_box.port)
         to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
         self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
@@ -595,7 +621,14 @@ class Tab(object):
     
     def queue_work(self,worker_process,worker_function,*args,**kwargs):
         return worker_process,worker_function,args,kwargs
-            
+        
+    def set_terminal_visible(self, visible):
+        if visible:
+            self._output_box.output_textedit.show()
+        else:
+            self._output_box.output_textedit.hide()
+        self._ui.button_show_terminal.setChecked(visible)
+
     def hide_error(self):
         # dont show the error again until the not responding time has doubled:
         self.hide_not_responding_error_until = 2*self.not_responding_for

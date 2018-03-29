@@ -316,6 +316,7 @@ class DeviceTab(Tab):
         return
     
     def update_from_settings(self,settings):
+        Tab.update_from_settings(self, settings)
         self.restore_save_data(settings['saved_data'])
     
         self.settings = settings
