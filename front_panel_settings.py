@@ -337,7 +337,7 @@ class FrontPanelSettings(object):
                 self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table=True)
     
     @inmain_decorator(wait_for_return=True)
-    def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,plugin_data,save_conn_table = False):
+    def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,plugin_data,save_conn_table=False,save_queue_data=True):
         if save_conn_table:
             if 'connection table' in hdf5_file:
                 del hdf5_file['connection table']
@@ -396,7 +396,8 @@ class FrontPanelSettings(object):
         dataset.attrs["window_frame_width"] = window_data["_main_window"]["frame_width"]
         dataset.attrs['plugin_data'] = repr(plugin_data)
         dataset.attrs['analysis_data'] = repr(window_data["_main_window"]["_analysis"])
-        dataset.attrs['queue_data'] = repr(window_data["_main_window"]["_queue"])
+        if save_queue_data:
+            dataset.attrs['queue_data'] = repr(window_data["_main_window"]["_queue"])
         for pane_name,pane_position in window_data.items():
             if pane_name != "_main_window":
                 dataset.attrs[pane_name] = pane_position
