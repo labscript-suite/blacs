@@ -20,7 +20,7 @@ from labscript_utils.labconfig import LabConfig
 from blacs import BLACS_DIR
 PLUGINS_DIR = os.path.join(BLACS_DIR, 'plugins')
 
-default_plugins = ['connection_table', 'general', 'memory', 'theme']
+default_plugins = ['connection_table', 'general', 'theme']
 
 logger = logging.getLogger('BLACS.plugins')
 
