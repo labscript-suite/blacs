@@ -47,10 +47,10 @@ class CompileAndRestart(QDialog):
         self.ui.compile.clicked.connect(self.compile)
         self.ui.cancel.clicked.connect(self.reject)
         
-        self.ui.setParent(self)
-        self.ui.show()        
+        self.setLayout(self.ui.layout())
+        self.resize(500, 300)
         self.show()
-
+        self.setWindowTitle('Recompile connection table')
         self.compile()
 
     def closeEvent(self,event):
