@@ -697,7 +697,7 @@ if __name__ == '__main__':
     # Create Connection Table object
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     connection_table_h5_file = exp_config.get('paths','connection_table_h5')
-    connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS')
+    connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS', exceptions_in_thread=True)
 
     logger.info('connection table loaded')
 
