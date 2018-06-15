@@ -45,7 +45,7 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.7.1', '3')
+check_version('labscript_utils', '2.7.2', '3')
 check_version('qtutils', '2.0.0', '3.0.0')
 check_version('zprocess', '1.1.2', '3')
 check_version('labscript_devices', '2.0', '3')
@@ -697,7 +697,7 @@ if __name__ == '__main__':
     # Create Connection Table object
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     connection_table_h5_file = exp_config.get('paths','connection_table_h5')
-    connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS')
+    connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS', exceptions_in_thread=True)
 
     logger.info('connection table loaded')
 
