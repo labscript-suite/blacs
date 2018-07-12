@@ -313,6 +313,16 @@ class Tab(object):
         return {'_terminal_visible': self._ui.button_show_terminal.isChecked(),
                 '_splitter_sizes': self._ui.splitter.sizes()}
 
+    def get_all_save_data(self):
+        save_data = self.get_builtin_save_data()
+        if hasattr(self, 'get_save_data'):
+            tab_save_data = self.get_save_data()
+            if isinstance(tab_save_data, dict):
+                save_data.update(tab_save_data)
+            else:
+                logger.warning('Incorrect format for tab save data from the get_save_data() method. Data should be a dict. Data was: %s'%tab_save_data)
+        return save_data
+
     def restore_builtin_save_data(self, data):
         """Restore builtin settings to be restored like whether the terminal is
         visible. Not to be overridden."""
@@ -582,7 +592,7 @@ class Tab(object):
                 
         currentpage = self.close_tab()
         self.logger.info('***RESTART***')
-        self.settings['saved_data'] = self.get_save_data()
+        self.settings['saved_data'] = self.get_all_save_data()
         self._restart_thread = inthread(self.wait_for_mainloop_to_stop, currentpage)
         
     def wait_for_mainloop_to_stop(self, currentpage):
