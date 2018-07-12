@@ -923,6 +923,15 @@ class PluginTab(object):
     # method when the tab is initialised
     def get_save_data(self):
         return {}
+        
+    def get_all_save_data(self):
+        save_data = self.get_builtin_save_data()
+        if hasattr(self, 'get_save_data'):
+                tab_save_data = self.get_save_data()
+                if isinstance(tab_save_data, dict):
+                    save_data.update(tab_save_data)
+            return save_data
+ 
 
     # This method should be overridden in your plugin class if you want to restore data
     # (saved by get_save_data()) when the tab is initialised.
