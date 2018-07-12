@@ -320,7 +320,7 @@ class Tab(object):
             if isinstance(tab_save_data, dict):
                 save_data.update(tab_save_data)
             else:
-                logger.warning('Incorrect format for tab save data from the get_save_data() method. Data should be a dict. Data was: %s'%tab_save_data)
+                self.logger.warning('Incorrect format for tab save data from the get_save_data() method. Data should be a dict. Data was: %s'%tab_save_data)
         return save_data
 
     def restore_builtin_save_data(self, data):
