@@ -10,11 +10,16 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
 
 import os
 
 from qtutils import UiLoader
-    
+from blacs.plugins import PLUGINS_DIR
+
 class Plugin(object):
     def __init__(self, initial_settings):
         self.menu = None
@@ -69,7 +74,7 @@ class Setting(object):
         
     # Create the GTK page, return the page and an icon to use on the label (the class name attribute will be used for the label text)   
     def create_dialog(self,notebook):
-        ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'general.ui'))
+        ui = UiLoader().load(os.path.join(PLUGINS_DIR, 'general', 'general.ui'))
         
         # get the widgets!
         self.widgets = {}

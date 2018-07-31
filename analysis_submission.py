@@ -10,10 +10,16 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
+from labscript_utils import PY2
+if PY2:
+    str = unicode
+    import Queue as queue
+else:
+    import queue
 
 import logging
 import os
-import Queue
 import threading
 import time
 import sys
@@ -27,14 +33,16 @@ from zprocess import zmq_get, TimeoutError, raise_exception_in_thread
 from socket import gaierror
 import labscript_utils.shared_drive
 from labscript_utils.qtwidgets.elide_label import elide_label
+from blacs import BLACS_DIR
+
 
 class AnalysisSubmission(object):        
     def __init__(self, BLACS, blacs_ui):
-        self.inqueue = Queue.Queue()
+        self.inqueue = queue.Queue()
         self.BLACS = BLACS
         self.port = int(self.BLACS.exp_config.get('ports', 'lyse'))
         
-        self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'analysis_submission.ui'))
+        self._ui = UiLoader().load(os.path.join(BLACS_DIR, 'analysis_submission.ui'))
         blacs_ui.analysis.addWidget(self._ui)
         self._ui.frame.setMinimumWidth(blacs_ui.queue_controls_frame.sizeHint().width())
         elide_label(self._ui.resend_shots_label, self._ui.failed_to_send_frame.layout(), Qt.ElideRight)
@@ -181,7 +189,7 @@ class AnalysisSubmission(object):
             try:
                 try:
                     signal, data = self.inqueue.get(timeout=timeout)
-                except Queue.Empty:
+                except queue.Empty:
                     timeout = 10
                     # Periodic checking of connectivity and resending of files.
                     # Don't trigger a re-check if we already failed a connectivity

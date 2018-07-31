@@ -10,6 +10,7 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+from __future__ import division, unicode_literals, print_function, absolute_import
 
 import gtk
 import sys
@@ -52,7 +53,7 @@ if __name__ == "__main__":
     try:
         connection_table = ConnectionTable(connection_table_h5file)
     except Exception as e:
-        print e
+        print(e)
         dialog = gtk.MessageDialog(None,gtk.DIALOG_MODAL,gtk.MESSAGE_ERROR,gtk.BUTTONS_NONE,"The connection table in '%s' is not valid. Please check the compilation of the connection table for errors\n\n"%connection_table_h5file)
              
         dialog.run()
@@ -70,4 +71,4 @@ if __name__ == "__main__":
     window.show()
     
     with gtk.gdk.lock:
-        gtk.main()
+        gtk.main()
