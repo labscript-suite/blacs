@@ -323,9 +323,9 @@ class DeviceTab(Tab):
                     name = 'Analog Outputs'
                 elif isinstance(self.get_channel(list(arg.keys())[0]),DO):
                     name = 'Digital Outputs'
-                elif isinstance(self.get_channel(arg.keys()[0]),IMAGE):
+                elif isinstance(self.get_channel(list(arg.keys())[0]),IMAGE):
                     name = 'Image Outputs'
-                elif isinstance(self.get_channel(arg.keys()[0]),DDS):
+                elif isinstance(self.get_channel(list(arg.keys())[0]),DDS):
                     name = 'DDS Outputs'
                 else:
                     # If it isn't DO, DDS or AO, we should forget about them and move on to the next argument
