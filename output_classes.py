@@ -268,14 +268,17 @@ class AO(object):
         
         return True
     
-    def remove_widget(self,widget):
+    # If calling this method directly from outside the set_AO function in the analog widget
+    # you should NOT specify a value for new_AO.
+    def remove_widget(self,widget,call_set_AO = True,new_AO = None):
         if widget not in self._widgets:
             raise RuntimeError('The widget cannot be removed because it is not registered with this AO object')
             #TODO: Make the above error message better!
          
         self._widgets.remove(widget)  
         
-        widget.set_AO(None,False,False)
+        if call_set_AO:
+            widget.set_AO(new_AO,True,True)
             
         # Further cleanup
         widget.disconnect_value_change()
@@ -501,7 +504,6 @@ class DO(object):
             # TODO: Make this error better!
             raise RuntimeError('The widget specified was not part of the DO object')
         widget.toggled.disconnect(self.set_value)
-        widget.set_DO(None, False, False)
         self._widget_list.remove(widget)
         
     @property  
@@ -624,7 +626,6 @@ class IMAGE(object):
             # TODO: Make this error better!
             raise RuntimeError('The widget specified was not part of the Image object')
         widget.imageUpdated.disconnect(self.set_value)
-        widget.set_Image(None, False, False)
         self._widget_list.remove(widget)
         
     @property
