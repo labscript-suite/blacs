@@ -21,30 +21,6 @@ from labscript_utils.labconfig import LabConfig
 from blacs import BLACS_DIR
 PLUGINS_DIR = os.path.join(BLACS_DIR, 'plugins')
 
-default_plugins = ['connection_table', 'general', 'theme']
-
-logger = logging.getLogger('BLACS.plugins')
-
-exp_config = LabConfig()
-if not exp_config.has_section('BLACS/plugins'):
-    exp_config.add_section('BLACS/plugins')
-
-modules = {}
-for module_name in os.listdir(PLUGINS_DIR):
-    if os.path.isdir(os.path.join(PLUGINS_DIR, module_name)) and module_name != '__pycache__':
-        # is it a new plugin?
-        # If so lets add it to the config
-        if not module_name in [name for name, val in exp_config.items('BLACS/plugins')]:
-            exp_config.set('BLACS/plugins', module_name, str(module_name in default_plugins))
-
-        # only load activated plugins
-        if exp_config.getboolean('BLACS/plugins', module_name):
-            try:
-                module = importlib.import_module('blacs.plugins.'+module_name)
-            except Exception:
-                logger.exception('Could not import plugin \'%s\'. Skipping.'%module_name)
-            else:
-                modules[module_name] = module
 
 
 DEFAULT_PRIORITY = 10
@@ -71,7 +47,7 @@ class callback(object):
         self.priority = priority
     # Call the decorator
     def __call__(self, func):
-        return Callback(func, priority)
+        return Callback(func, self.priority)
 
 
 _callbacks = None
@@ -100,3 +76,32 @@ def get_callbacks(self, name, update_cache=False):
             _callbacks[name].sort(key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY))
 
     return _callbacks.get(name, [])
+
+
+
+default_plugins = ['connection_table', 'general', 'theme']
+
+logger = logging.getLogger('BLACS.plugins')
+
+exp_config = LabConfig()
+if not exp_config.has_section('BLACS/plugins'):
+    exp_config.add_section('BLACS/plugins')
+
+modules = {}
+for module_name in os.listdir(PLUGINS_DIR):
+    if os.path.isdir(os.path.join(PLUGINS_DIR, module_name)) and module_name != '__pycache__':
+        # is it a new plugin?
+        # If so lets add it to the config
+        if not module_name in [name for name, val in exp_config.items('BLACS/plugins')]:
+            exp_config.set('BLACS/plugins', module_name, str(module_name in default_plugins))
+
+        # only load activated plugins
+        if exp_config.getboolean('BLACS/plugins', module_name):
+            try:
+                module = importlib.import_module('blacs.plugins.'+module_name)
+            except Exception:
+                logger.exception('Could not import plugin \'%s\'. Skipping.'%module_name)
+            else:
+                modules[module_name] = module
+
+
