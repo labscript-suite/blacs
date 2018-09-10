@@ -40,6 +40,8 @@ from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.connections import ConnectionTable
 
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
+import blacs.plugins as plugins
+
 
 FILEPATH_COLUMN = 0
 
