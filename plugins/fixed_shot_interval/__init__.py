@@ -102,7 +102,7 @@ class Plugin(object):
         if self.interval != 0 and self.time_of_last_shot is not None:
             # Wait until it has been self.interval since the start of the last
             # shot. Otherwise, run the shot immediately.
-            timeout = time.time() - self.time_of_last_shot + self.interval
+            timeout = self.time_of_last_shot + self.interval - time.time()
             if timeout <= 0:
                 self._update_icon('bad')
             else:
