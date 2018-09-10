@@ -16,6 +16,7 @@ import os
 import sys
 import logging
 import importlib
+from collections import defaultdict
 from labscript_utils.labconfig import LabConfig
 from blacs import BLACS_DIR
 PLUGINS_DIR = os.path.join(BLACS_DIR, 'plugins')
@@ -44,3 +45,58 @@ for module_name in os.listdir(PLUGINS_DIR):
                 logger.exception('Could not import plugin \'%s\'. Skipping.'%module_name)
             else:
                 modules[module_name] = module
+
+
+DEFAULT_PRIORITY = 10
+
+class Callback(object):
+    """Class wrapping a callable. At present only differs from a regular
+    function in that it has a "priority" attribute - lower numbers means
+    higher priority. If there are multiple callbacks triggered by the same
+    event, they will be returned in order of priority by get_callbacks"""
+    def __init__(self, func, priority=DEFAULT_PRIORITY):
+        self.priority = priority
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+
+class callback(object):
+    """Decorator to turn a function into a Callback object. Presently
+    optional, and only required if the callback needs to have a non-default
+    priority set"""
+    # Instantiate the decorator:
+    def __init__(self, priority=DEFAULT_PRIORITY):
+        self.priority = priority
+    # Call the decorator
+    def __call__(self, func):
+        return Callback(func, priority)
+
+
+_callbacks = None
+
+
+def get_callbacks(self, name, update_cache=False):
+    """Return all the callbacks for a particular name, in order of priority"""
+    global _callbacks
+    import __main__
+    BLACS = __main__.app
+
+    if update_cache or _callbacks is None:
+        _callbacks = defaultdict(list)
+        for plugin in BLACS.plugins.values():
+            try:
+                callbacks = plugin.get_callbacks()
+                if callbacks is not None:
+                    for callback_name, callback in callbacks.items():
+                        _callbacks[callback_name].append(callback)
+            except Exception as e:
+                logger.exception('Error getting callbacks from %s.' % str(plugin))
+                
+
+        # Sort all callbacks by priority:
+        for name in _callbacks:
+            _callbacks[name].sort(key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY))
+
+    return _callbacks.get(name, [])
