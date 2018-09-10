@@ -901,7 +901,7 @@ class QueueManager(object):
             ########################################################################################################################################## 
             for callback in plugins.get_callbacks('shot_complete'):
                 try:
-                    callbacks['shot_complete'](path)
+                    callback(path)
                 except Exception:
                     logger.exception("Plugin callback raised an exception")
 
