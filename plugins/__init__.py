@@ -21,7 +21,9 @@ from labscript_utils.labconfig import LabConfig
 from blacs import BLACS_DIR
 PLUGINS_DIR = os.path.join(BLACS_DIR, 'plugins')
 
+default_plugins = ['connection_table', 'general', 'theme']
 
+logger = logging.getLogger('BLACS.plugins')
 
 DEFAULT_PRIORITY = 10
 
@@ -79,9 +81,6 @@ def get_callbacks(self, name, update_cache=False):
 
 
 
-default_plugins = ['connection_table', 'general', 'theme']
-
-logger = logging.getLogger('BLACS.plugins')
 
 exp_config = LabConfig()
 if not exp_config.has_section('BLACS/plugins'):
