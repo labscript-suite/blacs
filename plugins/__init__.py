@@ -16,6 +16,7 @@ import os
 import sys
 import logging
 import importlib
+from types import MethodType
 from collections import defaultdict
 from labscript_utils.labconfig import LabConfig
 from blacs import BLACS_DIR
@@ -35,6 +36,14 @@ class Callback(object):
     def __init__(self, func, priority=DEFAULT_PRIORITY):
         self.priority = priority
         self.func = func
+
+    def __get__(self, instance, class_):
+        """Make sure our callable binds like an instance method. Otherwise
+        __call__ doesn't get the instance argument."""
+        if instance is None:
+            return self
+        else:
+            return MethodType(self, instance)
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
