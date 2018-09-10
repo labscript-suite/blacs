@@ -55,7 +55,7 @@ class callback(object):
 _callbacks = None
 
 
-def get_callbacks(self, name, update_cache=False):
+def get_callbacks(name, update_cache=False):
     """Return all the callbacks for a particular name, in order of priority"""
     global _callbacks
     import __main__
@@ -74,8 +74,8 @@ def get_callbacks(self, name, update_cache=False):
                 
 
         # Sort all callbacks by priority:
-        for name in _callbacks:
-            _callbacks[name].sort(key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY))
+        for callbacks in _callbacks.values():
+            callbacks.sort(key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY))
 
     return _callbacks.get(name, [])
 
@@ -102,5 +102,3 @@ for module_name in os.listdir(PLUGINS_DIR):
                 logger.exception('Could not import plugin \'%s\'. Skipping.'%module_name)
             else:
                 modules[module_name] = module
-
-
