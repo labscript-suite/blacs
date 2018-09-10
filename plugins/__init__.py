@@ -102,5 +102,3 @@ for module_name in os.listdir(PLUGINS_DIR):
                 logger.exception('Could not import plugin \'%s\'. Skipping.'%module_name)
             else:
                 modules[module_name] = module
-
-
