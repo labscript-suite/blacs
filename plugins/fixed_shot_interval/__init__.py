@@ -19,14 +19,9 @@ else:
 
 import logging
 import os
-import subprocess
-import threading
-import sys
 
 from qtutils import UiLoader
 
-from labscript_utils.shared_drive import path_to_agnostic
-import zprocess.locking
 from blacs.plugins import PLUGINS_DIR, callback
 
 name = "fixed shot interval"
@@ -43,6 +38,7 @@ class Plugin(object):
         self.BLACS = None
         self.ui = None
         self.interval = initial_settings.get('interval', NO_FIXED_INTERVAL)
+        self.event_queue = None
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
@@ -69,44 +65,16 @@ class Plugin(object):
         return {'interval': self.interval}
     
     def get_callbacks(self):
-        return {'shot_complete': self.on_shot_complete}
+        return {'pre_transition_to_buffered': self.pre_transition_to_buffered}
         
     @callback(priority=100) # this callback should run after all other callbacks.
-    def on_shot_complete(self, h5_filepath):
-        pass
-
-    def mainloop(self):
-        # We delete shots in a separate thread so that we don't slow down the queue waiting on
-        # network communication to acquire the lock, 
-        while True:
-            try:
-                event = self.event_queue.get()
-                if event == 'close':
-                    break
-                elif event == 'shot complete':
-                    while len(self.delete_queue) > self.n_shots_to_keep:
-                        with self.delete_queue_lock:
-                            h5_filepath = self.delete_queue.pop(0)
-                        # Acquire a lock on the file so that we don't
-                        # delete it whilst someone else has it open:
-                        with zprocess.locking.Lock(path_to_agnostic(h5_filepath)):
-                            try:
-                                os.unlink(h5_filepath)
-                                logger.info("Deleted repeated shot file %s" % h5_filepath)
-                            except OSError:
-                                logger.exception("Couldn't delete shot file %s" % h5_filepath)
-                else:
-                    raise ValueError(event)
-            except Exception:
-                logger.exception("Exception in repeated shot deletion loop, ignoring.")
-    
-
-    def close(self):
-        self.event_queue.put('close')
-        self.mainloop_thread.join()
-
+    def pre_transition_to_buffered(self, h5_filepath):
+        print('pre_transition_to_buffered!!!')
 
     # The rest of these are boilerplate:
+    def close(self):
+        pass
+    
     def get_menu_class(self):
         return None
         
