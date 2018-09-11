@@ -125,8 +125,8 @@ class Plugin(object):
         value = int(round(time_elapsed/stop_time * 100))
         self.bar.setValue(value)
 
-        text = u'%.2f%ss / %.2f%ss (%%p %%)'
-        text = text % (time_elapsed, thinspace, stop_time, thinspace)
+        text = u'%.2f%ss / %.2f%ss (%%p%s%%)'
+        text = text % (time_elapsed, thinspace, stop_time, thinspace, thinspace)
         
         if time_markers is not None and len(time_markers) > 0:
             # What marker are we up to?
