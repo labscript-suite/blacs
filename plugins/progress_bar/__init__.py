@@ -51,6 +51,23 @@ def _ensure_str(s):
     return s.decode() if isinstance(s, bytes) else str(s)
 
 
+def black_has_good_contrast(r, g, b):
+    """Return whether black text or white text would have better contrast on a
+    background of the given colour, according to W3C recommendations (see
+    https://www.w3.org/TR/WCAG20/). Return True for black or False for white"""
+    cs = []
+    for c in r, g, b:
+        c = c / 255.0
+        if c <= 0.03928:
+            c = c/12.92
+        else:
+            c = ((c+0.055)/1.055) ** 2.4
+        cs.append(c)
+    r, g, b = cs
+    L = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return L > np.sqrt(1.05 * 0.05) - 0.05
+
+
 class Plugin(object):
     def __init__(self, initial_settings):
         self.menu = None
@@ -116,11 +133,18 @@ class Plugin(object):
             marker_index = np.searchsorted(time_markers['time'], time_elapsed) - 1
             if marker_index >= 0:
                 label, t, color = time_markers[marker_index]
-                text = _ensure_str(label) + text
-                p = QtGui.QPalette()
+                text = '[%s] ' % _ensure_str(label) + text
+                palette = QtGui.QPalette()
                 r, g, b = color[0]
-                p.setColor(QtGui.QPalette.Highlight, QtGui.QColor(r, g, b))
-                self.bar.setPalette(p)
+                palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor(r, g, b))
+                # Ensure the colour of the text on the filled in bit of the progress
+                # bar has good contrast:
+                if black_has_good_contrast(r, g, b):
+                    bg_color = QtGui.QColor(0, 0, 0)
+                else:
+                    bg_color = QtGui.QColor(255, 255, 255)
+                palette.setColor(QtGui.QPalette.HighlightedText, bg_color)
+                self.bar.setPalette(palette)
             else:
                 self.bar.setPalette(QtWidgets.QApplication.style().standardPalette())
 
