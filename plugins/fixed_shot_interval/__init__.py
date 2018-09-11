@@ -96,8 +96,7 @@ class Plugin(object):
     @callback(priority=100) # this callback should run after all other callbacks.
     def pre_transition_to_buffered(self, h5_filepath):
         # Get the queue manager so we can call get_status()
-        import __main__
-        queue_manager = __main__.app.queue
+        queue_manager = self.BLACS['experiment_queue']
 
         if self.interval != 0 and self.time_of_last_shot is not None:
             # Wait until it has been self.interval since the start of the last
