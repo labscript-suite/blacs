@@ -46,6 +46,11 @@ logger = logging.getLogger('BLACS.plugin.%s'%module)
 UPDATE_INTERVAL = 0.05
 
 
+def _ensure_str(s):
+    """convert bytestrings and numpy strings to python strings"""
+    return s.decode() if isinstance(s, bytes) else str(s)
+
+
 class Plugin(object):
     def __init__(self, initial_settings):
         self.menu = None
@@ -108,17 +113,18 @@ class Plugin(object):
         
         if time_markers is not None and len(time_markers) > 0:
             # What marker are we up to?
-            marker_index = np.searchsorted(time_markers['time'], time_elapsed)
-            if marker_index < len(time_markers):
+            marker_index = np.searchsorted(time_markers['time'], time_elapsed) - 1
+            if marker_index >= 0:
                 label, t, color = time_markers[marker_index]
-                text = '<b>label<b> ' + text
+                text = _ensure_str(label) + text
                 p = QtGui.QPalette()
                 r, g, b = color[0]
                 p.setColor(QtGui.QPalette.Highlight, QtGui.QColor(r, g, b))
                 self.bar.setPalette(p)
+            else:
+                self.bar.setPalette(QtWidgets.QApplication.style().standardPalette())
 
         self.bar.setFormat(text)
-        
 
         return UPDATE_INTERVAL
 
