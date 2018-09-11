@@ -685,6 +685,16 @@ class QueueManager(object):
                 experiment_finished_queue = queue.Queue()
                 logger.debug('About to start the master pseudoclock')
                 run_time = time.localtime()
+
+                ##########################################################################################################################################
+                #                                                        Plugin callbacks                                                                #
+                ########################################################################################################################################## 
+                for callback in plugins.get_callbacks('science_starting'):
+                    try:
+                        callback(path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
                 #TODO: fix potential race condition if BLACS is closing when this line executes?
                 self.BLACS.tablist[self.master_pseudoclock].start_run(experiment_finished_queue)
                 
@@ -783,8 +793,16 @@ class QueueManager(object):
             ##########################################################################################################################################
             #                                                           SCIENCE OVER!                                                                #
             ##########################################################################################################################################
-            
-            
+            finally:
+                ##########################################################################################################################################
+                #                                                        Plugin callbacks                                                                #
+                ########################################################################################################################################## 
+                for callback in plugins.get_callbacks('science_over'):
+                    try:
+                        callback(path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
             
             ##########################################################################################################################################
             #                                                       Transition to manual                                                             #

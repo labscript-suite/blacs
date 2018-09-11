@@ -425,6 +425,7 @@ class BLACS(object):
             try:
                 plugin.plugin_setup_complete(blacs_data)
             except Exception:
+                logger.exception('Error in plugin_setup_complete() for plugin \'%s\'. Trying again with old call signature...' % module_name)
                 # backwards compatibility for old plugins
                 try:
                     plugin.plugin_setup_complete()
