@@ -23,16 +23,24 @@ import subprocess
 import threading
 import sys
 
-from qtutils import UiLoader, inmain_decorator
+from qtutils import UiLoader, inmain, inmain_decorator
 from qtutils.qt import QtGui, QtWidgets, QtCore
 
+import labscript_utils.h5_lock
+import h5py
+
 from labscript_utils.shared_drive import path_to_agnostic
+import labscript_utils.properties as properties
 import zprocess.locking
 from blacs.plugins import PLUGINS_DIR, callback
 
 name = "Progress Bar"
 module = "progress_bar" # should be folder name
 logger = logging.getLogger('BLACS.plugin.%s'%module)
+
+# The progress bar will update every UPDATE_INTERVAL seconds, or at the marker
+# times, whichecer is soonest after the last update:
+UPDATE_INTERVAL = 0.2
 
 
 class Plugin(object):
@@ -47,11 +55,15 @@ class Plugin(object):
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
         self.mainloop_thread.start()
+        self.master_pseudoclock = None
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
         # Add the progress bar to the BLACS gui:
         BLACS['ui'].queue_status_verticalLayout.addWidget(self.bar)
+        # We need to know the name of the master pseudoclock so we can look up
+        # the duration of each shot:
+        self.master_pseudoclock = self.BLACS['experiment_queue'].master_pseudoclock
 
     def get_save_data(self):
         return {}
@@ -60,18 +72,22 @@ class Plugin(object):
         return {'science_over': self.on_science_over,
                 'science_starting': self.on_science_starting}
         
+    @callback(priority=100)
+    def on_science_starting(self, h5_filepath):
+        
+        # Get the stop time of this shot:
+        with h5py.File(h5_filepath) as f:
+            stop_time = properties.get(f, self.master_pseudoclock, 'device_properties')['stop_time']
+
+        # Enable the bar:
+        inmain(self.bar.setEnabled, True)
+
 
     @callback(priority=5)
     @inmain_decorator(True)
     def on_science_over(self, h5_filepath):
         # Hide the bar
         self.bar.setEnabled(False)
-
-    @callback(priority=100)
-    @inmain_decorator(True)
-    def on_science_starting(self, h5_filepath):
-        # Show the bar:
-        self.bar.setEnabled(True)
 
     def mainloop(self):
         # We delete shots in a separate thread so that we don't slow down the queue waiting on
