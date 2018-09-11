@@ -436,7 +436,7 @@ class QueueManager(object):
             with h5py.File(h5file,'r') as old_file:
                 with h5py.File(new_h5_file,'w') as new_file:
                     groups_to_copy = ['devices', 'calibrations', 'script', 'globals', 'connection table', 
-                                      'labscriptlib', 'waits']
+                                      'labscriptlib', 'waits', 'time_markers']
                     for group in groups_to_copy:
                         if group in old_file:
                             new_file.copy(old_file[group], group)
