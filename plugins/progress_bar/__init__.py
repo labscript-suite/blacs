@@ -24,6 +24,8 @@ import threading
 import sys
 import time
 
+import numpy as np
+
 from qtutils import UiLoader, inmain, inmain_decorator
 from qtutils.qt import QtGui, QtWidgets, QtCore
 
@@ -41,7 +43,7 @@ logger = logging.getLogger('BLACS.plugin.%s'%module)
 
 # The progress bar will update every UPDATE_INTERVAL seconds, or at the marker
 # times, whichecer is soonest after the last update:
-UPDATE_INTERVAL = 0.1
+UPDATE_INTERVAL = 0.05
 
 
 class Plugin(object):
@@ -60,7 +62,7 @@ class Plugin(object):
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
         # Add the progress bar to the BLACS gui:
-        BLACS['ui'].queue_status_verticalLayout.addWidget(self.bar)
+        BLACS['ui'].queue_status_verticalLayout.insertWidget(0, self.bar)
         # We need to know the name of the master pseudoclock so we can look up
         # the duration of each shot:
         self.master_pseudoclock = self.BLACS['experiment_queue'].master_pseudoclock
@@ -80,13 +82,13 @@ class Plugin(object):
             stop_time = properties.get(f, self.master_pseudoclock, 'device_properties')['stop_time']
             try:
                 time_markers = f['time_markers'][:]
+                time_markers.sort(order=(bytes if PY2 else str)('time'))
             except KeyError:
                 time_markers = None
 
         # Tell the mainloop what's up:
         self.event_queue.put(['start', (stop_time, time_markers)])
         
-
     @callback(priority=5)
     def on_science_over(self, h5_filepath):
         self.event_queue.put(['stop', None])
@@ -97,13 +99,27 @@ class Plugin(object):
         thinspace = u'\u2009'
         self.bar.setEnabled(True)
         time_elapsed = time.time() - shot_start_time
-        print('time_elapsed:', time_elapsed)
+
+        value = int(round(time_elapsed/stop_time * 100))
+        self.bar.setValue(value)
+
         text = u'%.2f%ss / %.2f%ss (%%p %%)'
         text = text % (time_elapsed, thinspace, stop_time, thinspace)
-        self.bar.setFormat(test)
-        value = int(round(time_elapsed/stop_time * 100))
-        print('value:', value)
-        self.bar.setValue(value)
+        
+        if time_markers is not None and len(time_markers) > 0:
+            # What marker are we up to?
+            marker_index = np.searchsorted(time_markers['time'], time_elapsed)
+            if marker_index < len(time_markers):
+                label, t, color = time_markers[marker_index]
+                text = '<b>label<b> ' + text
+                p = QtGui.QPalette()
+                r, g, b = color[0]
+                p.setColor(QtGui.QPalette.Highlight, QtGui.QColor(r, g, b))
+                self.bar.setPalette(p)
+
+        self.bar.setFormat(text)
+        
+
         return UPDATE_INTERVAL
 
     @inmain_decorator(True)
@@ -121,9 +137,7 @@ class Plugin(object):
             try:
                 try:
                     command, data = self.event_queue.get(timeout=timeout)
-                    print('got command:', command)
                 except Empty:
-                    print('timed out')
                     timeout = self.update_bar(shot_start_time, stop_time, time_markers)
                     continue
                 if command == 'close':
@@ -131,7 +145,6 @@ class Plugin(object):
                 elif command == 'start':
                     shot_start_time = time.time()
                     stop_time, time_markers = data
-                    print('stop time is:', stop_time)
                     timeout = self.update_bar(shot_start_time, stop_time, time_markers)
                 elif command == 'stop':
                     timeout = None
