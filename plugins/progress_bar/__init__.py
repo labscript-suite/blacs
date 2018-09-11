@@ -13,15 +13,16 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 from labscript_utils import PY2
 if PY2:
-    from Queue import Queue
+    from Queue import Queue, Empty
 else:
-    from queue import Queue
+    from queue import Queue, Empty
 
 import logging
 import os
 import subprocess
 import threading
 import sys
+import time
 
 from qtutils import UiLoader, inmain, inmain_decorator
 from qtutils.qt import QtGui, QtWidgets, QtCore
@@ -40,7 +41,7 @@ logger = logging.getLogger('BLACS.plugin.%s'%module)
 
 # The progress bar will update every UPDATE_INTERVAL seconds, or at the marker
 # times, whichecer is soonest after the last update:
-UPDATE_INTERVAL = 0.2
+UPDATE_INTERVAL = 0.1
 
 
 class Plugin(object):
@@ -50,12 +51,11 @@ class Plugin(object):
         self.initial_settings = initial_settings
         self.BLACS = None
         self.bar = QtWidgets.QProgressBar()
-        self.bar.setEnabled(False)
         self.event_queue = Queue()
+        self.master_pseudoclock = None
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
         self.mainloop_thread.start()
-        self.master_pseudoclock = None
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
@@ -75,40 +75,67 @@ class Plugin(object):
     @callback(priority=100)
     def on_science_starting(self, h5_filepath):
         
-        # Get the stop time of this shot:
-        with h5py.File(h5_filepath) as f:
+        # Get the stop time of this shot and its time markers, if any:
+        with h5py.File(h5_filepath, 'r') as f:
             stop_time = properties.get(f, self.master_pseudoclock, 'device_properties')['stop_time']
+            try:
+                time_markers = f['time_markers'][:]
+            except KeyError:
+                time_markers = None
 
-        # Enable the bar:
-        inmain(self.bar.setEnabled, True)
-
+        # Tell the mainloop what's up:
+        self.event_queue.put(['start', (stop_time, time_markers)])
+        
 
     @callback(priority=5)
-    @inmain_decorator(True)
     def on_science_over(self, h5_filepath):
-        # Hide the bar
+        self.event_queue.put(['stop', None])
+
+    @inmain_decorator(True)
+    def update_bar(self, shot_start_time, stop_time, time_markers):
+        """Update the progress bar and return when the next update should occur"""
+        thinspace = u'\u2009'
+        self.bar.setEnabled(True)
+        time_elapsed = time.time() - shot_start_time
+        print('time_elapsed:', time_elapsed)
+        text = u'%.2f%ss / %.2f%ss (%%p %%)'
+        text = text % (time_elapsed, thinspace, stop_time, thinspace)
+        self.bar.setFormat(test)
+        value = int(round(time_elapsed/stop_time * 100))
+        print('value:', value)
+        self.bar.setValue(value)
+        return UPDATE_INTERVAL
+
+    @inmain_decorator(True)
+    def clear_bar(self):
         self.bar.setEnabled(False)
+        self.bar.setFormat('No shot running')
+        self.bar.setValue(0)
 
     def mainloop(self):
         # We delete shots in a separate thread so that we don't slow down the queue waiting on
         # network communication to acquire the lock, 
+        timeout = None
+        self.clear_bar()
         while True:
             try:
-                event = self.event_queue.get()
-                if event == 'close':
+                try:
+                    command, data = self.event_queue.get(timeout=timeout)
+                    print('got command:', command)
+                except Empty:
+                    print('timed out')
+                    timeout = self.update_bar(shot_start_time, stop_time, time_markers)
+                    continue
+                if command == 'close':
                     break
-                elif event == 'shot complete':
-                    while len(self.delete_queue) > self.n_shots_to_keep:
-                        with self.delete_queue_lock:
-                            h5_filepath = self.delete_queue.pop(0)
-                        # Acquire a lock on the file so that we don't
-                        # delete it whilst someone else has it open:
-                        with zprocess.locking.Lock(path_to_agnostic(h5_filepath)):
-                            try:
-                                os.unlink(h5_filepath)
-                                logger.info("Deleted repeated shot file %s" % h5_filepath)
-                            except OSError:
-                                logger.exception("Couldn't delete shot file %s" % h5_filepath)
+                elif command == 'start':
+                    shot_start_time = time.time()
+                    stop_time, time_markers = data
+                    print('stop time is:', stop_time)
+                    timeout = self.update_bar(shot_start_time, stop_time, time_markers)
+                elif command == 'stop':
+                    timeout = None
+                    self.clear_bar()
                 else:
                     raise ValueError(event)
             except Exception:
@@ -116,9 +143,8 @@ class Plugin(object):
     
 
     def close(self):
-        self.event_queue.put('close')
+        self.event_queue.put(['close', None])
         self.mainloop_thread.join()
-
 
     # The rest of these are boilerplate:
     def get_menu_class(self):
