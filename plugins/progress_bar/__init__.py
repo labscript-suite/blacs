@@ -36,6 +36,7 @@ from labscript_utils.shared_drive import path_to_agnostic
 import labscript_utils.properties as properties
 from labscript_utils import check_version
 import zprocess.locking
+from zprocess import Event
 from blacs.plugins import PLUGINS_DIR, callback
 
 # Need the version of labscript devices that has the wait monitors posting
@@ -90,6 +91,7 @@ class Plugin(object):
         self.next_wait_index = None
         self.next_marker_index = None
         self.bar_text_prefix = None
+        self.wait_completed = zprocess.Event('wait_completed', type='wait')
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
         self.mainloop_thread.start()
@@ -128,6 +130,8 @@ class Plugin(object):
         # Initialise some variables and tell the mainloop to start:
         self.shot_start_time = time.time()
         self.time_spent_waiting = 0
+        self.next_marker_index = 0
+        self.next_wait_index = 0
         self.event_queue.put('start')
 
     @callback(priority=5)
@@ -159,11 +163,13 @@ class Plugin(object):
             next_wait_time = np.inf
         if self.markers is not None and self.next_marker_index < len(self.markers):
             next_marker_time = self.markers['time'][self.next_marker_index]
+        else:
+            next_marker_time = np.inf
         assert self.shot_start_time is not None
         assert self.time_spent_waiting is not None
         labscript_time = time.time() - self.shot_start_time - self.time_spent_waiting
         next_update_time = labscript_time + UPDATE_INTERVAL
-        if (next_update_time < next_wait_time) and (next_update_time < next_marker_time):
+        if next_update_time < next_wait_time and next_update_time < next_marker_time:
             return 'update', UPDATE_INTERVAL
         elif next_wait_time < next_marker_time:
             return 'wait', max(0, next_wait_time - labscript_time)
@@ -176,13 +182,13 @@ class Plugin(object):
         if marker:
             label, _, color = self.markers[self.next_marker_index]
             self.bar_text_prefix = '[%s] ' % _ensure_str(label)
-            palette = QtGui.QPalette()
             r, g, b = color[0]
         elif wait:
             label = self.waits[self.next_wait_index]['label']
             self.bar_text_prefix = '-%s- ' % _ensure_str(label)
             r, g, b = 128, 128, 128
         if marker or wait:
+            palette = QtGui.QPalette()
             palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor(r, g, b))
             # Ensure the colour of the text on the filled in bit of the progress
             # bar has good contrast:
@@ -234,8 +240,10 @@ class Plugin(object):
                         elif next_thing == 'wait':
                             self.update_bar_style(wait=True)
                             self.next_wait_index += 1
-                            # Then wait!
-                            raise NotImplementedError
+                            # wait for the wait:
+                            # self.wait_completed.wait()
+                            time.sleep(1)
+                            
                         continue
                 else:
                     command = self.event_queue.get()
@@ -251,6 +259,7 @@ class Plugin(object):
                 else:
                     raise ValueError(command)
             except Exception:
+                raise
                 logger.exception("Exception in mainloop, ignoring.")
     
 
