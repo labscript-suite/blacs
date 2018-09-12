@@ -213,10 +213,19 @@ class Plugin(object):
             self.bar.setPalette(QtWidgets.QApplication.style().standardPalette())
 
     @inmain_decorator(True)
-    def update_bar_value(self):
+    def update_bar_value(self, marker=False, wait=False):
+        """Update the progress bar with the current time elapsed. If marker or wait is
+        true, then use the exact time at which the next marker or wait is defined,
+        rather than the current time as returned by time.time()"""
         thinspace = u'\u2009'
         self.bar.setEnabled(True)
-        labscript_time = time.time() - self.shot_start_time - self.time_spent_waiting
+        assert not (marker and wait)
+        if marker:
+            labscript_time = self.markers['time'][self.next_marker_index]
+        elif wait:
+            labscript_time = self.waits['time'][self.next_wait_index]
+        else:
+            labscript_time = time.time() - self.shot_start_time - self.time_spent_waiting
         value = int(round(labscript_time / self.stop_time * BAR_MAX))
         self.bar.setValue(value)
 
@@ -277,12 +286,12 @@ class Plugin(object):
                             self.update_bar_value()
                         if next_thing == 'marker':
                             self.update_bar_style(marker=True)
+                            self.update_bar_value(marker=True)
                             self.next_marker_index += 1
-                            self.update_bar_value()
                         elif next_thing == 'wait':
                             wait_start_time = time.time()
                             self.update_bar_style(wait=True)
-                            self.update_bar_value()
+                            self.update_bar_value(wait=True)
                             self.next_wait_index += 1
                             # wait for the wait to complete, but abandon
                             # processing if the command queue is non-empty,
