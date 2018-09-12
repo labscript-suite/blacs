@@ -175,11 +175,17 @@ class Plugin(object):
             label, _, color = self.markers[marker_index]
             self.bar_text_prefix = '[%s] ' % _ensure_str(label)
             r, g, b = color[0]
-            bar_color = QtGui.QColor(r, g, b)
-            if black_has_good_contrast(r, g, b):
-                highlight_text_color = QtCore.Qt.black
+            # Black is the default colour in labscript.add_time_marker.
+            # Don't change the bar colour if the marker colour is black.
+            if (r, g, b) != (0,0,0):
+                bar_color = QtGui.QColor(r, g, b)
+                if black_has_good_contrast(r, g, b):
+                    highlight_text_color = QtCore.Qt.black
+                else:
+                    highlight_text_color = QtCore.Qt.white
             else:
-                highlight_text_color = QtCore.Qt.white
+                bar_color = None
+                highlight_text_color = None
             regular_text_color = None # use default
         elif wait:
             wait_index = self.next_wait_index
@@ -192,10 +198,12 @@ class Plugin(object):
             bar_color = QtCore.Qt.gray
         if marker or wait:
             palette = QtGui.QPalette()
-            palette.setColor(QtGui.QPalette.Highlight, bar_color)
+            if bar_color is not None:
+                palette.setColor(QtGui.QPalette.Highlight, bar_color)
             # Ensure the colour of the text on the filled in bit of the progress
             # bar has good contrast:
-            palette.setColor(QtGui.QPalette.HighlightedText, highlight_text_color)
+            if highlight_text_color is not None:
+                palette.setColor(QtGui.QPalette.HighlightedText, highlight_text_color)
             if regular_text_color is not None:
                 palette.setColor(QtGui.QPalette.Text, regular_text_color)
             self.bar.setPalette(palette)
