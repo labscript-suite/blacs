@@ -1,8 +1,8 @@
 #####################################################################
 #                                                                   #
-# /plugins/delete_repeated_shots/__init__.py                        #
+# /plugins/fixed_shot_interval/__init__.py                          #
 #                                                                   #
-# Copyright 2017, JQI                                               #
+# Copyright 2017, Christopher Billington                            #
 #                                                                   #
 # This file is part of the program BLACS, in the labscript suite    #
 # (see http://labscriptsuite.org), and is licensed under the        #
