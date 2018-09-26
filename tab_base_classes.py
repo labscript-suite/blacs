@@ -43,6 +43,9 @@ import qtutils.icons
 from labscript_utils.qtwidgets.elide_label import elide_label
 from blacs import BLACS_DIR
 
+from labscript_utils import check_version
+check_version('zprocess', '2.9.0', '3.0.0')
+
 class Counter(object):
     """A class with a single method that 
     returns a different integer each time it's called."""
@@ -456,6 +459,13 @@ class Tab(object):
         # Todo: Update icon in tab
     
     def create_worker(self,name,WorkerClass,workerargs={}):
+        """Start a worker process. WorkerClass can either be a subclass of Worker, or a
+        string containing a fully qualified import path to a worker. The latter is
+        useful if the worker class is in a separate file with global imports or other
+        import-time behaviour that is undesirable to have run in the main process, for
+        example if the imports may not be available to the main process (as may be the
+        case once remote worker processes are implemented and the worker may be on a
+        separate computer)."""
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
         if name == 'GUI':
@@ -463,7 +473,17 @@ class Tab(object):
             # not in a worker process named GUI
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         
-        worker = WorkerClass(output_redirection_port=self._output_box.port)
+        if issubclass(WorkerClass, Worker):
+            worker = WorkerClass(output_redirection_port=self._output_box.port)
+        elif isinstance(WorkerClass, str):
+            # If we were passed a string for the WorkerClass, it is an import path
+            # for where the Worker class can be found. Pass it to zprocess.Process,
+            # which will do the import in the subprocess only.
+            worker = Process(
+                output_redirection_port=self._output_box.port, subclass_path=worker
+            )
+        else:
+            raise TypeError(WorkerClass)
         to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
         self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
