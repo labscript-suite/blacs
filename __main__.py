@@ -15,6 +15,10 @@ from labscript_utils import PY2
 if PY2:
     str = unicode
 
+
+# Custom Excepthook
+import labscript_utils.excepthook
+
 import logging, logging.handlers
 import os
 import socket
@@ -60,8 +64,6 @@ from zprocess import zmq_get, ZMQServer, raise_exception_in_thread
 from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 
-# Custom Excepthook
-import labscript_utils.excepthook
 # Setup logging
 logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
