@@ -20,8 +20,6 @@ else:
     import queue
     import pickle
 
-import labscript_utils.excepthook
-
 from zprocess import Process
 import time
 import sys
@@ -829,6 +827,7 @@ class Worker(Process):
         log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
         self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
+        import labscript_utils.excepthook
         labscript_utils.excepthook.set_logger(self.logger)
         import zprocess.locking, labscript_utils.h5_lock
         zprocess.locking.set_client_process_name(log_name)
