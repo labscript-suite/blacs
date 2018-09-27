@@ -20,6 +20,8 @@ else:
     import queue
     import pickle
 
+import labscript_utils.excepthook
+
 from zprocess import Process
 import time
 import sys
@@ -30,7 +32,6 @@ import cgi
 import os
 from types import GeneratorType
 
-# import labscript_utils.excepthook
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -823,12 +824,12 @@ class Worker(Process):
         self.device_name = device_name
         for argname in extraargs:
             setattr(self,argname,extraargs[argname])
-        # Total fudge, should be replaced with zmq logging in future:
         from labscript_utils.setup_logging import setup_logging
         setup_logging('BLACS')
         log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
         self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
+        labscript_utils.excepthook.set_logger(self.logger)
         import zprocess.locking, labscript_utils.h5_lock
         zprocess.locking.set_client_process_name(log_name)
         #self.init()
