@@ -30,7 +30,6 @@ import cgi
 import os
 from types import GeneratorType
 
-# import labscript_utils.excepthook
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -42,6 +41,12 @@ import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
 from blacs import BLACS_DIR
+
+from labscript_utils import check_version
+
+# This version check is distinct from the one in __main__.py, since this file is a
+# library used by classes in labscript_devices without running __main__.py.
+check_version('zprocess', '2.9.0', '3.0.0')
 
 class Counter(object):
     """A class with a single method that 
@@ -456,6 +461,13 @@ class Tab(object):
         # Todo: Update icon in tab
     
     def create_worker(self,name,WorkerClass,workerargs={}):
+        """Start a worker process. WorkerClass can either be a subclass of Worker, or a
+        string containing a fully qualified import path to a worker. The latter is
+        useful if the worker class is in a separate file with global imports or other
+        import-time behaviour that is undesirable to have run in the main process, for
+        example if the imports may not be available to the main process (as may be the
+        case once remote worker processes are implemented and the worker may be on a
+        separate computer)."""
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
         if name == 'GUI':
@@ -463,7 +475,18 @@ class Tab(object):
             # not in a worker process named GUI
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         
-        worker = WorkerClass(output_redirection_port=self._output_box.port)
+        if isinstance(WorkerClass, type):
+            worker = WorkerClass(output_redirection_port=self._output_box.port)
+        elif isinstance(WorkerClass, str):
+            # If we were passed a string for the WorkerClass, it is an import path
+            # for where the Worker class can be found. Pass it to zprocess.Process,
+            # which will do the import in the subprocess only.
+            worker = Process(
+                output_redirection_port=self._output_box.port,
+                subclass_fullname=WorkerClass,
+            )
+        else:
+            raise TypeError(WorkerClass)
         to_worker, from_worker = worker.start(name, self.device_name, workerargs)
         self.workers[name] = (worker,to_worker,from_worker)
         self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
@@ -799,12 +822,13 @@ class Worker(Process):
         self.device_name = device_name
         for argname in extraargs:
             setattr(self,argname,extraargs[argname])
-        # Total fudge, should be replaced with zmq logging in future:
         from labscript_utils.setup_logging import setup_logging
         setup_logging('BLACS')
         log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
         self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
+        import labscript_utils.excepthook
+        labscript_utils.excepthook.set_logger(self.logger)
         import zprocess.locking, labscript_utils.h5_lock
         zprocess.locking.set_client_process_name(log_name)
         #self.init()
