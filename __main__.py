@@ -276,7 +276,7 @@ class BLACS(object):
 
         logger.info('Instantiating devices')
         self.failed_device_settings = {}
-        for device_name, labscript_device_class_name in self.attached_devices.items():
+        for device_name, labscript_device_class_name in list(self.attached_devices.items()):
             try:
                 self.settings_dict.setdefault(device_name,{"device_name":device_name})
                 # add common keys to settings:
