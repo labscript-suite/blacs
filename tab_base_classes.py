@@ -461,13 +461,15 @@ class Tab(object):
         # Todo: Update icon in tab
     
     def create_worker(self,name,WorkerClass,workerargs={}):
-        """Start a worker process. WorkerClass can either be a subclass of Worker, or a
+        """Set up a worker process. WorkerClass can either be a subclass of Worker, or a
         string containing a fully qualified import path to a worker. The latter is
         useful if the worker class is in a separate file with global imports or other
         import-time behaviour that is undesirable to have run in the main process, for
         example if the imports may not be available to the main process (as may be the
         case once remote worker processes are implemented and the worker may be on a
-        separate computer)."""
+        separate computer). The worker process will not be started immediately, it will
+        be started once the state machine mainloop begins running. This way errors in
+        startup will be handled using the normal state machine machinery."""
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
         if name == 'GUI':
@@ -487,11 +489,14 @@ class Tab(object):
             )
         else:
             raise TypeError(WorkerClass)
-        to_worker, from_worker = worker.start(name, self.device_name, workerargs)
-        self.workers[name] = (worker,to_worker,from_worker)
-        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
+        self.workers[name] = (worker,None,None)
+        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name, workerargs),{}]],prepend=True)
        
-    def _initialise_worker(self, worker_name):
+    def _initialise_worker(self, worker_name, workerargs):
+        worker, _, _ = self.workers[worker_name]
+        to_worker, from_worker = worker.start(worker_name, self.device_name, workerargs)
+        self.workers[worker_name] = (worker, to_worker, from_worker)
+
         yield(self.queue_work(worker_name,'init'))
                 
         if self.error_message:
