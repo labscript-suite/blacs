@@ -490,7 +490,7 @@ class Tab(object):
         else:
             raise TypeError(WorkerClass)
         self.workers[name] = (worker,None,None)
-        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name, workerargs),{}]],prepend=True)
+        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name, workerargs),{}]],prepend=False)
        
     def _initialise_worker(self, worker_name, workerargs):
         worker, _, _ = self.workers[worker_name]
@@ -578,19 +578,19 @@ class Tab(object):
         self.logger.info('close_tab called')
         self._timeout.stop()
         self._tab_icon_and_colour_timer.stop()
-        for name,worker_data in self.workers.items():            
-            worker_data[0].terminate()
-            # The mainloop is blocking waiting for something out of the
-            # from_worker queue or the event_queue. Closing the queues doesn't
-            # seem to raise an EOF for them, likely because it only closes
-            # them from our end, and an EOFError would only be raised if it
-            # was closed from the other end, which we can't make happen. But
-            # we can instruct it to quit by telling it to do so through the
-            # queue itself. That way we don't leave extra threads running
-            # (albeit doing nothing) that we don't need:
+        for worker, to_worker, from_worker in self.workers.values():
+            if worker.child is None:
+                # Worker was not started, it doesn not need to be terminated.
+                continue
+            worker.terminate()
+            # In case the mainloop is blocking on recieving something from the worker,
+            # post a message to that queue telling the mainloop to quit:
             if self._mainloop_thread.is_alive():
-                worker_data[2].put((False,'quit',None))
-                self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None],prepend=True)
+                from_worker.put((False, 'quit', None))
+        # In case the mainloop is blocking on the event queue, post a message to that
+        # queue telling it to quit:
+        if self._mainloop_thread.is_alive():
+            self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None],prepend=True)
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
