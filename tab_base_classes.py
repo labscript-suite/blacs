@@ -493,12 +493,7 @@ class Tab(object):
         self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name, workerargs),{}]],prepend=False)
        
     def _initialise_worker(self, worker_name, workerargs):
-        worker, _, _ = self.workers[worker_name]
-        to_worker, from_worker = worker.start(worker_name, self.device_name, workerargs)
-        self.workers[worker_name] = (worker, to_worker, from_worker)
-
-        yield(self.queue_work(worker_name,'init'))
-                
+        yield (self.queue_work(worker_name, 'init', worker_name, self.device_name, workerargs))
         if self.error_message:
             raise Exception('Device failed to initialise')
                
@@ -739,6 +734,13 @@ class Tab(object):
                     while generator_running:
                         try:
                             logger.debug('Instructing worker %s to do job %s'%(worker_process,worker_function) )
+                            if worker_function == 'init':
+                                # Start the worker process before running its init() method:
+                                self.state = '%s (%s)'%('Starting worker process', worker_process)
+                                worker, _, _ = self.workers[worker_process]
+                                to_worker, from_worker = worker.start(*worker_args)
+                                self.workers[worker_process] = (worker, to_worker, from_worker)
+                                worker_args = ()
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
