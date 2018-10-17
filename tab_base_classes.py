@@ -46,7 +46,7 @@ from labscript_utils import check_version
 
 # This version check is distinct from the one in __main__.py, since this file is a
 # library used by classes in labscript_devices without running __main__.py.
-check_version('zprocess', '2.9.0', '3.0.0')
+check_version('zprocess', '2.9.1', '3.0.0')
 
 class Counter(object):
     """A class with a single method that 
