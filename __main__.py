@@ -51,7 +51,7 @@ except ImportError:
 
 check_version('labscript_utils', '2.7.2', '3')
 check_version('qtutils', '2.0.0', '3.0.0')
-check_version('zprocess', '1.1.2', '3')
+check_version('zprocess', '2.9.2', '3')
 check_version('labscript_devices', '2.0', '3')
 
 
