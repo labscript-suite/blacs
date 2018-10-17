@@ -29,7 +29,7 @@ import logging
 import cgi
 import os
 from types import GeneratorType
-
+from bisect import insort
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -106,11 +106,15 @@ class StateQueue(object):
      
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)   
-    def put(self,allowed_states,queue_state_indefinitely,delete_stale_states,data,prepend=False):
-        if prepend:
-            self.list_of_states.insert(0,[allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
-        else:
-            self.list_of_states.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
+    def put(self, allowed_states, queue_state_indefinitely, delete_stale_states, data, priority=0):
+        """Add a state to the queue. Lower number for priority indicates the state will
+        be executed earlier"""
+        # State data starts with priority, and then with a unique id that monotonically
+        # increases. This way, sorting the queue will sort first by priority and then by
+        # priority and then order added.
+        state_data = [priority, get_unique_id(), allowed_states, queue_state_indefinitely, delete_stale_states,data]
+        # Insert the task into the queue, retaining sort order first by priority and then by order added:
+        insort(self.list_of_states, state_data)
         # if this state is one the get command is waiting for, notify it!
         if self.last_requested_state is not None and allowed_states&self.last_requested_state:
             self.get_blocking_queue.put('new item')
@@ -135,7 +139,7 @@ class StateQueue(object):
         delete_index_list = []
         success = False
         for i,item in enumerate(self.list_of_states):
-            allowed_states,queue_state_indefinitely,delete_stale_states,data = item
+            priority, unique_id, allowed_states ,queue_state_indefinitely, delete_stale_states, data = item
             if self.logging_enabled:
                 self.logger.debug('iterating over states in queue')
             if allowed_states&state:
@@ -154,7 +158,7 @@ class StateQueue(object):
                     while i < len(self.list_of_states) and state_function == self.list_of_states[i][3][0]:
                         if self.logging_enabled:
                             self.logger.debug('requesting deletion of stale state')
-                        allowed_states,queue_state_indefinitely,delete_stale_states,data = self.list_of_states[i]
+                        priority, unique_id, allowed_states, queue_state_indefinitely, delete_stale_states, data = self.list_of_states[i]
                         delete_index_list.append(i)
                         i+=1
                 
@@ -196,10 +200,10 @@ class StateQueue(object):
             else:
                 self.last_requested_state = None
                 return data
-                
-                    
-        
-# Make this function available globally:       
+
+
+# A counter for uniqely numbering timeouts and numbering queued states monotinically,
+# such that sort order coresponds to the order the state was added to the queue:
 get_unique_id = Counter().get
 
 def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
@@ -490,7 +494,7 @@ class Tab(object):
         else:
             raise TypeError(WorkerClass)
         self.workers[name] = (worker,None,None)
-        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name, workerargs),{}]],prepend=False)
+        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name, workerargs),{}]], priority=-1)
        
     def _initialise_worker(self, worker_name, workerargs):
         yield (self.queue_work(worker_name, 'init', worker_name, self.device_name, workerargs))
@@ -585,7 +589,7 @@ class Tab(object):
         # In case the mainloop is blocking on the event queue, post a message to that
         # queue telling it to quit:
         if self._mainloop_thread.is_alive():
-            self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None],prepend=True)
+            self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None],priority=-1)
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
