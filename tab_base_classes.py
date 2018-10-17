@@ -108,10 +108,10 @@ class StateQueue(object):
     @inmain_decorator(True)   
     def put(self, allowed_states, queue_state_indefinitely, delete_stale_states, data, priority=0):
         """Add a state to the queue. Lower number for priority indicates the state will
-        be executed earlier"""
+        be executed before any states with higher numbers for their priority"""
         # State data starts with priority, and then with a unique id that monotonically
         # increases. This way, sorting the queue will sort first by priority and then by
-        # priority and then order added.
+        # order added.
         state_data = [priority, get_unique_id(), allowed_states, queue_state_indefinitely, delete_stale_states,data]
         # Insert the task into the queue, retaining sort order first by priority and then by order added:
         insort(self.list_of_states, state_data)
