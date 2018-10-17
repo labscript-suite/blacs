@@ -104,13 +104,13 @@ class Plugin(object):
         self.master_pseudoclock = self.BLACS['experiment_queue'].master_pseudoclock
 
         # Check if the wait monitor device, if any, supports wait completed events:
-        connection_table = ConnectionTable(self.BLACS['connection_table_h5file'])
-        for connection in connection_table.table.values():
-            if connection.device_class == 'WaitMonitor':
-                wait_monitor_device = connection_table.table[connection.parent_name]
-                props = wait_monitor_device.properties
+        with h5py.File(self.BLACS['connection_table_h5file'], 'r') as f:
+            if 'waits' in f:
+                acq_device = f['waits'].attrs['wait_monitor_acquisition_device']
+                props = properties.get(f, acq_device, 'connection_table_properties')
                 if props.get('wait_monitor_supports_wait_completed_events', False):
                     self.wait_completed_events_supported = True
+
         self.ui.wait_warning.hide()
 
     def get_save_data(self):
