@@ -156,8 +156,6 @@ class QueueManager(object):
         self.manager.daemon=True
         self.manager.start()
 
-        self._callbacks = None
-
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
         
