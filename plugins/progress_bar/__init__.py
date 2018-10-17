@@ -96,7 +96,16 @@ class Plugin(object):
         self.BLACS = BLACS
         self.ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'controls.ui'))
         self.bar = self.ui.bar
+        self.style = QtWidgets.QStyleFactory.create('Fusion')
+        if self.style is None:
+            # If we're on Qt4, fall back to Plastique style:
+            self.style = QtWidgets.QStyleFactory.create('Plastique')
+        if self.style is None:
+            # Not sure what's up, but fall back to app's default style:
+            self.style = QtWidgets.QApplication.style()
+        self.bar.setStyle(self.style)
         self.bar.setMaximum(BAR_MAX)
+        self.bar.setAlignment(QtCore.Qt.AlignCenter)
         # Add our controls to the BLACS gui:
         BLACS['ui'].queue_status_verticalLayout.insertWidget(0, self.ui)
         # We need to know the name of the master pseudoclock so we can look up
@@ -135,7 +144,7 @@ class Plugin(object):
         self.bar.setEnabled(False)
         self.bar.setFormat('No shot running')
         self.bar.setValue(0)
-        self.bar.setPalette(QtWidgets.QApplication.style().standardPalette())
+        self.bar.setPalette(self.style.standardPalette())
         self.ui.wait_warning.hide()
 
     def get_next_thing(self):
@@ -217,7 +226,7 @@ class Plugin(object):
         else:
             self.bar_text_prefix = None
             # Default palette:
-            self.bar.setPalette(QtWidgets.QApplication.style().standardPalette())
+            self.bar.setPalette(self.style.standardPalette())
 
     @inmain_decorator(True)
     def update_bar_value(self, marker=False, wait=False):
