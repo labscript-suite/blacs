@@ -32,16 +32,10 @@ from qtutils.qt import QtGui, QtWidgets, QtCore
 import labscript_utils.h5_lock
 import h5py
 
-from labscript_utils.shared_drive import path_to_agnostic
 import labscript_utils.properties as properties
-from labscript_utils import check_version
-import zprocess.locking
+from labscript_utils.connections import ConnectionTable
 from zprocess import Event, TimeoutError
 from blacs.plugins import PLUGINS_DIR, callback
-
-# Need the version of labscript devices that has the wait monitors posting
-# events to let us know when waits are completed:
-check_version('labscript_devices', '2.2.0', '3.0')
 
 name = "Progress Bar"
 module = "progress_bar" # should be folder name
@@ -81,8 +75,6 @@ class Plugin(object):
         self.notifications = {}
         self.initial_settings = initial_settings
         self.BLACS = None
-        self.bar = QtWidgets.QProgressBar()
-        self.bar.setMaximum(BAR_MAX)
         self.command_queue = Queue()
         self.master_pseudoclock = None
         self.shot_start_time = None
@@ -94,18 +86,32 @@ class Plugin(object):
         self.next_marker_index = None
         self.bar_text_prefix = None
         self.h5_filepath = None
-        self.wait_completed = zprocess.Event('wait_completed', type='wait')
+        self.wait_completed_events_supported = False
+        self.wait_completed = Event('wait_completed', type='wait')
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
         self.mainloop_thread.start()
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
-        # Add the progress bar to the BLACS gui:
-        BLACS['ui'].queue_status_verticalLayout.insertWidget(0, self.bar)
+        self.ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'controls.ui'))
+        self.bar = self.ui.bar
+        self.bar.setMaximum(BAR_MAX)
+        # Add our controls to the BLACS gui:
+        BLACS['ui'].queue_status_verticalLayout.insertWidget(0, self.ui)
         # We need to know the name of the master pseudoclock so we can look up
         # the duration of each shot:
         self.master_pseudoclock = self.BLACS['experiment_queue'].master_pseudoclock
+
+        # Check if the wait monitor device, if any, supports wait completed events:
+        connection_table = ConnectionTable(self.BLACS['connection_table_h5file'])
+        for connection in connection_table.table.values():
+            if connection.device_class == 'WaitMonitor':
+                wait_monitor_device = connection_table.table[connection.parent_name]
+                props = wait_monitor_device.properties
+                if props.get('wait_monitor_supports_wait_completed_events', False):
+                    self.wait_completed_events_supported = True
+        self.ui.wait_warning.hide()
 
     def get_save_data(self):
         return {}
@@ -130,6 +136,7 @@ class Plugin(object):
         self.bar.setFormat('No shot running')
         self.bar.setValue(0)
         self.bar.setPalette(QtWidgets.QApplication.style().standardPalette())
+        self.ui.wait_warning.hide()
 
     def get_next_thing(self):
         """Figure out what's going to happen next: a wait, a time marker, or a
@@ -302,16 +309,21 @@ class Plugin(object):
                                     # we can check if the queue is empty in between:
                                     self.wait_completed.wait(self.h5_filepath, timeout=0.1)
                                 except TimeoutError:
-                                    # The wait is still in progress:
-                                    continue
-                                else:
-                                    # The wait completed:
-                                    self.time_spent_waiting += time.time() - wait_start_time
-                                    # Set the bar style back to whatever the
-                                    # previous marker was, if any:
-                                    self.update_bar_style(marker=True, previous=True)
-                                    self.update_bar_value()
-                                    break
+                                    # Only wait for wait completed events if the wait
+                                    # monitor device supports them. Otherwise, skip
+                                    # after this first timeout, and it will just look
+                                    # like the wait had 0.1 sec duration.
+                                    if self.wait_completed_events_supported:
+                                        # The wait is still in progress:
+                                        continue
+                                # The wait completed (or completion events are not
+                                # supported):
+                                self.time_spent_waiting += time.time() - wait_start_time
+                                # Set the bar style back to whatever the
+                                # previous marker was, if any:
+                                self.update_bar_style(marker=True, previous=True)
+                                self.update_bar_value()
+                                break
                         continue
                 else:
                     command, h5_filepath = self.command_queue.get()
@@ -322,6 +334,12 @@ class Plugin(object):
                     running = True
                     self._start(h5_filepath)
                     self.update_bar_value()
+                    if (
+                        self.waits is not None
+                        and len(self.waits) > 0
+                        and not self.wait_completed_events_supported
+                    ):
+                        inmain(self.ui.wait_warning.show)
                 elif command == 'stop':
                     assert running
                     self.clear_bar()
