@@ -579,12 +579,12 @@ class Tab(object):
         self._tab_icon_and_colour_timer.stop()
         for worker, to_worker, from_worker in self.workers.values():
             if worker.child is None:
-                # Worker was not started, it doesn not need to be terminated.
+                # Worker was not started, it doesn't need to be terminated.
                 continue
             worker.terminate()
-            # In case the mainloop is blocking on recieving something from the worker,
+            # In case the mainloop is blocking on receiving something from the worker,
             # post a message to that queue telling the mainloop to quit:
-            if self._mainloop_thread.is_alive():
+            if self._mainloop_thread.is_alive() and from_worker is not None:
                 from_worker.put((False, 'quit', None))
         # In case the mainloop is blocking on the event queue, post a message to that
         # queue telling it to quit:
