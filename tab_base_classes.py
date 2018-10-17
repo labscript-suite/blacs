@@ -139,7 +139,7 @@ class StateQueue(object):
         delete_index_list = []
         success = False
         for i,item in enumerate(self.list_of_states):
-            priority, unique_id, allowed_states ,queue_state_indefinitely, delete_stale_states, data = item
+            priority, unique_id, allowed_states, queue_state_indefinitely, delete_stale_states, data = item
             if self.logging_enabled:
                 self.logger.debug('iterating over states in queue')
             if allowed_states&state:
@@ -155,7 +155,7 @@ class StateQueue(object):
                 if delete_stale_states:
                     state_function = data[0]
                     i+=1
-                    while i < len(self.list_of_states) and state_function == self.list_of_states[i][3][0]:
+                    while i < len(self.list_of_states) and state_function == self.list_of_states[i][5][0]:
                         if self.logging_enabled:
                             self.logger.debug('requesting deletion of stale state')
                         priority, unique_id, allowed_states, queue_state_indefinitely, delete_stale_states, data = self.list_of_states[i]
