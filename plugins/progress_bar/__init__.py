@@ -116,9 +116,11 @@ class Plugin(object):
         with h5py.File(self.BLACS['connection_table_h5file'], 'r') as f:
             if 'waits' in f:
                 acq_device = f['waits'].attrs['wait_monitor_acquisition_device']
-                props = properties.get(f, acq_device, 'connection_table_properties')
-                if props.get('wait_monitor_supports_wait_completed_events', False):
-                    self.wait_completed_events_supported = True
+                acq_device = _ensure_str(acq_device)
+                if acq_device:
+                    props = properties.get(f, acq_device, 'connection_table_properties')
+                    if props.get('wait_monitor_supports_wait_completed_events', False):
+                        self.wait_completed_events_supported = True
 
         self.ui.wait_warning.hide()
 
