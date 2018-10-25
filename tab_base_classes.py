@@ -29,7 +29,7 @@ import logging
 import cgi
 import os
 from types import GeneratorType
-
+from bisect import insort
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -46,7 +46,7 @@ from labscript_utils import check_version
 
 # This version check is distinct from the one in __main__.py, since this file is a
 # library used by classes in labscript_devices without running __main__.py.
-check_version('zprocess', '2.9.0', '3.0.0')
+check_version('zprocess', '2.9.2', '3.0.0')
 
 class Counter(object):
     """A class with a single method that 
@@ -106,11 +106,15 @@ class StateQueue(object):
      
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)   
-    def put(self,allowed_states,queue_state_indefinitely,delete_stale_states,data,prepend=False):
-        if prepend:
-            self.list_of_states.insert(0,[allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
-        else:
-            self.list_of_states.append([allowed_states,queue_state_indefinitely,delete_stale_states,data]) 
+    def put(self, allowed_states, queue_state_indefinitely, delete_stale_states, data, priority=0):
+        """Add a state to the queue. Lower number for priority indicates the state will
+        be executed before any states with higher numbers for their priority"""
+        # State data starts with priority, and then with a unique id that monotonically
+        # increases. This way, sorting the queue will sort first by priority and then by
+        # order added.
+        state_data = [priority, get_unique_id(), allowed_states, queue_state_indefinitely, delete_stale_states,data]
+        # Insert the task into the queue, retaining sort order first by priority and then by order added:
+        insort(self.list_of_states, state_data)
         # if this state is one the get command is waiting for, notify it!
         if self.last_requested_state is not None and allowed_states&self.last_requested_state:
             self.get_blocking_queue.put('new item')
@@ -135,7 +139,7 @@ class StateQueue(object):
         delete_index_list = []
         success = False
         for i,item in enumerate(self.list_of_states):
-            allowed_states,queue_state_indefinitely,delete_stale_states,data = item
+            priority, unique_id, allowed_states, queue_state_indefinitely, delete_stale_states, data = item
             if self.logging_enabled:
                 self.logger.debug('iterating over states in queue')
             if allowed_states&state:
@@ -151,10 +155,10 @@ class StateQueue(object):
                 if delete_stale_states:
                     state_function = data[0]
                     i+=1
-                    while i < len(self.list_of_states) and state_function == self.list_of_states[i][3][0]:
+                    while i < len(self.list_of_states) and state_function == self.list_of_states[i][5][0]:
                         if self.logging_enabled:
                             self.logger.debug('requesting deletion of stale state')
-                        allowed_states,queue_state_indefinitely,delete_stale_states,data = self.list_of_states[i]
+                        priority, unique_id, allowed_states, queue_state_indefinitely, delete_stale_states, data = self.list_of_states[i]
                         delete_index_list.append(i)
                         i+=1
                 
@@ -196,10 +200,10 @@ class StateQueue(object):
             else:
                 self.last_requested_state = None
                 return data
-                
-                    
-        
-# Make this function available globally:       
+
+
+# A counter for uniqely numbering timeouts and numbering queued states monotinically,
+# such that sort order coresponds to the order the state was added to the queue:
 get_unique_id = Counter().get
 
 def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
@@ -461,13 +465,15 @@ class Tab(object):
         # Todo: Update icon in tab
     
     def create_worker(self,name,WorkerClass,workerargs={}):
-        """Start a worker process. WorkerClass can either be a subclass of Worker, or a
+        """Set up a worker process. WorkerClass can either be a subclass of Worker, or a
         string containing a fully qualified import path to a worker. The latter is
         useful if the worker class is in a separate file with global imports or other
         import-time behaviour that is undesirable to have run in the main process, for
         example if the imports may not be available to the main process (as may be the
         case once remote worker processes are implemented and the worker may be on a
-        separate computer)."""
+        separate computer). The worker process will not be started immediately, it will
+        be started once the state machine mainloop begins running. This way errors in
+        startup will be handled using the normal state machine machinery."""
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
         if name == 'GUI':
@@ -487,13 +493,11 @@ class Tab(object):
             )
         else:
             raise TypeError(WorkerClass)
-        to_worker, from_worker = worker.start(name, self.device_name, workerargs)
-        self.workers[name] = (worker,to_worker,from_worker)
-        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name,),{}]],prepend=True)
+        self.workers[name] = (worker,None,None)
+        self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,[Tab._initialise_worker,[(name, workerargs),{}]], priority=-1)
        
-    def _initialise_worker(self, worker_name):
-        yield(self.queue_work(worker_name,'init'))
-                
+    def _initialise_worker(self, worker_name, workerargs):
+        yield (self.queue_work(worker_name, 'init', worker_name, self.device_name, workerargs))
         if self.error_message:
             raise Exception('Device failed to initialise')
                
@@ -573,19 +577,19 @@ class Tab(object):
         self.logger.info('close_tab called')
         self._timeout.stop()
         self._tab_icon_and_colour_timer.stop()
-        for name,worker_data in self.workers.items():            
-            worker_data[0].terminate()
-            # The mainloop is blocking waiting for something out of the
-            # from_worker queue or the event_queue. Closing the queues doesn't
-            # seem to raise an EOF for them, likely because it only closes
-            # them from our end, and an EOFError would only be raised if it
-            # was closed from the other end, which we can't make happen. But
-            # we can instruct it to quit by telling it to do so through the
-            # queue itself. That way we don't leave extra threads running
-            # (albeit doing nothing) that we don't need:
-            if self._mainloop_thread.is_alive():
-                worker_data[2].put((False,'quit',None))
-                self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None],prepend=True)
+        for worker, to_worker, from_worker in self.workers.values():
+            if worker.child is None:
+                # Worker was not started, it doesn't need to be terminated.
+                continue
+            worker.terminate()
+            # In case the mainloop is blocking on receiving something from the worker,
+            # post a message to that queue telling the mainloop to quit:
+            if self._mainloop_thread.is_alive() and from_worker is not None:
+                from_worker.put((False, 'quit', None))
+        # In case the mainloop is blocking on the event queue, post a message to that
+        # queue telling it to quit:
+        if self._mainloop_thread.is_alive():
+            self.event_queue.put(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True,False,['_quit',None],priority=-1)
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
@@ -734,6 +738,13 @@ class Tab(object):
                     while generator_running:
                         try:
                             logger.debug('Instructing worker %s to do job %s'%(worker_process,worker_function) )
+                            if worker_function == 'init':
+                                # Start the worker process before running its init() method:
+                                self.state = '%s (%s)'%('Starting worker process', worker_process)
+                                worker, _, _ = self.workers[worker_process]
+                                to_worker, from_worker = worker.start(*worker_args)
+                                self.workers[worker_process] = (worker, to_worker, from_worker)
+                                worker_args = ()
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
