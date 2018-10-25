@@ -407,17 +407,14 @@ class Tab(object):
         if self._ui.parentWidget() is None:
             return
         self.notebook = self._ui.parentWidget().parentWidget()
-        currentpage = None
         if self.notebook is not None:
-            #currentpage = self.notebook.get_current_page()
             currentpage = self.notebook.indexOf(self._ui)
-        if self.notebook is not None and currentpage != -1:
+            if currentpage == -1:
+                # shutting down:
+                return
             icon = QIcon(self._tab_icon)
             self.notebook.tabBar().setTabIcon(currentpage, icon)
             self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
-            self._tab_icon_and_colour_timer.stop()
-        elif not self._tab_icon_and_colour_timer.isActive():
-            self._tab_icon_and_colour_timer.start(100)
     
     def get_tab_layout(self):
         return self._layout
@@ -550,33 +547,9 @@ class Tab(object):
             self._timeouts = set()
             return False        
     
-    # def set_state(self,state):
-        # ready = self.tab_label_widgets['ready']
-        # working = self.tab_label_widgets['working']
-        # error = self.tab_label_widgets['error']
-        # self.logger.info('State changed to %s'% state)
-        # self.state = state
-        # if state == 'idle':
-            # working.hide()
-            # if self.error:
-                # error.show()
-            # else:
-                # ready.show()
-                # error.hide()
-        # elif state == 'fatal error':
-            # working.hide()
-            # error.show()
-            # ready.hide()
-        # else:
-            # ready.hide()
-            # working.show()
-        # self._time_of_last_state_change = time.time()
-        # self.statusbar.push(self.context_id, state)
-    
     def close_tab(self,*args):
         self.logger.info('close_tab called')
         self._timeout.stop()
-        self._tab_icon_and_colour_timer.stop()
         for worker, to_worker, from_worker in self.workers.values():
             if worker.child is None:
                 # Worker was not started, it doesn't need to be terminated.
@@ -673,9 +646,6 @@ class Tab(object):
         self.error_message = ''
         self._tab_text_colour = 'black'
         self.set_tab_icon_and_colour()
-        #self.tab_label_widgets['error'].hide()
-        #if self.state == 'idle':
-        #    self.tab_label_widgets['ready'].show()
             
     def check_time(self):
         if self.state in ['idle','fatal error']:
@@ -915,12 +885,6 @@ class PluginTab(object):
         self.initialise_GUI()
         self.restore_save_data(self.settings['saved_data'] if 'saved_data' in self.settings else {})
 
-        self._tab_icon_and_colour_timer = QTimer()
-        self._tab_icon_and_colour_timer.timeout.connect(self.set_tab_icon_and_colour)
-        self._tab_icon = QIcon(':/qtutils/fugue/block')
-        self._tab_text_colour = 'blue'
-        self._tab_icon_and_colour_timer.start(100)
-
     @inmain_decorator(True)
     def set_tab_icon_and_colour(self):
         """Set the tab icon and the colour of its text to the values of
@@ -928,17 +892,14 @@ class PluginTab(object):
         if self._ui.parentWidget() is None:
             return
         self.notebook = self._ui.parentWidget().parentWidget()
-        currentpage = None
         if self.notebook is not None:
-            # currentpage = self.notebook.get_current_page()
             currentpage = self.notebook.indexOf(self._ui)
-        if self.notebook is not None and currentpage != -1:
+            if currentpage == -1:
+                # shutting down:
+                return
             icon = QIcon(self._tab_icon)
             self.notebook.tabBar().setTabIcon(currentpage, icon)
             self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
-            self._tab_icon_and_colour_timer.stop()
-        elif not self._tab_icon_and_colour_timer.isActive():
-            self._tab_icon_and_colour_timer.start(100)
 
     @property
     def tab_name(self):
@@ -947,8 +908,7 @@ class PluginTab(object):
     def get_tab_layout(self):
         return self._layout
 
-    def close_tab(self,*args):
-        self._tab_icon_and_colour_timer.stop()
+    def close_tab(self, *args):
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
@@ -1005,42 +965,7 @@ class PluginTab(object):
 class MyTab(Tab):
     def __init__(self,notebook,settings,restart=False): # restart will be true if __init__ was called due to a restart
         Tab.__init__(self,notebook,settings,restart) # Make sure to call this first in your __init__!
-        
         self.create_worker('My worker',MyWorker,{'x':7})
-        
-        # foobutton = gtk.Button('foo, 10 seconds!')
-        # barbutton = gtk.Button('bar, 10 seconds, then error!')
-        # bazbutton = gtk.Button('baz, 0.5 seconds!')
-        # addbazbutton = gtk.Button('add 2 second timeout to baz')
-        # removebazbutton = gtk.Button('remove baz timeout')
-        # bazunpickleable= gtk.Button('try to pass baz a multiprocessing.Lock()')
-        # fatalbutton = gtk.Button('fatal error, forgot to add @define_state to callback!')
-        # self.checkbutton=gtk.CheckButton('have baz\nreturn a Queue')
-        # self.toplevel = gtk.VBox()
-        # self.toplevel.pack_start(foobutton)
-        # self.toplevel.pack_start(barbutton)
-        # hbox = gtk.HBox()
-        # self.toplevel.pack_start(hbox)
-        # hbox.pack_start(bazbutton)
-        # hbox.pack_start(addbazbutton)
-        # hbox.pack_start(removebazbutton)
-        # hbox.pack_start(bazunpickleable)
-        # hbox.pack_start(self.checkbutton)
-        
-        # self.toplevel.pack_start(fatalbutton)
-        
-        # foobutton.connect('clicked', self.foo)
-        # barbutton.connect('clicked', self.bar)
-        # bazbutton.connect('clicked', self.baz)
-        # fatalbutton.connect('clicked',self.fatal )
-        # addbazbutton.connect('clicked',self.add_baz_timeout)
-        # removebazbutton.connect('clicked',self.remove_baz_timeout)
-        # bazunpickleable.connect('clicked', self.baz_unpickleable)
-        # # These two lines are required to top level widget (buttonbox
-        # # in this case) to the existing GUI:
-        # self.viewport.add(self.toplevel) 
-        # self.toplevel.show_all()    
-
         self.initUI()
         
     def initUI(self):
@@ -1075,7 +1000,6 @@ class MyTab(Tab):
         removebazbutton.clicked.connect(self.remove_baz_timeout)
         bazunpickleable.clicked.connect(self.baz_unpickleable)
 
-        
     # It is critical that you decorate your callbacks with @define_state
     # as below. This makes the function get queued up and executed
     # in turn by our state machine instead of immediately by the
@@ -1207,7 +1131,6 @@ if __name__ == '__main__':
     else:
         sys.stdout = sys.stderr = open(os.devnull)
     logger.setLevel(logging.DEBUG)
-    #labscript_utils.excepthook.set_logger(logger)
     logger.info('\n\n===============starting===============\n')
 
 if __name__ == '__main__':
@@ -1234,21 +1157,8 @@ if __name__ == '__main__':
     tab2 = MyTab(notebook,settings = {'device_name': 'Example2', 'connection_table':connection_table})
     
     window.show()
-    #notebook.show()
     def run():
         app.exec_()
         tab1.close_tab()
         tab2.close_tab()
     sys.exit(run())
-
-    # Run the demo!:
-    # gtk.gdk.threads_init() 
-    # window = gtk.Window() 
-    # notebook = gtk.Notebook()
-    # window.connect('destroy',lambda widget: gtk.main_quit())  
-    # window.add(notebook)
-    # notebook.show()
-    # window.show()  
-    # window.resize(800,600)
-    # with gtk.gdk.lock:
-        # gtk.main()
