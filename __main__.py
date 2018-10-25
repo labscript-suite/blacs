@@ -157,7 +157,7 @@ from blacs import BLACS_DIR
 
 def set_win_appusermodel(window_id):
     from labscript_utils.winshell import set_appusermodel, appids, app_descriptions
-    icon_path = os.path.abspath('blacs.ico')
+    icon_path = os.path.join(BLACS_DIR, 'blacs.ico')
     executable = sys.executable.lower()
     if not executable.endswith('w.exe'):
         executable = executable.replace('.exe', 'w.exe')
