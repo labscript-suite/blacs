@@ -107,21 +107,8 @@ class CompileAndRestart(QDialog):
                 pass
 
     def restart(self):
-        #gobject.timeout_add(100, self.blacs.destroy)
         if self.close_notification_func:
             self.close_notification_func()
         QTimer.singleShot(100, self.blacs['ui'].close)
         self.accept()
         self.blacs['set_relaunch'](True)
-
-        #self.blacs.qt_application.aboutToQuit.connect(self.relaunch)
-        #gtk.quit_add(0,self.relaunch)
-
-
-if __name__ == '__main__':
-    #gtk.threads_init()
-    globals_file = '/home/bilbo/labconfig/bilbo-laptop_calibrations.h5'
-    labscript_file = '/home/bilbo/labconfig/bilbo-laptop.py'
-    output_path = '/home/bilbo/Desktop/pythonlib/BLACS/connectiontables/bilbo-laptop.h5'
-    #compile_and_restart = CompileAndRestart(None, [], labscript_file, output_path)
-    #gtk.main()

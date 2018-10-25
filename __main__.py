@@ -30,14 +30,6 @@ import signal
 # Quit on ctrl-c
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-# check if we should delay!
-try:
-    if '--delay' in sys.argv:
-        delay = int(sys.argv[sys.argv.index('--delay')+1])
-        time.sleep(delay)
-except:
-    print('You should specify "--delay x" where x is an integer')
-
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
@@ -176,22 +168,10 @@ class BLACSWindow(QMainWindow):
         return result
 
     def closeEvent(self, event):
-        #print 'aaaaa'
         if self.blacs.exit_complete:
             event.accept()
             if self.blacs._relaunch:
                 logger.info('relaunching BLACS after quit')
-                relaunch_delay = '2'
-                if '--delay' in sys.argv:
-                    index = sys.argv.index('--delay') + 1
-                    try:
-                        int(sys.argv[index])
-                        sys.argv[index] = relaunch_delay
-                    except:
-                        sys.argv.insert(index,relaunch_delay)
-                else:
-                    sys.argv.append('--delay')
-                    sys.argv.append(relaunch_delay)
                 subprocess.Popen([sys.executable] + sys.argv)
         else:
             event.ignore()
@@ -304,7 +284,7 @@ class BLACS(object):
                 # instantiate the plugin
                 self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})
             except Exception:
-                logger.exception('Could not instantiate plugin \'%s\'. Skipping')
+                logger.exception('Could not instantiate plugin \'%s\'. Skipping' % module_name)
 
         logger.info('creating plugin tabs')
         # setup the plugin tabs
