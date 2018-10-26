@@ -46,7 +46,7 @@ from labscript_utils import check_version
 
 # This version check is distinct from the one in __main__.py, since this file is a
 # library used by classes in labscript_devices without running __main__.py.
-check_version('zprocess', '2.9.2', '3.0.0')
+check_version('zprocess', '2.9.3', '3.0.0')
 
 class Counter(object):
     """A class with a single method that 
@@ -482,14 +482,18 @@ class Tab(object):
             raise Exception('You cannot call a worker process "GUI". Why would you want to? Your worker process cannot interact with the BLACS GUI directly, so you are just trying to confuse yourself!')
         
         if isinstance(WorkerClass, type):
-            worker = WorkerClass(output_redirection_port=self._output_box.port)
+            worker = WorkerClass(
+                output_redirection_port=self._output_box.port,
+                startup_timeout=30
+                )
         elif isinstance(WorkerClass, str):
             # If we were passed a string for the WorkerClass, it is an import path
             # for where the Worker class can be found. Pass it to zprocess.Process,
             # which will do the import in the subprocess only.
             worker = Process(
                 output_redirection_port=self._output_box.port,
-                subclass_fullname=WorkerClass,
+                startup_timeout=30,
+                subclass_fullname=WorkerClass
             )
         else:
             raise TypeError(WorkerClass)
