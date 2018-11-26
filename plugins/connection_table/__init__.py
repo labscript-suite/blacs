@@ -14,6 +14,9 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from labscript_utils import PY2
 if PY2:
     str = unicode
+    from ConfigParser import NoOptionError
+else:
+    from configparser import NoOptionError
 
 import logging
 import os
@@ -178,7 +181,7 @@ class RecompileNotification(object):
     def get_properties(self):
         return {'can_hide':True, 'can_close':False}
         
-    def set_functions(self,show_func,hide_func,close_func,get_state):
+    def set_functions(self, show_func, hide_func, close_func, get_state):
         self._show = show_func
         self._hide = hide_func
         self._close = close_func
@@ -187,9 +190,31 @@ class RecompileNotification(object):
     def on_recompile_connection_table(self,*args,**kwargs):
         self.BLACS['plugins'][module].menu.on_recompile_connection_table()
         
-    def setup_filewatching(self,modified_times = None):
+    def callback(self, name, info, event=None):
+        if event in ['modified']:
+            logger.info('{} {} ({})'.format(name, event, info))
+            inmain(self._show)
+        elif event in ['original']:
+            logger.info('All watched files restored')
+            inmain(self._hide)
+        elif event in ['restored']:
+            logger.info('{} {} ({})'.format(name, event, info))
+        elif event in [u'debug', 'debug']:
+            logger.info(info)
+
+    def setup_filewatching(self, modified_times=None):
         folder_list = []
         file_list = [self.BLACS['connection_table_labscript'], self.BLACS['connection_table_h5file']]
+        try:
+            hashable_types = self.BLACS['exp_config'].get('BLACS/plugins', 'hashable_types')
+            hashable_types = eval(hashable_types)
+        except NoOptionError:
+            hashable_types = None
+        try:
+            polling_interval = self.BLACS['exp_config'].getfloat('BLACS/plugins', 'polling_interval')
+        except NoOptionError:
+            polling_interval = 1
+        logger.info('Using hashable_types: {}; polling_interval: {}'.format(hashable_types, polling_interval))
         
         # append the list of globals
         file_list += self.BLACS['settings'].get_value(Setting,'globals_list')
@@ -203,14 +228,14 @@ class RecompileNotification(object):
         
         if modified_times is None:
             modified_times = {}
-        
+
         # stop watching if we already were
         if self.filewatcher:
             self.filewatcher.stop()
             modified_times = self.filewatcher.get_modified_times()
             
         # Start the file watching!
-        self.filewatcher = FileWatcher(lambda f,m: inmain(self._show),file_list,folder_list,modified_times=modified_times)
+        self.filewatcher = FileWatcher(self.callback, file_list, folder_list, modified_times=modified_times, hashable_types=hashable_types, interval=polling_interval)
     
     def get_save_data(self):
         state = True if self._get_state() == 'hidden' or self._get_state() == 'shown' else False
@@ -354,14 +379,14 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
-                filepath = str(filepath)
+                filepath = os.path.normpath(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
                 # So we must check the extension of each file here!
                 if filepath.endswith('.h5') or filepath.endswith('.hdf5'):
                     # make sure the path isn't already in the list
-                    if not self.is_filepath_in_store(filepath,'globals'):
+                    if not self.is_filepath_in_store(filepath, 'globals'):
                         self.models['globals'].appendRow(QStandardItem(filepath))
          
             self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['globals_sort_order']))
@@ -391,7 +416,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
-                filepath = str(filepath)
+                filepath = os.path.normpath(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
@@ -414,6 +439,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
+                filepath = os.path.normpath(filepath)
                 # make sure the path isn't already in the list
                 if not self.is_filepath_in_store(filepath,'calibrations'):
                     self.models['calibrations'].appendRow(QStandardItem(filepath))
