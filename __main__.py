@@ -42,7 +42,7 @@ except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
 check_version('labscript_utils', '2.7.2', '3')
-check_version('qtutils', '2.0.0', '3.0.0')
+check_version('qtutils', '2.2.3', '3.0.0')
 check_version('zprocess', '2.9.2', '3')
 check_version('labscript_devices', '2.0', '3')
 
@@ -190,6 +190,62 @@ class BLACSWindow(QMainWindow):
                 inmain_later(self.blacs.on_save_exit)
 
             QTimer.singleShot(100,self.close)
+
+
+class EasterEggButton(QToolButton):
+    def __init__(self):
+        QToolButton.__init__(self)
+        self.setFixedSize(24, 24) # Ensure we're the same size as the other buttons
+        self.icon_atom = QIcon(':qtutils/custom/atom')
+        self.icon_smiley = QIcon(':qtutils/fugue/smiley-lol')
+        self.icon_none = QIcon(None)
+        self.icon_mouse_over = self.icon_atom
+        self.clicked.connect(self.on_click)
+
+    def enterEvent(self, event):
+        """Make the icon only visible on mouse-over"""
+        self.setIcon(self.icon_mouse_over)
+        return QToolButton.enterEvent(self, event)
+
+    def leaveEvent(self, event):
+        if self.icon_mouse_over is self.icon_atom:
+            self.setIcon(self.icon_none)
+        return QToolButton.leaveEvent(self, event)
+
+    def on_click(self):
+        """Run Measure Ball"""
+        # Change icon so the user knows something happened, since the game can take a
+        # few seconds to start
+        self.icon_mouse_over = self.icon_smiley
+        self.setIcon(self.icon_mouse_over)
+        # Ensure they can't run the game twice at once:
+        self.setEnabled(False)
+        # Wait for the subprocess in a thread so that we know when it quits:
+        qtutils.inthread(self.run_measure_ball)
+
+    def run_measure_ball(self):
+        try:
+            from subprocess import check_call
+            MEASURE_BALL = os.path.join(BLACS_DIR, 'measure_ball', 'MeasureBall.exe')
+            if os.name != 'nt':
+                try:
+                    check_call(['wine', '--version'])
+                except OSError:
+                    msg = 'Game cannot be run on Linux or OSX unless WINE is installed'
+                    main_window = inmain(self.window)
+                    inmain(QMessageBox.warning, main_window, 'BLACS', msg)
+                    return
+                else:
+                    cmd = ['wine', MEASURE_BALL]
+            else:
+                cmd = [MEASURE_BALL]
+            check_call(cmd)
+        finally:
+            # Remove smiley, go back to hiding if mouse not over button:
+            self.icon_mouse_over = self.icon_atom
+            inmain(self.setIcon, self.icon_none)
+            inmain(self.setEnabled, True)
+
 
 class BLACS(object):
 
@@ -424,6 +480,18 @@ class BLACS(object):
         # Connect the windows AppId stuff:
         if os.name == 'nt':
             self.ui.newWindow.connect(set_win_appusermodel)
+
+        # Add hidden easter egg button to a random tab:
+        logger.info('hiding easter eggs')
+        import random
+        random_tab = random.choice(list(self.tablist.values())) 
+        self.easter_egg_button = EasterEggButton()
+        # Add the button before the other buttons in the tab's header:
+        header = random_tab._ui.horizontalLayout
+        for i in range(header.count()):
+            if isinstance(header.itemAt(i).widget(), QToolButton):
+                header.insertWidget(i, self.easter_egg_button)
+                break
 
         logger.info('showing UI')
         self.ui.show()
