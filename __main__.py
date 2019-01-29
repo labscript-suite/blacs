@@ -32,7 +32,7 @@ from labscript_utils.splash import Splash
 splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.ico'))
 splash.show()
 
-splash.update_text('Importing standard library modules')
+splash.update_text('importing standard library modules')
 import logging, logging.handlers
 import socket
 import subprocess
@@ -43,7 +43,7 @@ import signal
 # Quit on ctrl-c
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-splash.update_text('Importing Qt')
+splash.update_text('importing Qt')
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -52,12 +52,12 @@ from qtutils.qt import QT_ENV
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
 check_version('qtutils', '2.0.0', '3.0.0')
-splash.update_text('Importing zprocess')
+splash.update_text('importing zprocess')
 check_version('zprocess', '2.9.2', '3')
-splash.update_text('Importing labscript_devices')
+splash.update_text('importing labscript_devices')
 check_version('labscript_devices', '2.0', '3')
 
-splash.update_text('Importing h5py')
+splash.update_text('importing h5_lock and h5py')
 
 ### Must be in this order
 import zprocess.locking, labscript_utils.h5_lock, h5py
@@ -71,7 +71,7 @@ import labscript_utils.shared_drive
 logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
 
-splash.update_text('Importing other modules')
+splash.update_text('importing other modules')
 
 # now log versions (must be after setup logging)
 try:
@@ -131,7 +131,7 @@ try:
 except Exception:
     logger.error('Failed to find blacs version')
 
-splash.update_text('Importing other labscript suite modules')
+splash.update_text('importing other labscript suite modules')
 
 # Connection Table Code
 from labscript_utils.connections import ConnectionTable
@@ -210,7 +210,7 @@ class BLACS(object):
     tab_widget_ids = 7
 
     def __init__(self,application):
-        splash.update_text('Loading graphical interface')
+        splash.update_text('loading graphical interface')
         self.qt_application = application
         #self.qt_application.aboutToQuit.connect(self.destroy)
         self._relaunch = False
@@ -240,7 +240,7 @@ class BLACS(object):
         self.panes = {}
         self.settings_dict = {}
 
-        splash.update_text('Loading device front panel settings')
+        splash.update_text('loading device front panel settings')
         # Find which devices are connected to BLACS, and what their labscript class names are:
         logger.info('finding connected devices in connection table')
         self.attached_devices = self.connection_table.get_attached_devices()
@@ -262,7 +262,7 @@ class BLACS(object):
         logger.info('restoring window data')
         self.restore_window(tab_data)
 
-        splash.update_text('Creating device tabs...')
+        splash.update_text('creating device tabs...')
         # Create the notebooks
         logger.info('Creating tab widgets')
         for i in range(4):
@@ -290,7 +290,7 @@ class BLACS(object):
                 self.connection_table.remove_device(device_name)
                 raise_exception_in_thread(sys.exc_info())
 
-        splash.update_text('Instantiating plugins')
+        splash.update_text('instantiating plugins')
         logger.info('Instantiating plugins')
         # setup the plugin system
         settings_pages = []
@@ -328,7 +328,7 @@ class BLACS(object):
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
 
-        splash.update_text("Initialising analysis submission")
+        splash.update_text("initialising analysis submission")
         logger.info('starting analysis submission thread')
         # setup analysis submission
         self.analysis_submission = AnalysisSubmission(self,self.ui)
@@ -338,7 +338,7 @@ class BLACS(object):
             tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
 
-        splash.update_text("Starting queue manager")
+        splash.update_text("starting queue manager")
         logger.info('starting queue manager thread')
         # Setup the QueueManager
         self.queue = QueueManager(self,self.ui)
@@ -703,7 +703,7 @@ if __name__ == '__main__':
                                      ], sub=True)
         ##########
 
-    splash.update_text('Loading labconfig')
+    splash.update_text('loading labconfig')
     settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%hostname)
     required_config_params = {"DEFAULT":["experiment_name"],
                               "programs":["text_editor",
@@ -720,18 +720,18 @@ if __name__ == '__main__':
     port = int(exp_config.get('ports','BLACS'))
 
     # Start experiment server
-    splash.update_text('Starting experiment server')
+    splash.update_text('starting experiment server')
     experiment_server = ExperimentServer(port)
 
     # Create Connection Table object
-    splash.update_text('Loading connection table')
+    splash.update_text('loading connection table')
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     connection_table_h5_file = exp_config.get('paths','connection_table_h5')
     connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS', exceptions_in_thread=True)
 
     logger.info('connection table loaded')
 
-    splash.update_text('Initialising Qt application')
+    splash.update_text('initialising Qt application')
     qapplication = QApplication(sys.argv)
     qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
     logger.info('QApplication instantiated')
