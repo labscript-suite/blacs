@@ -32,6 +32,7 @@ from labscript_utils.splash import Splash
 splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.ico'))
 splash.show()
 
+splash.update_text('Importing required modules')
 import logging, logging.handlers
 import socket
 import subprocess
@@ -202,6 +203,7 @@ class BLACS(object):
     tab_widget_ids = 7
 
     def __init__(self,application):
+        splash.update_text('Loading graphical interface')
         self.qt_application = application
         #self.qt_application.aboutToQuit.connect(self.destroy)
         self._relaunch = False
@@ -231,6 +233,7 @@ class BLACS(object):
         self.panes = {}
         self.settings_dict = {}
 
+        splash.update_text('Loading device front panel settings')
         # Find which devices are connected to BLACS, and what their labscript class names are:
         logger.info('finding connected devices in connection table')
         self.attached_devices = self.connection_table.get_attached_devices()
@@ -252,7 +255,7 @@ class BLACS(object):
         logger.info('restoring window data')
         self.restore_window(tab_data)
 
-        #splash.update_text('Creating the device tabs...')
+        splash.update_text('Creating device tabs...')
         # Create the notebooks
         logger.info('Creating tab widgets')
         for i in range(4):
@@ -280,7 +283,8 @@ class BLACS(object):
                 self.connection_table.remove_device(device_name)
                 raise_exception_in_thread(sys.exc_info())
 
-        logger.info('instantiating plugins')
+        splash.update_text('Instantiating plugins')
+        logger.info('Instantiating plugins')
         # setup the plugin system
         settings_pages = []
         self.plugins = {}
@@ -317,6 +321,7 @@ class BLACS(object):
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
 
+        splash.update_text("Initialising analysis submission")
         logger.info('starting analysis submission thread')
         # setup analysis submission
         self.analysis_submission = AnalysisSubmission(self,self.ui)
@@ -326,6 +331,7 @@ class BLACS(object):
             tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
 
+        splash.update_text("Starting queue manager")
         logger.info('starting queue manager thread')
         # Setup the QueueManager
         self.queue = QueueManager(self,self.ui)
@@ -368,6 +374,7 @@ class BLACS(object):
 
         # setup the Notification system
         logger.info('setting up notification system')
+        splash.update_text('setting up notification system')
         self.notifications = Notifications(blacs_data)
 
         settings_callbacks = []
@@ -401,6 +408,7 @@ class BLACS(object):
 
 
         # setup the BLACS preferences system
+        splash.update_text('setting up preferences system')
         logger.info('setting up preferences system')
         self.settings = Settings(file=self.settings_path, parent = self.ui, page_classes=settings_pages)
         for callback in settings_callbacks:
@@ -431,6 +439,7 @@ class BLACS(object):
         if os.name == 'nt':
             self.ui.newWindow.connect(set_win_appusermodel)
 
+        splash.update_text('done')
         logger.info('showing UI')
         self.ui.show()
 
@@ -482,7 +491,7 @@ class BLACS(object):
                     self.tab_widgets[notebook_num].addTab(self.tablist[tab_name]._ui,tab_text)
                     break
 
-        # splash.update_text('restoring tab positions...')
+        splash.update_text('restoring tab positions...')
         # # Now that all the pages are created, reorder them!
         for tab_name in self.tablist.keys():
             if tab_name in tab_data:
@@ -687,7 +696,7 @@ if __name__ == '__main__':
                                      ], sub=True)
         ##########
 
-
+    splash.update_text('Loading labconfig')
     settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%hostname)
     required_config_params = {"DEFAULT":["experiment_name"],
                               "programs":["text_editor",
@@ -704,15 +713,18 @@ if __name__ == '__main__':
     port = int(exp_config.get('ports','BLACS'))
 
     # Start experiment server
+    splash.update_text('Starting experiment server')
     experiment_server = ExperimentServer(port)
 
     # Create Connection Table object
+    splash.update_text('Loading connection table')
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
     connection_table_h5_file = exp_config.get('paths','connection_table_h5')
     connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS', exceptions_in_thread=True)
 
     logger.info('connection table loaded')
 
+    splash.update_text('Initialising Qt application')
     qapplication = QApplication(sys.argv)
     qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
     logger.info('QApplication instantiated')
