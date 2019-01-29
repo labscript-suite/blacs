@@ -32,7 +32,7 @@ from labscript_utils.splash import Splash
 splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.ico'))
 splash.show()
 
-splash.update_text('Importing required modules')
+splash.update_text('Importing standard library modules')
 import logging, logging.handlers
 import socket
 import subprocess
@@ -43,6 +43,8 @@ import signal
 # Quit on ctrl-c
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
+splash.update_text('Importing Qt')
+
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
@@ -50,11 +52,13 @@ from qtutils.qt import QT_ENV
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
 check_version('qtutils', '2.0.0', '3.0.0')
+splash.update_text('Importing zprocess')
 check_version('zprocess', '2.9.2', '3')
+splash.update_text('Importing labscript_devices')
 check_version('labscript_devices', '2.0', '3')
 
+splash.update_text('Importing h5py')
 
-# Pythonlib imports
 ### Must be in this order
 import zprocess.locking, labscript_utils.h5_lock, h5py
 zprocess.locking.set_client_process_name('BLACS')
@@ -66,6 +70,8 @@ import labscript_utils.shared_drive
 # Setup logging
 logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
+
+splash.update_text('Importing other modules')
 
 # now log versions (must be after setup logging)
 try:
@@ -125,6 +131,7 @@ try:
 except Exception:
     logger.error('Failed to find blacs version')
 
+splash.update_text('Importing other labscript suite modules')
 
 # Connection Table Code
 from labscript_utils.connections import ConnectionTable
