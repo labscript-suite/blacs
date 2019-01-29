@@ -19,8 +19,20 @@ if PY2:
 # Custom Excepthook
 import labscript_utils.excepthook
 
-import logging, logging.handlers
 import os
+
+try:
+    from labscript_utils import check_version
+except ImportError:
+    raise ImportError('Require labscript_utils > 2.1.0')
+
+check_version('labscript_utils', '2.10.0', '3')
+# Splash screen
+from labscript_utils.splash import Splash
+splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.ico'))
+splash.show()
+
+import logging, logging.handlers
 import socket
 import subprocess
 import sys
@@ -36,12 +48,6 @@ from qtutils.qt.QtWidgets import *
 from qtutils.qt import QT_ENV
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
-try:
-    from labscript_utils import check_version
-except ImportError:
-    raise ImportError('Require labscript_utils > 2.1.0')
-
-check_version('labscript_utils', '2.7.2', '3')
 check_version('qtutils', '2.0.0', '3.0.0')
 check_version('zprocess', '2.9.2', '3')
 check_version('labscript_devices', '2.0', '3')
@@ -713,6 +719,8 @@ if __name__ == '__main__':
     app = BLACS(qapplication)
 
     logger.info('BLACS instantiated')
+    splash.hide()
+
     def execute_program():
         qapplication.exec_()
 
