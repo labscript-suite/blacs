@@ -90,7 +90,6 @@ class Plugin(object):
         self.wait_completed = Event('wait_completed', type='wait')
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
-        self.mainloop_thread.start()
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
@@ -123,6 +122,7 @@ class Plugin(object):
                         self.wait_completed_events_supported = True
 
         self.ui.wait_warning.hide()
+        self.mainloop_thread.start()
 
     def get_save_data(self):
         return {}
