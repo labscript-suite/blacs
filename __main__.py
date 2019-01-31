@@ -484,14 +484,15 @@ class BLACS(object):
         # Add hidden easter egg button to a random tab:
         logger.info('hiding easter eggs')
         import random
-        random_tab = random.choice(list(self.tablist.values())) 
-        self.easter_egg_button = EasterEggButton()
-        # Add the button before the other buttons in the tab's header:
-        header = random_tab._ui.horizontalLayout
-        for i in range(header.count()):
-            if isinstance(header.itemAt(i).widget(), QToolButton):
-                header.insertWidget(i, self.easter_egg_button)
-                break
+        if self.tablist:
+            random_tab = random.choice(list(self.tablist.values())) 
+            self.easter_egg_button = EasterEggButton()
+            # Add the button before the other buttons in the tab's header:
+            header = random_tab._ui.horizontalLayout
+            for i in range(header.count()):
+                if isinstance(header.itemAt(i).widget(), QToolButton):
+                    header.insertWidget(i, self.easter_egg_button)
+                    break
 
         logger.info('showing UI')
         self.ui.show()
