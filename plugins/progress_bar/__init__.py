@@ -34,7 +34,8 @@ import h5py
 
 import labscript_utils.properties as properties
 from labscript_utils.connections import ConnectionTable
-from zprocess import Event, TimeoutError
+from zprocess import TimeoutError
+from labscript_utils.ls_zprocess import Event
 from blacs.plugins import PLUGINS_DIR, callback
 
 name = "Progress Bar"
@@ -87,7 +88,7 @@ class Plugin(object):
         self.bar_text_prefix = None
         self.h5_filepath = None
         self.wait_completed_events_supported = False
-        self.wait_completed = Event('wait_completed', type='wait')
+        self.wait_completed = Event('wait_completed', role='wait')
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
         

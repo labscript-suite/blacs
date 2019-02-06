@@ -26,7 +26,7 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.10.0', '3')
+check_version('labscript_utils', '2.11.0', '3')
 # Splash screen
 from labscript_utils.splash import Splash
 splash = Splash(os.path.join(os.path.dirname(__file__), 'BLACS.svg'))
@@ -59,11 +59,11 @@ check_version('labscript_devices', '2.0', '3')
 
 splash.update_text('importing h5_lock and h5py')
 
-### Must be in this order
+from labscript_utils.ls_zprocess import ProcessTree, zmq_get, ZMQServer
 import zprocess.locking, labscript_utils.h5_lock, h5py
-zprocess.locking.set_client_process_name('BLACS')
-###
-from zprocess import zmq_get, ZMQServer, raise_exception_in_thread
+ProcessTree.instance().zlock_client.set_process_name('BLACS')
+
+from zprocess import raise_exception_in_thread
 from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 
