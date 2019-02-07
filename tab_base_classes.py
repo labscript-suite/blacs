@@ -36,7 +36,7 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from qtutils import *
-from qtutils.outputbox import OutputBox
+from labscript_utils.qtwidgets.outputbox import OutputBox
 import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label

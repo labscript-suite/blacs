@@ -21,7 +21,7 @@ from qtutils.qt.QtWidgets import *
 
 from qtutils import *
 import runmanager
-from qtutils.outputbox import OutputBox
+from labscript_utils.qtwidgets.outputbox import OutputBox
 
 from blacs import BLACS_DIR
 
