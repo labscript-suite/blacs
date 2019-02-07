@@ -61,7 +61,8 @@ splash.update_text('importing h5_lock and h5py')
 
 from labscript_utils.ls_zprocess import ProcessTree, zmq_get, ZMQServer
 import zprocess.locking, labscript_utils.h5_lock, h5py
-ProcessTree.instance().zlock_client.set_process_name('BLACS')
+process_tree = ProcessTree.instance()
+process_tree.zlock_client.set_process_name('BLACS')
 
 from zprocess import raise_exception_in_thread
 from labscript_utils.setup_logging import setup_logging

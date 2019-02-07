@@ -32,6 +32,7 @@ from qtutils.qt.QtWidgets import *
 
 import zprocess
 from labscript_utils.ls_zprocess import ProcessTree
+process_tree = ProcessTree.instance()
 import labscript_utils.h5_lock, h5py
 
 from qtutils import *
@@ -489,7 +490,7 @@ class QueueManager(object):
      
     def manage(self):
         logger = logging.getLogger('BLACS.queue_manager.thread')  
-        ProcessTree.instance().zlock_client.set_thread_name('queue_manager') 
+        process_tree.zlock_client.set_thread_name('queue_manager') 
         # While the program is running!
         logger.info('starting')
         
