@@ -29,7 +29,8 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from qtutils import *
-from zprocess import zmq_get, TimeoutError, raise_exception_in_thread
+from zprocess import TimeoutError, raise_exception_in_thread
+from labscript_utils.ls_zprocess import zmq_get
 from socket import gaierror
 import labscript_utils.shared_drive
 from labscript_utils.qtwidgets.elide_label import elide_label

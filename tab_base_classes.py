@@ -36,12 +36,14 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from qtutils import *
-from qtutils.outputbox import OutputBox
+from labscript_utils.qtwidgets.outputbox import OutputBox
 import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
+from labscript_utils.ls_zprocess import ProcessTree
 from blacs import BLACS_DIR
 
+process_tree = ProcessTree.instance()
 from labscript_utils import check_version
 
 # This version check is distinct from the one in __main__.py, since this file is a
@@ -480,6 +482,7 @@ class Tab(object):
         
         if isinstance(WorkerClass, type):
             worker = WorkerClass(
+                process_tree,
                 output_redirection_port=self._output_box.port,
                 startup_timeout=30
                 )
@@ -488,6 +491,7 @@ class Tab(object):
             # for where the Worker class can be found. Pass it to zprocess.Process,
             # which will do the import in the subprocess only.
             worker = Process(
+                process_tree,
                 output_redirection_port=self._output_box.port,
                 startup_timeout=30,
                 subclass_fullname=WorkerClass
@@ -814,8 +818,10 @@ class Worker(Process):
         self.logger.debug('Starting')
         import labscript_utils.excepthook
         labscript_utils.excepthook.set_logger(self.logger)
-        import zprocess.locking, labscript_utils.h5_lock
-        zprocess.locking.set_client_process_name(log_name)
+        from labscript_utils.ls_zprocess import ProcessTree
+        process_tree = ProcessTree.instance()
+        import labscript_utils.h5_lock
+        process_tree.zlock_client.set_process_name(log_name)
         #self.init()
         self.mainloop()
 

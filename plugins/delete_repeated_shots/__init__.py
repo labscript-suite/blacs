@@ -26,7 +26,7 @@ import sys
 from qtutils import UiLoader
 
 from labscript_utils.shared_drive import path_to_agnostic
-import zprocess.locking
+from labscript_utils.ls_zprocess import Lock
 from blacs.plugins import PLUGINS_DIR
 
 name = "Delete repeated shots"
@@ -127,7 +127,7 @@ class Plugin(object):
                             h5_filepath = self.delete_queue.pop(0)
                         # Acquire a lock on the file so that we don't
                         # delete it whilst someone else has it open:
-                        with zprocess.locking.Lock(path_to_agnostic(h5_filepath)):
+                        with Lock(path_to_agnostic(h5_filepath)):
                             try:
                                 os.unlink(h5_filepath)
                                 logger.info("Deleted repeated shot file %s" % h5_filepath)
@@ -160,4 +160,4 @@ class Plugin(object):
     def set_notification_instances(self, notifications):
         self.notifications = notifications
         
-    
+    
