@@ -40,7 +40,7 @@ from labscript_utils.qtwidgets.outputbox import OutputBox
 import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
-from labscript_utils.ls_zprocess import ProcessTree
+from labscript_utils.ls_zprocess import ProcessTree, RemoteProcessClient
 from blacs import BLACS_DIR
 
 process_tree = ProcessTree.instance()
@@ -267,7 +267,10 @@ class Tab(object):
         self.workers = {}
         self._supports_smart_programming = False
         self._restart_receiver = []
-        
+
+        self.remote_process_client = self._get_remote_configuration()
+        self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
+
         # Load the UI
         self._ui = UiLoader().load(os.path.join(BLACS_DIR, 'tab_frame.ui'))
         self._layout = self._ui.device_layout
@@ -275,8 +278,14 @@ class Tab(object):
         self._changed_widget = self._ui.changed_widget
         self._changed_layout = self._ui.changed_layout
         self._changed_widget.hide()        
-        self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
-        self._ui.device_name.setText("<b>%s</b> [conn: %s]"%(str(self.device_name),str(self.BLACS_connection)))
+        
+        conn_str = self.BLACS_connection
+        if self.remote_process_client is not None:
+            conn_str += " via %s:%d" % (self.remote_process_client.host, self.remote_process_client.port)
+        
+        self._ui.device_name.setText(
+            "<b>%s</b> [conn: %s]" % (str(self.device_name), conn_str)
+        )
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
         elide_label(self._ui.state_label, self._ui.state_label_layout, Qt.ElideRight)
 
@@ -318,6 +327,26 @@ class Tab(object):
         self.notebook.addTab(self._ui,self.device_name)
         self._ui.show()
     
+    def _get_remote_configuration(self):
+        # Create and return zprocess remote process client, if the device is configured
+        # as a remote device, else None:
+        PRIMARY_BLACS = '__PrimaryBLACS'
+        table = self.settings['connection_table']
+        properties = table.find_by_name(self.device_name).properties
+        if properties.get('gui', PRIMARY_BLACS) != PRIMARY_BLACS:
+            msg = "Remote BLACS GUIs not yet supported by BLACS"
+            raise NotImplementedError(msg)
+        remote_server_name = properties.get('worker', PRIMARY_BLACS)
+        if remote_server_name != PRIMARY_BLACS:
+            remote_server_device = table.find_by_name(remote_server_name)
+            if remote_server_device.parent.name != PRIMARY_BLACS:
+                msg = "Multi-hop remote workers not yet supported by BLACS"
+                raise NotImplementedError(msg) 
+            remote_host, remote_port = remote_server_device.parent_port.split(':')
+            remote_port = int(remote_port)
+            return RemoteProcessClient(remote_host, remote_port)
+        return None
+
     def get_builtin_save_data(self):
         """Get builtin settings to be restored like whether the terminal is
         visible. Not to be overridden."""
@@ -484,6 +513,7 @@ class Tab(object):
             worker = WorkerClass(
                 process_tree,
                 output_redirection_port=self._output_box.port,
+                remote_process_client=self.remote_process_client,
                 startup_timeout=30
                 )
         elif isinstance(WorkerClass, str):
@@ -493,6 +523,7 @@ class Tab(object):
             worker = Process(
                 process_tree,
                 output_redirection_port=self._output_box.port,
+                remote_process_client=self.remote_process_client,
                 startup_timeout=30,
                 subclass_fullname=WorkerClass
             )
