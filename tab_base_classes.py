@@ -492,7 +492,7 @@ class Tab(object):
         
         # Todo: Update icon in tab
     
-    def create_worker(self,name,WorkerClass,workerargs={}):
+    def create_worker(self,name,WorkerClass,workerargs=None):
         """Set up a worker process. WorkerClass can either be a subclass of Worker, or a
         string containing a fully qualified import path to a worker. The latter is
         useful if the worker class is in a separate file with global imports or other
@@ -502,6 +502,11 @@ class Tab(object):
         separate computer). The worker process will not be started immediately, it will
         be started once the state machine mainloop begins running. This way errors in
         startup will be handled using the normal state machine machinery."""
+
+        if workerargs is None:
+            workerargs = {}
+        workerargs['is_remote'] = self.remote_process_client is not None
+
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
         if name == 'GUI':

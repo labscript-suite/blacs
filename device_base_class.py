@@ -32,6 +32,7 @@ from blacs.tab_base_classes import Tab, Worker, define_state
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED
 from blacs.output_classes import AO, DO, DDS
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
+from labscript_utils.shared_drive import path_to_agnostic
 
 
 class DeviceTab(Tab):
@@ -548,6 +549,12 @@ class DeviceTab(Tab):
     
         self.mode = MODE_TRANSITION_TO_BUFFERED
         
+        # For backward compatibility with worker classes not expecting network-agnostic
+        # paths, we only convert the h5 file to network-agnostic format if the worker is
+        # remote:
+        if self.remote_process_client is not None:
+            h5_file = path_to_agnostic(h5_file)
+
         # transition_to_buffered returns the final values of the run, to update the GUI with at the end of the run:
         transitioned_called = [self._primary_worker]
         front_panel_values = self.get_front_panel_values()
