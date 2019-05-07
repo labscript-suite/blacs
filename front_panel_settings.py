@@ -353,7 +353,7 @@ class FrontPanelSettings(object):
             # Insert front panel data into dataset
             for hardware_name, data in device_state["front_panel"].items():
                 if data != {}:
-                    if type(data['base_value']) == str or type(data['base_value']) == unicode:
+                    if isinstance(data['base_value'], (str, bytes)):
                         logger.warning('Could not save data for channel %s on device %s because support for output values that are strings is not yet supported.'%(hardware_name, device_name))
                         # TODO: Implement saving of Image output type
                     elif float(data['base_value']) == data['base_value']:

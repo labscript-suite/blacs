@@ -553,7 +553,7 @@ class DO(object):
         return self._hardware_name + ' - ' + self._connection_name
    
 
-class IMAGE(object):
+class Image(object):
     def __init__(self, hardware_name, connection_name, device_name, program_function, settings, width, height, x = None, y = None):
         self._hardware_name = hardware_name
         self._connection_name = connection_name
@@ -576,7 +576,7 @@ class IMAGE(object):
         # and using separate variables avoids those parts from being able to directly
         # influence behaviour (the worst they can do is change the value used on initialisation)
         self._locked = False
-        self._current_value = unicode("")
+        self._current_value = ""
         self._program_device = program_function
         self._update_from_settings(settings)
         
@@ -590,7 +590,7 @@ class IMAGE(object):
             settings['front_panel_settings'][self._hardware_name] = {}
         # Set default values if they are not already saved in the settings dictionary
         if 'base_value' not in settings['front_panel_settings'][self._hardware_name]:
-            settings['front_panel_settings'][self._hardware_name]['base_value'] = unicode("")
+            settings['front_panel_settings'][self._hardware_name]['base_value'] = ""
         if 'locked' not in settings['front_panel_settings'][self._hardware_name]:
             settings['front_panel_settings'][self._hardware_name]['locked'] = False
         if 'name' not in settings['front_panel_settings'][self._hardware_name]:
@@ -630,7 +630,7 @@ class IMAGE(object):
         
     @property
     def value(self):
-        return unicode(self._current_value)
+        return str(self._current_value)
         
     def lock(self):
         self._update_lock(True)
@@ -650,7 +650,7 @@ class IMAGE(object):
         self._settings['locked'] = locked
         
     def set_value(self, value, program = True):
-        value = unicode(value)  
+        value = str(value)  
         
         # We are programatically setting the value, so break the check lock function logic
         self._current_value = value
@@ -818,4 +818,4 @@ if __name__ == '__main__':
     
     window.show()
     sys.exit(qapplication.exec_())
-    
+    
