@@ -194,9 +194,12 @@ class Plugin(object):
             label, _, color = self.markers[marker_index]
             self.bar_text_prefix = '[%s] ' % _ensure_str(label)
             r, g, b = color[0]
-            # Black is the default colour in labscript.add_time_marker.
-            # Don't change the bar colour if the marker colour is black.
-            if (r, g, b) != (0,0,0):
+            if color.dtype == np.uint8 and (r, g, b) == (0, 0, 0):
+                # is old colour spec, in which (0,0,0) meant no colour specified.
+                r, g, b = (-1, -1, -1)
+            # (-1,-1,-1) means no colour set for the marker. Don't change the bar colour
+            # in this case.
+            if (r, g, b) != (-1, -1, -1):
                 bar_color = QtGui.QColor(r, g, b)
                 if black_has_good_contrast(r, g, b):
                     highlight_text_color = QtCore.Qt.black
