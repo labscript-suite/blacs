@@ -27,6 +27,7 @@ from qtutils.qt.QtWidgets import *
 from labscript_utils.qtwidgets.analogoutput import AnalogOutput
 from labscript_utils.qtwidgets.digitaloutput import DigitalOutput, InvertedDigitalOutput
 from labscript_utils.qtwidgets.ddsoutput import DDSOutput
+from labscript_utils.qtwidgets.imageoutput import ImageOutput
 try:
     from labscript_utils.unitconversions import *
 except Exception:
@@ -551,6 +552,126 @@ class DO(object):
     def name(self):
         return self._hardware_name + ' - ' + self._connection_name
    
+
+class Image(object):
+    def __init__(self, hardware_name, connection_name, device_name, program_function, settings, width, height, x = None, y = None):
+        self._hardware_name = hardware_name
+        self._connection_name = connection_name
+        self._widget_list = []
+        
+        if x is not None and y is not None:
+            self.location = 'Location: (%d, %d) '%(x,y)
+        else:
+            self.location = ""
+        
+        self.width = width
+        self.height = height
+        
+        
+        self._device_name = device_name
+        self._logger = logging.getLogger('BLACS.%s.%s'%(self._device_name,hardware_name)) 
+                
+        # Note that while we could store self._current_state and self._locked in the
+        # settings dictionary, this dictionary is available to other parts of BLACS
+        # and using separate variables avoids those parts from being able to directly
+        # influence behaviour (the worst they can do is change the value used on initialisation)
+        self._locked = False
+        self._current_value = ""
+        self._program_device = program_function
+        self._update_from_settings(settings)
+        
+    def _update_from_settings(self, settings):
+        # Build up the settings dictionary if it isn't already
+        if not isinstance(settings,dict):
+            settings = {}
+        if 'front_panel_settings' not in settings or not isinstance(settings['front_panel_settings'],dict):
+            settings['front_panel_settings'] = {}
+        if self._hardware_name not in settings['front_panel_settings'] or not isinstance(settings['front_panel_settings'][self._hardware_name],dict):
+            settings['front_panel_settings'][self._hardware_name] = {}
+        # Set default values if they are not already saved in the settings dictionary
+        if 'base_value' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['base_value'] = ""
+        if 'locked' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['locked'] = False
+        if 'name' not in settings['front_panel_settings'][self._hardware_name]:
+            settings['front_panel_settings'][self._hardware_name]['name'] = self._connection_name
+        
+    
+        # only keep a reference to the part of the settings dictionary relevant to this DO
+        self._settings = settings['front_panel_settings'][self._hardware_name]
+    
+        # Update the state of the button
+        self.set_value(self._settings['base_value'],program=False)
+
+        # Update the lock state
+        self._update_lock(self._settings['locked'])
+        
+    def create_widget(self, *args, **kwargs):
+        widget = ImageOutput('%s (%s)\n%sDimensions(%d, %d)'%(self._hardware_name,self._connection_name, self.location, self.width, self.height),self.width, self.height, *args,**kwargs)
+        self.add_widget(widget)
+        return widget
+        
+    def add_widget(self, widget):
+        if widget not in self._widget_list:
+            widget.set_Image(self,True,False)
+            widget.imageUpdated.connect(self.set_value)
+            self._widget_list.append(widget)
+            self.set_value(self._current_value,False)
+            self._update_lock(self._locked)
+            return True
+        return False
+        
+    def remove_widget(self, widget):
+        if widget not in self._widget_list:
+            # TODO: Make this error better!
+            raise RuntimeError('The widget specified was not part of the Image object')
+        widget.imageUpdated.disconnect(self.set_value)
+        self._widget_list.remove(widget)
+        
+    @property
+    def value(self):
+        return str(self._current_value)
+        
+    def lock(self):
+        self._update_lock(True)
+    
+    def unlock(self):
+        self._update_lock(False)
+        
+    def _update_lock(self, locked):
+        self._locked = locked
+        for widget in self._widget_list:
+            if locked:
+                widget.lock(False)
+            else:
+                widget.unlock(False)
+        
+        # update the settings dictionary if it exists, to maintain continuity on tab restarts
+        self._settings['locked'] = locked
+        
+    def set_value(self, value, program = True):
+        value = str(value)  
+        
+        # We are programatically setting the value, so break the check lock function logic
+        self._current_value = value
+        
+        # update the settings dictionary if it exists, to maintain continuity on tab restarts
+        self._settings['base_value'] = value
+        
+        if program:            
+            self._logger.debug('program device called')
+            self._program_device()
+            
+        for widget in self._widget_list:
+            if value != widget.value:
+                widget.blockSignals(True)
+                widget.value = value
+                widget.blockSignals(False)
+        
+    @property
+    def name(self):
+        return self._hardware_name + ' - ' + self._connection_name
+   
 class DDS(object):
     def __init__(self, hardware_name, connection_name, output_list):
         self._hardware_name = hardware_name
@@ -697,4 +818,4 @@ if __name__ == '__main__':
     
     window.show()
     sys.exit(qapplication.exec_())
-    
+    
