@@ -353,15 +353,21 @@ class FrontPanelSettings(object):
             # Insert front panel data into dataset
             for hardware_name, data in device_state["front_panel"].items():
                 if data != {}:
-                    front_panel_list.append((data['name'],
-                                             device_name,
-                                             hardware_name,
-                                             data['base_value'],
-                                             data['locked'],
-                                             data['base_step_size'] if 'base_step_size' in data else 0,
-                                             data['current_units'] if 'current_units' in data else ''
-                                            )
-                                           )               
+                    if isinstance(data['base_value'], (str, bytes)):
+                        logger.warning('Could not save data for channel %s on device %s because support for output values that are strings is not yet supported.'%(hardware_name, device_name))
+                        # TODO: Implement saving of Image output type
+                    elif float(data['base_value']) == data['base_value']:
+                        front_panel_list.append((data['name'],
+                                                 device_name,
+                                                 hardware_name,
+                                                 data['base_value'],
+                                                 data['locked'],
+                                                 data['base_step_size'] if 'base_step_size' in data else 0,
+                                                 data['current_units'] if 'current_units' in data else ''
+                                                )
+                                               )               
+                    else:
+                        logger.warning('Could not save data for channel %s on device %s because the output value (in base units) was not a string or could not be coerced to a float without loss of precision'%(hardware_name, device_name))
             
             # Save "other data"
             od = repr(device_state["save_data"])
