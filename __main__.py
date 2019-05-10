@@ -53,7 +53,7 @@ from qtutils.qt.QtCore import pyqtSignal as Signal
 
 check_version('qtutils', '2.2.3', '3.0.0')
 splash.update_text('importing zprocess')
-check_version('zprocess', '2.13.3', '3')
+check_version('zprocess', '2.13.4', '3')
 splash.update_text('importing labscript_devices')
 check_version('labscript_devices', '2.0', '3')
 
