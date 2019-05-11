@@ -353,7 +353,6 @@ class Plugin(object):
                     ):
                         inmain(self.ui.wait_warning.show)
                 elif command == 'stop':
-                    assert running
                     self.clear_bar()
                     running = False
                     self._stop()
