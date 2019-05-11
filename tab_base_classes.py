@@ -20,7 +20,7 @@ else:
     import queue
     import pickle
 
-from zprocess import Process
+from zprocess import Process, Interrupted
 import time
 import sys
 import threading
@@ -599,10 +599,11 @@ class Tab(object):
                 # Worker was not started, it doesn't need to be terminated.
                 continue
             worker.terminate()
-            # In case the mainloop is blocking on receiving something from the worker,
-            # post a message to that queue telling the mainloop to quit:
-            if self._mainloop_thread.is_alive() and from_worker is not None:
-                from_worker.put((False, 'quit', None))
+            # Interrupt the read and write queues in case the mainloop is blocking on
+            # sending or receiving from them:
+            if to_worker is not None:
+                to_worker.interruptor.set()
+                from_worker.interruptor.set()
         # In case the mainloop is blocking on the event queue, post a message to that
         # queue telling it to quit:
         if self._mainloop_thread.is_alive():
@@ -742,7 +743,6 @@ class Tab(object):
                 if type(generator) == GeneratorType:
                     # We need to call next recursively, queue up work and send the results back until we get a StopIteration exception
                     generator_running = True
-                    break_main_loop = False
                     # get the data from the first yield function
                     if PY2:
                         worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
@@ -775,23 +775,11 @@ class Tab(object):
                             logger.debug('Waiting for worker to acknowledge job request')
                             success, message, results = from_worker.get()
                             if not success:
-                                if message == 'quit':
-                                    # The user has requested a restart:
-                                    logger.debug('Received quit signal')
-                                    # This variable is set so we also break out of the toplevel main loop
-                                    break_main_loop = True
-                                    break
                                 logger.info('Worker reported failure to start job')
                                 raise Exception(message)
                             # Wait for and get the results of the work:
                             logger.debug('Worker reported job started, waiting for completion')
                             success,message,results = from_worker.get()
-                            if not success and message == 'quit':
-                                # The user has requested a restart:
-                                logger.debug('Received quit signal')
-                                # This variable is set so we also break out of the toplevel main loop
-                                break_main_loop = True
-                                break
                             if not success:
                                 logger.info('Worker reported exception during job')
                                 now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
@@ -816,12 +804,12 @@ class Tab(object):
                             # The generator has finished. Ignore the error, but stop the loop
                             logger.debug('Finalising function')
                             generator_running = False
-                    # Break out of the main loop if the user requests a restart
-                    if break_main_loop:
-                        logger.debug('Breaking out of main loop')
-                        break
                 self.state = 'idle'
-        except:
+        except Interrupted:
+            # User requested a restart
+            logger.debug('Interrupted by tab restart, quitting mainloop')
+            return
+        except Exception:
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
             logger.critical('A fatal exception happened:\n %s'%message)
