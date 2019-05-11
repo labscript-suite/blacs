@@ -595,9 +595,6 @@ class Tab(object):
         self.logger.info('close_tab called')
         self._timeout.stop()
         for worker, to_worker, from_worker in self.workers.values():
-            if worker.child is None:
-                # Worker was not started, it doesn't need to be terminated.
-                continue
             worker.terminate()
             # Interrupt the read and write queues in case the mainloop is blocking on
             # sending or receiving from them:
