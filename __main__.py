@@ -691,7 +691,6 @@ class BLACS(object):
             pending_threads = {}
         overdue = time.time() > deadline
         # Check for worker shutdown completion:
-        all_shutdown = all(t.shutdown_workers_complete for t in self.tablist.values())
         for name, tab in list(self.tablist.items()):
             fatal_error = tab.state == 'fatal error'
             if not tab.shutdown_workers_complete and overdue or fatal_error:
