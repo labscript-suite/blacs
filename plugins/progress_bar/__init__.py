@@ -219,7 +219,7 @@ class Plugin(object):
             highlight_text_color = regular_text_color = QtGui.QColor(192, 0, 0)
             bar_color = QtCore.Qt.gray
         if marker or wait:
-            palette = QtGui.QPalette()
+            palette = self.style.standardPalette()
             if bar_color is not None:
                 palette.setColor(QtGui.QPalette.Highlight, bar_color)
             # Ensure the colour of the text on the filled in bit of the progress
