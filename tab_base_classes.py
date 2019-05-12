@@ -20,7 +20,7 @@ else:
     import queue
     import pickle
 
-from zprocess import Process, Interrupted
+from zprocess import Process, Interruptor, Interrupted
 import time
 import sys
 import threading
@@ -631,13 +631,34 @@ class Tab(object):
             self.notebook.tabBar().setTabTextColor(currentpage, QColor('grey'))
             self.notebook.setCurrentWidget(temp_widget)  
         if finalise:
-            self.finalise_close_tab()
+            self.finalise_close_tab(currentpage)
         return currentpage
     
-    def finalise_close_tab(self):
-        self._mainloop_thread.join()
-        for worker, _, _ in self.workers.values():
-            worker.terminate()
+    def finalise_close_tab(self, currentpage):
+        TERMINATE_TIMEOUT = 2
+        self._mainloop_thread.join(TERMINATE_TIMEOUT)
+        if self._mainloop_thread.is_alive():
+            self.logger.warning("mainloop thread of %s did not stop", self.device_name)
+        kwargs = {'wait_timeout': TERMINATE_TIMEOUT}  # timeout passed to .wait()
+        if self.remote_process_client is not None:
+            # Set up a zprocess.Interruptor to interrupt communication with the remote
+            # process server if the timeout is reached:
+            interruptor = Interruptor()
+            kwargs['get_interruptor'] = interruptor
+            timer = inmain(QTimer)
+            inmain(timer.singleShot, int(TERMINATE_TIMEOUT * 1000), interruptor.set)
+        try:
+            for worker, _, _ in self.workers.values():
+                worker.terminate(**kwargs)
+        except Interrupted:
+            self.logger.warning(
+                "Terminating workers of %s timed out", self.device_name
+            )
+            return
+        finally:
+            if self.remote_process_client is not None:
+                inmain(timer.stop)
+        
 
     def connect_restart_receiver(self,function):
         if function not in self._restart_receiver:
@@ -664,7 +685,7 @@ class Tab(object):
         """Called in a thread for the stages of restarting that may be blocking, so as to
         not block the main thread. Calls subsequent GUI operations in the main thread once
         finished blocking."""
-        self.finalise_close_tab()
+        self.finalise_close_tab(currentpage)
         inmain(self.clean_ui_on_restart)
         inmain(self.finalise_restart, currentpage)
         

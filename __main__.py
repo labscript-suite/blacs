@@ -684,9 +684,9 @@ class BLACS(object):
 
     def finalise_quit(self, deadline=None, pending_threads=None):
         logger.info('finalise_quit called')
-        TAB_CLOSE_TIMEOUT = 2
+        WORKER_SHUTDOWN_TIMEOUT = 2
         if deadline is None:
-            deadline = time.time() + TAB_CLOSE_TIMEOUT
+            deadline = time.time() + WORKER_SHUTDOWN_TIMEOUT
         if pending_threads is None:
             pending_threads = {}
         overdue = time.time() > deadline
@@ -701,29 +701,28 @@ class BLACS(object):
                 if name not in pending_threads:
                     # Either worker shutdown completed or we gave up. Close the tab.
                     try:
-                        tab.close_tab(finalise=False)
+                        current_page = tab.close_tab(finalise=False)
                     except Exception as e:
-                        logger.error('Couldn\'t close tab:\n%s'%str(e))
+                        logger.error('Couldn\'t close tab:\n%s' % str(e))
                         del self.tablist[name]
-                    # Call finalise_close_tab in a thread since it can be blocking:
-                    pending_threads[name] = inthread(tab.finalise_close_tab)
+                    else:
+                        # Call finalise_close_tab in a thread since it can be blocking.
+                        # It has its own timeout however, so we do not need to keep
+                        # track of whether tabs are taking too long to finalise_close()
+                        pending_threads[name] = inthread(
+                            tab.finalise_close_tab, current_page
+                        )
                 elif not pending_threads[name].is_alive():
                     # finalise_close_tab completed, tab is closed and worker terminated
                     pending_threads[name].join()
                     del pending_threads[name]
                     del self.tablist[name]
-        if overdue and not all_shutdown:
-            # If some tabs didn't shutdown their workers by the deadline, then we have
-            # given up on shutting down their workers cleanly, but will extend the
-            # deadline to allow potentially blocking terminate() to complete in
-            # tab.finalise_close_tab()
-            deadline += TAB_CLOSE_TIMEOUT
-        elif overdue or not self.tablist:
-            # All tabs closed sucessfully, or final deadline exceeded
+        if not self.tablist:
+            # All tabs are closed.
             self.exit_complete = True
             logger.info('quitting')
             return
-        QTimer.singleShot(100,lambda: self.finalise_quit(deadline, pending_threads))
+        QTimer.singleShot(100, lambda: self.finalise_quit(deadline, pending_threads))
             
 
     def on_save_front_panel(self,*args,**kwargs):
