@@ -267,6 +267,7 @@ class Tab(object):
         self.workers = {}
         self._supports_smart_programming = False
         self._restart_receiver = []
+        self.shutdown_workers_complete = False
 
         self.remote_process_client = self._get_remote_configuration()
         self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
@@ -591,16 +592,28 @@ class Tab(object):
             self._timeouts = set()
             return False        
     
-    def close_tab(self,*args):
+    @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)
+    def shutdown_workers(self):
+        """Ask all workers to shutdown"""
+        for worker_name in self.workers:
+            yield(self.queue_work(worker_name, 'shutdown'))
+        self.shutdown_workers_complete = True
+
+    def close_tab(self, finalise=True):
+        """Close the tab, terminate subprocesses and join the mainloop thread. If
+        finalise=False, then do not terminate subprocesses or join the mainloop. In this
+        case, callers must manually call finalise_close_tab() to perform these
+        potentially blocking operations"""
         self.logger.info('close_tab called')
         self._timeout.stop()
         for worker, to_worker, from_worker in self.workers.values():
-            worker.terminate()
+            # If the worker is still starting up, interrupt any blocking operations:
+            worker.interrupt_startup()
             # Interrupt the read and write queues in case the mainloop is blocking on
             # sending or receiving from them:
             if to_worker is not None:
-                to_worker.interruptor.set()
-                from_worker.interruptor.set()
+                to_worker.interrupt()
+                from_worker.interrupt()
         # In case the mainloop is blocking on the event queue, post a message to that
         # queue telling it to quit:
         if self._mainloop_thread.is_alive():
@@ -611,11 +624,21 @@ class Tab(object):
             #currentpage = self.notebook.get_current_page()
             currentpage = self.notebook.indexOf(self._ui)
             self.notebook.removeTab(currentpage)
-            temp_widget = QWidget()
-            self.notebook.insertTab(currentpage, temp_widget, self.device_name)
+            temp_widget = QLabel("Waiting for tab mainloop and worker(s) to exit")
+            temp_widget.setAlignment(Qt.AlignCenter)
+            self.notebook.insertTab(currentpage, temp_widget, '[%s]' % self.device_name)
+            self.notebook.tabBar().setTabIcon(currentpage, QIcon(self.ICON_BUSY))
+            self.notebook.tabBar().setTabTextColor(currentpage, QColor('grey'))
             self.notebook.setCurrentWidget(temp_widget)  
+        if finalise:
+            self.finalise_close_tab()
         return currentpage
     
+    def finalise_close_tab(self):
+        self._mainloop_thread.join()
+        for worker, _, _ in self.workers.values():
+            worker.terminate()
+
     def connect_restart_receiver(self,function):
         if function not in self._restart_receiver:
             self._restart_receiver.append(function)
@@ -632,13 +655,16 @@ class Tab(object):
             except:
                 self.logger.exception('Could not notify a connected receiver function')
                 
-        currentpage = self.close_tab()
+        currentpage = self.close_tab(finalise=False)
         self.logger.info('***RESTART***')
         self.settings['saved_data'] = self.get_all_save_data()
-        self._restart_thread = inthread(self.wait_for_mainloop_to_stop, currentpage)
+        self._restart_thread = inthread(self.continue_restart, currentpage)
         
-    def wait_for_mainloop_to_stop(self, currentpage):
-        self._mainloop_thread.join()
+    def continue_restart(self, currentpage):
+        """Called in a thread for the stages of restarting that may be blocking, so as to
+        not block the main thread. Calls subsequent GUI operations in the main thread once
+        finished blocking."""
+        self.finalise_close_tab()
         inmain(self.clean_ui_on_restart)
         inmain(self.finalise_restart, currentpage)
         
@@ -910,7 +936,6 @@ class PluginTab(object):
         self.notebook.addTab(self._ui, self.tab_name)
 
         self._ui.show()
-        self.destroy_complete = False
 
         # Call the initialise GUI function
         self.initialise_GUI()
@@ -939,7 +964,7 @@ class PluginTab(object):
     def get_tab_layout(self):
         return self._layout
 
-    def close_tab(self, *args):
+    def close_tab(self, **kwargs):
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
@@ -983,11 +1008,6 @@ class PluginTab(object):
 
     def get_builtin_save_data(self):
         return {}
-
-    def destroy(self):
-        self.close_tab()
-        self.destroy_complete = True
-
 
 # Example code! Two classes are defined below, which are subclasses
 # of the ones defined above.  They show how to make a Tab class,

@@ -53,7 +53,7 @@ from qtutils.qt.QtCore import pyqtSignal as Signal
 
 check_version('qtutils', '2.2.3', '3.0.0')
 splash.update_text('importing zprocess')
-check_version('zprocess', '2.13.4', '3')
+check_version('zprocess', '2.14.0', '3')
 splash.update_text('importing labscript_devices')
 check_version('labscript_devices', '2.0', '3')
 
@@ -676,34 +676,55 @@ class BLACS(object):
                # del h5file['connection table']
 
         self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True},force_new_conn_table=True)
-        logger.info('Destroying tabs')
+        logger.info('Shutting down workers')
         for tab in self.tablist.values():
-            tab.destroy()
+            tab.shutdown_workers()
 
-        #gobject.timeout_add(100,self.finalise_quit,time.time())
-        QTimer.singleShot(100,lambda: self.finalise_quit(time.time()))
+        QTimer.singleShot(100, self.finalise_quit)
 
-    def finalise_quit(self,initial_time):
+    def finalise_quit(self, deadline=None, pending_threads=None):
         logger.info('finalise_quit called')
-        tab_close_timeout = 2
-        # Kill any tabs which didn't close themselves:
+        TAB_CLOSE_TIMEOUT = 2
+        if deadline is None:
+            deadline = time.time() + TAB_CLOSE_TIMEOUT
+        if pending_threads is None:
+            pending_threads = {}
+        overdue = time.time() > deadline
+        # Check for worker shutdown completion:
+        all_shutdown = all(t.shutdown_workers_complete for t in self.tablist.values())
         for name, tab in list(self.tablist.items()):
-            if tab.destroy_complete:
-                del self.tablist[name]
-        if self.tablist:
-            for name, tab in list(self.tablist.items()):
-                # If a tab has a fatal error or is taking too long to close, force close it:
-                if (time.time() - initial_time > tab_close_timeout) or tab.state == 'fatal error':
+            fatal_error = tab.state == 'fatal error'
+            if not tab.shutdown_workers_complete and overdue or fatal_error:
+                # Give up on cleanly shutting down this tab's worker processes:
+                tab.shutdown_workers_complete = True
+            if tab.shutdown_workers_complete:
+                if name not in pending_threads:
+                    # Either worker shutdown completed or we gave up. Close the tab.
                     try:
-                        tab.close_tab()
+                        tab.close_tab(finalise=False)
                     except Exception as e:
                         logger.error('Couldn\'t close tab:\n%s'%str(e))
+                        del self.tablist[name]
+                    # Call finalise_close_tab in a thread since it can be blocking:
+                    pending_threads[name] = inthread(tab.finalise_close_tab)
+                elif not pending_threads[name].is_alive():
+                    # finalise_close_tab completed, tab is closed and worker terminated
+                    pending_threads[name].join()
+                    del pending_threads[name]
                     del self.tablist[name]
-        if self.tablist:
-            QTimer.singleShot(100,lambda: self.finalise_quit(initial_time))
-        else:
+        if overdue and not all_shutdown:
+            # If some tabs didn't shutdown their workers by the deadline, then we have
+            # given up on shutting down their workers cleanly, but will extend the
+            # deadline to allow potentially blocking terminate() to complete in
+            # tab.finalise_close_tab()
+            deadline += TAB_CLOSE_TIMEOUT
+        elif overdue or not self.tablist:
+            # All tabs closed sucessfully, or final deadline exceeded
             self.exit_complete = True
             logger.info('quitting')
+            return
+        QTimer.singleShot(100,lambda: self.finalise_quit(deadline, pending_threads))
+            
 
     def on_save_front_panel(self,*args,**kwargs):
         data = self.front_panel_settings.get_save_data()

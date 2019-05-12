@@ -53,7 +53,6 @@ class DeviceTab(Tab):
         self._secondary_workers = []
         self._can_check_remote_values = False
         self._changed_radio_buttons = {}
-        self.destroy_complete = False
         
         # Call the initialise GUI function
         self.initialise_GUI() 
@@ -393,14 +392,6 @@ class DeviceTab(Tab):
         else:
             return None
             
-    @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)
-    def destroy(self):
-        yield(self.queue_work(self._primary_worker,'shutdown'))
-        for worker in self._secondary_workers:
-            yield(self.queue_work(worker,'shutdown'))
-        self.close_tab()
-        self.destroy_complete = True
-    
     # Only allow this to be called when we are in MODE_MANUAL and keep it queued up if we are not
     # When pulling out the state from the state queue, we check to see if there is an adjacent state that is more recent, and use that one
     # or whichever is the latest without encountering a different state).
@@ -855,11 +846,11 @@ if __name__ == '__main__':
         def closeEvent(self,event):
             if not self.are_we_closed:        
                 event.ignore()
-                self.my_tab.destroy()
+                self.my_tab.shutdown()
                 self.are_we_closed = True
                 QTimer.singleShot(1000,self.close)
             else:
-                if not self.my_tab.destroy_complete: 
+                if not self.my_tab.shutdown_complete: 
                     QTimer.singleShot(1000,self.close)                    
                 else:
                     event.accept()
