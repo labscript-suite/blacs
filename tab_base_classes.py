@@ -648,7 +648,11 @@ class Tab(object):
             timer = inmain(QTimer)
             inmain(timer.singleShot, int(TERMINATE_TIMEOUT * 1000), interruptor.set)
         try:
-            for worker, _, _ in self.workers.values():
+            # Delete the workers from the dict as we go, ensuring their __del__ method
+            # will be called. This is important so that the remote process server, if
+            # any, knows we have deleted the object:
+            for name in self.workers.copy():
+                worker, _, _ = self.workers.pop(name)
                 worker.terminate(**kwargs)
         except Interrupted:
             self.logger.warning(
@@ -803,6 +807,7 @@ class Tab(object):
                                 to_worker, from_worker = worker.start(*worker_args)
                                 self.workers[worker_process] = (worker, to_worker, from_worker)
                                 worker_args = ()
+                                del worker # Do not gold a reference indefinitely
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
