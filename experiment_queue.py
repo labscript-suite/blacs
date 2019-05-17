@@ -837,9 +837,6 @@ class QueueManager(object):
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
         
                 error_condition = False
-                # New queue. It is too late to abord so we do not want to receive abort
-                # signals from moments prior:
-                self.current_queue = queue.Queue()
                 response_list = {}
                 # Keep transitioning tabs to manual mode and waiting on them until they
                 # are all done or have all errored/restarted/failed. If one fails, we
@@ -860,6 +857,10 @@ class QueueManager(object):
                         logger.info('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
                         try:
                             name, result = self.current_queue.get(2)
+                            if name == 'Queue Manager' and result == 'abort':
+                                # Ignore any abort signals left in the queue, it is too
+                                # late to abort in any case:
+                                continue
                         except queue.Empty:
                             # 2 seconds without a device transitioning to manual mode.
                             # Is there an error:
