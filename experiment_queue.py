@@ -837,8 +837,13 @@ class QueueManager(object):
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
         
                 error_condition = False
-
+                # New queue. It is too late to abord so we do not want to receive abort
+                # signals from moments prior:
+                self.current_queue = queue.Queue()
                 response_list = {}
+                # Keep transitioning tabs to manual mode and waiting on them until they
+                # are all done or have all errored/restarted/failed. If one fails, we
+                # still have to transition the rest to manual mode:
                 while stop_groups:
                     transition_list = {}
                     # Transition the next group to manual mode:
@@ -853,12 +858,29 @@ class QueueManager(object):
                     # Wait for their responses:
                     while transition_list:
                         logger.info('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
-                        name, result = self.current_queue.get()
+                        try:
+                            name, result = self.current_queue.get(2)
+                        except queue.Empty:
+                            # 2 seconds without a device transitioning to manual mode.
+                            # Is there an error:
+                            for name in transition_list.copy():
+                                if self.get_device_error_state(name, transition_list):
+                                    error_condition = True
+                                    logger.debug('%s is in an error state' % name)
+                                    del transition_list[name]
+                            continue
                         response_list[name] = result
-                        if result in ['fail', 'restart']:
+                        if result == 'fail':
                             error_condition = True
-                        if self.get_device_error_state(name, devices_in_use):
+                            logger.debug('%s failed to transition to manual' % name)
+                        elif result == 'restart':
                             error_condition = True
+                            logger.debug('%s restarted during transition to manual' % name)
+                        elif self.get_device_error_state(name, devices_in_use):
+                            error_condition = True
+                            logger.debug('%s is in an error state' % name)
+                        else:
+                            logger.debug('%s finished transitioning to manual mode' % name)
                         # Once device has transitioned_to_manual, disconnect restart
                         # signal:
                         tab = devices_in_use[name]
