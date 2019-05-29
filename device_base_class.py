@@ -32,6 +32,7 @@ from blacs.tab_base_classes import Tab, Worker, define_state
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED
 from blacs.output_classes import AO, DO, DDS, Image
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
+from labscript_utils.shared_drive import path_to_agnostic
 
 
 class DeviceTab(Tab):
@@ -52,7 +53,6 @@ class DeviceTab(Tab):
         self._secondary_workers = []
         self._can_check_remote_values = False
         self._changed_radio_buttons = {}
-        self.destroy_complete = False
         
         # Call the initialise GUI function
         self.initialise_GUI() 
@@ -392,14 +392,6 @@ class DeviceTab(Tab):
         else:
             return None
             
-    @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)
-    def destroy(self):
-        yield(self.queue_work(self._primary_worker,'shutdown'))
-        for worker in self._secondary_workers:
-            yield(self.queue_work(worker,'shutdown'))
-        self.close_tab()
-        self.destroy_complete = True
-    
     # Only allow this to be called when we are in MODE_MANUAL and keep it queued up if we are not
     # When pulling out the state from the state queue, we check to see if there is an adjacent state that is more recent, and use that one
     # or whichever is the latest without encountering a different state).
@@ -595,6 +587,12 @@ class DeviceTab(Tab):
     
         self.mode = MODE_TRANSITION_TO_BUFFERED
         
+        # For backward compatibility with worker classes not expecting network-agnostic
+        # paths, we only convert the h5 file to network-agnostic format if the worker is
+        # remote:
+        if self.remote_process_client is not None:
+            h5_file = path_to_agnostic(h5_file)
+
         # transition_to_buffered returns the final values of the run, to update the GUI with at the end of the run:
         transitioned_called = [self._primary_worker]
         front_panel_values = self.get_front_panel_values()
@@ -848,11 +846,11 @@ if __name__ == '__main__':
         def closeEvent(self,event):
             if not self.are_we_closed:        
                 event.ignore()
-                self.my_tab.destroy()
+                self.my_tab.shutdown()
                 self.are_we_closed = True
                 QTimer.singleShot(1000,self.close)
             else:
-                if not self.my_tab.destroy_complete: 
+                if not self.my_tab.shutdown_complete: 
                     QTimer.singleShot(1000,self.close)                    
                 else:
                     event.accept()

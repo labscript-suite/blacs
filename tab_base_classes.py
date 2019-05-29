@@ -20,7 +20,7 @@ else:
     import queue
     import pickle
 
-from zprocess import Process
+from zprocess import Process, Interruptor, Interrupted
 import time
 import sys
 import threading
@@ -40,7 +40,7 @@ from labscript_utils.qtwidgets.outputbox import OutputBox
 import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
-from labscript_utils.ls_zprocess import ProcessTree
+from labscript_utils.ls_zprocess import ProcessTree, RemoteProcessClient
 from blacs import BLACS_DIR
 
 process_tree = ProcessTree.instance()
@@ -267,7 +267,11 @@ class Tab(object):
         self.workers = {}
         self._supports_smart_programming = False
         self._restart_receiver = []
-        
+        self.shutdown_workers_complete = False
+
+        self.remote_process_client = self._get_remote_configuration()
+        self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
+
         # Load the UI
         self._ui = UiLoader().load(os.path.join(BLACS_DIR, 'tab_frame.ui'))
         self._layout = self._ui.device_layout
@@ -275,8 +279,14 @@ class Tab(object):
         self._changed_widget = self._ui.changed_widget
         self._changed_layout = self._ui.changed_layout
         self._changed_widget.hide()        
-        self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
-        self._ui.device_name.setText("<b>%s</b> [conn: %s]"%(str(self.device_name),str(self.BLACS_connection)))
+        
+        conn_str = self.BLACS_connection
+        if self.remote_process_client is not None:
+            conn_str += " via %s:%d" % (self.remote_process_client.host, self.remote_process_client.port)
+        
+        self._ui.device_name.setText(
+            "<b>%s</b> [conn: %s]" % (str(self.device_name), conn_str)
+        )
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)
         elide_label(self._ui.state_label, self._ui.state_label_layout, Qt.ElideRight)
 
@@ -318,6 +328,26 @@ class Tab(object):
         self.notebook.addTab(self._ui,self.device_name)
         self._ui.show()
     
+    def _get_remote_configuration(self):
+        # Create and return zprocess remote process client, if the device is configured
+        # as a remote device, else None:
+        PRIMARY_BLACS = '__PrimaryBLACS'
+        table = self.settings['connection_table']
+        properties = table.find_by_name(self.device_name).properties
+        if properties.get('gui', PRIMARY_BLACS) != PRIMARY_BLACS:
+            msg = "Remote BLACS GUIs not yet supported by BLACS"
+            raise NotImplementedError(msg)
+        remote_server_name = properties.get('worker', PRIMARY_BLACS)
+        if remote_server_name != PRIMARY_BLACS:
+            remote_server_device = table.find_by_name(remote_server_name)
+            if remote_server_device.parent.name != PRIMARY_BLACS:
+                msg = "Multi-hop remote workers not yet supported by BLACS"
+                raise NotImplementedError(msg) 
+            remote_host, remote_port = remote_server_device.parent_port.split(':')
+            remote_port = int(remote_port)
+            return RemoteProcessClient(remote_host, remote_port)
+        return None
+
     def get_builtin_save_data(self):
         """Get builtin settings to be restored like whether the terminal is
         visible. Not to be overridden."""
@@ -463,7 +493,7 @@ class Tab(object):
         
         # Todo: Update icon in tab
     
-    def create_worker(self,name,WorkerClass,workerargs={}):
+    def create_worker(self,name,WorkerClass,workerargs=None):
         """Set up a worker process. WorkerClass can either be a subclass of Worker, or a
         string containing a fully qualified import path to a worker. The latter is
         useful if the worker class is in a separate file with global imports or other
@@ -473,6 +503,11 @@ class Tab(object):
         separate computer). The worker process will not be started immediately, it will
         be started once the state machine mainloop begins running. This way errors in
         startup will be handled using the normal state machine machinery."""
+
+        if workerargs is None:
+            workerargs = {}
+        workerargs['is_remote'] = self.remote_process_client is not None
+
         if name in self.workers:
             raise Exception('There is already a worker process with name: %s'%name) 
         if name == 'GUI':
@@ -484,6 +519,7 @@ class Tab(object):
             worker = WorkerClass(
                 process_tree,
                 output_redirection_port=self._output_box.port,
+                remote_process_client=self.remote_process_client,
                 startup_timeout=30
                 )
         elif isinstance(WorkerClass, str):
@@ -493,6 +529,7 @@ class Tab(object):
             worker = Process(
                 process_tree,
                 output_redirection_port=self._output_box.port,
+                remote_process_client=self.remote_process_client,
                 startup_timeout=30,
                 subclass_fullname=WorkerClass
             )
@@ -555,15 +592,28 @@ class Tab(object):
             self._timeouts = set()
             return False        
     
-    def close_tab(self,*args):
+    @define_state(MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,True)
+    def shutdown_workers(self):
+        """Ask all workers to shutdown"""
+        for worker_name in self.workers:
+            yield(self.queue_work(worker_name, 'shutdown'))
+        self.shutdown_workers_complete = True
+
+    def close_tab(self, finalise=True):
+        """Close the tab, terminate subprocesses and join the mainloop thread. If
+        finalise=False, then do not terminate subprocesses or join the mainloop. In this
+        case, callers must manually call finalise_close_tab() to perform these
+        potentially blocking operations"""
         self.logger.info('close_tab called')
         self._timeout.stop()
         for worker, to_worker, from_worker in self.workers.values():
-            worker.terminate()
-            # In case the mainloop is blocking on receiving something from the worker,
-            # post a message to that queue telling the mainloop to quit:
-            if self._mainloop_thread.is_alive() and from_worker is not None:
-                from_worker.put((False, 'quit', None))
+            # If the worker is still starting up, interrupt any blocking operations:
+            worker.interrupt_startup()
+            # Interrupt the read and write queues in case the mainloop is blocking on
+            # sending or receiving from them:
+            if to_worker is not None:
+                to_worker.interrupt()
+                from_worker.interrupt()
         # In case the mainloop is blocking on the event queue, post a message to that
         # queue telling it to quit:
         if self._mainloop_thread.is_alive():
@@ -574,11 +624,46 @@ class Tab(object):
             #currentpage = self.notebook.get_current_page()
             currentpage = self.notebook.indexOf(self._ui)
             self.notebook.removeTab(currentpage)
-            temp_widget = QWidget()
-            self.notebook.insertTab(currentpage, temp_widget, self.device_name)
+            temp_widget = QLabel("Waiting for tab mainloop and worker(s) to exit")
+            temp_widget.setAlignment(Qt.AlignCenter)
+            self.notebook.insertTab(currentpage, temp_widget, '[%s]' % self.device_name)
+            self.notebook.tabBar().setTabIcon(currentpage, QIcon(self.ICON_BUSY))
+            self.notebook.tabBar().setTabTextColor(currentpage, QColor('grey'))
             self.notebook.setCurrentWidget(temp_widget)  
+        if finalise:
+            self.finalise_close_tab(currentpage)
         return currentpage
     
+    def finalise_close_tab(self, currentpage):
+        TERMINATE_TIMEOUT = 2
+        self._mainloop_thread.join(TERMINATE_TIMEOUT)
+        if self._mainloop_thread.is_alive():
+            self.logger.warning("mainloop thread of %s did not stop", self.device_name)
+        kwargs = {'wait_timeout': TERMINATE_TIMEOUT}  # timeout passed to .wait()
+        if self.remote_process_client is not None:
+            # Set up a zprocess.Interruptor to interrupt communication with the remote
+            # process server if the timeout is reached:
+            interruptor = Interruptor()
+            kwargs['get_interruptor'] = interruptor
+            timer = inmain(QTimer)
+            inmain(timer.singleShot, int(TERMINATE_TIMEOUT * 1000), interruptor.set)
+        try:
+            # Delete the workers from the dict as we go, ensuring their __del__ method
+            # will be called. This is important so that the remote process server, if
+            # any, knows we have deleted the object:
+            for name in self.workers.copy():
+                worker, _, _ = self.workers.pop(name)
+                worker.terminate(**kwargs)
+        except Interrupted:
+            self.logger.warning(
+                "Terminating workers of %s timed out", self.device_name
+            )
+            return
+        finally:
+            if self.remote_process_client is not None:
+                inmain(timer.stop)
+        
+
     def connect_restart_receiver(self,function):
         if function not in self._restart_receiver:
             self._restart_receiver.append(function)
@@ -595,13 +680,16 @@ class Tab(object):
             except:
                 self.logger.exception('Could not notify a connected receiver function')
                 
-        currentpage = self.close_tab()
+        currentpage = self.close_tab(finalise=False)
         self.logger.info('***RESTART***')
         self.settings['saved_data'] = self.get_all_save_data()
-        self._restart_thread = inthread(self.wait_for_mainloop_to_stop, currentpage)
+        self._restart_thread = inthread(self.continue_restart, currentpage)
         
-    def wait_for_mainloop_to_stop(self, currentpage):
-        self._mainloop_thread.join()
+    def continue_restart(self, currentpage):
+        """Called in a thread for the stages of restarting that may be blocking, so as to
+        not block the main thread. Calls subsequent GUI operations in the main thread once
+        finished blocking."""
+        self.finalise_close_tab(currentpage)
         inmain(self.clean_ui_on_restart)
         inmain(self.finalise_restart, currentpage)
         
@@ -703,7 +791,6 @@ class Tab(object):
                 if type(generator) == GeneratorType:
                     # We need to call next recursively, queue up work and send the results back until we get a StopIteration exception
                     generator_running = True
-                    break_main_loop = False
                     # get the data from the first yield function
                     if PY2:
                         worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
@@ -720,6 +807,7 @@ class Tab(object):
                                 to_worker, from_worker = worker.start(*worker_args)
                                 self.workers[worker_process] = (worker, to_worker, from_worker)
                                 worker_args = ()
+                                del worker # Do not gold a reference indefinitely
                             worker_arg_list = (worker_function,worker_args,worker_kwargs)
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
@@ -736,23 +824,11 @@ class Tab(object):
                             logger.debug('Waiting for worker to acknowledge job request')
                             success, message, results = from_worker.get()
                             if not success:
-                                if message == 'quit':
-                                    # The user has requested a restart:
-                                    logger.debug('Received quit signal')
-                                    # This variable is set so we also break out of the toplevel main loop
-                                    break_main_loop = True
-                                    break
                                 logger.info('Worker reported failure to start job')
                                 raise Exception(message)
                             # Wait for and get the results of the work:
                             logger.debug('Worker reported job started, waiting for completion')
                             success,message,results = from_worker.get()
-                            if not success and message == 'quit':
-                                # The user has requested a restart:
-                                logger.debug('Received quit signal')
-                                # This variable is set so we also break out of the toplevel main loop
-                                break_main_loop = True
-                                break
                             if not success:
                                 logger.info('Worker reported exception during job')
                                 now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
@@ -777,12 +853,12 @@ class Tab(object):
                             # The generator has finished. Ignore the error, but stop the loop
                             logger.debug('Finalising function')
                             generator_running = False
-                    # Break out of the main loop if the user requests a restart
-                    if break_main_loop:
-                        logger.debug('Breaking out of main loop')
-                        break
                 self.state = 'idle'
-        except:
+        except Interrupted:
+            # User requested a restart
+            logger.debug('Interrupted by tab restart, quitting mainloop')
+            return
+        except Exception:
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
             logger.critical('A fatal exception happened:\n %s'%message)
@@ -886,7 +962,6 @@ class PluginTab(object):
         self.notebook.addTab(self._ui, self.tab_name)
 
         self._ui.show()
-        self.destroy_complete = False
 
         # Call the initialise GUI function
         self.initialise_GUI()
@@ -915,7 +990,7 @@ class PluginTab(object):
     def get_tab_layout(self):
         return self._layout
 
-    def close_tab(self, *args):
+    def close_tab(self, **kwargs):
         self.notebook = self._ui.parentWidget().parentWidget()
         currentpage = None
         if self.notebook:
@@ -959,11 +1034,6 @@ class PluginTab(object):
 
     def get_builtin_save_data(self):
         return {}
-
-    def destroy(self):
-        self.close_tab()
-        self.destroy_complete = True
-
 
 # Example code! Two classes are defined below, which are subclasses
 # of the ones defined above.  They show how to make a Tab class,
