@@ -26,6 +26,8 @@ import time
 import sys
 import shutil
 from collections import defaultdict
+from tempfile import gettempdir
+from binascii import hexlify
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -44,6 +46,12 @@ import labscript_utils.properties
 
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 import blacs.plugins as plugins
+
+
+def tempfilename(prefix='BLACS-temp-', suffix='.h5'):
+    """Return a filepath appropriate for use as a temporary file"""
+    random_hex = hexlify(os.urandom(16)).decode()
+    return os.path.join(gettempdir(), prefix + random_hex + suffix)
 
 
 FILEPATH_COLUMN = 0
@@ -778,18 +786,19 @@ class QueueManager(object):
                 try:
                     with h5py.File(path, 'r') as h5_file:
                         repeat_number = h5_file.attrs.get('run repeat', 0)
-                except:
+                except Exception:
                     repeat_numer = 0
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
+                temp_path = tempfilename()
+                self.clean_h5_file(path, temp_path, repeat_number=repeat_number)
                 try:
-                    shutil.move('temp.h5', path)
+                    shutil.move(temp_path, path)
                 except Exception:
                     msg = ('Couldn\'t delete failed run file %s, ' % path + 
                            'another process may be using it. Using alternate ' 
                            'filename for second attempt.')
                     logger.warning(msg, exc_info=True)
-                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
+                    shutil.move(temp_path, path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
@@ -909,15 +918,16 @@ class QueueManager(object):
                 except:
                     repeat_number = 0
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
+                temp_path = tempfilename()
+                self.clean_h5_file(path, temp_path, repeat_number=repeat_number)
                 try:
-                    shutil.move('temp.h5', path)
+                    shutil.move(temp_path, path)
                 except Exception:
                     msg = ('Couldn\'t delete failed run file %s, ' % path + 
                            'another process may be using it. Using alternate ' 
                            'filename for second attempt.')
                     logger.warning(msg, exc_info=True)
-                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
+                    shutil.move(temp_path, path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
