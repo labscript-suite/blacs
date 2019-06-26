@@ -88,16 +88,7 @@ QToolButton:hover:checked {
     <property name="spacing">
      <number>0</number>
     </property>
-    <property name="leftMargin">
-     <number>6</number>
-    </property>
-    <property name="topMargin">
-     <number>6</number>
-    </property>
-    <property name="rightMargin">
-     <number>6</number>
-    </property>
-    <property name="bottomMargin">
+    <property name="margin">
      <number>6</number>
     </property>
     <item>
@@ -177,16 +168,7 @@ QToolButton:hover:checked {
                  <enum>QFrame::StyledPanel</enum>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout">
-                 <property name="leftMargin">
-                  <number>6</number>
-                 </property>
-                 <property name="topMargin">
-                  <number>6</number>
-                 </property>
-                 <property name="rightMargin">
-                  <number>6</number>
-                 </property>
-                 <property name="bottomMargin">
+                 <property name="margin">
                   <number>6</number>
                  </property>
                  <item>
@@ -535,7 +517,7 @@ QToolButton:hover:checked {
             <item row="2" column="1">
              <layout class="QVBoxLayout" name="queue_status_verticalLayout">
               <property name="spacing">
-               <number>0</number>
+               <number>3</number>
               </property>
               <property name="topMargin">
                <number>0</number>
@@ -588,16 +570,7 @@ QToolButton:hover:checked {
           </property>
           <widget class="QWidget" name="widget_2" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_3">
-            <property name="leftMargin">
-             <number>6</number>
-            </property>
-            <property name="topMargin">
-             <number>6</number>
-            </property>
-            <property name="rightMargin">
-             <number>6</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>6</number>
             </property>
             <item>
@@ -607,16 +580,7 @@ QToolButton:hover:checked {
           </widget>
           <widget class="QWidget" name="widget_5" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_4">
-            <property name="leftMargin">
-             <number>6</number>
-            </property>
-            <property name="topMargin">
-             <number>6</number>
-            </property>
-            <property name="rightMargin">
-             <number>6</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>6</number>
             </property>
             <item>
@@ -637,16 +601,7 @@ QToolButton:hover:checked {
           </property>
           <widget class="QWidget" name="widget_3" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_6">
-            <property name="leftMargin">
-             <number>6</number>
-            </property>
-            <property name="topMargin">
-             <number>6</number>
-            </property>
-            <property name="rightMargin">
-             <number>6</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>6</number>
             </property>
             <item>
@@ -656,16 +611,7 @@ QToolButton:hover:checked {
           </widget>
           <widget class="QWidget" name="widget_6" native="true">
            <layout class="QVBoxLayout" name="verticalLayout_8">
-            <property name="leftMargin">
-             <number>6</number>
-            </property>
-            <property name="topMargin">
-             <number>6</number>
-            </property>
-            <property name="rightMargin">
-             <number>6</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>6</number>
             </property>
             <item>
@@ -687,7 +633,7 @@ QToolButton:hover:checked {
      <x>0</x>
      <y>0</y>
      <width>821</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

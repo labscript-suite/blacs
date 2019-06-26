@@ -25,22 +25,33 @@ import threading
 import time
 import sys
 import shutil
+from collections import defaultdict
+from tempfile import gettempdir
+from binascii import hexlify
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 import zprocess
-import zprocess.locking, labscript_utils.h5_lock, h5py
-zprocess.locking.set_client_process_name('BLACS.queuemanager')
+from labscript_utils.ls_zprocess import ProcessTree
+process_tree = ProcessTree.instance()
+import labscript_utils.h5_lock, h5py
 
 from qtutils import *
 
 from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.connections import ConnectionTable
+import labscript_utils.properties
 
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 import blacs.plugins as plugins
+
+
+def tempfilename(prefix='BLACS-temp-', suffix='.h5'):
+    """Return a filepath appropriate for use as a temporary file"""
+    random_hex = hexlify(os.urandom(16)).decode()
+    return os.path.join(gettempdir(), prefix + random_hex + suffix)
 
 
 FILEPATH_COLUMN = 0
@@ -155,8 +166,6 @@ class QueueManager(object):
         self.manager = threading.Thread(target = self.manage)
         self.manager.daemon=True
         self.manager.start()
-
-        self._callbacks = None
 
     def _create_headers(self):
         self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
@@ -436,7 +445,7 @@ class QueueManager(object):
             with h5py.File(h5file,'r') as old_file:
                 with h5py.File(new_h5_file,'w') as new_file:
                     groups_to_copy = ['devices', 'calibrations', 'script', 'globals', 'connection table', 
-                                      'labscriptlib', 'waits']
+                                      'labscriptlib', 'waits', 'time_markers']
                     for group in groups_to_copy:
                         if group in old_file:
                             new_file.copy(old_file[group], group)
@@ -490,7 +499,8 @@ class QueueManager(object):
        
      
     def manage(self):
-        logger = logging.getLogger('BLACS.queue_manager.thread')   
+        logger = logging.getLogger('BLACS.queue_manager.thread')  
+        process_tree.zlock_client.set_thread_name('queue_manager') 
         # While the program is running!
         logger.info('starting')
         
@@ -576,25 +586,43 @@ class QueueManager(object):
                     except Exception:
                         logger.exception("Plugin callback raised an exception")
 
-                with h5py.File(path,'r') as hdf5_file:
-                    h5_file_devices = list(hdf5_file['devices/'].keys())
+                with h5py.File(path, 'r') as hdf5_file:
+                    devices_in_use = {}
+                    start_order = {}
+                    stop_order = {}
+                    for name in  hdf5_file['devices']:
+                        device_properties = labscript_utils.properties.get(
+                            hdf5_file, name, 'device_properties'
+                        )
+                        devices_in_use[name] = self.BLACS.tablist[name]
+                        start_order[name] = device_properties.get('start_order', None)
+                        stop_order[name] = device_properties.get('start_order', None)
 
-                for name in h5_file_devices:
-                    try:
-                        # Connect restart signal from tabs to current_queue and transition the device to buffered mode
-                        success = self.transition_device_to_buffered(name,transition_list,path,restart_function)
-                        if not success:
-                            logger.error('%s has an error condition, aborting run' % name)
-                            error_condition = True
+                # Sort the devices into groups based on their start_order and stop_order
+                start_groups = defaultdict(set)
+                stop_groups = defaultdict(set)
+                for name in devices_in_use:
+                    start_groups[start_order[name]].add(name)
+                    stop_groups[stop_order[name]].add(name)
+
+                while (transition_list or start_groups) and not error_condition:
+                    if not transition_list:
+                        # Ready to transition the next group:
+                        for name in start_groups.pop(min(start_groups)):
+                            try:
+                                # Connect restart signal from tabs to current_queue and transition the device to buffered mode
+                                success = self.transition_device_to_buffered(name,transition_list,path,restart_function)
+                                if not success:
+                                    logger.error('%s has an error condition, aborting run' % name)
+                                    error_condition = True
+                                    break
+                            except Exception as e:
+                                logger.exception('Exception while transitioning %s to buffered mode.'%(name))
+                                error_condition = True
+                                break
+                        if error_condition:
                             break
-                    except Exception as e:
-                        logger.exception('Exception while transitioning %s to buffered mode.'%(name))
-                        error_condition = True
-                        break
                         
-                devices_in_use = transition_list.copy()
-
-                while transition_list and not error_condition:
                     try:
                         # Wait for a device to transtition_to_buffered:
                         logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s'%str(transition_list))
@@ -693,6 +721,16 @@ class QueueManager(object):
                 experiment_finished_queue = queue.Queue()
                 logger.debug('About to start the master pseudoclock')
                 run_time = time.localtime()
+
+                ##########################################################################################################################################
+                #                                                        Plugin callbacks                                                                #
+                ########################################################################################################################################## 
+                for callback in plugins.get_callbacks('science_starting'):
+                    try:
+                        callback(path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
                 #TODO: fix potential race condition if BLACS is closing when this line executes?
                 self.BLACS.tablist[self.master_pseudoclock].start_run(experiment_finished_queue)
                 
@@ -756,18 +794,19 @@ class QueueManager(object):
                 try:
                     with h5py.File(path, 'r') as h5_file:
                         repeat_number = h5_file.attrs.get('run repeat', 0)
-                except:
+                except Exception:
                     repeat_numer = 0
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
+                temp_path = tempfilename()
+                self.clean_h5_file(path, temp_path, repeat_number=repeat_number)
                 try:
-                    shutil.move('temp.h5', path)
+                    shutil.move(temp_path, path)
                 except Exception:
                     msg = ('Couldn\'t delete failed run file %s, ' % path + 
                            'another process may be using it. Using alternate ' 
                            'filename for second attempt.')
                     logger.warning(msg, exc_info=True)
-                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
+                    shutil.move(temp_path, path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
@@ -791,8 +830,16 @@ class QueueManager(object):
             ##########################################################################################################################################
             #                                                           SCIENCE OVER!                                                                #
             ##########################################################################################################################################
-            
-            
+            finally:
+                ##########################################################################################################################################
+                #                                                        Plugin callbacks                                                                #
+                ########################################################################################################################################## 
+                for callback in plugins.get_callbacks('science_over'):
+                    try:
+                        callback(path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
             
             ##########################################################################################################################################
             #                                                       Transition to manual                                                             #
@@ -806,40 +853,57 @@ class QueueManager(object):
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
         
-                # A Queue for event-based notification of when the devices have transitioned to static mode:
-                # Shouldn't need to recreate the queue: self.current_queue = queue.Queue()
-
-                # TODO: unserialise this if everything is using zprocess.locking
-                # only transition one device to static at a time,
-                # since writing data to the h5 file can potentially
-                # happen at this stage:
                 error_condition = False
-                
-                # This is far more complicated than it needs to be once transition_to_manual is unserialised!
                 response_list = {}
-                for device_name, tab in devices_in_use.items():
-                    if device_name not in response_list:
-                        tab.transition_to_manual(self.current_queue)               
-                        while True:
-                            # TODO: make the call to current_queue.get() timeout 
-                            # and periodically check for error condition on the tab
-                            got_device_name, result = self.current_queue.get()
-                            # if the response is not for this device, then save it for later!
-                            if device_name != got_device_name:
-                                response_list[got_device_name] = result
-                            else:
-                                break
-                    else:
-                        result = response_list[device_name]
-                    # Check for abort signal from device restart
-                    if result == 'fail':
-                        error_condition = True
-                    if result == 'restart':
-                        error_condition = True
-                    if self.get_device_error_state(device_name,devices_in_use):
-                        error_condition = True
-                    # Once device has transitioned_to_manual, disconnect restart signal
-                    inmain(tab.disconnect_restart_receiver,restart_function)
+                # Keep transitioning tabs to manual mode and waiting on them until they
+                # are all done or have all errored/restarted/failed. If one fails, we
+                # still have to transition the rest to manual mode:
+                while stop_groups:
+                    transition_list = {}
+                    # Transition the next group to manual mode:
+                    for name in stop_groups.pop(min(stop_groups)):
+                        tab = devices_in_use[name]
+                        try:
+                            tab.transition_to_manual(self.current_queue)
+                            transition_list[name] = tab
+                        except Exception as e:
+                            logger.exception('Exception while transitioning %s to manual mode.'%(name))
+                            error_condition = True
+                    # Wait for their responses:
+                    while transition_list:
+                        logger.info('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
+                        try:
+                            name, result = self.current_queue.get(2)
+                            if name == 'Queue Manager' and result == 'abort':
+                                # Ignore any abort signals left in the queue, it is too
+                                # late to abort in any case:
+                                continue
+                        except queue.Empty:
+                            # 2 seconds without a device transitioning to manual mode.
+                            # Is there an error:
+                            for name in transition_list.copy():
+                                if self.get_device_error_state(name, transition_list):
+                                    error_condition = True
+                                    logger.debug('%s is in an error state' % name)
+                                    del transition_list[name]
+                            continue
+                        response_list[name] = result
+                        if result == 'fail':
+                            error_condition = True
+                            logger.debug('%s failed to transition to manual' % name)
+                        elif result == 'restart':
+                            error_condition = True
+                            logger.debug('%s restarted during transition to manual' % name)
+                        elif self.get_device_error_state(name, devices_in_use):
+                            error_condition = True
+                            logger.debug('%s is in an error state' % name)
+                        else:
+                            logger.debug('%s finished transitioning to manual mode' % name)
+                        # Once device has transitioned_to_manual, disconnect restart
+                        # signal:
+                        tab = devices_in_use[name]
+                        inmain(tab.disconnect_restart_receiver, restart_function)
+                        del transition_list[name]
                     
                 if error_condition:                
                     self.set_status("Error in transtion to manual\nQueue Paused")
@@ -862,28 +926,19 @@ class QueueManager(object):
                 except:
                     repeat_number = 0
                 # clean the h5 file:
-                self.clean_h5_file(path, 'temp.h5', repeat_number=repeat_number)
+                temp_path = tempfilename()
+                self.clean_h5_file(path, temp_path, repeat_number=repeat_number)
                 try:
-                    shutil.move('temp.h5', path)
+                    shutil.move(temp_path, path)
                 except Exception:
                     msg = ('Couldn\'t delete failed run file %s, ' % path + 
                            'another process may be using it. Using alternate ' 
                            'filename for second attempt.')
                     logger.warning(msg, exc_info=True)
-                    shutil.move('temp.h5', path.replace('.h5','_retry.h5'))
+                    shutil.move(temp_path, path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
                 # Put it back at the start of the queue:
                 self.prepend(path)
-                
-                # Need to put devices back in manual mode. Since the experiment is over before this try/except block begins, we can 
-                # safely call transition_to_manual() on each device tab
-                # TODO: Not serialised...could be bad with older BIAS versions :(
-                self.current_queue = queue.Queue()
-                for devicename, tab in devices_in_use.items():
-                    if tab.mode == MODE_BUFFERED:
-                        tab.transition_to_manual(self.current_queue)
-                    # disconnect restart signal from tabs 
-                    inmain(tab.disconnect_restart_receiver,restart_function)
                 
                 continue
             

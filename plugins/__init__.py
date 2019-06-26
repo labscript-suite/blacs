@@ -61,34 +61,23 @@ class callback(object):
         return Callback(func, self.priority)
 
 
-_callbacks = None
-
-
-def get_callbacks(name, update_cache=False):
+def get_callbacks(name):
     """Return all the callbacks for a particular name, in order of priority"""
-    global _callbacks
     import __main__
     BLACS = __main__.app
-
-    if update_cache or _callbacks is None:
-        _callbacks = defaultdict(list)
-        for plugin in BLACS.plugins.values():
-            try:
-                callbacks = plugin.get_callbacks()
-                if callbacks is not None:
-                    for callback_name, callback in callbacks.items():
-                        _callbacks[callback_name].append(callback)
-            except Exception as e:
-                logger.exception('Error getting callbacks from %s.' % str(plugin))
-                
-
-        # Sort all callbacks by priority:
-        for callbacks in _callbacks.values():
-            callbacks.sort(key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY))
-
-    return _callbacks.get(name, [])
-
-
+    callbacks = []
+    for plugin in BLACS.plugins.values():
+        try:
+            plugin_callbacks = plugin.get_callbacks()
+            if plugin_callbacks is not None:
+                if name in plugin_callbacks:
+                    callbacks.append(plugin_callbacks[name])
+        except Exception as e:
+            logger.exception('Error getting callbacks from %s.' % str(plugin))
+            
+    # Sort all callbacks by priority:
+    callbacks.sort(key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY))
+    return callbacks
 
 
 exp_config = LabConfig()

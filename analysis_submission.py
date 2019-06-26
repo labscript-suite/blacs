@@ -29,7 +29,9 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from qtutils import *
-from zprocess import zmq_get, TimeoutError, raise_exception_in_thread
+from zprocess import TimeoutError, raise_exception_in_thread
+from zprocess.security import AuthenticationFailure
+from labscript_utils.ls_zprocess import zmq_get
 from socket import gaierror
 import labscript_utils.shared_drive
 from labscript_utils.qtwidgets.elide_label import elide_label
@@ -53,6 +55,7 @@ class AnalysisSubmission(object):
         self._ui.retry_button.clicked.connect(lambda _: self.check_retry())
 
         self._waiting_for_submission = []
+        self.failure_reason = None
         self.server_online = 'offline'
         self.send_to_server = False
         self.server = ''
@@ -62,10 +65,6 @@ class AnalysisSubmission(object):
         self.mainloop_thread.daemon = True
         self.mainloop_thread.start()
         
-        # self.checking_thread = threading.Thread(target=self.check_connectivity_loop)
-        # self.checking_thread.daemon = True
-        # self.checking_thread.start()
-    
     def restore_save_data(self,data):
         if "server" in data:
             self.server = data["server"]
@@ -142,6 +141,8 @@ class AnalysisSubmission(object):
         icon = QIcon(icon_names.get(self._server_online, ':/qtutils/fugue/exclamation-red'))
         pixmap = icon.pixmap(QSize(16, 16))
         tooltip = tooltips.get(self._server_online, "Invalid server status: %s" % self._server_online)
+        if self.failure_reason is not None:
+            tooltip += '\n' + self.failure_reason
 
         # Update GUI:
         self._ui.server_online.setPixmap(pixmap)
@@ -237,10 +238,14 @@ class AnalysisSubmission(object):
             self.server_online = 'checking'         
             try:
                 response = zmq_get(self.port, host, 'hello', timeout=1)
-            except (TimeoutError, gaierror):
+                self.failure_reason = None
+            except (TimeoutError, gaierror, AuthenticationFailure) as e:
                 success = False
+                self.failure_reason = str(e)
             else:
                 success = (response == 'hello')
+                if not success:
+                    self.failure_reason = "unexpected reponse: %s" % str(response)
                 
             # update GUI
             self.server_online = 'online' if success else 'offline'
@@ -258,10 +263,14 @@ class AnalysisSubmission(object):
             self.server_online = 'checking'
             try:
                 response = zmq_get(self.port, self.server, data, timeout=1)
-            except (TimeoutError, gaierror):
+                self.failure_reason = None
+            except (TimeoutError, gaierror, AuthenticationFailure) as e:
                 success = False
+                self.failure_reason = str(e)
             else:
                 success = (response == 'added successfully')
+                if not success:
+                    self.failure_reason = "unexpected reponse: %s" % str(response)
                 try:
                     self._waiting_for_submission.pop(0) 
                 except IndexError:
