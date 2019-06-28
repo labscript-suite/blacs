@@ -442,10 +442,19 @@ class QueueManager(object):
         
     def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
         try:
-            with h5py.File(h5file,'r') as old_file:
-                with h5py.File(new_h5_file,'w') as new_file:
-                    groups_to_copy = ['devices', 'calibrations', 'script', 'globals', 'connection table', 
-                                      'labscriptlib', 'waits', 'time_markers']
+            with h5py.File(h5file, 'r') as old_file:
+                with h5py.File(new_h5_file, 'w') as new_file:
+                    groups_to_copy = [
+                        'devices',
+                        'calibrations',
+                        'script',
+                        'globals',
+                        'connection table',
+                        'labscriptlib',
+                        'waits',
+                        'time_markers',
+                        'shot_properties',
+                    ]
                     for group in groups_to_copy:
                         if group in old_file:
                             new_file.copy(old_file[group], group)
@@ -453,7 +462,7 @@ class QueueManager(object):
                         new_file.attrs[name] = old_file.attrs[name]
                     new_file.attrs['run repeat'] = repeat_number
         except Exception as e:
-            #raise
+            # raise
             self._logger.exception('Clean H5 File Error.')
             return False
             
@@ -542,7 +551,6 @@ class QueueManager(object):
             
             devices_in_use = {}
             transition_list = {}   
-            start_time = time.time()
             self.current_queue = queue.Queue()
 
             # Function to be run when abort button is clicked
@@ -586,6 +594,8 @@ class QueueManager(object):
                     except Exception:
                         logger.exception("Plugin callback raised an exception")
 
+                start_time = time.time()
+                
                 with h5py.File(path, 'r') as hdf5_file:
                     devices_in_use = {}
                     start_order = {}

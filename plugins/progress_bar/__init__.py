@@ -132,7 +132,10 @@ class Plugin(object):
         return {'science_over': self.on_science_over,
                 'science_starting': self.on_science_starting}
         
-    @callback(priority=100)
+    # This callback should be run after any callbacks that might have significant time
+    # delays. For example it should run after the cycle_time science_starting callback.
+    # The priority should be set accordingly.
+    @callback(priority=200)
     def on_science_starting(self, h5_filepath):
         # Tell the mainloop that we're starting a shot:
         self.command_queue.put(('start', h5_filepath))
