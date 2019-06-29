@@ -44,9 +44,8 @@ class Plugin(object):
         self.notifications = {}
         self.initial_settings = initial_settings
         self.BLACS = None
-        self.ui = None
         self.time_of_last_shot = None
-        self.queue = None
+        self.queue = Queue()
         self.target_cycle_time = None
         self.delay_after_programming = None
         self.next_target_cycle_time = None
@@ -101,8 +100,6 @@ class Plugin(object):
             # Wait until it has been self.target_cycle_time since the start of the last
             # shot. Otherwise, return immediately.
             deadline = self.time_of_last_shot + self.target_cycle_time
-            # A queue so we can detect an abort
-            queue = Queue()
             inmain(self.BLACS['ui'].queue_abort_button.clicked.connect, self._abort)
             # Store the current queue manager status, to restore it after we are done:
             previous_status = self.queue_manager.get_status()
@@ -115,7 +112,7 @@ class Plugin(object):
                     h5_filepath,
                 )
                 try:
-                    queue.get(timeout=remaining % 0.1)
+                    self.queue.get(timeout=remaining % 0.1)
                     break # Got an abort
                 except Empty:
                     continue
