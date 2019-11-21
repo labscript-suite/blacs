@@ -660,6 +660,8 @@ class Tab(object):
             )
             return
         finally:
+             # Shutdown the output box by joining its thread:
+            self._output_box.shutdown()
             if self.remote_process_client is not None:
                 inmain(timer.stop)
         

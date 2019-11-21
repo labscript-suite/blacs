@@ -51,7 +51,7 @@ from qtutils.qt.QtWidgets import *
 from qtutils.qt import QT_ENV
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
-check_version('qtutils', '2.2.3', '3.0.0')
+check_version('qtutils', '2.3.2', '3.0.0')
 splash.update_text('importing zprocess')
 check_version('zprocess', '2.14.1', '3')
 splash.update_text('importing labscript_devices')
