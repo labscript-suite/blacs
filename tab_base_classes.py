@@ -26,7 +26,12 @@ import sys
 import threading
 import traceback
 import logging
-import cgi
+try:
+    # Exists on Python 3.2+
+    from html import escape
+except ImportError:
+    # Exists on Python <= 3.7
+    from cgi import escape
 import os
 from types import GeneratorType
 from bisect import insort
@@ -835,7 +840,7 @@ class Tab(object):
                                 if PY2:
                                     now = now.decode('utf-8')
                                 self.error_message += ('Exception in worker - %s:<br />' % now +
-                                               '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
+                                               '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             else:
                                 logger.debug('Job completed')
                             
@@ -866,7 +871,7 @@ class Tab(object):
             if PY2:
                 now = now.decode('utf-8')
             self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
-                           '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
+                           '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             
             self.state = 'fatal error'
             # do this in the main thread
