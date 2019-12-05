@@ -14,14 +14,12 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from labscript_utils import PY2
 if PY2:
     str = unicode
-    from ConfigParser import NoOptionError
-else:
-    from configparser import NoOptionError
 
 import logging
 import os
 import subprocess
 import sys
+import ast
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -64,15 +62,16 @@ class Plugin(object):
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
-        modified_times = self.initial_settings['modified_times'] if 'modified_times' in self.initial_settings else None
-        self.notifications[RecompileNotification].setup_filewatching(modified_times)
-        self.menu.close_notification_func = self.notifications[RecompileNotification]._close
+        # The 'clean' modified info. We don't save the 'dirty' modified info. If watched
+        # files are 'dirty' then our callback will be immediately called.
+        clean_modified_info = self.initial_settings.get('clean_modified_info', None)
+        self.notifications[RecompileNotification].setup_filewatching(clean_modified_info)
+        self.menu.close_notification_func = self.notifications[RecompileNotification].on_restart
         failed_devices = list(self.BLACS['experiment_queue'].BLACS.failed_device_settings.keys())
-        if ('visible' in self.initial_settings and self.initial_settings['visible']) or len(failed_devices) > 0:
+        if failed_devices:
             self.notifications[RecompileNotification]._show()
-            if len(failed_devices) > 0:
-                self.notifications[BrokenDevicesNotification].set_broken_devices(failed_devices)
-                self.notifications[BrokenDevicesNotification]._show()
+            self.notifications[BrokenDevicesNotification].set_broken_devices(failed_devices)
+            self.notifications[BrokenDevicesNotification]._show()
 
     def get_save_data(self):
         return self.notifications[RecompileNotification].get_save_data()
@@ -104,7 +103,6 @@ class Menu(object):
                }
     
     def on_select_globals(self,*args,**kwargs):
-        print('aaaaaa')
         self.BLACS['settings'].create_dialog(goto_page=Setting)
       
     def on_edit_connection_table(self,*args,**kwargs):
@@ -162,18 +160,16 @@ class BrokenDevicesNotification(object):
     def close(self):
         pass
 
-
 class RecompileNotification(object):
     name = name
     def __init__(self, BLACS):
         # set up the file watching
         self.BLACS = BLACS
         self.filewatcher = None
-        
+        self.clean_modified_info = None
         # Create the widget
         self._ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'notification.ui'))
         self._ui.button.clicked.connect(self.on_recompile_connection_table)
-        #self._ui.hide()
             
     def get_widget(self):
         return self._ui
@@ -191,28 +187,32 @@ class RecompileNotification(object):
         self.BLACS['plugins'][module].menu.on_recompile_connection_table()
         
     def callback(self, name, info, event=None):
-        if event in ['modified']:
+        if event  == 'deleted':
             logger.info('{} {} ({})'.format(name, event, info))
             inmain(self._show)
-        elif event in ['original']:
-            logger.info('All watched files restored')
-            inmain(self._hide)
-        elif event in ['restored']:
+        if event  == 'modified':
             logger.info('{} {} ({})'.format(name, event, info))
-        elif event in [u'debug', 'debug']:
+            inmain(self._show)
+        elif event  == 'original':
+            logger.info('All watched files restored')
+            inmain(self._close)
+        elif event == 'restored':
+            logger.info('{} {} ({})'.format(name, event, info))
+        elif event ==  'debug':
             logger.info(info)
 
-    def setup_filewatching(self, modified_times=None):
+    def setup_filewatching(self, clean_modified_info=None):
         folder_list = []
         file_list = [self.BLACS['connection_table_labscript'], self.BLACS['connection_table_h5file']]
+        labconfig = self.BLACS['exp_config']
         try:
-            hashable_types = self.BLACS['exp_config'].get('BLACS/plugins', 'hashable_types')
-            hashable_types = eval(hashable_types)
-        except NoOptionError:
+            hashable_types = labconfig.get('BLACS/plugins', 'connection_table.hashable_types')
+            hashable_types = ast.literal_eval(hashable_types)
+        except labconfig.NoOptionError:
             hashable_types = None
         try:
-            polling_interval = self.BLACS['exp_config'].getfloat('BLACS/plugins', 'polling_interval')
-        except NoOptionError:
+            polling_interval = self.BLACS['exp_config'].getfloat('BLACS/plugins', 'connection_table.polling_interval')
+        except labconfig.NoOptionError:
             polling_interval = 1
         logger.info('Using hashable_types: {}; polling_interval: {}'.format(hashable_types, polling_interval))
         
@@ -226,23 +226,45 @@ class RecompileNotification(object):
             else:
                 file_list.append(path)
         
-        if modified_times is None:
-            modified_times = {}
-
         # stop watching if we already were
-        if self.filewatcher:
+        if self.filewatcher is not None:
             self.filewatcher.stop()
-            modified_times = self.filewatcher.get_modified_times()
+            # Should only be calling this with modified_info not None once at startup:
+            assert clean_modified_info is None
+            clean_modified_info = self.filewatcher.get_clean_modified_info()
             
         # Start the file watching!
-        self.filewatcher = FileWatcher(self.callback, file_list, folder_list, modified_times=modified_times, hashable_types=hashable_types, interval=polling_interval)
-    
+        self.filewatcher = FileWatcher(
+            self.callback,
+            file_list,
+            folder_list,
+            clean_modified_info=clean_modified_info,
+            hashable_types=hashable_types,
+            interval=polling_interval,
+        )
+
     def get_save_data(self):
-        state = True if self._get_state() == 'hidden' or self._get_state() == 'shown' else False
-        return {'modified_times':self.filewatcher.get_modified_times() if self.filewatcher else {}, 'visible':state}
-    
-    def close(self):
+        if self.clean_modified_info is not None:
+            # We are doing a restart after a recompilation - return the modified info
+            # that was just saved:
+            return {'clean_modified_info': self.clean_modified_info}
+        else:
+            return {'clean_modified_info': self.filewatcher.get_clean_modified_info()}
+
+    def on_restart(self):
+        # Connection table has been sucessfully recompiled, we are restarting. This is
+        # the only point, other than when they are first added for watching, that we
+        # replace the 'clean' modified info of the files with their current modified
+        # info. Since we just recompiled, the current state is the clean state
         self.filewatcher.stop()
+         self.clean_modified_info = self.filewatcher.get_modified_info()
+        self.filewatcher = None
+        # Hide the notification
+        self._close()
+
+    def close(self):
+        if self.filewatcher is not None:
+            self.filewatcher.stop()
     
 class Setting(object):
     name = name
