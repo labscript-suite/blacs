@@ -257,7 +257,7 @@ class RecompileNotification(object):
         # replace the 'clean' modified info of the files with their current modified
         # info. Since we just recompiled, the current state is the clean state
         self.filewatcher.stop()
-         self.clean_modified_info = self.filewatcher.get_modified_info()
+        self.clean_modified_info = self.filewatcher.get_modified_info()
         self.filewatcher = None
         # Hide the notification
         self._close()
