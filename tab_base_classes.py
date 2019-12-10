@@ -515,8 +515,8 @@ class Tab(object):
         # Add all connection table properties, if they were not already specified in
         # workerargs:
         conntable = self.settings['connection_table']
-        for name, value in conntable.find_by_name(self.device_name).properties.items():
-            workerargs.setdefault(name, value)
+        for key, value in conntable.find_by_name(self.device_name).properties.items():
+            workerargs.setdefault(key, value)
         workerargs['is_remote'] = self.remote_process_client is not None
 
         if name in self.workers:
