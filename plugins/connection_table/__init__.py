@@ -209,7 +209,7 @@ class RecompileNotification(object):
             hashable_types = labconfig.get('BLACS/plugins', 'connection_table.hashable_types')
             hashable_types = ast.literal_eval(hashable_types)
         except labconfig.NoOptionError:
-            hashable_types = None
+            hashable_types = ['.py', '.txt', '.ini', '.json']
         try:
             polling_interval = self.BLACS['exp_config'].getfloat('BLACS/plugins', 'connection_table.polling_interval')
         except labconfig.NoOptionError:
