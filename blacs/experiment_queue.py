@@ -35,6 +35,7 @@ from qtutils import *
 from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.connections import ConnectionTable
 import labscript_utils.properties
+from runmanager import new_rep_name
 
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 import blacs.plugins as plugins
@@ -389,10 +390,7 @@ class QueueManager(object):
                     rerun = False
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath, repeat_number = self.new_rep_name(h5_filepath)
-                # Keep counting up until we get a filename that isn't in the filesystem:
-                while os.path.exists(new_h5_filepath):
-                    new_h5_filepath, repeat_number = self.new_rep_name(new_h5_filepath)
+                new_h5_filepath, repeat_number = new_rep_name(h5_filepath)
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath, repeat_number=repeat_number)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
@@ -419,19 +417,6 @@ class QueueManager(object):
                        "The error was %s\n"%error)
             return message
             
-    def new_rep_name(self, h5_filepath):
-        basename, ext = os.path.splitext(h5_filepath)
-        if '_rep' in basename and ext == '.h5':
-            reps = basename.split('_rep')[-1]
-            try:
-                reps = int(reps)
-            except ValueError:
-                # not a rep
-                pass
-            else:
-                return ''.join(basename.split('_rep')[:-1]) + '_rep%05d.h5' % (reps + 1), reps + 1
-        return basename + '_rep%05d.h5' % 1, 1
-        
     def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
         try:
             with h5py.File(h5file, 'r') as old_file:
@@ -521,7 +506,16 @@ class QueueManager(object):
         timeout_limit = 300 #seconds
         self.set_status("Idle")
         
+        import runmanager.remote
+        from qtutils import inmain
+        client = runmanager.remote.Client(default_timeout=5)
+
         while self.manager_running:
+            try:
+                client.advise_BLACS_shots_remaining(inmain(self._model.rowCount))
+            except Exception:
+                logger.exception("error telling runmanager how many shots are remaining")
+
             # If the pause button is pushed in, sleep
             if self.manager_paused:
                 if self.get_status() == "Idle":
