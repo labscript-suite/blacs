@@ -47,6 +47,7 @@ import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.ls_zprocess import ProcessTree, RemoteProcessClient
+from labscript_utils.shared_drive import path_to_local
 from blacs import BLACS_DIR
 
 process_tree = ProcessTree.instance()
@@ -915,6 +916,15 @@ class Worker(Process):
             else:
                 setattr(self, name, value)
         self.mainloop()
+
+    def _transition_to_buffered(self, device_name, h5_file, front_panel_values, fresh):
+        # The h5_file arg was converted to network-agnostic before being sent to us.
+        # Convert it to a local path before calling the subclass's
+        # transition_to_buffered() method
+        h5_file = path_to_local(h5_file)
+        return self.transition_to_buffered(
+            device_name, h5_file, front_panel_values, fresh
+        )
 
     def mainloop(self):
         while True:
