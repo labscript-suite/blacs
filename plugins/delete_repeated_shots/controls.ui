@@ -64,7 +64,7 @@ Repeated shots older than this will be deleted from disk.</string>
         <item>
          <widget class="QLabel" name="label">
           <property name="text">
-           <string>Retain</string>
+           <string>Retain </string>
           </property>
          </widget>
         </item>
