@@ -19,6 +19,7 @@ import logging
 import os
 import subprocess
 import sys
+import ast
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -61,15 +62,16 @@ class Plugin(object):
         
     def plugin_setup_complete(self, BLACS):
         self.BLACS = BLACS
-        modified_times = self.initial_settings['modified_times'] if 'modified_times' in self.initial_settings else None
-        self.notifications[RecompileNotification].setup_filewatching(modified_times)
-        self.menu.close_notification_func = self.notifications[RecompileNotification]._close
+        # The 'clean' modified info. We don't save the 'dirty' modified info. If watched
+        # files are 'dirty' then our callback will be immediately called.
+        clean_modified_info = self.initial_settings.get('clean_modified_info', None)
+        self.notifications[RecompileNotification].setup_filewatching(clean_modified_info)
+        self.menu.close_notification_func = self.notifications[RecompileNotification].on_restart
         failed_devices = list(self.BLACS['experiment_queue'].BLACS.failed_device_settings.keys())
-        if ('visible' in self.initial_settings and self.initial_settings['visible']) or len(failed_devices) > 0:
+        if failed_devices:
             self.notifications[RecompileNotification]._show()
-            if len(failed_devices) > 0:
-                self.notifications[BrokenDevicesNotification].set_broken_devices(failed_devices)
-                self.notifications[BrokenDevicesNotification]._show()
+            self.notifications[BrokenDevicesNotification].set_broken_devices(failed_devices)
+            self.notifications[BrokenDevicesNotification]._show()
 
     def get_save_data(self):
         return self.notifications[RecompileNotification].get_save_data()
@@ -101,7 +103,6 @@ class Menu(object):
                }
     
     def on_select_globals(self,*args,**kwargs):
-        print('aaaaaa')
         self.BLACS['settings'].create_dialog(goto_page=Setting)
       
     def on_edit_connection_table(self,*args,**kwargs):
@@ -159,18 +160,16 @@ class BrokenDevicesNotification(object):
     def close(self):
         pass
 
-
 class RecompileNotification(object):
     name = name
     def __init__(self, BLACS):
         # set up the file watching
         self.BLACS = BLACS
         self.filewatcher = None
-        
+        self.clean_modified_info = None
         # Create the widget
         self._ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'notification.ui'))
         self._ui.button.clicked.connect(self.on_recompile_connection_table)
-        #self._ui.hide()
             
     def get_widget(self):
         return self._ui
@@ -178,7 +177,7 @@ class RecompileNotification(object):
     def get_properties(self):
         return {'can_hide':True, 'can_close':False}
         
-    def set_functions(self,show_func,hide_func,close_func,get_state):
+    def set_functions(self, show_func, hide_func, close_func, get_state):
         self._show = show_func
         self._hide = hide_func
         self._close = close_func
@@ -187,9 +186,35 @@ class RecompileNotification(object):
     def on_recompile_connection_table(self,*args,**kwargs):
         self.BLACS['plugins'][module].menu.on_recompile_connection_table()
         
-    def setup_filewatching(self,modified_times = None):
+    def callback(self, name, info, event=None):
+        if event  == 'deleted':
+            logger.info('{} {} ({})'.format(name, event, info))
+            inmain(self._show)
+        if event  == 'modified':
+            logger.info('{} {} ({})'.format(name, event, info))
+            inmain(self._show)
+        elif event  == 'original':
+            logger.info('All watched files restored')
+            inmain(self._close)
+        elif event == 'restored':
+            logger.info('{} {} ({})'.format(name, event, info))
+        elif event ==  'debug':
+            logger.info(info)
+
+    def setup_filewatching(self, clean_modified_info=None):
         folder_list = []
         file_list = [self.BLACS['connection_table_labscript'], self.BLACS['connection_table_h5file']]
+        labconfig = self.BLACS['exp_config']
+        try:
+            hashable_types = labconfig.get('BLACS/plugins', 'connection_table.hashable_types')
+            hashable_types = ast.literal_eval(hashable_types)
+        except labconfig.NoOptionError:
+            hashable_types = ['.py', '.txt', '.ini', '.json']
+        try:
+            polling_interval = self.BLACS['exp_config'].getfloat('BLACS/plugins', 'connection_table.polling_interval')
+        except labconfig.NoOptionError:
+            polling_interval = 1
+        logger.info('Using hashable_types: {}; polling_interval: {}'.format(hashable_types, polling_interval))
         
         # append the list of globals
         file_list += self.BLACS['settings'].get_value(Setting,'globals_list')
@@ -201,23 +226,45 @@ class RecompileNotification(object):
             else:
                 file_list.append(path)
         
-        if modified_times is None:
-            modified_times = {}
-        
         # stop watching if we already were
-        if self.filewatcher:
+        if self.filewatcher is not None:
             self.filewatcher.stop()
-            modified_times = self.filewatcher.get_modified_times()
+            # Should only be calling this with modified_info not None once at startup:
+            assert clean_modified_info is None
+            clean_modified_info = self.filewatcher.get_clean_modified_info()
             
         # Start the file watching!
-        self.filewatcher = FileWatcher(lambda f,m: inmain(self._show),file_list,folder_list,modified_times=modified_times)
-    
+        self.filewatcher = FileWatcher(
+            self.callback,
+            file_list,
+            folder_list,
+            clean_modified_info=clean_modified_info,
+            hashable_types=hashable_types,
+            interval=polling_interval,
+        )
+
     def get_save_data(self):
-        state = True if self._get_state() == 'hidden' or self._get_state() == 'shown' else False
-        return {'modified_times':self.filewatcher.get_modified_times() if self.filewatcher else {}, 'visible':state}
-    
-    def close(self):
+        if self.clean_modified_info is not None:
+            # We are doing a restart after a recompilation - return the modified info
+            # that was just saved:
+            return {'clean_modified_info': self.clean_modified_info}
+        else:
+            return {'clean_modified_info': self.filewatcher.get_clean_modified_info()}
+
+    def on_restart(self):
+        # Connection table has been sucessfully recompiled, we are restarting. This is
+        # the only point, other than when they are first added for watching, that we
+        # replace the 'clean' modified info of the files with their current modified
+        # info. Since we just recompiled, the current state is the clean state
         self.filewatcher.stop()
+        self.clean_modified_info = self.filewatcher.get_modified_info()
+        self.filewatcher = None
+        # Hide the notification
+        self._close()
+
+    def close(self):
+        if self.filewatcher is not None:
+            self.filewatcher.stop()
     
 class Setting(object):
     name = name
@@ -354,14 +401,14 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
-                filepath = str(filepath)
+                filepath = os.path.normpath(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
                 # So we must check the extension of each file here!
                 if filepath.endswith('.h5') or filepath.endswith('.hdf5'):
                     # make sure the path isn't already in the list
-                    if not self.is_filepath_in_store(filepath,'globals'):
+                    if not self.is_filepath_in_store(filepath, 'globals'):
                         self.models['globals'].appendRow(QStandardItem(filepath))
          
             self.views['globals'].sortByColumn(FILEPATH_COLUMN,self.order_to_enum(self.data['globals_sort_order']))
@@ -391,7 +438,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
-                filepath = str(filepath)
+                filepath = os.path.normpath(filepath)
                 # Qt has this weird behaviour where if you type in the name of a file that exists
                 # but does not have the extension you have limited the dialog to, the OK button is greyed out
                 # but you can hit enter and the file will be selected. 
@@ -414,6 +461,7 @@ class Setting(object):
         if dialog.exec_():
             selected_files = dialog.selectedFiles()
             for filepath in selected_files:
+                filepath = os.path.normpath(filepath)
                 # make sure the path isn't already in the list
                 if not self.is_filepath_in_store(filepath,'calibrations'):
                     self.models['calibrations'].appendRow(QStandardItem(filepath))

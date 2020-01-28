@@ -26,7 +26,13 @@ import sys
 import threading
 import traceback
 import logging
-import cgi
+import warnings
+try:
+    # Exists on Python 3.2+
+    from html import escape
+except ImportError:
+    # Exists on Python <= 3.7
+    from cgi import escape
 import os
 from types import GeneratorType
 from bisect import insort
@@ -41,10 +47,11 @@ import qtutils.icons
 
 from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.ls_zprocess import ProcessTree, RemoteProcessClient
+from labscript_utils.shared_drive import path_to_local
 from blacs import BLACS_DIR
 
 process_tree = ProcessTree.instance()
-from labscript_utils import check_version
+from labscript_utils import check_version, dedent
 
 # This version check is distinct from the one in __main__.py, since this file is a
 # library used by classes in labscript_devices without running __main__.py.
@@ -506,6 +513,11 @@ class Tab(object):
 
         if workerargs is None:
             workerargs = {}
+        # Add all connection table properties, if they were not already specified in
+        # workerargs:
+        conntable = self.settings['connection_table']
+        for key, value in conntable.find_by_name(self.device_name).properties.items():
+            workerargs.setdefault(key, value)
         workerargs['is_remote'] = self.remote_process_client is not None
 
         if name in self.workers:
@@ -660,6 +672,8 @@ class Tab(object):
             )
             return
         finally:
+             # Shutdown the output box by joining its thread:
+            self._output_box.shutdown()
             if self.remote_process_client is not None:
                 inmain(timer.stop)
         
@@ -835,7 +849,7 @@ class Tab(object):
                                 if PY2:
                                     now = now.decode('utf-8')
                                 self.error_message += ('Exception in worker - %s:<br />' % now +
-                                               '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
+                                               '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             else:
                                 logger.debug('Job completed')
                             
@@ -866,7 +880,7 @@ class Tab(object):
             if PY2:
                 now = now.decode('utf-8')
             self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
-                           '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%cgi.escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
+                           '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             
             self.state = 'fatal error'
             # do this in the main thread
@@ -882,8 +896,6 @@ class Worker(Process):
     def run(self, worker_name, device_name, extraargs):
         self.worker_name = worker_name
         self.device_name = device_name
-        for argname in extraargs:
-            setattr(self,argname,extraargs[argname])
         from labscript_utils.setup_logging import setup_logging
         setup_logging('BLACS')
         log_name = 'BLACS.%s_%s.worker'%(self.device_name,self.worker_name)
@@ -895,8 +907,24 @@ class Worker(Process):
         process_tree = ProcessTree.instance()
         import labscript_utils.h5_lock
         process_tree.zlock_client.set_process_name(log_name)
-        #self.init()
+        for name, value in extraargs.items():
+            if hasattr(self, name):
+                msg = """attribute `{}` overwrites an attribute of the Worker base class
+                    with the same name. This may cause unexpected behaviour. Consider
+                    renaming it."""
+                warnings.warn(dedent(msg).format(name), RuntimeWarning)
+            else:
+                setattr(self, name, value)
         self.mainloop()
+
+    def _transition_to_buffered(self, device_name, h5_file, front_panel_values, fresh):
+        # The h5_file arg was converted to network-agnostic before being sent to us.
+        # Convert it to a local path before calling the subclass's
+        # transition_to_buffered() method
+        h5_file = path_to_local(h5_file)
+        return self.transition_to_buffered(
+            device_name, h5_file, front_panel_values, fresh
+        )
 
     def mainloop(self):
         while True:

@@ -26,7 +26,7 @@ try:
 except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
-check_version('labscript_utils', '2.14.0', '3')
+check_version('labscript_utils', '2.15.0', '3')
 # Splash screen
 from labscript_utils.splash import Splash
 splash = Splash(os.path.join(os.path.dirname(__file__), 'BLACS.svg'))
@@ -51,7 +51,7 @@ from qtutils.qt.QtWidgets import *
 from qtutils.qt import QT_ENV
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
-check_version('qtutils', '2.2.3', '3.0.0')
+check_version('qtutils', '2.3.2', '3.0.0')
 splash.update_text('importing zprocess')
 check_version('zprocess', '2.14.1', '3')
 splash.update_text('importing labscript_devices')

@@ -587,20 +587,15 @@ class DeviceTab(Tab):
     
         self.mode = MODE_TRANSITION_TO_BUFFERED
         
-        # For backward compatibility with worker classes not expecting network-agnostic
-        # paths, we only convert the h5 file to network-agnostic format if the worker is
-        # remote:
-        if self.remote_process_client is not None:
-            h5_file = path_to_agnostic(h5_file)
-
+        h5_file = path_to_agnostic(h5_file)
         # transition_to_buffered returns the final values of the run, to update the GUI with at the end of the run:
         transitioned_called = [self._primary_worker]
         front_panel_values = self.get_front_panel_values()
-        self._final_values = yield(self.queue_work(self._primary_worker,'transition_to_buffered',self.device_name,h5_file,front_panel_values,self._force_full_buffered_reprogram))
+        self._final_values = yield(self.queue_work(self._primary_worker,'_transition_to_buffered',self.device_name,h5_file,front_panel_values,self._force_full_buffered_reprogram))
         if self._final_values is not None:
             for worker in self._secondary_workers:
                 transitioned_called.append(worker)
-                extra_final_values = yield(self.queue_work(worker,'transition_to_buffered',self.device_name,h5_file,front_panel_values,self.force_full_buffered_reprogram))
+                extra_final_values = yield(self.queue_work(worker,'_transition_to_buffered',self.device_name,h5_file,front_panel_values,self.force_full_buffered_reprogram))
                 if extra_final_values is not None:
                     self._final_values.update(extra_final_values)
                 else:
