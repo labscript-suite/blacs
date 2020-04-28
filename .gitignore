@@ -1,8 +1,7 @@
-syntax: glob
 *.pyc
-*.py~
-*.pyw~
 *.log
 *.orig
 *.aux
 *.toc
+dist/*
+*.egg-info
