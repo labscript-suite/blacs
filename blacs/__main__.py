@@ -241,7 +241,7 @@ class EasterEggButton(QToolButton):
     def run_measure_ball(self):
         try:
             from subprocess import check_call
-            MEASURE_BALL = os.path.join(BLACS_DIR, 'measure_ball', 'MeasureBall.exe')
+            MEASURE_BALL = os.path.join(BLACS_DIR, 'measure_ball', 'RabiBall.exe')
             if os.name != 'nt':
                 try:
                     check_call(['wine', '--version'])
@@ -254,7 +254,7 @@ class EasterEggButton(QToolButton):
                     cmd = ['wine', MEASURE_BALL]
             else:
                 cmd = [MEASURE_BALL]
-            check_call(cmd)
+            check_call(cmd, cwd=os.path.dirname(MEASURE_BALL))
         finally:
             # Remove smiley, go back to hiding if mouse not over button:
             self.icon_mouse_over = self.icon_atom
