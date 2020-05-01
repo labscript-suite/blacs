@@ -5,3 +5,4 @@
 *.toc
 dist/*
 *.egg-info
+*.eggs
