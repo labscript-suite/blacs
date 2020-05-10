@@ -821,7 +821,9 @@ if __name__ == '__main__':
     logger.info('connection table loaded')
 
     splash.update_text('initialising Qt application')
-    qapplication = QApplication(sys.argv)
+    qapplication = QApplication.instance()
+    if qapplication is None:
+        qapplication = QApplication(sys.argv)
     qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
     logger.info('QApplication instantiated')
     app = BLACS(qapplication)
