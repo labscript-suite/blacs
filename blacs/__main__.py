@@ -27,9 +27,15 @@ except ImportError:
     raise ImportError('Require labscript_utils > 2.1.0')
 
 check_version('labscript_utils', '2.15.0', '3')
+
+# Associate app windows with OS menu shortcuts:
+import desktop_app
+desktop_app.set_process_appid('blacs')
+
+
 # Splash screen
 from labscript_utils.splash import Splash
-splash = Splash(os.path.join(os.path.dirname(__file__), 'BLACS.svg'))
+splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.svg'))
 splash.show()
 
 splash.update_text('importing standard library modules')
@@ -49,7 +55,6 @@ from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 from qtutils.qt import QT_ENV
-from qtutils.qt.QtCore import pyqtSignal as Signal
 
 check_version('qtutils', '2.3.2', '3.0.0')
 splash.update_text('importing zprocess')
@@ -162,25 +167,7 @@ import blacs.plugins as plugins
 from blacs import BLACS_DIR
 
 
-def set_win_appusermodel(window_id):
-    from labscript_utils.winshell import set_appusermodel, appids, app_descriptions
-    icon_path = os.path.join(BLACS_DIR, 'blacs.ico')
-    executable = sys.executable.lower()
-    if not executable.endswith('w.exe'):
-        executable = executable.replace('.exe', 'w.exe')
-    relaunch_command = executable + ' ' + os.path.join(BLACS_DIR, '__main__.py')
-    relaunch_display_name = app_descriptions['blacs']
-    set_appusermodel(window_id, appids['blacs'], icon_path, relaunch_command, relaunch_display_name)
-
-
 class BLACSWindow(QMainWindow):
-    newWindow = Signal(int)
-
-    def event(self, event):
-        result = QMainWindow.event(self, event)
-        if event.type() == QEvent.WinIdChange:
-            self.newWindow.emit(self.effectiveWinId())
-        return result
 
     def closeEvent(self, event):
         if self.blacs.exit_complete:
@@ -498,10 +485,6 @@ class BLACS(object):
         self.ui.actionSave.triggered.connect(self.on_save_front_panel)
         self.ui.actionOpen.triggered.connect(self.on_load_front_panel)
         self.ui.actionExit.triggered.connect(self.ui.close)
-
-        # Connect the windows AppId stuff:
-        if os.name == 'nt':
-            self.ui.newWindow.connect(set_win_appusermodel)
 
         # Add hidden easter egg button to a random tab:
         logger.info('hiding easter eggs')

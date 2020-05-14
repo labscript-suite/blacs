@@ -66,6 +66,10 @@ setup(
     url='http://labscriptsuite.org',
     license="BSD",
     packages=["blacs"],
+    entry_points={
+        'console_scripts': ['blacs = desktop_app:entry_point'],
+        'gui_scripts': ["blacs-gui = desktop_app:entry_point"],
+    },
     zip_safe=False,
     setup_requires=SETUP_REQUIRES,
     include_package_data=True,
