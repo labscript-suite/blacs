@@ -13,10 +13,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 import os
 
-from labscript_utils.versions import get_version, NoVersionInfo
-from pathlib import Path
-__version__ = get_version(__name__, import_path=Path(__file__).parent.parent)
-if __version__ is NoVersionInfo:
-    __version__ = None
+from .__version__ import __version__
 
 BLACS_DIR = os.path.dirname(os.path.realpath(__file__))
