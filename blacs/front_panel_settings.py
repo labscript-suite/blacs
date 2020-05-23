@@ -12,7 +12,6 @@
 #####################################################################
 from __future__ import division, unicode_literals, print_function, absolute_import
 from labscript_utils import PY2
-from labscript_utils.numpy_dtype_workaround import dtype_workaround
 if PY2:
     str = unicode
 
@@ -344,7 +343,7 @@ class FrontPanelSettings(object):
         
         front_panel_list = []
         other_data_list = []       
-        front_panel_dtype = dtype_workaround([('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')])
+        front_panel_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
         max_od_length = 2 # empty dictionary
             
         # Iterate over each device within a class
@@ -383,7 +382,7 @@ class FrontPanelSettings(object):
                 
         # Save tab data
         i = 0
-        tab_data = numpy.empty(len(notebook_data),dtype=dtype_workaround([('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))]))
+        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))])
         for device_name,data in notebook_data.items():
             tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
             i += 1
