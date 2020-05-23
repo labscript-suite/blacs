@@ -10,11 +10,6 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-
 import os
 import logging
 
@@ -87,7 +82,7 @@ class FrontPanelSettings(object):
                     tab_data.setdefault(tab_name,{})
                     try:
                         tab_data[tab_name] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(_ensure_str(row['data']))}
-                    except:
+                    except Exception:
                         logger.info("Could not load tab data for %s"%tab_name)
                 
                 #now get dataset attributes
@@ -272,7 +267,7 @@ class FrontPanelSettings(object):
                 try:
                     new_conn = ConnectionTable(current_file)
                     result,error = self.connection_table.compare_to(new_conn)
-                except:
+                except Exception:
                     # no connection table is present, so also save the connection table!
                     save_conn_table = True
             

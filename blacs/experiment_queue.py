@@ -10,17 +10,9 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-    import Queue as queue
-else:
-    import queue
-
+import queue
 import logging
 import os
-import platform
 import threading
 import time
 import sys
@@ -461,7 +453,7 @@ class QueueManager(object):
                     for name in old_file.attrs:
                         new_file.attrs[name] = old_file.attrs[name]
                     new_file.attrs['run repeat'] = repeat_number
-        except Exception as e:
+        except Exception:
             # raise
             self._logger.exception('Clean H5 File Error.')
             return False
@@ -543,7 +535,7 @@ class QueueManager(object):
                 path = self.get_next_file()
                 self.set_status('Preparing shot...', path)
                 logger.info('Got a file: %s'%path)
-            except:
+            except Exception:
                 # If no files, sleep for 1s,
                 self.set_status("Idle")
                 time.sleep(1)
@@ -626,7 +618,7 @@ class QueueManager(object):
                                     logger.error('%s has an error condition, aborting run' % name)
                                     error_condition = True
                                     break
-                            except Exception as e:
+                            except Exception:
                                 logger.exception('Exception while transitioning %s to buffered mode.'%(name))
                                 error_condition = True
                                 break
@@ -801,11 +793,8 @@ class QueueManager(object):
                 # clean up the h5 file
                 self.manager_paused = True
                 # is this a repeat?
-                try:
-                    with h5py.File(path, 'r') as h5_file:
-                        repeat_number = h5_file.attrs.get('run repeat', 0)
-                except Exception:
-                    repeat_numer = 0
+                with h5py.File(path, 'r') as h5_file:
+                    repeat_number = h5_file.attrs.get('run repeat', 0)
                 # clean the h5 file:
                 temp_path = tempfilename()
                 self.clean_h5_file(path, temp_path, repeat_number=repeat_number)
@@ -876,7 +865,7 @@ class QueueManager(object):
                         try:
                             tab.transition_to_manual(self.current_queue)
                             transition_list[name] = tab
-                        except Exception as e:
+                        except Exception:
                             logger.exception('Exception while transitioning %s to manual mode.'%(name))
                             error_condition = True
                     # Wait for their responses:
@@ -918,7 +907,7 @@ class QueueManager(object):
                 if error_condition:                
                     self.set_status("Error in transtion to manual\nQueue Paused")
                                        
-            except Exception as e:
+            except Exception:
                 error_condition = True
                 logger.exception("Error in queue manager execution. Queue paused.")
                 self.set_status("Error in queue manager\nQueue paused")
@@ -930,11 +919,8 @@ class QueueManager(object):
                 # clean up the h5 file
                 self.manager_paused = True
                 # is this a repeat?
-                try:
-                    with h5py.File(path, 'r') as h5_file:
-                        repeat_number = h5_file.attrs.get('run repeat', 0)
-                except:
-                    repeat_number = 0
+                with h5py.File(path, 'r') as h5_file:
+                    repeat_number = h5_file.attrs.get('run repeat', 0)
                 # clean the h5 file:
                 temp_path = tempfilename()
                 self.clean_h5_file(path, temp_path, repeat_number=repeat_number)
@@ -1001,7 +987,7 @@ class QueueManager(object):
                         message = self.process_request(path)
                     except Exception:
                         # TODO: make this error popup for the user
-                        self.logger.exception('Failed to copy h5_file (%s) for repeat run'%s)
+                        self._logger.exception('Failed to copy h5_file (%s) for repeat run'%s)
                     logger.info(message)      
 
             self.set_status("Idle")

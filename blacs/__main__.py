@@ -1,6 +1,6 @@
 #####################################################################
 #                                                                   #
-# /main.pyw                                                         #
+# __main__.py                                                       #
 #                                                                   #
 # Copyright 2013, Monash University                                 #
 #                                                                   #
@@ -10,23 +10,9 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-
-
-# Custom Excepthook
 import labscript_utils.excepthook
 
 import os
-
-try:
-    from labscript_utils import check_version
-except ImportError:
-    raise ImportError('Require labscript_utils > 2.1.0')
-
-check_version('labscript_utils', '2.15.0', '3')
 
 # Associate app windows with OS menu shortcuts:
 import desktop_app
@@ -39,106 +25,63 @@ splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.svg'))
 splash.show()
 
 splash.update_text('importing standard library modules')
-import logging, logging.handlers
-import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
+import platform
+WINDOWS = platform.system() == 'Windows'
 
-import signal
-# Quit on ctrl-c
-signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-splash.update_text('importing Qt')
-
+# No splash update for Qt - the splash code has already imported it:
+import qtutils
+from qtutils import *
+import qtutils.icons
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 from qtutils.qt import QT_ENV
 
-check_version('qtutils', '2.3.2', '3.0.0')
-splash.update_text('importing zprocess')
-check_version('zprocess', '2.14.1', '3')
-splash.update_text('importing labscript_devices')
-check_version('labscript_devices', '2.0', '3')
+
+splash.update_text("importing zmq and zprocess")
+import zmq
+import zprocess
+from zprocess import raise_exception_in_thread
+import zprocess.locking
+
 
 splash.update_text('importing h5_lock and h5py')
+import labscript_utils.h5_lock, h5py
 
-from labscript_utils.ls_zprocess import ProcessTree, zmq_get, ZMQServer
-import zprocess.locking, labscript_utils.h5_lock, h5py
+
+splash.update_text('importing labscript suite modules')
+import labscript_utils
+from labscript_utils.ls_zprocess import ProcessTree, ZMQServer
+from labscript_utils.setup_logging import setup_logging
+import labscript_utils.shared_drive
+import blacs
+
+
 process_tree = ProcessTree.instance()
 process_tree.zlock_client.set_process_name('BLACS')
 
-from zprocess import raise_exception_in_thread
-from labscript_utils.setup_logging import setup_logging
-import labscript_utils.shared_drive
 
 # Setup logging
 logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
 
-splash.update_text('importing other modules')
-
-# now log versions (must be after setup logging)
-try:
-    import sys
-    logger.info('Python Version: %s'%sys.version)
-    logger.info('Platform: %s'%sys.platform)
-except Exception:
-    logger.error('Failed to find python version')
-
-try:
-    import sys
-    logger.info('windows version: %s'%str(sys.getwindowsversion()))
-except Exception:
-    pass
-
-try:
-    import zmq
-    logger.info('PyZMQ Version: %s'%zmq.__version__)
-    logger.info('ZMQ Version: %s'%zmq.zmq_version())
-except Exception:
-    logger.error('Failed to find PyZMQ version')
-
-try:
-    import h5py
-    logger.info('h5py Version: %s'%h5py.version.info)
-except Exception:
-    logger.error('Failed to find h5py version')
-
-try:
-    logger.info('Qt Enviroment: %s' % QT_ENV)
-    logger.info('PySide/PyQt Version: %s' % PYQT_VERSION_STR)
-    logger.info('Qt Version: %s' % QT_VERSION_STR)
-except Exception:
-    logger.error('Failed to find PySide/PyQt version')
-
-try:
-    import qtutils
-    logger.info('qtutils Version: %s'%qtutils.__version__)
-except Exception:
-    logger.error('Failed to find qtutils version')
-
-try:
-    import zprocess
-    logger.info('zprocess Version: %s'%zprocess.__version__)
-except Exception:
-    logger.error('Failed to find zprocess version')
-
-try:
-    import labscript_utils
-    logger.info('labscript_utils Version: %s'%labscript_utils.__version__)
-except Exception:
-    logger.error('Failed to find labscript_utils version')
-
-try:
-    import blacs
-    logger.info('BLACS Version: %s'%blacs.__version__)
-except Exception:
-    logger.error('Failed to find blacs version')
-
-splash.update_text('importing other labscript suite modules')
+logger.info(f'Python version {sys.version}')
+logger.info(f'Platform: {sys.platform}')
+logger.info(f'windows version: {sys.getwindowsversion() if WINDOWS else None}')
+logger.info(f'PyZMQ version: {zmq.__version__}')
+logger.info(f'ZMQ version: {zmq.zmq_version()}')
+logger.info(f'h5py version: {h5py.version.info}')
+logger.info(f'Qt enviroment: {QT_ENV}')
+logger.info(f'PySide/PyQt version: {PYQT_VERSION_STR}')
+logger.info(f'Qt version: {QT_VERSION_STR}')
+logger.info(f'qtutils version: {qtutils.__version__}')
+logger.info(f'zprocess version: {zprocess.__version__}')
+logger.info(f'labscript_utils version: {labscript_utils.__version__}')
+logger.info(f'BLACS version: {blacs.__version__}')
 
 # Connection Table Code
 from labscript_utils.connections import ConnectionTable
@@ -147,10 +90,6 @@ from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
 from labscript_utils.labconfig import LabConfig
 from labscript_profile import hostname
-# Qt utils for running functions in the main thread
-from qtutils import *
-# And for icons:
-import qtutils.icons
 # Analysis Submission code
 from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
@@ -231,7 +170,7 @@ class EasterEggButton(QToolButton):
         try:
             from subprocess import check_call
             MEASURE_BALL = os.path.join(BLACS_DIR, 'measure_ball', 'RabiBall.exe')
-            if os.name != 'nt':
+            if WINDOWS:
                 try:
                     check_call(['wine', '--version'])
                 except OSError:

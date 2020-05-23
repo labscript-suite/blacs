@@ -10,11 +10,6 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-
 import logging
 import math
 import sys
@@ -318,7 +313,7 @@ class AO(object):
                         num_decimals = 1
                 else:
                     num_decimals = abs(math.floor(math.log10(smallest_step_in_new_unit))-2)
-            except:
+            except Exception:
                 self._logger.warning('Failed to convert number of significant figures to new unit. Loss of precision likely (in manual mode) for this unit. Probably cause is a unit conversion class that imposes limits on the converted values.')
                 num_decimals = self._decimals
         else:
@@ -695,14 +690,10 @@ class DDS(object):
             return False
             
         # Check that the widget has a method for getting/showin/hiding subwidgets        
-        try:
-            for subchnl in self._sub_channel_list:
-                widget.get_sub_widget(subchnl)
-                widget.hide_sub_widget(subchnl)
-                widget.show_sub_widget(subchnl)
-        except:
-            raise
-            return False
+        for subchnl in self._sub_channel_list:
+            widget.get_sub_widget(subchnl)
+            widget.hide_sub_widget(subchnl)
+            widget.show_sub_widget(subchnl)
             
         self._widget_list.append(widget)
         

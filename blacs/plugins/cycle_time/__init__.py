@@ -10,14 +10,8 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    from Queue import Queue, Empty
-    from time import time as monotonic
-else:
-    from queue import Queue, Empty
-    from time import monotonic
+from queue import Queue, Empty
+from time import monotonic
 import time
 import logging
 import os

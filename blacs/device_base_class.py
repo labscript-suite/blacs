@@ -10,15 +10,11 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-
 import logging
 import sys
 import os
 import time
+from queue import Queue
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *
@@ -820,10 +816,6 @@ if __name__ == '__main__':
     
             # Create buttons to test things!
             button1 = QPushButton("Transition to Buffered")
-            if PY2:
-                from Queue import Queue
-            else:
-                from queue import Queue
             button1.clicked.connect(lambda: self.transition_to_buffered('',Queue()))
             self.get_tab_layout().addWidget(button1)
             button2 = QPushButton("Transition to Manual")

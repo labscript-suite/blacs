@@ -10,19 +10,12 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-    import Queue as queue
-else:
-    import queue
-
 import logging
 import os
 import threading
 import time
 import sys
+import queue
 
 from qtutils.qt.QtCore import *
 from qtutils.qt.QtGui import *

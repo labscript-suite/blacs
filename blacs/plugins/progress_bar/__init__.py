@@ -10,19 +10,13 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    from Queue import Queue, Empty
-else:
-    from queue import Queue, Empty
-
 import logging
 import os
 import subprocess
 import threading
 import sys
 import time
+from queue import Queue, Empty
 
 import numpy as np
 
@@ -269,12 +263,12 @@ class Plugin(object):
             self.stop_time = props['stop_time']
             try:
                 self.markers = f['time_markers'][:]
-                self.markers.sort(order=(bytes if PY2 else str)('time'))
+                self.markers.sort(order='time')
             except KeyError:
                 self.markers = None
             try:
                 self.waits = f['waits'][:]
-                self.waits.sort(order=(bytes if PY2 else str)('time'))
+                self.waits.sort(order='time')
             except KeyError:
                 self.waits = None
         self.shot_start_time = time.time()
