@@ -170,7 +170,7 @@ class EasterEggButton(QToolButton):
         try:
             from subprocess import check_call
             MEASURE_BALL = os.path.join(BLACS_DIR, 'measure_ball', 'RabiBall.exe')
-            if WINDOWS:
+            if not WINDOWS:
                 try:
                     check_call(['wine', '--version'])
                 except OSError:
