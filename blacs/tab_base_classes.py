@@ -10,16 +10,6 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-    import Queue as queue
-    import cPickle as pickle
-else:
-    import queue
-    import pickle
-
 from zprocess import Process, Interruptor, Interrupted
 import time
 import sys
@@ -27,12 +17,9 @@ import threading
 import traceback
 import logging
 import warnings
-try:
-    # Exists on Python 3.2+
-    from html import escape
-except ImportError:
-    # Exists on Python <= 3.7
-    from cgi import escape
+import queue
+import pickle
+from html import escape
 import os
 from types import GeneratorType
 from bisect import insort
@@ -51,11 +38,8 @@ from labscript_utils.shared_drive import path_to_local
 from blacs import BLACS_DIR
 
 process_tree = ProcessTree.instance()
-from labscript_utils import check_version, dedent
+from labscript_utils import dedent
 
-# This version check is distinct from the one in __main__.py, since this file is a
-# library used by classes in labscript_devices without running __main__.py.
-check_version('zprocess', '2.9.3', '3.0.0')
 
 class Counter(object):
     """A class with a single method that 
@@ -217,12 +201,8 @@ get_unique_id = Counter().get
 
 def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
     def wrap(function):
-        if PY2:
-            unescaped_name = function.__name__
-            escapedname = b'_' + function.__name__
-        else:
-            unescaped_name = function.__name__
-            escapedname = '_' + function.__name__
+        unescaped_name = function.__name__
+        escapedname = '_' + function.__name__
         if allowed_modes < 1 or allowed_modes > 15:
             raise RuntimeError('Function %s has been set to run in unknown states. Please make sure allowed states is one or more of MODE_MANUAL,'%unescaped_name+
             'MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL and MODE_BUFFERED (or-ed together using the | symbol, eg MODE_MANUAL|MODE_BUFFERED')
@@ -691,7 +671,7 @@ class Tab(object):
         for f in self._restart_receiver:
             try:
                 f(self.device_name)
-            except:
+            except Exception:
                 self.logger.exception('Could not notify a connected receiver function')
                 
         currentpage = self.close_tab(finalise=False)
@@ -806,10 +786,7 @@ class Tab(object):
                     # We need to call next recursively, queue up work and send the results back until we get a StopIteration exception
                     generator_running = True
                     # get the data from the first yield function
-                    if PY2:
-                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.next)
-                    else:
-                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.__next__)
+                    worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.__next__)
                     # Continue until we get a StopIteration exception, or the user requests a restart
                     while generator_running:
                         try:
@@ -826,7 +803,7 @@ class Tab(object):
                             # This line is to catch if you try to pass unpickleable objects.
                             try:
                                 pickle.dumps(worker_arg_list)
-                            except:
+                            except Exception:
                                 self.error_message += 'Attempt to pass unserialisable object to child process:'
                                 raise
                             # Send the command to the worker
@@ -846,8 +823,6 @@ class Tab(object):
                             if not success:
                                 logger.info('Worker reported exception during job')
                                 now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-                                if PY2:
-                                    now = now.decode('utf-8')
                                 self.error_message += ('Exception in worker - %s:<br />' % now +
                                                '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             else:
@@ -877,8 +852,6 @@ class Tab(object):
             message = traceback.format_exc()
             logger.critical('A fatal exception happened:\n %s'%message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
-            if PY2:
-                now = now.decode('utf-8')
             self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
                            '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
                             
@@ -951,7 +924,7 @@ class Worker(Process):
                     success = True
                     message = ''
                     self.logger.debug('Job complete')
-                except:
+                except Exception:
                     results = None
                     success = False
                     traceback_lines = traceback.format_exception(*sys.exc_info())
@@ -961,7 +934,7 @@ class Worker(Process):
                 # Check if results object is serialisable:
                 try:
                     pickle.dumps(results)
-                except:
+                except Exception:
                     message = traceback.format_exc()
                     self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)
                     message = 'Attempt to pass unserialisable object %s to parent process:\n' % str(results) + message

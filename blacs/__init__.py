@@ -10,9 +10,7 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
 import os
-
 from .__version__ import __version__
 
 BLACS_DIR = os.path.dirname(os.path.realpath(__file__))

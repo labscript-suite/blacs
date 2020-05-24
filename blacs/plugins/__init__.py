@@ -10,8 +10,6 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-
 import os
 import sys
 import logging
@@ -72,7 +70,7 @@ def get_callbacks(name):
             if plugin_callbacks is not None:
                 if name in plugin_callbacks:
                     callbacks.append(plugin_callbacks[name])
-        except Exception as e:
+        except Exception:
             logger.exception('Error getting callbacks from %s.' % str(plugin))
             
     # Sort all callbacks by priority:

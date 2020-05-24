@@ -10,8 +10,6 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-
 import logging
 import os
 
@@ -93,7 +91,7 @@ class Notifications(object):
             self._minimized_widgets[notification_class] = ui2
             self._notifications[notification_class].set_functions(show_func,hide_func,close_func,get_state)            
             
-        except:
+        except Exception:
             logger.exception('Failed to instantiate Notification class %s.'%notification_class)
             # Cleanup 
             # TODO: cleanup a little more
@@ -120,7 +118,7 @@ class Notifications(object):
         if callback and notification_class in self._shown_callbacks:
             try:
                 self._shown_callbacks[notification_class]()
-            except:
+            except Exception:
                 logger.exception('Failed to run "shown" callback for notification class %s'%notification_class)
         
     def close_notification(self, notification_class, callback):
@@ -129,7 +127,7 @@ class Notifications(object):
         if callback and notification_class in self._closed_callbacks:
             try:
                 self._closed_callbacks[notification_class]()
-            except:
+            except Exception:
                 logger.exception('Failed to run "closed" callback for notification class %s'%notification_class)
         
     def minimize_notification(self,notification_class, callback):
@@ -138,7 +136,7 @@ class Notifications(object):
         if callback and notification_class in self._hidden_callbacks:
             try:
                 self._hidden_callbacks[notification_class]()
-            except:
+            except Exception:
                 logger.exception('Failed to run "hidden" callback for notification class %s'%notification_class)
     
     def get_state(self,notification_class):
@@ -153,6 +151,6 @@ class Notifications(object):
         for notification in self._notifications:
             try:
                 notification.close()
-            except:
+            except Exception:
                 pass
                 

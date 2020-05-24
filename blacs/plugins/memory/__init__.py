@@ -10,17 +10,11 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from __future__ import division, unicode_literals, print_function, absolute_import
-from labscript_utils import PY2
-if PY2:
-    str = unicode
-
 import os
 import logging
 import gc
 from blacs import BLACS_DIR
-from labscript_utils import memprof, check_version
-check_version('labscript_utils', '2.6.2', '3')
+from labscript_utils import memprof
 
 FILEPATH_COLUMN = 0
 name = "Memory Profile"
