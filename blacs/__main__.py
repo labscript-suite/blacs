@@ -146,6 +146,7 @@ from labscript_utils.connections import ConnectionTable
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
 from labscript_utils.labconfig import LabConfig
+from labscript_profile import hostname
 # Qt utils for running functions in the main thread
 from qtutils import *
 # And for icons:
@@ -786,7 +787,7 @@ if __name__ == '__main__':
     settings_dir = Path(exp_config.get('DEFAULT', 'app_saved_configs'), 'blacs')
     if not settings_dir.exists():
         os.makedirs(settings_dir, exist_ok=True)
-    settings_path = str(settings_dir / 'BLACS.h5')
+    settings_path = str(settings_dir / f'{hostname()}_BLACS.h5')
 
     port = int(exp_config.get('ports','BLACS'))
 
