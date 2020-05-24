@@ -44,6 +44,7 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import signal
 # Quit on ctrl-c
@@ -144,7 +145,8 @@ from labscript_utils.connections import ConnectionTable
 #Draggable Tab Widget Code
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
-from labscript_utils.labconfig import LabConfig, config_prefix, hostname
+from labscript_utils.labconfig import LabConfig
+from labscript_profile import hostname
 # Qt utils for running functions in the main thread
 from qtutils import *
 # And for icons:
@@ -773,21 +775,19 @@ if __name__ == '__main__':
                                       'labscript_utils.labconfig',
                                       'zprocess',
                                      ], sub=True)
-        ##########
 
     splash.update_text('loading labconfig')
-    settings_path = os.path.join(config_prefix,'%s_BLACS.h5'%hostname)
-    required_config_params = {"DEFAULT":["experiment_name"],
-                              "programs":["text_editor",
-                                          "text_editor_arguments",
-                                         ],
-                              "paths":["shared_drive",
-                                       "connection_table_h5",
-                                       "connection_table_py",
-                                      ],
-                              "ports":["BLACS", "lyse"],
-                             }
-    exp_config = LabConfig(required_params = required_config_params)
+    required_config_params = {
+        "DEFAULT": ["experiment_name", "app_saved_configs"],
+        "programs": ["text_editor", "text_editor_arguments",],
+        "paths": ["shared_drive", "connection_table_h5", "connection_table_py",],
+        "ports": ["BLACS", "lyse"],
+    }
+    exp_config = LabConfig(required_params=required_config_params)
+    settings_dir = Path(exp_config.get('DEFAULT', 'app_saved_configs'), 'blacs')
+    if not settings_dir.exists():
+        os.makedirs(settings_dir, exist_ok=True)
+    settings_path = str(settings_dir / f'{hostname()}_BLACS.h5')
 
     port = int(exp_config.get('ports','BLACS'))
 
