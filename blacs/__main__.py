@@ -717,7 +717,7 @@ if __name__ == '__main__':
 
     splash.update_text('loading labconfig')
     required_config_params = {
-        "DEFAULT": ["experiment_name", "app_saved_configs"],
+        "DEFAULT": ["apparatus_name", "app_saved_configs"],
         "programs": ["text_editor", "text_editor_arguments",],
         "paths": ["shared_drive", "connection_table_h5", "connection_table_py",],
         "ports": ["BLACS", "lyse"],
