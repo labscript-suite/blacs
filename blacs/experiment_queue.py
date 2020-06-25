@@ -382,7 +382,7 @@ class QueueManager(object):
         result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
         if result:
             # Has this run file been run already?
-            with h5py.File(h5_filepath) as h5_file:
+            with h5py.File(h5_filepath, 'r') as h5_file:
                 if 'data' in h5_file['/']:
                     rerun = True
                 else:
