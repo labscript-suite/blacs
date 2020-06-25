@@ -68,7 +68,7 @@ class Plugin(object):
         self.target_cycle_time = self.next_target_cycle_time
         self.delay_after_programming = self.next_delay_after_programming
 
-        with h5py.File(h5_filepath) as f:
+        with h5py.File(h5_filepath, 'r') as f:
             try:
                 group = f['shot_properties']
             except KeyError:
