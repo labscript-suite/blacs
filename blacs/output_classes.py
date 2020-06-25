@@ -67,7 +67,7 @@ class AO(object):
                 elif not isinstance(calib_params, dict):
                     reason = 'The parameters for the unit conversion class are not a dictionary. Check your connection table code for errors and recompile it'
                 elif cls.base_unit != default_units:
-                    reason = f'The base unit of your unit conversion class does not match this hardware channel. The hardware channel has base units {cls.base_unit} while your unit conversion class uses {default_units}'
+                    reason = f'The base unit of your unit conversion class does not match this hardware channel. The hardware channel has base units {default_units} while your unit conversion class uses {cls.base_unit}'
                 self._logger.error('The unit conversion class (%s) could not be loaded. Reason: %s'%(calib_class,reason))   
                 # Use default units
                 self._calibration = None
