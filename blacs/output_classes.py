@@ -23,10 +23,7 @@ from labscript_utils.qtwidgets.analogoutput import AnalogOutput
 from labscript_utils.qtwidgets.digitaloutput import DigitalOutput, InvertedDigitalOutput
 from labscript_utils.qtwidgets.ddsoutput import DDSOutput
 from labscript_utils.qtwidgets.imageoutput import ImageOutput
-try:
-    from labscript_utils.unitconversions import *
-except Exception:
-    print('failed to import unit conversion classes')
+from labscript_utils.unitconversions import get_unit_conversion_class
 
 
 class AO(object):
@@ -54,22 +51,30 @@ class AO(object):
         # Initialise Calibrations
         self._comboboxmodel.appendRow(QStandardItem(self._base_unit))
         if calib_class is not None:
-            if calib_class not in globals() or not isinstance(calib_params,dict) or globals()[calib_class].base_unit != default_units:
+            try:
+                cls = get_unit_conversion_class(calib_class)
+            # ImportError if module doesn't exist. Attribute error if it does but the
+            # class name does not exist within it. KeyError if the unit conversion class
+            # is an old-style unqualified class name expected to be in the globals()
+            # dict of the unitconversions module, but does not exist.
+            except (ImportError, AttributeError, KeyError):
+                cls = None
+            if cls is None or not isinstance(calib_params, dict) or cls.base_unit != default_units:
                 # log an error:  
                 reason = ''
-                if calib_class not in globals():
-                    reason = 'The unit conversion class was not imported. Is it in the correct folder? Is it imported when you call "from unitconversions import *" from a python terminal?'
-                elif not isinstance(calib_params,dict):
+                if calib_class is None:
+                    reason = f'The unit conversion class {calib_class} could not be imported. Ensure it is available on the computer running BLACS.'
+                elif not isinstance(calib_params, dict):
                     reason = 'The parameters for the unit conversion class are not a dictionary. Check your connection table code for errors and recompile it'
-                elif globals()[calib_class].base_unit != default_units:
-                    reason = 'The base unit of your unit conversion class does not match this hardware channel. The hardware channel has base units %s while your unit conversion class uses %s'%(globals()[calib_class].base_unit,default_units)
+                elif cls.base_unit != default_units:
+                    reason = f'The base unit of your unit conversion class does not match this hardware channel. The hardware channel has base units {default_units} while your unit conversion class uses {cls.base_unit}'
                 self._logger.error('The unit conversion class (%s) could not be loaded. Reason: %s'%(calib_class,reason))   
                 # Use default units
                 self._calibration = None
             else:
                 try:
                     # initialise calibration class
-                    self._calibration = globals()[calib_class](calib_params)  
+                    self._calibration = cls(calib_params)  
                     self._logger.debug('unit conversion class instantiated')                    
                     for unit in self._calibration.derived_units:
                         try:
