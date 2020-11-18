@@ -13,6 +13,8 @@ A graphical interface to scientific instruments and experiment supervision.
    :hidden:
    :caption: DOCUMENTATION
 
+   introduction
+   usage
    api/index
 
 .. toctree::
