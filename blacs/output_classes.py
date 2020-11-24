@@ -62,8 +62,8 @@ class AO(object):
             if cls is None or not isinstance(calib_params, dict) or cls.base_unit != default_units:
                 # log an error:  
                 reason = ''
-                if calib_class is None:
-                    reason = f'The unit conversion class {calib_class} could not be imported. Ensure it is available on the computer running BLACS.'
+                if cls is None:
+                    reason = f'The unit conversion class {cls} could not be imported. Ensure it is available on the computer running BLACS.'
                 elif not isinstance(calib_params, dict):
                     reason = 'The parameters for the unit conversion class are not a dictionary. Check your connection table code for errors and recompile it'
                 elif cls.base_unit != default_units:
