@@ -598,7 +598,7 @@ class QueueManager(object):
                         )
                         devices_in_use[name] = self.BLACS.tablist[name]
                         start_order[name] = device_properties.get('start_order', None)
-                        stop_order[name] = device_properties.get('start_order', None)
+                        stop_order[name] = device_properties.get('stop_order', None)
 
                 # Sort the devices into groups based on their start_order and stop_order
                 start_groups = defaultdict(set)
