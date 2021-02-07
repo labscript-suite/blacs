@@ -1100,6 +1100,21 @@ class Plugin(object):
         self.notifications = notifications
 
     def plugin_setup_complete(self, BLACS):
+        """Do additional plugin setup after blacs has done more starting up.
+
+        Plugins are initialized early on in blacs's start up. This method is
+        called later on during blacs's startup once more things, such as the
+        experiment queue, have been created. Therefore any setup that requires
+        access to those other parts of blacs must be done here rather than in
+        the plugin's `__init__()` method.
+
+        Args:
+            BLACS (dict): A dictionary where the keys are strings and the values
+                are various parts of `blacs.__main__.BLACS`. For more details on
+                exactly what is included in that dictionary, examine the code in
+                `blacs.__main__.BLACS.__init__()` (there this dictionary, as of
+                this writing, is called `blacs_data`).
+        """
         logger.info("plugin_setup_complete() called.")
         self.BLACS = BLACS
         self.queue_manager = self.BLACS['experiment_queue']
