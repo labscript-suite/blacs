@@ -1295,6 +1295,11 @@ class Setting(object):
         logger.info("Setting initialized.")
         self.data = data
 
+        # self.data['import_paths'] won't exist if the plugin hasn't been used
+        # before or if the save data was deleted. In that case set it to an
+        # empty list.
+        self.data.setdefault('import_paths', [])
+
     # Create the page, return the page and an icon to use on the label.
     def create_dialog(self, notebook):
         """Create the settings tab for this plugin.
@@ -1321,8 +1326,7 @@ class Setting(object):
         # Fill out the table with the saved values. Do this before connecting
         # the callback below to avoid it interfering.
         self._pop_row(0)  # Get rid of row in UI file.
-        import_paths = self.data.get('import_paths', [])
-        for import_path in import_paths:
+        for import_path in self.data['import_paths']:
             self._append_row(import_path)
         self._append_row(self._NEW_ENTRY_TEXT)
 
