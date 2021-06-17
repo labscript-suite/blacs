@@ -11,6 +11,7 @@
 #                                                                   #
 #####################################################################
 from zprocess import Process, Interruptor, Interrupted
+from zprocess.utils import TimeoutError
 import time
 import sys
 import threading
@@ -809,16 +810,28 @@ class Tab(object):
                             # Send the command to the worker
                             to_worker = workers[worker_process][1]
                             from_worker = workers[worker_process][2]
-                            to_worker.put(worker_arg_list)
-                            self.state = '%s (%s)'%(worker_function,worker_process)
-                            # Confirm that the worker got the message:
-                            logger.debug('Waiting for worker to acknowledge job request')
-                            success, message, results = from_worker.get()
+                            try:
+                                to_worker.put(worker_arg_list, 30)
+                                self.state = '%s (%s)'%(worker_function,worker_process)
+                                # Confirm that the worker got the message:
+                                logger.debug('Waiting for worker to acknowledge job request')
+                                success, message, results = from_worker.get(30)
+                            except TimeoutError:
+                                logger.info('Connection timed out. Trying again.')
+                                try:
+                                    to_worker.put(worker_arg_list, 30)
+                                    self.state = '%s (%s)'%(worker_function,worker_process)
+                                    # Confirm that the worker got the message:
+                                    logger.debug('Waiting for worker to acknowledge job request')
+                                    success, message, results = from_worker.get(30)
+                                except TimeoutError:
+                                    raise TimeoutError('BLACs Device thread timed out talking to worker.')
                             if not success:
                                 logger.info('Worker reported failure to start job')
                                 raise Exception(message)
                             # Wait for and get the results of the work:
                             logger.debug('Worker reported job started, waiting for completion')
+                            
                             success,message,results = from_worker.get()
                             if not success:
                                 logger.info('Worker reported exception during job')
@@ -915,7 +928,14 @@ class Worker(Process):
                 message = traceback.format_exc()
                 self.logger.error('Couldn\'t start job:\n %s'%message)
             # Report to the parent whether method lookup was successful or not:
-            self.to_parent.put((success,message,None))
+            try:
+                self.to_parent.put((success,message,None), 30)
+            except TimeoutError:
+                self.logger.info('Connection timed out. Trying again.')
+                try:
+                    self.to_parent.put((success,message,None), 30)
+                except TimeoutError:
+                    raise TimeoutError('Communication timed out in worker.')
             if success:
                 # Try to do the requested work:
                 self.logger.debug('Starting job %s'%funcname)
@@ -942,7 +962,14 @@ class Worker(Process):
                     results = None
                 # Report to the parent whether work was successful or not,
                 # and what the results were:
-                self.to_parent.put((success,message,results))
+                try:
+                    self.to_parent.put((success,message,results), 30)
+                except TimeoutError:
+                    self.logger.info('Connection timed out. Trying again.')
+                    try:
+                        self.to_parent.put((success,message,results), 30)
+                    except TimeoutError:
+                        raise TimeoutError('Communication timed out in worker.')
 
 
 class PluginTab(object):
