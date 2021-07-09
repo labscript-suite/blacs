@@ -52,6 +52,24 @@ extensions = [
 autodoc_typehints = 'description'
 autosummary_generate = True
 numfig = True
+autodoc_mock_imports = ['labscript_utils']
+
+# mock missing site package methods
+import site
+mock_site_methods = {
+    # Format:
+    #   method name: return value
+    'getusersitepackages': '',
+    'getsitepackages': []
+}
+__fn = None
+for __name, __rval in mock_site_methods.items():
+    if not hasattr(site, __name):
+        __fn = lambda *args, __rval=copy.deepcopy(__rval), **kwargs: __rval
+        setattr(site, __name, __fn)
+del __name
+del __rval
+del __fn
 
 # Prefix each autosectionlabel with the name of the document it is in and a colon
 autosectionlabel_prefix_document = True

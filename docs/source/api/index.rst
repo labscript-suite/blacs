@@ -15,3 +15,4 @@ API Reference
     blacs.output_classes
     blacs.plugins
     blacs.tab_base_classes
+    blacs.__main__
