@@ -10,6 +10,8 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+'''BLACS GUI and supporting code
+'''
 import labscript_utils.excepthook
 
 import os

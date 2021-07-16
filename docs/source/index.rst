@@ -6,10 +6,16 @@
 blacs
 =====
 
+A graphical interface to scientific instruments and experiment supervision.
+
 .. toctree::
    :maxdepth: 2
    :hidden:
    :caption: DOCUMENTATION
+
+   introduction
+   usage
+   api/index
 
 .. toctree::
    :maxdepth: 2
