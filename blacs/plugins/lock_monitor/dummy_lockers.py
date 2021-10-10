@@ -102,8 +102,10 @@ class DummyLocker(Locker):
 
 # Create a dummy locker that doesn't actually control anything, which can be
 # used for testing purposes. First create a logger for it. See the readme for
-# some discussion on how to set up a logger.
-_dummy_logger = logging.getLogger(__name__)
+# some discussion on how to set up a logger. This logger has '_dummy_locker'
+# appended to its name to distinguish it from the logger for the
+# DummyScanZoomLocker created below.
+_dummy_logger = logging.getLogger(__name__ + '_dummy_locker')
 _dummy_logger.setLevel(logging.DEBUG)
 _formatter = logging.Formatter(
     '%(asctime)s:%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'
@@ -375,8 +377,10 @@ class DummyScanZoomLocker(ScanZoomLocker):
 
 # Create a dummy locker that doesn't actually control anything, which can be
 # used for testing purposes. First create a logger for it. See the readme for
-# some discussion on how to set up a logger.
-_dummy_logger = logging.getLogger(__name__)
+# some discussion on how to set up a logger. This logger has
+# '_dummy_scan_zoom_locker' appended to its name to distinguish it from the
+# logger for the DummyLocker created above.
+_dummy_logger = logging.getLogger(__name__ + '_dummy_scan_zoom_locker')
 _dummy_logger.setLevel(logging.DEBUG)
 _formatter = logging.Formatter(
     '%(asctime)s:%(filename)s:%(funcName)s:%(lineno)d:%(levelname)s: %(message)s'
