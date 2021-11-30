@@ -97,7 +97,7 @@ from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
 from blacs.experiment_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
-import labscript_devices
+from labscript_utils import device_registry
 # Save/restore frontpanel code
 from blacs.front_panel_settings import FrontPanelSettings
 # Notifications system
@@ -268,7 +268,7 @@ class BLACS(object):
                 self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
                 # Instantiate the device
                 logger.info('instantiating %s'%device_name)
-                TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
+                TabClass = device_registry.get_BLACS_tab(labscript_device_class_name)
                 self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
             except Exception:
                 self.failed_device_settings[device_name] = {"front_panel": self.settings_dict[device_name]["front_panel_settings"], "save_data": self.settings_dict[device_name]["saved_data"]}
