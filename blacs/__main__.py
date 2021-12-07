@@ -10,6 +10,8 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+'''BLACS GUI and supporting code
+'''
 import labscript_utils.excepthook
 
 import os
@@ -95,7 +97,7 @@ from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
 from blacs.experiment_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
-import labscript_devices
+from labscript_utils import device_registry
 # Save/restore frontpanel code
 from blacs.front_panel_settings import FrontPanelSettings
 # Notifications system
@@ -266,7 +268,7 @@ class BLACS(object):
                 self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
                 # Instantiate the device
                 logger.info('instantiating %s'%device_name)
-                TabClass = labscript_devices.get_BLACS_tab(labscript_device_class_name)
+                TabClass = device_registry.get_BLACS_tab(labscript_device_class_name)
                 self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
             except Exception:
                 self.failed_device_settings[device_name] = {"front_panel": self.settings_dict[device_name]["front_panel_settings"], "save_data": self.settings_dict[device_name]["saved_data"]}
@@ -602,7 +604,9 @@ class BLACS(object):
         self.front_panel_settings.save_front_panel_to_h5(self.settings_path,data[0],data[1],data[2],data[3],{"overwrite":True},force_new_conn_table=True)
         logger.info('Shutting down workers')
         for tab in self.tablist.values():
-            tab.shutdown_workers()
+            # Tell tab to shutdown its workers if it has a method to do so.
+            if hasattr(tab, 'shutdown_workers'):
+                tab.shutdown_workers()
 
         QTimer.singleShot(100, self.finalise_quit)
 
@@ -616,6 +620,14 @@ class BLACS(object):
         overdue = time.time() > deadline
         # Check for worker shutdown completion:
         for name, tab in list(self.tablist.items()):
+            # Immediately close tabs that don't support finalise_close_tab()
+            if not hasattr(tab, 'finalise_close_tab'):
+                try:
+                    current_page = tab.close_tab(finalise=False)
+                except Exception as e:
+                    logger.error('Couldn\'t close tab:\n%s' % str(e))
+                del self.tablist[name]
+                continue
             fatal_error = tab.state == 'fatal error'
             if not tab.shutdown_workers_complete and overdue or fatal_error:
                 # Give up on cleanly shutting down this tab's worker processes:

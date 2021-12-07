@@ -10,6 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import copy
 import os
 from pathlib import Path
 from m2r import MdInclude
@@ -39,6 +40,7 @@ html_favicon = img_path + "/blacs.ico"
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
@@ -49,6 +51,26 @@ extensions = [
 ]
 
 autodoc_typehints = 'description'
+autosummary_generate = True
+numfig = True
+autodoc_mock_imports = ['labscript_utils']
+
+# mock missing site package methods
+import site
+mock_site_methods = {
+    # Format:
+    #   method name: return value
+    'getusersitepackages': '',
+    'getsitepackages': []
+}
+__fn = None
+for __name, __rval in mock_site_methods.items():
+    if not hasattr(site, __name):
+        __fn = lambda *args, __rval=copy.deepcopy(__rval), **kwargs: __rval
+        setattr(site, __name, __fn)
+del __name
+del __rval
+del __fn
 
 # Prefix each autosectionlabel with the name of the document it is in and a colon
 autosectionlabel_prefix_document = True
@@ -223,3 +245,43 @@ def setup(app):
                 img_path=img_path
             )
         )
+
+    # hooks to test docstring coverage
+    app.connect('autodoc-process-docstring', doc_coverage)
+    app.connect('build-finished', doc_report)
+
+
+members_to_watch = ['module', 'class', 'function', 'exception', 'method', 'attribute']
+doc_count = 0
+undoc_count = 0
+undoc_objects = []
+undoc_print_objects = False
+
+
+def doc_coverage(app, what, name, obj, options, lines):
+    global doc_count
+    global undoc_count
+    global undoc_objects
+
+    if (what in members_to_watch and len(lines) == 0):
+        # blank docstring detected
+        undoc_count += 1
+        undoc_objects.append(name)
+    else:
+        doc_count += 1
+
+
+def doc_report(app, exception):
+    global doc_count
+    global undoc_count
+    global undoc_objects
+    # print out report of documentation coverage
+    total_docs = undoc_count + doc_count
+    if total_docs != 0:
+        print(f'\nAPI Doc coverage of {doc_count/total_docs:.1%}')
+        if undoc_print_objects or os.environ.get('READTHEDOCS'):
+            print('\nItems lacking documentation')
+            print('===========================')
+            print(*undoc_objects, sep='\n')
+    else:
+        print('No docs counted, run \'make clean\' then rebuild to get the count.')

@@ -15,7 +15,6 @@ defaults:
 
 env:
   PACKAGE_NAME: blacs
-  SCM_VERSION_SCHEME: release-branch-semver
   SCM_LOCAL_SCHEME: no-local-version
   ANACONDA_USER: labscript-suite
 
