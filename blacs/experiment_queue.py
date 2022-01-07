@@ -508,7 +508,7 @@ class QueueManager(object):
         
         import runmanager.remote
         from qtutils import inmain
-        client = runmanager.remote.Client(default_timeout=5)
+        client = runmanager.remote.Client(timeout=5)
 
         while self.manager_running:
             try:
