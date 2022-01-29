@@ -330,7 +330,7 @@ class Tab(object):
             if remote_server_device.parent.name != PRIMARY_BLACS:
                 msg = "Multi-hop remote workers not yet supported by BLACS"
                 raise NotImplementedError(msg) 
-            remote_host, remote_port = remote_server_device.parent_port.split(':')
+            remote_host, remote_port = remote_server_device.parent_port.rsplit(':', 1)
             remote_port = int(remote_port)
             return RemoteProcessClient(remote_host, remote_port)
         return None
