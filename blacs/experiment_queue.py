@@ -15,6 +15,7 @@ import logging
 import os
 import threading
 import time
+import datetime
 import sys
 import shutil
 from collections import defaultdict
@@ -722,7 +723,7 @@ class QueueManager(object):
                 # A Queue for event-based notification of when the experiment has finished.
                 experiment_finished_queue = queue.Queue()
                 logger.debug('About to start the master pseudoclock')
-                run_time = time.localtime()
+                run_time = datetime.datetime.now()
 
                 ##########################################################################################################################################
                 #                                                        Plugin callbacks                                                                #
@@ -850,7 +851,7 @@ class QueueManager(object):
 
                     data_group = hdf5_file['/'].create_group('data')
                     # stamp with the run time of the experiment
-                    hdf5_file.attrs['run time'] = time.strftime('%Y%m%dT%H%M%S',run_time)
+                    hdf5_file.attrs['run time'] = run_time.strftime('%Y%m%dT%H%M%S.%f')
         
                 error_condition = False
                 response_list = {}
