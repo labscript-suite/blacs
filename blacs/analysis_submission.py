@@ -251,6 +251,14 @@ class AnalysisSubmission(object):
         success = True
         while self._waiting_for_submission and success:
             path = self._waiting_for_submission[0]
+            
+            # Get lyse host name from file if present
+            with h5py.File(path,'r+') as hdf5_file:
+                lyse_host = hdf5_file.attrs['run time']
+            
+            if lyse_host != '':
+                self.server = lyse_host
+            
             self._mainloop_logger.info('Submitting run file %s.\n'%os.path.basename(path))
             data = {'filepath': labscript_utils.shared_drive.path_to_agnostic(path)}
             self.server_online = 'checking'
