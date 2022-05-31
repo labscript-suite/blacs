@@ -52,18 +52,20 @@ class AnalysisSubmission(object):
         blacs_ui.analysis.addWidget(self._ui)
         self._ui.frame.setMinimumWidth(blacs_ui.queue_controls_frame.sizeHint().width())
         elide_label(self._ui.resend_shots_label, self._ui.failed_to_send_frame.layout(), Qt.ElideRight)
+        
+        self._waiting_for_submission = {}
+        self.failure_reason = {}
+        self.send_to_server = False
+        self.server = ''
+        self.time_of_last_connectivity_check = 0
+        self.server_online = {}
+        
         # connect signals
         self._ui.send_to_server.toggled.connect(lambda state: self._set_send_to_server(state))
         self._ui.server.editingFinished.connect(lambda: self._set_server(self._ui.server.text()))
         self._ui.clear_unsent_shots_button.clicked.connect(lambda _: self.clear_waiting_files())
         self._ui.retry_button.clicked.connect(lambda _: self.check_retry())
 
-        self._waiting_for_submission = {}
-        self.failure_reason = {}
-        self.server_online = {}
-        self.send_to_server = False
-        self.server = ''
-        self.time_of_last_connectivity_check = {}
 
         self.mainloop_thread = threading.Thread(target=self.mainloop)
         self.mainloop_thread.daemon = True
@@ -76,7 +78,7 @@ class AnalysisSubmission(object):
             self.send_to_server = data["send_to_server"]
         if "waiting_for_submission" in data:
             self._waiting_for_submission = dict(data["waiting_for_submission"])
-        self.inqueue.put(['save data restored', None])
+        self.inqueue.put(['save data restored', None, None])
         self.check_retry()
             
     def get_save_data(self):
@@ -138,19 +140,31 @@ class AnalysisSubmission(object):
     @inmain_decorator(True)
     def server_online(self, value):
 
+        self._server_online = value        
+
         status = 'online'
         tooltip = ''
-        for k, v in enumerate(value):
+        for server in self._waiting_for_submission:
+            
+            if server not in value:
+                value[server] = ''
+
+            v = value[server]
+            
             if v == 'offline':
                 status = 'offline'
-            if msg != '':
-                msg += '\n'
+            if tooltip != '':
+                tooltip += '\n'
                 
             tip = self.tooltips.get(status, 'Invalid message {}'.format(status))
-            tooltip += 'Server {} status: {}'.format(k, tip)
+            tooltip += 'Server {} status: {}'.format(server, tip)
             
-            if self.failure_reason[k] is not None:
-                tooltip += '[[{}]]'.format(self.failure_reason[k])
+            if server not in self.failure_reason:
+                self.failure_reason[server] = None
+                tooltip += 'Server not checked yet'
+            
+            if self.failure_reason[server] is not None:
+                tooltip += '[[{}]]'.format(self.failure_reason[server])
 
         icon = QIcon(self.icon_names.get(status, ':/qtutils/fugue/exclamation-red'))
         pixmap = icon.pixmap(QSize(16, 16))
@@ -166,25 +180,29 @@ class AnalysisSubmission(object):
 
         message = ''
         failed = False
-        for server, shots in enumerate(self._waiting_for_submission):
+        for server, shots in self._waiting_for_submission.items():
             length = len(shots)
-        
+            
+            # The server may never have been checked
+            if server not in self.server_online:
+                self._server_online[server] = ''
+                
             # if there is only one shot and we haven't encountered failure yet, do
             # not show the error frame:
             if (self.server_online[server] == 'checking') and (length == 1) and not self._ui.failed_to_send_frame.isVisible():
                 pass
             elif length:
                 if self.server_online[server] == 'checking':
-                    text += 'Server {}: Sending {} shot(s)...'.format(server, length)
+                    message += 'Server {}: Sending {} shot(s)...'.format(server, length)
                 else:
-                    text += 'Server {}: {} shot(s) to send...'.format(server, length)
+                    message += 'Server {}: {} shot(s) to send...'.format(server, length)
 
         if failed and self._waiting_for_submission_len():
             self._ui.failed_to_send_frame.show()
         else:
             self._ui.failed_to_send_frame.hide()
 
-        self._ui.resend_shots_label.setText(text)
+        self._ui.resend_shots_label.setText(message)
         
         self._ui.retry_button.show()
 
@@ -198,7 +216,7 @@ class AnalysisSubmission(object):
 
     @inmain_decorator(True)
     def check_retry(self):
-        self.inqueue.put(['check/retry', None])
+        self.inqueue.put(['check/retry', None, None])
 
     def mainloop(self):
         self._mainloop_logger = logging.getLogger('BLACS.AnalysisSubmission.mainloop')
@@ -228,8 +246,8 @@ class AnalysisSubmission(object):
                     break
                 elif signal == 'save data restored':
                     continue
-                elif signal == 'check/retry': # Depriciated
-                    continue
+                elif signal == 'check/retry': 
+                    self.submit_waiting_files()
                 else:
                     raise ValueError('Invalid signal: %s'%str(signal))
 
@@ -246,7 +264,9 @@ class AnalysisSubmission(object):
         for server in self._waiting_for_submission:
             send_to_server = self.send_to_server
             if send_to_server:       
-                self.server_online = 'checking'         
+                server_online[server] = 'checking'
+                self.server_online = server_online # update GUI
+                
                 try:
                     response = zmq_get(self.port, server, 'hello', timeout=1)
                     self.failure_reason[k] = None
@@ -258,7 +278,6 @@ class AnalysisSubmission(object):
                     if not success:
                         self.failure_reason[k] = "unexpected reponse: %s" % str(response)
                     
-                # update GUI
                 server_online[server] = 'online' if success else 'offline'
             else:
                 server_online[server] = ''
@@ -271,7 +290,7 @@ class AnalysisSubmission(object):
     def submit_waiting_files(self):
         
         server_online = {}
-        for server, shots in enumerate(self._waiting_for_submission):
+        for server, shots in self._waiting_for_submission.items():
             success = True
 
             while shots and success:
@@ -280,19 +299,22 @@ class AnalysisSubmission(object):
         
                 self._mainloop_logger.info('Submitting run file %s.\n'%os.path.basename(path))
                 data = {'filepath': labscript_utils.shared_drive.path_to_agnostic(path)}
+
                 server_online[server] = 'checking'
+                self.server_online = server_online # update GUI
+
                 try:
                     response = zmq_get(self.port, server, data, timeout=1)
-                    self.failure_reason[k] = None
+                    self.failure_reason[server] = None
                 except (TimeoutError, gaierror, AuthenticationFailure) as e:
                     success = False
-                    self.failure_reason[k] = str(e)
+                    self.failure_reason[server] = str(e)
                 else:
                     success = (response == 'added successfully')
                     if not success:
-                        self.failure_reason[k] = "unexpected reponse: %s" % str(response)
+                        self.failure_reason[server] = "unexpected reponse: %s" % str(response)
                     try:
-                        self.shots.pop(0) 
+                        shots.pop(0) 
                     except IndexError:
                         # Queue has been cleared
                         pass
