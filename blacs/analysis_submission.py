@@ -253,8 +253,11 @@ class AnalysisSubmission(object):
             path = self._waiting_for_submission[0]
             
             # Get lyse host name from file if present
-            with h5py.File(path,'r+') as hdf5_file:
-                lyse_host = hdf5_file.attrs['run time']
+            try:
+                with h5py.File(path,'r+') as hdf5_file:
+                    lyse_host = hdf5_file.attrs['lyse_host']
+                except:
+                    lyse_host = ''
             
             if lyse_host != '':
                 self.server = lyse_host
