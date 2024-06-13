@@ -852,7 +852,10 @@ class QueueManager(object):
                     data_group = hdf5_file['/'].create_group('data')
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = run_time.strftime('%Y%m%dT%H%M%S.%f')
-        
+                    
+                    # Get lyse host name from file if present in shot file
+                    lyse_host = hdf5_file.attrs['lyse_host']
+                    
                 error_condition = False
                 response_list = {}
                 # Keep transitioning tabs to manual mode and waiting on them until they
@@ -956,7 +959,7 @@ class QueueManager(object):
 
             # Submit to the analysis server
             if send_to_analysis:
-                self.BLACS.analysis_submission.get_queue().put(['file', path])
+                self.BLACS.analysis_submission.get_queue().put(['file', path, lyse_host])
 
             ##########################################################################################################################################
             #                                                        Plugin callbacks                                                                #
