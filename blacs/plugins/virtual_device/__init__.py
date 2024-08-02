@@ -90,8 +90,8 @@ class Plugin(object):
 
     def get_save_data(self):
         return {'virtual_devices': {
-            'v0': {'AO': [], 'DO': [('christopher', 'GPIO 09'), ('pdo_0', '0x1')], 'DDS': []},
-            'v1': {'AO': [], 'DO': [('pdo_0', '0x0'), ('pdo_0', '0x2')], 'DDS': []},
+            'v0': {'AO': [], 'DO': [('christopher', 'GPIO 09', False), ('pdo_0', '1', False)], 'DDS': []},
+            'v1': {'AO': [], 'DO': [('pdo_0', '0', False), ('pdo_0', '2', True)], 'DDS': []},
         }}
 
     def get_tab_classes(self):
@@ -120,4 +120,8 @@ class Plugin(object):
 
     def close(self):
         self.close_event.set()
-        self.reconnect_thread.join()
+        try:
+            self.reconnect_thread.join()
+        except RuntimeError:
+            # reconnect_thread did not start, fail gracefully
+            pass

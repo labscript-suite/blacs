@@ -11,7 +11,7 @@ class VirtualDeviceTab(PluginTab):
     def create_widgets(self, blacs_tablist, AOs, DOs, DDSs):
         self._blacs_tablist = blacs_tablist
         self._AOs = {(AO[0], AO[1]): None for AO in AOs}
-        self._DOs = {(DO[0], DO[1]): None for DO in DOs}
+        self._DOs = {(DO[0], DO[1], DO[2]): None for DO in DOs}
         self._DDSs = {(DDS[0], DDS[1]): None for DDS in DDSs}
 
         for AO in self._AOs.keys():
@@ -21,7 +21,7 @@ class VirtualDeviceTab(PluginTab):
 
         for DO in self._DOs.keys():
             if self._DOs[DO] is None:
-                self._DOs[DO] = self._blacs_tablist[DO[0]]._DO[DO[1]].create_widget()
+                self._DOs[DO] = self._blacs_tablist[DO[0]]._DO[DO[1]].create_widget(inverted=DO[2])
                 self._DOs[DO].last_DO = None
 
         dds_widgets = []
