@@ -17,6 +17,11 @@ from qtutils import inmain, inmain_decorator
 import labscript_utils.h5_lock
 import h5py
 
+from qtutils.qt.QtCore import *
+from qtutils.qt.QtGui import *
+from qtutils.qt.QtWidgets import *
+from qtutils import *
+
 import labscript_utils.properties as properties
 from labscript_utils.connections import ConnectionTable
 from zprocess import TimeoutError
@@ -25,7 +30,7 @@ from blacs.plugins import PLUGINS_DIR, callback
 
 from .virtual_device_tab import VirtualDeviceTab
 
-name = "Virtual Device"
+name = "Virtual Devices"
 module = "virtual_device" # should be folder name
 logger = logging.getLogger('BLACS.plugin.%s'%module)
 
@@ -104,13 +109,13 @@ class Plugin(object):
         return {}
 
     def get_menu_class(self):
-        return None
+        return Menu
 
     def get_notification_classes(self):
         return []
 
     def get_setting_classes(self):
-        return []
+        return [Setting]
 
     def set_menu_instance(self, menu):
         self.menu = menu
@@ -125,3 +130,39 @@ class Plugin(object):
         except RuntimeError:
             # reconnect_thread did not start, fail gracefully
             pass
+
+class Menu(object):
+    def __init__(self, BLACS):
+        self.BLACS = BLACS
+
+    def get_menu_items(self):
+        return {'name': name,
+                'menu_items': [{'name': 'Edit',
+                                'action': self.on_edit_virtual_devices,
+                               'icon': ':/qtutils/fugue/document--pencil'
+                                }
+                               ]
+                }
+
+    def on_edit_virtual_devices(self, *args, **kwargs):
+        self.BLACS['settings'].create_dialog(goto_page=Setting)
+
+    def close(self):
+        pass
+
+class Setting(object):
+    name = name
+
+    def __init__(self, data):
+        self.data = data
+
+    def create_dialog(self, notebook):
+        ui = UiLoader().load(os.path.join(PLUGINS_DIR, module, 'virtual_device_menu.ui'))
+
+        return ui, None
+
+    def save(self):
+        return self.data
+
+    def close(self):
+        pass
