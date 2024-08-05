@@ -28,6 +28,9 @@ from zprocess import TimeoutError
 from labscript_utils.ls_zprocess import Event
 from blacs.plugins import PLUGINS_DIR, callback
 from blacs.device_base_class import DeviceTab
+from blacs.output_classes import AO as AO_output_class
+from blacs.output_classes import DO as DO_output_class
+from blacs.output_classes import DDS as DDS_output_class
 
 from .virtual_device_tab import VirtualDeviceTab
 
@@ -159,6 +162,35 @@ class Menu(object):
             item = item.parent()
         return item
 
+    def _get_child_outputs(self, conn_table, root_devs, dev_name, tab):
+        AOs = []
+        DOs = []
+        DDSs = []
+
+        device_conn = conn_table.find_by_name(dev_name)
+        for child in device_conn.child_list.keys():
+            if child in root_devs:
+                # Don't cross between tabs here
+                continue
+
+            child_dev = device_conn.find_by_name(child)
+            channel = tab.get_channel(child_dev.parent_port)
+            if channel is None:
+                AOs_, DOs_, DDSs_ = self._get_child_outputs(conn_table, root_devs, child, tab)
+
+                AOs += AOs_
+                DOs += DOs_
+                DDSs += DDSs_
+            elif isinstance(channel, DO_output_class):
+                inv = child_dev.properties['inverted'] if 'inverted' in child_dev.properties else False
+                DOs.append((child, child_dev.parent_port, inv))
+            elif isinstance(channel, AO_output_class):
+                AOs.append((child, child_dev.parent_port))
+            elif isinstance(channel, DDS_output_class):
+                DDSS.append((child, child_dev.parent_port))
+
+        return AOs, DOs, DDSs
+
     def __init__(self, BLACS):
         self.BLACS = BLACS
 
@@ -174,37 +206,41 @@ class Menu(object):
                 self.connection_table_model.appendRow([device_item])
 
                 analog_outputs = QStandardItem('Analog Outputs')
-                device_item.appendRow(analog_outputs)
-                for AO_name, AO_dev in tab._AO.items():
-                    conn_table_dev = connection_table.find_by_name(AO_dev.name.split(' - ').pop(1))
-                    if conn_table_dev is None:
-                        # Don't list devices not in the connection table to reduce clutter
-                        continue
-                    AO_item = QStandardItem(AO_dev.name)
-                    add_to_vd_item = QStandardItem()
-                    add_to_vd_item.setIcon(QIcon(':qtutils/fugue/arrow'))
-                    add_to_vd_item.setEditable(False)
-                    add_to_vd_item.setToolTip('Add this output to selected virtual device')
-                    add_to_vd_item.setData(AO_name, self.CT_TREE_ROLE_NAME)
-                    analog_outputs.appendRow([AO_item, add_to_vd_item])
-
                 digital_outputs = QStandardItem('Digital Outputs')
+                dds_outputs = QStandardItem('DDS Outputs')
+
+                device_item.appendRow(analog_outputs)
                 device_item.appendRow(digital_outputs)
-                for DO_name, DO_dev in tab._DO.items():
-                    conn_table_dev = connection_table.find_by_name(DO_dev.name.split(' - ').pop(1))
-                    if conn_table_dev is None:
-                        # Don't list devices not in the connection table to reduce clutter
-                        continue
-                    print(conn_table_dev.properties)
-                    DO_item = QStandardItem(DO_dev.name)
+                device_item.appendRow(dds_outputs)
+
+                root_devs = self.BLACS['ui'].blacs.tablist.keys()
+                AOs, DOs, DDSs = self._get_child_outputs(connection_table, root_devs, tab_name, tab)
+
+                for DO in DOs:
+                    DO_item = QStandardItem(DO[1] + ' - ' + DO[0])
                     add_to_vd_item = QStandardItem()
                     add_to_vd_item.setIcon(QIcon(':qtutils/fugue/arrow'))
                     add_to_vd_item.setEditable(False)
                     add_to_vd_item.setToolTip('Add this output to selected virtual device')
-                    add_to_vd_item.setData(DO_name, self.CT_TREE_ROLE_NAME)
-                    inverted = conn_table_dev.properties['inverted'] if 'inverted' in conn_table_dev.properties else False
-                    add_to_vd_item.setData(inverted, self.CT_TREE_ROLE_DO_INVERTED)
+                    add_to_vd_item.setData(DO[1], self.CT_TREE_ROLE_NAME)
+                    add_to_vd_item.setData(DO[2], self.CT_TREE_ROLE_DO_INVERTED)
                     digital_outputs.appendRow([DO_item, add_to_vd_item])
+                for AO in AOs:
+                    AO_item = QStandardItem(AO[1] + ' - ' + AO[0])
+                    add_to_vd_item = QStandardItem()
+                    add_to_vd_item.setIcon(QIcon(':qtutils/fugue/arrow'))
+                    add_to_vd_item.setEditable(False)
+                    add_to_vd_item.setToolTip('Add this output to selected virtual device')
+                    add_to_vd_item.setData(AO[1], self.CT_TREE_ROLE_NAME)
+                    analog_outputs.appendRow([AO_item, add_to_vd_item])
+                for DDS in DDSs:
+                    DDS_item = QStandardItem(DDS[1] + ' - ' + DDS[0])
+                    add_to_vd_item = QStandardItem()
+                    add_to_vd_item.setIcon(QIcon(':qtutils/fugue/arrow'))
+                    add_to_vd_item.setEditable(False)
+                    add_to_vd_item.setToolTip('Add this output to selected virtual device')
+                    add_to_vd_item.setData(DDS[1], self.CT_TREE_ROLE_NAME)
+                    dds_outputs.appendRow([DDS_item, add_to_vd_item])
 
         self.virtual_device_model = QStandardItemModel()
         self.virtual_device_model.setHorizontalHeaderLabels(['Virtual Devices', 'Up', 'Down', 'Remove'])

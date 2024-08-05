@@ -16,12 +16,12 @@ class VirtualDeviceTab(PluginTab):
 
         for AO in self._AOs.keys():
             if self._AOs[AO] is None:
-                self._AOs[AO] = self._blacs_tablist[AO[0]]._AO[AO[1]].create_widget(None, False, None)
+                self._AOs[AO] = self._blacs_tablist[AO[0]].get_channel(AO[1]).create_widget(None, False, None)
                 self._AOs[AO].last_AO = None
 
         for DO in self._DOs.keys():
             if self._DOs[DO] is None:
-                self._DOs[DO] = self._blacs_tablist[DO[0]]._DO[DO[1]].create_widget(inverted=DO[2])
+                self._DOs[DO] = self._blacs_tablist[DO[0]].get_channel(DO[1]).create_widget(inverted=DO[2])
                 self._DOs[DO].last_DO = None
 
         dds_widgets = []
@@ -36,12 +36,12 @@ class VirtualDeviceTab(PluginTab):
     def connect_widgets(self):
         for AO in self._AOs.keys():
             if self._AOs[AO] is not None:
-                new_AO = self._blacs_tablist[AO[0]]._AO[AO[1]]
+                new_AO = self._blacs_tablist[AO[0]].get_channel(AO[1])
                 if self._AOs[AO].get_AO() is None and self._AOs[AO].last_AO != new_AO:
                     self._AOs[AO].set_AO(new_AO)
         for DO in self._DOs.keys():
             if self._DOs[DO] is not None:
-                new_DO = self._blacs_tablist[DO[0]]._DO[DO[1]]
+                new_DO = self._blacs_tablist[DO[0]].get_channel(DO[1])
                 if self._DOs[DO].get_DO() is None and self._DOs[DO].last_DO != new_DO:
                     self._DOs[DO].set_DO(new_DO)
 
