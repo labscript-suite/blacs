@@ -6,25 +6,43 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>844</width>
-    <height>528</height>
+    <width>800</width>
+    <height>900</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout">
    <item>
-    <widget class="QLabel" name="label_2">
+    <widget class="QLabel">
      <property name="font">
       <font>
        <pointsize>12</pointsize>
       </font>
      </property>
      <property name="text">
-      <string>Virtual Devices</string>
+      <string>Edit Virtual Devices</string>
      </property>
     </widget>
+   </item>
+   <item>
+	 <layout class="QHBoxLayout">
+	   <item>
+		 <widget class="QTreeView" name="treeView_connection_table">
+           <property name="alternatingRowColors">
+			 <bool>true</bool>
+           </property>
+         </widget>
+	   </item>
+	   <item>
+		 <widget class="QTreeView" name="treeView_virtual_devices">
+		   <property name="alternatingRowColors">
+			 <bool>true</bool>
+		   </property>
+		 </widget>
+	   </item>
+	 </layout>
    </item>
   </layout>
  </widget>
