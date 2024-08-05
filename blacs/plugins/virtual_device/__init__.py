@@ -290,10 +290,20 @@ class Menu(object):
                 complete_vds.append(vd.text())
 
                 for r in range(0, vd.rowCount()):
-                    if vd.child(r, self.VD_TREE_COL_NAME).text() != item.parent().text():
+                    output_group = vd.child(r, self.VD_TREE_COL_NAME)
+                    if output_group.text() != item.parent().text():
                         continue
 
-                    vd.child(r, self.VD_TREE_COL_NAME).appendRow(self.make_virtual_device_output_row(new_vd_output))
+                    # Avoid duplicating outputs in a virtual device
+                    already_present = False
+                    for j in range(0, output_group.rowCount()):
+                        if output_group.child(j).text() == new_vd_output.text():
+                            already_present = True
+                            break
+                    if already_present:
+                        continue
+
+                    output_group.appendRow(self.make_virtual_device_output_row(new_vd_output))
 
     def on_virtual_devices_item_changed(self, item):
         if item.column() != self.VD_TREE_COL_NAME or not item.data(self.VD_TREE_ROLE_IS_DUMMY_ROW):
