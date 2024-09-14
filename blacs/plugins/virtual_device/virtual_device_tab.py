@@ -22,6 +22,8 @@ class VirtualDeviceTab(PluginTab):
         for DO in self._DOs.keys():
             if self._DOs[DO] is None:
                 self._DOs[DO] = self._blacs_tablist[DO[0]].get_channel(DO[1]).create_widget(inverted=DO[2])
+                orig_label = self._DOs[DO].text().split('\n')
+                self._DOs[DO].setText('%s\n%s'%(DO[0]+'.'+orig_label[0], orig_label[1]))
                 self._DOs[DO].last_DO = None
 
         dds_widgets = []
