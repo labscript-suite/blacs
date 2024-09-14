@@ -222,7 +222,7 @@ class Menu(object):
                     add_to_vd_item.setIcon(QIcon(':qtutils/fugue/arrow'))
                     add_to_vd_item.setEditable(False)
                     add_to_vd_item.setToolTip('Add this output to selected virtual device')
-                    add_to_vd_item.setData(DO[1], self.CT_TREE_ROLE_NAME)
+                    add_to_vd_item.setData(DO[1] + ' - ' + DO[0], self.CT_TREE_ROLE_NAME)
                     add_to_vd_item.setData(DO[2], self.CT_TREE_ROLE_DO_INVERTED)
                     digital_outputs.appendRow([DO_item, add_to_vd_item])
                 for AO in AOs:
@@ -231,7 +231,7 @@ class Menu(object):
                     add_to_vd_item.setIcon(QIcon(':qtutils/fugue/arrow'))
                     add_to_vd_item.setEditable(False)
                     add_to_vd_item.setToolTip('Add this output to selected virtual device')
-                    add_to_vd_item.setData(AO[1], self.CT_TREE_ROLE_NAME)
+                    add_to_vd_item.setData(AO[1] + ' - ' + AO[0], self.CT_TREE_ROLE_NAME)
                     analog_outputs.appendRow([AO_item, add_to_vd_item])
                 for DDS in DDSs:
                     DDS_item = QStandardItem(DDS[1] + ' - ' + DDS[0])
@@ -239,7 +239,7 @@ class Menu(object):
                     add_to_vd_item.setIcon(QIcon(':qtutils/fugue/arrow'))
                     add_to_vd_item.setEditable(False)
                     add_to_vd_item.setToolTip('Add this output to selected virtual device')
-                    add_to_vd_item.setData(DDS[1], self.CT_TREE_ROLE_NAME)
+                    add_to_vd_item.setData(DDS[1] + ' - ' + DDS[0], self.CT_TREE_ROLE_NAME)
                     dds_outputs.appendRow([DDS_item, add_to_vd_item])
 
         self.virtual_device_model = QStandardItemModel()
@@ -430,11 +430,11 @@ class Menu(object):
                 output_group = vd.child(j)
                 if output_group.text() == 'Analog Outputs':
                     for k in range(output_group.rowCount()):
-                        AO_name = output_group.child(k).text().split('.')
+                        AO_name = output_group.child(k).text().split(' - ')[0].split('.')
                         virtual_device_data[vd.text()]['AO'].append((AO_name[0], AO_name[1]))
                 elif output_group.text() == 'Digital Outputs':
                     for k in range(output_group.rowCount()):
-                        DO_name = output_group.child(k).text().split('.')
+                        DO_name = output_group.child(k).text().split(' - ')[0].split('.')
                         inverted = output_group.child(k).data(self.VD_TREE_ROLE_DO_INVERTED)
                         virtual_device_data[vd.text()]['DO'].append((DO_name[0], DO_name[1], inverted))
 
