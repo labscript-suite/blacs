@@ -16,7 +16,9 @@ class VirtualDeviceTab(PluginTab):
 
         for AO in self._AOs.keys():
             if self._AOs[AO] is None:
-                self._AOs[AO] = self._blacs_tablist[AO[0]].get_channel(AO[1]).create_widget(None, False, None)
+                chan = self._blacs_tablist[AO[0]].get_channel(AO[1])
+                orig_label = chan.name.split('-')
+                self._AOs[AO] = chan.create_widget('%s\n%s'%(AO[0]+'.'+orig_label[0], orig_label[1]), False, None)
                 self._AOs[AO].last_AO = None
 
         for DO in self._DOs.keys():
