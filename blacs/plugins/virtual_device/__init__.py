@@ -358,12 +358,14 @@ class Menu(object):
             analog_outputs = QStandardItem('Analog Outputs')
             device_item.appendRow(analog_outputs)
             for AO in vd['AO']:
-                analog_outputs.appendRow(self.make_virtual_device_output_row(AO[0] + '.' + AO[1]))
+                chan = self.BLACS['ui'].blacs.tablist[AO[0]].get_channel(AO[1])
+                analog_outputs.appendRow(self.make_virtual_device_output_row(AO[0] + '.' + chan.name))
 
             digital_outputs = QStandardItem('Digital Outputs')
             device_item.appendRow(digital_outputs)
             for DO in vd['DO']:
-                digital_outputs.appendRow(self.make_virtual_device_output_row(DO[0] + '.' + DO[1]))
+                chan = self.BLACS['ui'].blacs.tablist[DO[0]].get_channel(DO[1])
+                digital_outputs.appendRow(self.make_virtual_device_output_row(DO[0] + '.' + chan.name))
 
         add_vd_item = QStandardItem(self.VD_TREE_DUMMY_ROW_TEXT)
         add_vd_item.setData(True, self.VD_TREE_ROLE_IS_DUMMY_ROW)
