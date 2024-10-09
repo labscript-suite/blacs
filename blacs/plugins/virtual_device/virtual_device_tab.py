@@ -9,6 +9,10 @@ from blacs.tab_base_classes import PluginTab
 class VirtualDeviceTab(PluginTab):
 
     def create_widgets(self, blacs_tablist, AOs, DOs, DDSs):
+        '''
+        This function sets up the tab, and should be called as soon as the plugin is otherwise ready.
+        Here, we create dictionaries of widgets (initially connecting them to outputs).
+        '''
         self._blacs_tablist = blacs_tablist
         self._AOs = {(AO[0], AO[1]): None for AO in AOs}
         self._DOs = {(DO[0], DO[1], DO[2]): None for DO in DOs}
@@ -28,7 +32,7 @@ class VirtualDeviceTab(PluginTab):
                 self._DOs[DO].setText('%s\n%s'%(DO[0]+'.'+orig_label[0], orig_label[1]))
                 self._DOs[DO].last_DO = None
 
-        dds_widgets = []
+        dds_widgets = [] # TODO
 
         if len(self._AOs) > 0:
             self.place_widget_group('Analog Outputs', [v for k, v in self._AOs.items()])
@@ -38,6 +42,10 @@ class VirtualDeviceTab(PluginTab):
         return
 
     def connect_widgets(self):
+        '''
+        For each of our widgets, check if it is connected to an output.
+        If not, connect it.
+        '''
         for AO in self._AOs.keys():
             if self._AOs[AO] is not None:
                 new_AO = self._blacs_tablist[AO[0]].get_channel(AO[1])
@@ -50,6 +58,10 @@ class VirtualDeviceTab(PluginTab):
                     self._DOs[DO].set_DO(new_DO)
 
     def disconnect_widgets(self, closing_device_name):
+        '''
+        For each of our widgets, check if it connects to an output in 'closing_device_name'.
+        If it is, disconnect it so that 'closing_device_name' can be safely closed.
+        '''
         for AO in self._AOs.keys():
             if AO[0] == closing_device_name:
                 self._AOs[AO].last_AO = self._AOs[AO].get_AO()

@@ -56,13 +56,22 @@ class Plugin(object):
 
         self.setup_complete = False
         self.close_event = threading.Event()
+        # If the virtual device starts after a device starts, it needs to connect its widgets.
+        # So we start a background thread to periodically check if we have any non-connected widgets and connect them.
         self.reconnect_thread = threading.Thread(target=self.reconnect, args=(self.close_event,))
         self.reconnect_thread.daemon = True
 
+        # If a tab (device) is restarted, it recreates its outputs.
+        # If the virtual device still has widgets referencing those outputs, they will fail.
+        # So, we need to disconnect them.
         self.tab_restart_receiver = lambda dn, s=self: self.disconnect_widgets(dn)
 
     @inmain_decorator(True)
     def connect_widgets(self):
+        '''
+        For each of our tabs, tell connect its widgets to outputs.
+        Also connect restart receivers so we can detect if new tabs start to close.
+        '''
         if not self.setup_complete:
             return
         for name, vd_tab in self.tab_dict.items():
@@ -73,6 +82,9 @@ class Plugin(object):
 
     @inmain_decorator(True)
     def disconnect_widgets(self, closing_device_name):
+        '''
+        For each of our tabs, disconnect it from closing_device_name
+        '''
         if not self.setup_complete:
             return
         self.BLACS['ui'].blacs.tablist[closing_device_name].disconnect_restart_receiver(self.tab_restart_receiver)
@@ -163,6 +175,12 @@ class Menu(object):
         return item
 
     def _get_child_outputs(self, conn_table, root_devs, dev_name, tab):
+        '''
+        Get all child outputs of a device.
+
+        This is more complex than simply accessing `child_list` for the device
+        as some devices have structures between themselves and their ultimate outputs.
+        '''
         AOs = []
         DOs = []
         DDSs = []
@@ -420,6 +438,9 @@ class Menu(object):
         return
 
     def _encode_virtual_devices(self):
+        '''
+        Convert data in model to a simple dictionary that can be saved.
+        '''
         virtual_device_data = {}
         root = self.virtual_device_model.invisibleRootItem()
         for i in range(root.rowCount()):
