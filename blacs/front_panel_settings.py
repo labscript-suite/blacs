@@ -47,9 +47,6 @@ class FrontPanelSettings(object):
 
     def restore(self):
 
-        # See if connection table exists in apparatus h5 file
-        # Return if not
-        #
         # Get list of DO/AO
         # Does the object have a name?
         #    yes: Then, find the device in the BLACS connection table that matches that name
@@ -72,16 +69,16 @@ class FrontPanelSettings(object):
         question = {}
         error = {}
         tab_data = {'BLACS settings':{}}
-        try:
-            with h5py.File(settings_path,'r') as h5file:
-                if 'connection table' in h5file:
-                    logger.info('Settings connection table found in file')
-        except:
-            logger.info('connection table not in file yet')
-            return settings,question,error,tab_data
 
-        try:
+        # See if connection table exists in apparatus h5 file
+        with h5py.File(self.settings_path, 'r') as h5file:
+            if 'connection table' not in h5file:
+                logger.info('Front panel settings connection table not found!')
 
+                # TODO: tab_data will be passed into restore_window next, populate this  
+                return settings, question, error, tab_data
+                
+        try:
             saved_ct = ConnectionTable(self.settings_path, logging_prefix='BLACS', exceptions_in_thread=True)
             ct_match,error = self.connection_table.compare_to(saved_ct)
 
