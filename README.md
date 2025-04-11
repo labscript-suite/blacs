@@ -4,7 +4,7 @@
 
 ### Graphical interface to scientific instruments and experiment supervision
 
-[![Actions Status](https://github.com/labscript-suite/blacs/workflows/Build%20and%20Release/badge.svg?branch=maintenance%2F3.0.x)](https://github.com/labscript-suite/blacs/actions)
+[![Actions Status](https://github.com/labscript-suite/blacs/workflows/Build%20and%20Release/badge.svg)](https://github.com/labscript-suite/blacs/actions)
 [![License](https://img.shields.io/pypi/l/blacs.svg)](https://github.com/labscript-suite/blacs/raw/master/LICENSE.txt)
 [![Python Version](https://img.shields.io/pypi/pyversions/blacs.svg)](https://python.org)
 [![PyPI](https://img.shields.io/pypi/v/blacs.svg)](https://pypi.org/project/blacs)
