@@ -3,6 +3,7 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
+from labscript_utils.qtwidgets.ddsoutput import DDSOutput
 
 from blacs.tab_base_classes import PluginTab
 
@@ -22,22 +23,32 @@ class VirtualDeviceTab(PluginTab):
             if self._AOs[AO] is None:
                 chan = self._blacs_tablist[AO[0]].get_channel(AO[1])
                 orig_label = chan.name.split('-')
-                self._AOs[AO] = chan.create_widget('%s\n%s'%(AO[0]+'.'+orig_label[0], orig_label[1]), False, None)
+                virtual_label = '%s\n%s' % (AO[0]+'.'+orig_label[0], orig_label[1])
+                self._AOs[AO] = chan.create_widget(virtual_label, False, None)
                 self._AOs[AO].last_AO = None
 
         for DO in self._DOs.keys():
             if self._DOs[DO] is None:
                 self._DOs[DO] = self._blacs_tablist[DO[0]].get_channel(DO[1]).create_widget(inverted=DO[2])
                 orig_label = self._DOs[DO].text().split('\n')
-                self._DOs[DO].setText('%s\n%s'%(DO[0]+'.'+orig_label[0], orig_label[1]))
+                virtual_label = '%s\n%s' % (DO[0]+'.'+orig_label[0], orig_label[1])
+                self._DOs[DO].setText(virtual_label)
                 self._DOs[DO].last_DO = None
 
-        dds_widgets = [] # TODO
+        for DDS in self._DDSs.keys():
+            if self._DDSs[DDS] is None:
+                chan = self._blacs_tablist[DDS[0]].get_channel(DDS[1])
+                orig_label = chan.name.split(' - ')
+                self._DDSs[DDS] = DDSOutput(DDS[0]+'.'+orig_label[0], orig_label[1])
+                chan.add_widget(self._DDSs[DDS])
+                self._DDSs[DDS].last_DDS = None
 
         if len(self._AOs) > 0:
             self.place_widget_group('Analog Outputs', [v for k, v in self._AOs.items()])
         if len(self._DOs) > 0:
             self.place_widget_group('Digital Outputs', [v for k, v in self._DOs.items()])
+        if len(self._DDSs) > 0:
+            self.place_widget_group('DDS Outputs', [v for k, v in self._DDSs.items()])
 
         return
 
@@ -56,6 +67,11 @@ class VirtualDeviceTab(PluginTab):
                 new_DO = self._blacs_tablist[DO[0]].get_channel(DO[1])
                 if self._DOs[DO].get_DO() is None and self._DOs[DO].last_DO != new_DO:
                     self._DOs[DO].set_DO(new_DO)
+        for DDS in self._DDSs.keys():
+            if self._DDSs[DDS] is not None:
+                new_DDS = self._blacs_tablist[DDS[0]].get_channel(DDS[1])
+                if self._DDSs[DDS].last_DDS != new_DDS:
+                    new_DDS.add_widget(self._DDSs[DDS])
 
     def disconnect_widgets(self, closing_device_name):
         '''
@@ -70,6 +86,11 @@ class VirtualDeviceTab(PluginTab):
             if DO[0] == closing_device_name:
                 self._DOs[DO].last_DO = self._DOs[DO].get_DO()
                 self._DOs[DO].set_DO(None)
+        for DDDS in self._DDSs.keys():
+            if DDS[0] == closing_device_name:
+                old_DDS = self._blacs_tablist[DDS[0]].get_channel(DDS[1])
+                self._DDSs[DDS].last_DDS = old_DDS
+                old_DDS.remove_widget(self._DDSs[DDS])
 
     def place_widget_group(self, name, widgets):
         widget = QWidget()

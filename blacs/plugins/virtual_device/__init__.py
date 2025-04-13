@@ -205,7 +205,7 @@ class Menu(object):
             elif isinstance(channel, AO_output_class):
                 AOs.append((child, child_dev.parent_port))
             elif isinstance(channel, DDS_output_class):
-                DDSS.append((child, child_dev.parent_port))
+                DDSs.append((child, child_dev.parent_port))
 
         return AOs, DOs, DDSs
 
@@ -346,6 +346,7 @@ class Menu(object):
                                                 [new_device_item, None, None, remove_item])
             new_device_item.appendRow(QStandardItem('Analog Outputs'))
             new_device_item.appendRow(QStandardItem('Digital Outputs'))
+            new_device_item.appendRow(QStandardItem('DDS Outputs'))
 
             item.setText(self.VD_TREE_DUMMY_ROW_TEXT)
 
@@ -384,6 +385,12 @@ class Menu(object):
             for DO in vd['DO']:
                 chan = self.BLACS['ui'].blacs.tablist[DO[0]].get_channel(DO[1])
                 digital_outputs.appendRow(self.make_virtual_device_output_row(DO[0] + '.' + chan.name))
+
+            dds_outputs = QStandardItem('DDS Outputs')
+            device_item.appendRow(dds_outputs)
+            for DDS in vd['DDS']:
+                chan = self.BLACS['ui'].blacs.tablist[DDS[0]].get_channel(DDS[1])
+                dds_outputs.appendRow(self.make_virtual_device_output_row(DDS[0] + '.' + chan.name))
 
         add_vd_item = QStandardItem(self.VD_TREE_DUMMY_ROW_TEXT)
         add_vd_item.setData(True, self.VD_TREE_ROLE_IS_DUMMY_ROW)
@@ -460,6 +467,10 @@ class Menu(object):
                         DO_name = output_group.child(k).text().split(' - ')[0].split('.')
                         inverted = output_group.child(k).data(self.VD_TREE_ROLE_DO_INVERTED)
                         virtual_device_data[vd.text()]['DO'].append((DO_name[0], DO_name[1], inverted))
+                elif output_group.text() == 'DDS Outputs':
+                    for k in range(output_group.rowCount()):
+                        DDS_name = output_group.child(k).text().split(' - ')[0].split('.')
+                        virtual_device_data[vd.text()]['DDS'].append((DDS_name[0], DDS_name[1]))
 
         return virtual_device_data
 
