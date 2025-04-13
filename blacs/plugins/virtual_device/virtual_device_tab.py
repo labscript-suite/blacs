@@ -3,8 +3,9 @@ from qtutils.qt.QtGui import *
 from qtutils.qt.QtWidgets import *
 
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
-from labscript_utils.qtwidgets.ddsoutput import DDSOutput
+from labscript_utils.qtwidgets.ddsoutput import AnalogOutput, DigitalOutput, DDSOutput
 
+from blacs.tab_base_classes import PluginTab
 from blacs.tab_base_classes import PluginTab
 
 class VirtualDeviceTab(PluginTab):
@@ -86,11 +87,10 @@ class VirtualDeviceTab(PluginTab):
             if DO[0] == closing_device_name:
                 self._DOs[DO].last_DO = self._DOs[DO].get_DO()
                 self._DOs[DO].set_DO(None)
-        for DDDS in self._DDSs.keys():
+        for DDS in self._DDSs.keys():
             if DDS[0] == closing_device_name:
                 old_DDS = self._blacs_tablist[DDS[0]].get_channel(DDS[1])
                 self._DDSs[DDS].last_DDS = old_DDS
-                old_DDS.remove_widget(self._DDSs[DDS])
 
     def place_widget_group(self, name, widgets):
         widget = QWidget()
