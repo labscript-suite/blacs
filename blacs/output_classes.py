@@ -282,7 +282,9 @@ class AO(object):
             
         # Further cleanup
         widget.disconnect_value_change()
+        widget.block_combobox_signals()
         widget.set_combobox_model(QStandardItemModel())
+        widget.unblock_combobox_signals()
         
     def change_unit(self,unit,program=True):     
         # These values are always stored in base units!
@@ -492,7 +494,8 @@ class DO(object):
     def add_widget(self, widget, inverted=False):
         if widget not in self._widget_list:
             widget.set_DO(self,True,False)
-            widget.toggled.connect(self.set_value if not inverted else lambda state: self.set_value(not state))
+            widget.toggled.connect(self.set_value if not inverted else self.set_value_inverted)
+            widget.connection_inverted = inverted
             self._widget_list.append(widget)
             self.set_value(self._current_state,False)
             self._update_lock(self._locked)
@@ -503,7 +506,10 @@ class DO(object):
         if widget not in self._widget_list:
             # TODO: Make this error better!
             raise RuntimeError('The widget specified was not part of the DO object')
-        widget.toggled.disconnect(self.set_value)
+        if widget.connection_inverted:
+            widget.toggled.disconnect(self.set_value_inverted)
+        else:
+            widget.toggled.disconnect(self.set_value)
         self._widget_list.remove(widget)
         
     @property  
@@ -547,7 +553,10 @@ class DO(object):
                 widget.blockSignals(True)
                 widget.state = state
                 widget.blockSignals(False)
-   
+
+    def set_value_inverted(self,state,program=True):
+        self.set_value(not state, program)
+
     @property
     def name(self):
         return self._hardware_name + ' - ' + self._connection_name
