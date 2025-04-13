@@ -407,6 +407,7 @@ class Menu(object):
         self.virtual_device_model.appendRow([add_vd_item])
 
         edit_dialog = QDialog(self.BLACS['ui'])
+        edit_dialog.setMinimumSize(1024, 768)
         edit_dialog.setModal(True)
         edit_dialog.accepted.connect(self.on_save)
         edit_dialog.rejected.connect(self.on_cancel)
@@ -485,10 +486,13 @@ class Menu(object):
 
     def on_save(self):
         self.BLACS['plugins'][module].set_save_virtual_devices(self._encode_virtual_devices())
+        # Cleanup model in case editing window is reopened.
+        self.virtual_device_model.removeRows(0, self.virtual_device_model.rowCount())
         QMessageBox.information(self.BLACS['ui'], 'Virtual Devices Saved',
                                 'New virtual devices saved. Please restart BLACS to load new devices.')
 
     def on_cancel(self):
+        self.virtual_device_model.removeRows(0, self.virtual_device_model.rowCount())
         QMessageBox.information(self.BLACS['ui'], 'Virtual Devices Not Saved',
                                 'Editing of virtual devices canceled.')
 
