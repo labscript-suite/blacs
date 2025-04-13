@@ -168,6 +168,7 @@ class Menu(object):
     VD_TREE_COL_DELETE = 3
     VD_TREE_ROLE_IS_DUMMY_ROW = Qt.UserRole + 1
     VD_TREE_ROLE_DO_INVERTED = Qt.UserRole + 2
+    VD_TREE_ROLE_IS_VIRTUAL_DEVICE = Qt.UserRole + 3
 
     def _get_root_parent(item):
         while item.parent() is not None:
@@ -339,6 +340,7 @@ class Menu(object):
 
             new_device_item = QStandardItem(new_vd_name)
             remove_item = QStandardItem()
+            remove_item.setData(True, self.VD_TREE_ROLE_IS_VIRTUAL_DEVICE)
             remove_item.setIcon(QIcon(':qtutils/fugue/minus'))
             remove_item.setEditable(False)
             remove_item.setToolTip('Remove this virtual device')
@@ -364,6 +366,8 @@ class Menu(object):
         elif item.column() == self.VD_TREE_COL_DN:
             if index.row() < item.parent().rowCount()-1:
                 item.parent().insertRow(index.row()+1, item.parent().takeRow(index.row()))
+        elif item.data(self.VD_TREE_ROLE_IS_VIRTUAL_DEVICE) and item.column() == self.VD_TREE_COL_DELETE:
+            self.virtual_device_model.removeRows(index.row(), 1)
         elif item.column() == self.VD_TREE_COL_DELETE:
             item.parent().removeRow(index.row())
 
@@ -372,7 +376,12 @@ class Menu(object):
         # This happens here so that the tree is up to date
         for vd_name, vd in self.BLACS['plugins'][module].get_save_virtual_devices().items():
             device_item = QStandardItem(vd_name)
-            self.virtual_device_model.appendRow([device_item])
+            remove_item = QStandardItem()
+            remove_item.setData(True, self.VD_TREE_ROLE_IS_VIRTUAL_DEVICE)
+            remove_item.setIcon(QIcon(':qtutils/fugue/minus'))
+            remove_item.setEditable(False)
+            remove_item.setToolTip('Remove this virtual device')
+            self.virtual_device_model.appendRow([device_item, None, None, remove_item])
 
             analog_outputs = QStandardItem('Analog Outputs')
             device_item.appendRow(analog_outputs)
