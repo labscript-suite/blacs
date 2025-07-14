@@ -363,10 +363,15 @@ class QueueManager(object):
                 row += 1
     
     @inmain_decorator(True)
-    def append(self, h5files):
-        for file in h5files:
+    def append(self, data):
+        for datum in data:
+            file = datum["filepath"]
+
+            # TODO: this is where lyse_host stops being encoded.
+            lyse_host = datum["lyse_host"]
+
             item = QStandardItem(file)
-            item.setToolTip(file)
+            item.setToolTip(f"Filename: {file}, lyse: {lyse_host}")
             self._model.appendRow(item)
     
     @inmain_decorator(True)
@@ -374,7 +379,7 @@ class QueueManager(object):
         if not self.is_in_queue(h5file):
             self._model.insertRow(0,QStandardItem(h5file))
     
-    def process_request(self,h5_filepath):
+    def process_request(self, h5_filepath, lyse_host=''):
         # check connection table
         try:
             new_conn = ConnectionTable(h5_filepath, logging_prefix='BLACS')
@@ -388,6 +393,7 @@ class QueueManager(object):
                     rerun = True
                 else:
                     rerun = False
+            
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
                 new_h5_filepath, repeat_number = self.new_rep_name(h5_filepath)
@@ -397,11 +403,16 @@ class QueueManager(object):
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath, repeat_number=repeat_number)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
-                self.append([new_h5_filepath])
                 message = "Experiment added successfully: experiment to be re-run\n"
             else:
-                self.append([h5_filepath])
+                new_h5_filepath = h5_filepath
                 message = "Experiment added successfully\n"
+
+            data = {"filepath": new_h5_filepath, 
+                    "lyse_host": lyse_host}
+
+            self.append([data])
+
             if self.manager_paused:
                 message += "Warning: Queue is currently paused\n"
             if not self.manager_running:
@@ -853,9 +864,6 @@ class QueueManager(object):
                     # stamp with the run time of the experiment
                     hdf5_file.attrs['run time'] = run_time.strftime('%Y%m%dT%H%M%S.%f')
                     
-                    # Get lyse host name from file if present in shot file
-                    lyse_host = hdf5_file.attrs['lyse_host']
-                    
                 error_condition = False
                 response_list = {}
                 # Keep transitioning tabs to manual mode and waiting on them until they
@@ -958,6 +966,7 @@ class QueueManager(object):
                     logger.exception("Plugin callback raised an exception")
 
             # Submit to the analysis server
+            # TODO: will fail currently as lyse_host is not defined
             if send_to_analysis:
                 self.BLACS.analysis_submission.get_queue().put(['file', path, lyse_host])
 
