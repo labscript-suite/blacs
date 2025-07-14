@@ -693,20 +693,31 @@ class BLACS(object):
         self.settings.create_dialog()
 
 class ExperimentServer(ZMQServer):
-    def handler(self, h5_filepath):
-        print(h5_filepath)
-        message = self.process(h5_filepath)
+    def handler(self, data):
+        """
+        This is an override that is designed accepts remote messages
+        """
+        message = self.process(data)
         logger.info('Request handler: %s ' % message.strip())
         return message
 
     @inmain_decorator(wait_for_return=True)
-    def process(self,h5_filepath):
-        # Convert path to local slashes and shared drive prefix:
-        logger.info('received filepath: %s'%h5_filepath)
-        h5_filepath = labscript_utils.shared_drive.path_to_local(h5_filepath)
-        logger.info('local filepath: %s'%h5_filepath)
-        return app.queue.process_request(h5_filepath)
+    def process(self,data):
 
+        agnostic_path = data["agnostic_path"]
+        lyse_host = data["lyse_host"]
+
+        # Update Lyse hose
+
+        # Convert path to local slashes and shared drive prefix:
+        logger.info('received filepath: %s'%agnostic_path)
+        h5_filepath = labscript_utils.shared_drive.path_to_local(agnostic_path)
+        logger.info('local filepath: %s'%h5_filepath)
+
+        # NASTY CODE STYLE: this is in reference to the global variable `app = BLACS(qapplication)` defined below
+        # Took me 30 minutes to track down this logic.
+        # TODO: banish global variables of this type.
+        return app.queue.process_request(h5_filepath) 
 
 if __name__ == '__main__':
     if 'tracelog' in sys.argv:
