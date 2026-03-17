@@ -26,7 +26,7 @@ from qtutils import UiLoader
 from blacs import BLACS_DIR
 from blacs.tab_base_classes import Tab, Worker, define_state
 from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED
-from blacs.output_classes import AO, DO, DDS, Image
+from blacs.output_classes import AO, DO, DDS, Image, EO
 from labscript_utils.qtwidgets.toolpalette import ToolPaletteGroup
 from labscript_utils.shared_drive import path_to_agnostic
 
@@ -41,6 +41,7 @@ class DeviceTab(Tab):
         self._DO = {}
         self._DDS = {}
         self._image = {}
+        self._EO = {}
         
         self._final_values = {}
         self._last_programmed_values = {}
@@ -151,6 +152,13 @@ class DeviceTab(Tab):
     #                             },
     #                     }
     #
+    #
+    # eo_properties = {'hardware_channel_reference': {'options':['option 1', 'option 2']},
+    #                  'eo1': {'options': {'option 1': {'index': 0, 'tooltip': 'description 1'},
+    #                                      'option 2': {'index': 3, 'tooltip': 'description 2'},
+    #                                      'option 3': 1},
+    #                          'return_index': True}}
+
     def create_digital_outputs(self,digital_properties):
         for hardware_name,properties in digital_properties.items():
             # Save the DO object
@@ -222,7 +230,16 @@ class DeviceTab(Tab):
                 sub_chnls['gate'] = self._create_DO_object(connection_name,hardware_name+'_gate','gate',properties)
             
             self._DDS[hardware_name] = DDS(hardware_name,connection_name,sub_chnls)
-    
+
+    def create_enum_outputs(self, eo_properties):
+        for output_name, properties in eo_properties.items():
+            self._EO[output_name] = self._create_EO_object(self.device_name, output_name, properties)
+
+    def _create_EO_object(self, parent_device, device_property, properties):
+        properties.setdefault('return_index', False)
+        return EO(device_property, parent_device, self.device_name, self.program_device, self.settings,
+                    properties['options'], properties['return_index'])
+
     def get_child_from_connection_table(self, parent_device_name, port):
         return self.connection_table.find_child(parent_device_name, port)
     
@@ -270,6 +287,23 @@ class DeviceTab(Tab):
                 widgets[hardware_name] = self._DDS[hardware_name].create_widget(*properties['args'],**properties['kwargs'])
         
         return widgets
+    
+    def create_enum_widgets(self,device_properties):
+
+        widgets = {}
+        for output_name, properties in device_properties.items():
+            properties.setdefault('display_name',output_name)
+            properties.setdefault('horizontal_alignment',False)
+            properties.setdefault('parent',None)
+            widgets[output_name] = self._EO[output_name].create_widget(properties['display_name'], properties['horizontal_alignment'], properties['parent'])
+
+        return widgets
+    
+    def auto_create_enum_widgets(self):
+        eo_properties = {}
+        for channel,_ in self._EO.items():
+            eo_properties[channel] = {}
+        return self.create_enum_widgets(eo_properties)
     
     def auto_create_widgets(self):
         dds_properties = {}
@@ -361,7 +395,7 @@ class DeviceTab(Tab):
         self.restore_save_data(settings['saved_data'])
     
         self.settings = settings
-        for output in [self._AO, self._DO, self._image]:
+        for output in [self._AO, self._DO, self._image, self._EO]:
             for name,channel in output.items():
                 if not channel._locked:
                     channel._update_from_settings(settings)
@@ -374,8 +408,8 @@ class DeviceTab(Tab):
                         subchnl._update_from_settings(settings)
     
     def get_front_panel_values(self):
-        return {channel:item.value for output in [self._AO,self._DO,self._image,self._DDS] for channel,item in output.items()}
-    
+        return {channel:item.value for output in [self._AO,self._DO,self._image,self._DDS,self._EO] for channel,item in output.items()}
+
     def get_channel(self,channel):
         if channel in self._AO:
             return self._AO[channel]
@@ -385,6 +419,8 @@ class DeviceTab(Tab):
             return self._image[channel]
         elif channel in self._DDS:
             return self._DDS[channel]
+        elif channel in self._EO:
+            return self._EO[channel]
         else:
             return None
             
@@ -517,6 +553,16 @@ class DeviceTab(Tab):
                     changed = True
                     ui = UiLoader().load(os.path.join(BLACS_DIR, 'tab_value_changed.ui'))
                     ui.channel_label.setText(self._AO[channel].name)
+                    ui.front_value.setText(front_value)
+                    ui.remote_value.setText(remote_value)
+            elif channel in self._EO:
+                # very easy case, values are strings
+                front_value = str(self._last_programmed_values[channel])
+                remote_value = str(remote_value)
+                if front_value != remote_value:
+                    changed = True
+                    ui = UiLoader().load(os.path.join(BLACS_DIR, 'tab_value_changed.ui'))
+                    ui.channel_label.setText(self._EO[channel].name)
                     ui.front_value.setText(front_value)
                     ui.remote_value.setText(remote_value)
             else:
@@ -666,7 +712,8 @@ class DeviceTab(Tab):
                 self._image[channel].set_value(value,program=False)
             elif channel in self._DDS:
                 self._DDS[channel].set_value(value,program=False)
-        
+            elif channel in self._EO:
+                self._EO[channel].set_value(value,program=False)
         
             
         if success:
@@ -707,7 +754,7 @@ class DeviceWorker(Worker):
         
     def program_manual(self,front_panel_values):
         for channel,value in front_panel_values.items():
-            if type(value) != type(True):
+            if isinstance(value, float):
                 front_panel_values[channel] += 0.001
         self.fpv = front_panel_values
         return front_panel_values
@@ -715,10 +762,12 @@ class DeviceWorker(Worker):
     def check_remote_values(self):
         front_panel_values = {}
         for channel,value in self.fpv.items():
-            if type(value) != type(True):
+            if isinstance(value, float):
                 front_panel_values[channel] = value + 1.1
-            else:
+            elif isinstance(value, bool):
                 front_panel_values[channel] = not value
+            else:
+                front_panel_values[channel] = value
         
         if not front_panel_values:
             front_panel_values['ao0'] = 0
@@ -728,7 +777,7 @@ class DeviceWorker(Worker):
     def transition_to_buffered(self,device_name,h5file,front_panel_values,refresh):
         time.sleep(3)
         for channel,value in front_panel_values.items():
-            if type(value) != type(True):
+            if isinstance(value, float):
                 front_panel_values[channel] += 0.003
         return front_panel_values
         
@@ -766,10 +815,10 @@ if __name__ == '__main__':
 if __name__ == '__main__':
     # Test case!
     
-    from connections import ConnectionTable
+    from labscript_utils.connections import ConnectionTable
     from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
     
-    class MyTab(DeviceTab):
+    class MyDAQTab(DeviceTab):
         
         def initialise_GUI(self):
             # Create Digital Output Objects
@@ -821,8 +870,79 @@ if __name__ == '__main__':
             button2 = QPushButton("Transition to Manual")
             button2.clicked.connect(lambda: self.transition_to_manual(Queue()))
             self.get_tab_layout().addWidget(button2)
+
+    class MyDummyTab(DeviceTab):
+        
+        def initialise_GUI(self):
+            # Create Digital Output Objects
+            do_prop = {}
+            for i in range(1):
+                do_prop['port0/line%d'] = {}
+            self.create_digital_outputs(do_prop)
+                
+            # Create Analog Output objects
+            ao_prop = {}
+            for i in range(1):
+                ao_prop['ao%d'%i] = {'base_unit':'V',
+                                     'min':-10.0,
+                                     'max':10.0,
+                                     'step':0.01,
+                                     'decimals':3
+                                    }            
+            self.create_analog_outputs(ao_prop)
+
+            eo_prop = {
+                'Enum1':{
+                    'options':['option 1', 'option 2'],
+                    'return_index':True,
+                },
+                'Enum2':{
+                    'options':{
+                        'option 1':{'index':2, 'tooltip':'description 1'},
+                        'option 2':4,
+                    }
+                }
+            }
+            self.create_enum_outputs(eo_prop)
+
+            # Create widgets for output objects
+            dds_widgets,ao_widgets,do_widgets = self.auto_create_widgets()
+            eo_widgets = self.auto_create_enum_widgets()
+            
+            # This function allows you do sort the order of widgets by hardware name.
+            # it is pass to the Python 'sorted' function as key=sort when passed in as 
+            # the 3rd item of a tuple p(the tuple being an argument of self.auto_place_widgets()
+            #
+            # This function takes the channel name (hardware name) and returns a string (or whatever) 
+            # that when sorted alphabetically, returns the correct order
+            def sort(channel):
+                port,line = channel.replace('port','').replace('line','').split('/')
+                port,line = int(port),int(line)
+                return '%02d/%02d'%(port,line)
+            
+            # and auto place them in the UI
+            self.auto_place_widgets(("DDS Outputs",dds_widgets),
+                                    ("Analog Outputs",ao_widgets),
+                                    ("Digital Outputs - Port 0",do_widgets),
+                                    ('Enums', eo_widgets))
+            
+            # Set the primary worker
+            self.create_worker("my_worker_name",DeviceWorker,{})
+            self.primary_worker = "my_worker_name"    
+            self.create_worker("my_secondary_worker_name",DeviceWorker,{})
+            self.add_secondary_worker("my_secondary_worker_name")
     
-    connection_table = ConnectionTable(r'example_connection_table.h5')
+            self.supports_remote_value_check(True)
+    
+            # Create buttons to test things!
+            button1 = QPushButton("Transition to Buffered")
+            button1.clicked.connect(lambda: self.transition_to_buffered('',Queue()))
+            self.get_tab_layout().addWidget(button1)
+            button2 = QPushButton("Transition to Manual")
+            button2.clicked.connect(lambda: self.transition_to_manual(Queue()))
+            self.get_tab_layout().addWidget(button2)
+    
+    connection_table = ConnectionTable('../tests/device_base_classes_connection_table.h5')
     
     class MyWindow(QWidget):
         
@@ -833,14 +953,11 @@ if __name__ == '__main__':
         def closeEvent(self,event):
             if not self.are_we_closed:        
                 event.ignore()
-                self.my_tab.shutdown()
+                self.my_tab.close_tab()
                 self.are_we_closed = True
                 QTimer.singleShot(1000,self.close)
             else:
-                if not self.my_tab.shutdown_complete: 
-                    QTimer.singleShot(1000,self.close)                    
-                else:
-                    event.accept()
+                event.accept()
     
         def add_my_tab(self,tab):
             self.my_tab = tab
@@ -851,7 +968,8 @@ if __name__ == '__main__':
     notebook = DragDropTabWidget()
     layout.addWidget(notebook)
     
-    tab1 = MyTab(notebook,settings = {'device_name': 'ni_pcie_6363_0', 'connection_table':connection_table})
+    tab1 = MyDAQTab(notebook,settings = {'device_name': 'ni_pcie_6363_0', 'connection_table':connection_table})
+    tab2 = MyDummyTab(notebook,settings = {'device_name': 'intermediate_device', 'connection_table':connection_table})
     window.add_my_tab(tab1)
     window.show()
     def run():
