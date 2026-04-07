@@ -23,8 +23,9 @@ from tempfile import gettempdir
 from binascii import hexlify
 
 from qtutils.qt.QtCore import Qt, QItemSelectionModel
-from qtutils.qt.QtGui import QIcon, QAction, QStandardItemModel, QStandardItem
+from qtutils.qt.QtGui import QIcon, QStandardItemModel, QStandardItem
 from qtutils.qt.QtWidgets import (
+    QAction,
     QTreeView,
     QMenu,
     QFileDialog,
@@ -997,4 +998,3 @@ class QueueManager(object):
 
             self.set_status("Idle")
         logger.info('Stopping')
-
