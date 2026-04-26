@@ -997,4 +997,3 @@ class QueueManager(object):
 
             self.set_status("Idle")
         logger.info('Stopping')
-
