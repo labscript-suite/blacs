@@ -1,4 +1,4 @@
 {
     "product_name": "Labscript Suite",
-    "modules": {"blacs": {"display_name": "BLACS - the labscript suite"}}
+    "modules": {"blacs": {"display_name": "BLACS - the labscript suite", "short_display_name": "BLACS"}}
 }
