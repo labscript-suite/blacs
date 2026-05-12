@@ -15,15 +15,18 @@
 import labscript_utils.excepthook
 
 import os
+from blacs import APPLICATION_NAME, BLACS_DIR, DESKTOP_APP_MODULE
 
 # Associate app windows with OS menu shortcuts:
 import desktop_app
-desktop_app.set_process_appid('blacs')
+desktop_app.set_process_appid(DESKTOP_APP_MODULE)
 
 
 # Splash screen
 from labscript_utils.splash import Splash
-splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.svg'))
+splash = Splash(
+    os.path.join(BLACS_DIR, 'blacs.svg'), application_name=APPLICATION_NAME
+)
 splash.show()
 
 splash.update_text('importing standard library modules')
@@ -72,11 +75,11 @@ import blacs
 
 
 process_tree = ProcessTree.instance()
-process_tree.zlock_client.set_process_name('BLACS')
+process_tree.zlock_client.set_process_name(APPLICATION_NAME)
 
 
 # Setup logging
-logger = setup_logging('BLACS')
+logger = setup_logging(APPLICATION_NAME)
 labscript_utils.excepthook.set_logger(logger)
 
 logger.info(f'Python version {sys.version}')
