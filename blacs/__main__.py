@@ -15,15 +15,18 @@
 import labscript_utils.excepthook
 
 import os
+from blacs import APPLICATION_NAME, BLACS_DIR, DESKTOP_APP_MODULE
 
 # Associate app windows with OS menu shortcuts:
 import desktop_app
-desktop_app.set_process_appid('blacs')
+desktop_app.set_process_appid(DESKTOP_APP_MODULE)
 
 
 # Splash screen
 from labscript_utils.splash import Splash
-splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.svg'))
+splash = Splash(
+    os.path.join(BLACS_DIR, 'blacs.svg'), application_name=APPLICATION_NAME
+)
 splash.show()
 
 splash.update_text('importing standard library modules')
@@ -72,11 +75,11 @@ import blacs
 
 
 process_tree = ProcessTree.instance()
-process_tree.zlock_client.set_process_name('BLACS')
+process_tree.zlock_client.set_process_name(APPLICATION_NAME)
 
 
 # Setup logging
-logger = setup_logging('BLACS')
+logger = setup_logging(APPLICATION_NAME)
 labscript_utils.excepthook.set_logger(logger)
 
 logger.info(f'Python version {sys.version}')
@@ -99,6 +102,7 @@ from labscript_utils.connections import ConnectionTable
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
 from labscript_utils.labconfig import LabConfig
+from labscript_utils.plugins import MenuBuilder
 from labscript_profile import hostname
 # Analysis Submission code
 from blacs.analysis_submission import AnalysisSubmission
@@ -134,11 +138,7 @@ class BLACSWindow(QMainWindow):
                 self.blacs.queue.manager_running = False
                 self.blacs.settings.close()
                 experiment_server.shutdown()
-                for module_name, plugin in self.blacs.plugins.items():
-                    try:
-                        plugin.close()
-                    except Exception as e:
-                        logger.error('Could not close plugin %s. Error was: %s'%(module_name,str(e)))
+                plugins.manager.close_plugins()
 
                 inmain_later(self.blacs.on_save_exit)
 
@@ -308,37 +308,46 @@ class BLACS(object):
         splash.update_text('instantiating plugins')
         logger.info('Instantiating plugins')
         # setup the plugin system
-        settings_pages = []
-        self.plugins = {}
         plugin_settings = eval(tab_data['BLACS settings']['plugin_data']) if 'plugin_data' in tab_data['BLACS settings'] else {}
-        for module_name, module in plugins.modules.items():
-            try:
-                # instantiate the plugin
-                self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})
-            except Exception:
-                logger.exception('Could not instantiate plugin \'%s\'. Skipping' % module_name)
+        self.plugins = plugins.manager.instantiate_plugins(plugin_settings)
 
         logger.info('creating plugin tabs')
         # setup the plugin tabs
         for module_name, plugin in self.plugins.items():
             try:
                 if hasattr(plugin, 'get_tab_classes'):
+                    logger.warning(
+                        "Plugin '%s' is using deprecated BLACS-only tab hooks "
+                        "get_tab_classes()/tabs_created(). These hooks remain "
+                        "supported for compatibility, but new UI integration "
+                        "should use application-owned plugin contexts instead.",
+                        module_name,
+                    )
                     tab_dict = {}
 
                     for tab_name, TabClass in plugin.get_tab_classes().items():
                         settings_key = "{}: {}".format(module_name, tab_name)
                         self.settings_dict.setdefault(settings_key, {"tab_name": tab_name})
-                        self.settings_dict[settings_key]["front_panel_settings"] = settings[settings_key] if settings_key in settings else {}
-                        self.settings_dict[settings_key]["saved_data"] = tab_data[settings_key]['data'] if settings_key in tab_data else {}
+                        self.settings_dict[settings_key]["front_panel_settings"] = (
+                            settings[settings_key] if settings_key in settings else {}
+                        )
+                        self.settings_dict[settings_key]["saved_data"] = (
+                            tab_data[settings_key]['data'] if settings_key in tab_data else {}
+                        )
 
-                        self.tablist[settings_key] = TabClass(self.tab_widgets[0], self.settings_dict[settings_key])
+                        self.tablist[settings_key] = TabClass(
+                            self.tab_widgets[0],
+                            self.settings_dict[settings_key],
+                        )
                         tab_dict[tab_name] = self.tablist[settings_key]
 
                     if hasattr(plugin, 'tabs_created'):
                         plugin.tabs_created(tab_dict)
 
             except Exception:
-                logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping')
+                logger.exception(
+                    "Could not instantiate tab for plugin '%s'. Skipping" % module_name
+                )
 
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
@@ -376,58 +385,17 @@ class BLACS(object):
                       'experiment_queue':self.queue
                      }
 
-        def create_menu(parent, menu_parameters):
-            if 'name' in menu_parameters:
-                if 'menu_items' in menu_parameters:
-                    child = parent.addMenu(menu_parameters['name'])
-                    for child_menu_params in menu_parameters['menu_items']:
-                        create_menu(child,child_menu_params)
-                else:
-                    if 'icon' in menu_parameters:
-                        child = parent.addAction(QIcon(menu_parameters['icon']), menu_parameters['name'])
-                    else:
-                        child = parent.addAction(menu_parameters['name'])
-
-                if 'action' in menu_parameters:
-                    child.triggered.connect(menu_parameters['action'])
-
-            elif 'separator' in menu_parameters:
-                parent.addSeparator()
-
         # setup the Notification system
         logger.info('setting up notification system')
         splash.update_text('setting up notification system')
         self.notifications = Notifications(blacs_data)
 
-        settings_callbacks = []
-        for module_name, plugin in self.plugins.items():
-            try:
-                # Setup settings page
-                settings_pages.extend(plugin.get_setting_classes())
-                # Setup menu
-                if plugin.get_menu_class():
-                    # must store a reference or else the methods called when the menu actions are triggered
-                    # (contained in this object) will be garbaged collected
-                    menu = plugin.get_menu_class()(blacs_data)
-                    create_menu(self.ui.menubar,menu.get_menu_items())
-                    plugin.set_menu_instance(menu)
-
-                # Setup notifications
-                plugin_notifications = {}
-                for notification_class in plugin.get_notification_classes():
-                    self.notifications.add_notification(notification_class)
-                    plugin_notifications[notification_class] = self.notifications.get_instance(notification_class)
-                plugin.set_notification_instances(plugin_notifications)
-
-                # Register callbacks
-                callbacks = plugin.get_callbacks()
-                # save the settings_changed callback in a separate list for setting up later
-                if isinstance(callbacks,dict) and 'settings_changed' in callbacks:
-                    settings_callbacks.append(callbacks['settings_changed'])
-
-            except Exception:
-                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
-
+        settings_pages, settings_callbacks = plugins.manager.setup_plugins(
+            blacs_data,
+            self.notifications,
+            MenuBuilder(QIcon),
+            self.ui.menubar,
+        )
 
         # setup the BLACS preferences system
         splash.update_text('setting up preferences system')
@@ -439,17 +407,7 @@ class BLACS(object):
         # update the blacs_data dictionary with the settings system
         blacs_data['settings'] = self.settings
 
-        for module_name, plugin in self.plugins.items():
-            try:
-                plugin.plugin_setup_complete(blacs_data)
-            except Exception:
-                logger.exception('Error in plugin_setup_complete() for plugin \'%s\'. Trying again with old call signature...' % module_name)
-                # backwards compatibility for old plugins
-                try:
-                    plugin.plugin_setup_complete()
-                    logger.warning('Plugin \'%s\' using old API. Please update Plugin.plugin_setup_complete method to accept a dictionary of blacs_data as the only argument.'%module_name)
-                except Exception:
-                    logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
+        plugins.manager.setup_complete(blacs_data)
 
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
