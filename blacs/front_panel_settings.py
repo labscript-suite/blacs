@@ -345,7 +345,7 @@ class FrontPanelSettings(object):
 
         front_panel_list = []
         other_data_list = []
-        front_panel_dtype = [('name','a256'),('device_name','a256'),('channel','a256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','a256')]
+        front_panel_dtype = [('name','S256'),('device_name','S256'),('channel','S256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','S256')]
         max_od_length = 2 # empty dictionary
 
         # Iterate over each device within a class
@@ -384,7 +384,7 @@ class FrontPanelSettings(object):
 
         # Save tab data
         i = 0
-        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','a256'),('notebook','a2'),('page',int),('visible',bool),('data','a'+str(max_od_length))])
+        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','S256'),('notebook','S2'),('page',int),('visible',bool),('data','S'+str(max_od_length))])
         for device_name,data in notebook_data.items():
             tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
             i += 1
