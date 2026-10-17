@@ -27,6 +27,7 @@ splash = Splash(os.path.join(os.path.dirname(__file__), 'blacs.svg'))
 splash.show()
 
 splash.update_text('importing standard library modules')
+import inspect
 import subprocess
 import sys
 import time
@@ -440,16 +441,25 @@ class BLACS(object):
         blacs_data['settings'] = self.settings
 
         for module_name, plugin in self.plugins.items():
+            # Work out which call signature the plugin uses before calling it.
+            # Detecting the old no-argument API by letting a call fail would
+            # re-run whatever side effects a plugin_setup_complete() that got
+            # partway through had already performed.
+            setup_complete = plugin.plugin_setup_complete
             try:
-                plugin.plugin_setup_complete(blacs_data)
-            except Exception:
-                logger.exception('Error in plugin_setup_complete() for plugin \'%s\'. Trying again with old call signature...' % module_name)
+                inspect.signature(setup_complete).bind(blacs_data)
+                args = (blacs_data,)
+            except TypeError:
                 # backwards compatibility for old plugins
-                try:
-                    plugin.plugin_setup_complete()
-                    logger.warning('Plugin \'%s\' using old API. Please update Plugin.plugin_setup_complete method to accept a dictionary of blacs_data as the only argument.'%module_name)
-                except Exception:
-                    logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
+                args = ()
+                logger.warning('Plugin \'%s\' using old API. Please update Plugin.plugin_setup_complete method to accept a dictionary of blacs_data as the only argument.'%module_name)
+            except ValueError:
+                # No introspectable signature; assume the current API.
+                args = (blacs_data,)
+            try:
+                setup_complete(*args)
+            except Exception:
+                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
 
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)

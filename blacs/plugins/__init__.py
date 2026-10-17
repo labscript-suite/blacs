@@ -87,11 +87,26 @@ for module_name in os.listdir(PLUGINS_DIR):
     if os.path.isdir(os.path.join(PLUGINS_DIR, module_name)) and module_name != '__pycache__':
         # is it a new plugin?
         # If so lets add it to the config
-        if not module_name in [name for name, val in exp_config.items('BLACS/plugins')]:
+        if not exp_config.has_option('BLACS/plugins', module_name):
             exp_config.set('BLACS/plugins', module_name, str(module_name in default_plugins))
 
+        try:
+            enabled = exp_config.getboolean('BLACS/plugins', module_name)
+        except ValueError:
+            # Config sections inherit [DEFAULT], so a labconfig default whose
+            # name collides with a plugin directory is read here as that
+            # plugin's enable flag. Write a real flag into the section, which
+            # shadows the inherited value, rather than letting a path or other
+            # non-boolean default abort BLACS startup.
+            logger.warning(
+                "Plugin '%s' shares its name with a labconfig [DEFAULT] key; "
+                "using the default enabled state." % module_name
+            )
+            exp_config.set('BLACS/plugins', module_name, str(module_name in default_plugins))
+            enabled = module_name in default_plugins
+
         # only load activated plugins
-        if exp_config.getboolean('BLACS/plugins', module_name):
+        if enabled:
             try:
                 module = importlib.import_module('blacs.plugins.'+module_name)
             except Exception:
