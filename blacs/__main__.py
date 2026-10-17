@@ -441,10 +441,7 @@ class BLACS(object):
         blacs_data['settings'] = self.settings
 
         for module_name, plugin in self.plugins.items():
-            # Work out which call signature the plugin uses before calling it.
-            # Detecting the old no-argument API by letting a call fail would
-            # re-run whatever side effects a plugin_setup_complete() that got
-            # partway through had already performed.
+            # Call plugin_setup_complete once, with the arguments its signature accepts.
             setup_complete = plugin.plugin_setup_complete
             try:
                 inspect.signature(setup_complete).bind(blacs_data)

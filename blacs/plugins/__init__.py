@@ -93,11 +93,9 @@ for module_name in os.listdir(PLUGINS_DIR):
         try:
             enabled = exp_config.getboolean('BLACS/plugins', module_name)
         except ValueError:
-            # Config sections inherit [DEFAULT], so a labconfig default whose
-            # name collides with a plugin directory is read here as that
-            # plugin's enable flag. Write a real flag into the section, which
-            # shadows the inherited value, rather than letting a path or other
-            # non-boolean default abort BLACS startup.
+            # The section inherits the labconfig [DEFAULT] keys, so a plugin with the
+            # same name as one of them reads that key's value here. An option set in
+            # the section itself overrides the inherited value.
             logger.warning(
                 "Plugin '%s' shares its name with a labconfig [DEFAULT] key; "
                 "using the default enabled state." % module_name
