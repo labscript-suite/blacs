@@ -443,10 +443,10 @@ class DeviceTab(Tab):
         # get rid of any "remote values changed" dialog
         self._changed_widget.hide()
         
-        results = yield(self.queue_work(self._primary_worker,'program_manual',self._last_programmed_values))
-        for worker in self._secondary_workers:
-            if results:
-                returned_results = yield(self.queue_work(worker,'program_manual',self._last_programmed_values))
+        results = {}
+        for worker in [self._primary_worker] + self._secondary_workers:
+            returned_results = yield(self.queue_work(worker,'program_manual',self._last_programmed_values))
+            if returned_results:
                 results.update(returned_results)
         
         # If the worker process returns something, we assume it wants us to coerce the front panel values
@@ -468,11 +468,12 @@ class DeviceTab(Tab):
     
     @define_state(MODE_MANUAL,True)
     def check_remote_values(self):
-        self._last_remote_values = yield(self.queue_work(self._primary_worker,'check_remote_values'))
-        for worker in self._secondary_workers:
-            if self._last_remote_values:
-                returned_results = yield(self.queue_work(worker,'check_remote_values'))
-                self._last_remote_values.update(returned_results)
+        remote_values = {}
+        for worker in [self._primary_worker] + self._secondary_workers:
+            returned_results = yield(self.queue_work(worker,'check_remote_values'))
+            if returned_results:
+                remote_values.update(returned_results)
+        self._last_remote_values = remote_values
         
         # compare to current front panel values and prompt the user if they don't match
         # We compare to the last_programmed values so that it doesn't get confused if the user has changed the value on the front panel
@@ -480,7 +481,7 @@ class DeviceTab(Tab):
         
         # If no results were returned, raise an exception so that we don't keep calling this function over and over again, 
         # filling up the text box with the same error, eventually consuming all CPU/memory of the PC
-        if not self._last_remote_values or not isinstance(self._last_programmed_values, dict):
+        if not self._last_remote_values:
             raise Exception('Failed to get remote values from device. Is it still connected?')
             
         # A variable to indicate if any of the channels have a changed value
