@@ -35,6 +35,8 @@ from pathlib import Path
 import platform
 import importlib.metadata
 WINDOWS = platform.system() == 'Windows'
+# Seconds to wait for the queue manager to finish the current shot when BLACS is closed
+QUEUE_STOP_TIMEOUT = 30
 
 # No splash update for Qt - the splash code has already imported it:
 from qtutils import inmain_decorator, inmain_later, inmain, inthread, UiLoader
@@ -129,10 +131,18 @@ class BLACSWindow(QMainWindow):
                 subprocess.Popen([sys.executable] + sys.argv)
         else:
             event.ignore()
-            logger.info('destroy called')
             if not self.blacs.exiting:
+                logger.info('destroy called')
                 self.blacs.exiting = True
-                self.blacs.queue.manager_running = False
+                self.blacs.queue.stop()
+                self.blacs.queue_stop_deadline = time.time() + QUEUE_STOP_TIMEOUT
+            elif not self.blacs.exit_started and (
+                not self.blacs.queue.manager.is_alive()
+                or time.time() > self.blacs.queue_stop_deadline
+            ):
+                if self.blacs.queue.manager.is_alive():
+                    logger.warning('Queue manager did not stop, exiting anyway')
+                self.blacs.exit_started = True
                 self.blacs.settings.close()
                 experiment_server.shutdown()
                 for module_name, plugin in self.blacs.plugins.items():
@@ -231,6 +241,8 @@ class BLACS(object):
         #self.qt_application.aboutToQuit.connect(self.destroy)
         self._relaunch = False
         self.exiting = False
+        self.exit_started = False
+        self.queue_stop_deadline = None
         self.exit_complete = False
 
         logger.info('Loading BLACS ui')
