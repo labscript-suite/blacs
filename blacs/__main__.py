@@ -39,7 +39,7 @@ WINDOWS = platform.system() == 'Windows'
 # No splash update for Qt - the splash code has already imported it:
 from qtutils import inmain_decorator, inmain_later, inmain, inthread, UiLoader
 import qtutils.icons  # import has side-effects we rely on
-from qtutils.qt.QtCore import QTimer, Qt, qVersion, QEvent
+from qtutils.qt.QtCore import QTimer, Qt, qVersion, QEvent, QByteArray
 from qtutils.qt.QtGui import QIcon, QColor, QPalette
 from qtutils.qt.QtWidgets import (
     QMainWindow,
@@ -488,40 +488,49 @@ class BLACS(object):
         self._relaunch = bool(value)
 
     def restore_window(self,tab_data):
-        # read out position settings:
+        """Restore the main window geometry and the splitter positions from the
+        saved settings. Settings that are missing are left at their defaults."""
+        settings = tab_data['BLACS settings']
         try:
-            # There are some dodgy hacks going on here to try and restore the window position correctly
-            # Unfortunately Qt has two ways of measuring teh window position, one with the frame/titlebar
-            # and one without. If you use the one that measures including the titlebar, you don't
-            # know what the window size was when the window was UNmaximized.
-            #
-            # Anyway, no idea if this works cross platform (tested on windows 8)
-            # Feel free to rewrite this, along with the code in front_panel_settings.py
-            # which stores the values
-            #
-            # Actually this is a waste of time because if you close when maximized, reoopen and then
-            # de-maximize, the window moves to a random position (not the position it was at before maximizing)
-            # so bleh!
-            self.ui.move(
-                tab_data['BLACS settings']["window_xpos"]
-                - tab_data['BLACS settings']['window_frame_width'] // 2,
-                tab_data['BLACS settings']["window_ypos"]
-                - tab_data['BLACS settings']['window_frame_height']
-                + tab_data['BLACS settings']['window_frame_width'] // 2,
-            )
-            self.ui.resize(
-                tab_data['BLACS settings']["window_width"],
-                tab_data['BLACS settings']["window_height"],
-            )
-
-            if 'window_maximized' in tab_data['BLACS settings'] and tab_data['BLACS settings']['window_maximized']:
-                self.ui.showMaximized()
+            if 'window_geometry' in settings:
+                self.ui.restoreGeometry(QByteArray(bytes(settings['window_geometry'])))
+                self.move_window_onto_screen()
+            elif 'window_xpos' in settings:
+                self.ui.move(
+                    settings["window_xpos"] - settings['window_frame_width'] // 2,
+                    settings["window_ypos"]
+                    - settings['window_frame_height']
+                    + settings['window_frame_width'] // 2,
+                )
+                self.ui.resize(settings["window_width"], settings["window_height"])
+                self.move_window_onto_screen()
+                if settings.get('window_maximized', False):
+                    self.ui.showMaximized()
 
             for pane_name,pane in self.panes.items():
-                pane.setSizes(tab_data['BLACS settings'][pane_name])
+                if pane_name in settings:
+                    pane.setSizes(settings[pane_name])
 
         except Exception as e:
             logger.exception("Unable to load window and notebook defaults. Exception:"+str(e))
+
+    def move_window_onto_screen(self):
+        """If the main window frame does not intersect the available area of any
+        screen, move it to the top left of the primary screen's available area,
+        reducing its size to fit if necessary."""
+        frame = self.ui.frameGeometry()
+        for screen in QApplication.screens():
+            if frame.intersects(screen.availableGeometry()):
+                return
+        available = QApplication.primaryScreen().availableGeometry()
+        logger.info('Saved window position %s is not on any screen, moving to %s' % (frame, available))
+        frame_width = frame.width() - self.ui.width()
+        frame_height = frame.height() - self.ui.height()
+        self.ui.resize(
+            min(self.ui.width(), available.width() - frame_width),
+            min(self.ui.height(), available.height() - frame_height),
+        )
+        self.ui.move(available.topLeft())
 
     def order_tabs(self,tab_data):
         # Move the tabs to the correct notebook

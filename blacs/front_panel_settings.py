@@ -236,7 +236,8 @@ class FrontPanelSettings(object):
 
         # save window data
         # Size of window
-        window_data["_main_window"] = {"width":self.window.normalGeometry().width(),
+        window_data["_main_window"] = {"geometry":self.window.saveGeometry().data(),
+                                       "width":self.window.normalGeometry().width(),
                                        "height":self.window.normalGeometry().height(),
                                        "xpos":self.window.normalGeometry().x(),
                                        "ypos":self.window.normalGeometry().y(),
@@ -391,6 +392,8 @@ class FrontPanelSettings(object):
 
         # Save BLACS Main GUI Info
         dataset = data_group.create_dataset("_notebook_data",data=tab_data)
+        # An opaque HDF5 type keeps the null bytes in the geometry intact
+        dataset.attrs["window_geometry"] = numpy.void(window_data["_main_window"]["geometry"])
         dataset.attrs["window_width"] = window_data["_main_window"]["width"]
         dataset.attrs["window_height"] = window_data["_main_window"]["height"]
         dataset.attrs["window_xpos"] = window_data["_main_window"]["xpos"]
