@@ -893,7 +893,7 @@ class QueueManager(object):
                         while transition_list:
                             logger.info('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
                             try:
-                                name, result = self.current_queue.get(2)
+                                name, result = self.current_queue.get(timeout=2)
                                 if name == 'Queue Manager' and result == 'abort':
                                     # Ignore any abort signals left in the queue, it is too
                                     # late to abort in any case:
@@ -905,7 +905,11 @@ class QueueManager(object):
                                     if self.get_device_error_state(name, transition_list):
                                         error_condition = True
                                         logger.debug('%s is in an error state' % name)
+                                        inmain(transition_list[name].disconnect_restart_receiver, restart_function)
                                         del transition_list[name]
+                                continue
+                            if name not in transition_list:
+                                # A late response from a device already removed above
                                 continue
                             response_list[name] = result
                             if result == 'fail':
