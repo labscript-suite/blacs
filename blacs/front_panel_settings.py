@@ -28,6 +28,20 @@ def _ensure_str(s):
     """convert bytestrings and numpy strings to python strings"""
     return s.decode() if isinstance(s, bytes) else str(s)
 
+# Names that the repr of numpy scalars, arrays, inf and nan refer to
+_SAVE_DATA_NAMESPACE = {
+    'np': numpy, 'numpy': numpy, 'array': numpy.array, 'inf': numpy.inf, 'nan': numpy.nan
+}
+
+def eval_save_data(text, description):
+    """Evaluate the repr of a saved settings dictionary. Returns an empty dictionary,
+    and logs a warning naming `description`, if the text cannot be evaluated."""
+    try:
+        return eval(_ensure_str(text), dict(_SAVE_DATA_NAMESPACE))
+    except Exception as e:
+        logger.warning('Could not load %s, ignoring it: %s', description, e)
+        return {}
+
 class FrontPanelSettings(object):
     def __init__(self,settings_path,connection_table):
         self.settings_path = settings_path
@@ -86,11 +100,8 @@ class FrontPanelSettings(object):
 
                 for row in dataset:
                     tab_name = _ensure_str(row['tab_name'])
-                    tab_data.setdefault(tab_name,{})
-                    try:
-                        tab_data[tab_name] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(_ensure_str(row['data']))}
-                    except Exception:
-                        logger.info("Could not load tab data for %s"%tab_name)
+                    data = eval_save_data(row['data'], 'the saved tab data for %s' % tab_name)
+                    tab_data[tab_name] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':data}
 
                 #now get dataset attributes
                 tab_data['BLACS settings'] = dict(dataset.attrs)
