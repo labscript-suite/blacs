@@ -13,6 +13,7 @@
 import queue
 import logging
 import os
+import re
 import threading
 import time
 import datetime
@@ -425,17 +426,18 @@ class QueueManager(object):
             return message
             
     def new_rep_name(self, h5_filepath):
-        basename, ext = os.path.splitext(h5_filepath)
-        if '_rep' in basename and ext == '.h5':
-            reps = basename.split('_rep')[-1]
-            try:
-                reps = int(reps)
-            except ValueError:
-                # not a rep
-                pass
-            else:
-                return ''.join(basename.split('_rep')[:-1]) + '_rep%05d.h5' % (reps + 1), reps + 1
-        return basename + '_rep%05d.h5' % 1, 1
+        """Return the path of the next repeat of a shot file and its repeat number.
+        A trailing _rep<digits> suffix in the file name is replaced; the directory is
+        unchanged."""
+        directory, filename = os.path.split(h5_filepath)
+        basename, ext = os.path.splitext(filename)
+        match = re.match(r'^(.*)_rep(\d+)$', basename)
+        if match is not None and ext == '.h5':
+            basename = match.group(1)
+            reps = int(match.group(2)) + 1
+        else:
+            reps = 1
+        return os.path.join(directory, basename + '_rep%05d.h5' % reps), reps
         
     def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
         try:
