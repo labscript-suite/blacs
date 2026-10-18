@@ -108,7 +108,7 @@ from blacs.experiment_queue import QueueManager, QueueTreeview
 # Module containing hardware compatibility:
 from labscript_utils import device_registry
 # Save/restore frontpanel code
-from blacs.front_panel_settings import FrontPanelSettings
+from blacs.front_panel_settings import FrontPanelSettings, eval_save_data
 # Notifications system
 from blacs.notifications import Notifications
 # Preferences system
@@ -311,7 +311,7 @@ class BLACS(object):
         # setup the plugin system
         settings_pages = []
         self.plugins = {}
-        plugin_settings = eval(tab_data['BLACS settings']['plugin_data']) if 'plugin_data' in tab_data['BLACS settings'] else {}
+        plugin_settings = eval_save_data(tab_data['BLACS settings']['plugin_data'], 'the saved plugin data') if 'plugin_data' in tab_data['BLACS settings'] else {}
         for module_name, module in plugins.modules.items():
             try:
                 # instantiate the plugin
@@ -339,7 +339,7 @@ class BLACS(object):
                         plugin.tabs_created(tab_dict)
 
             except Exception:
-                logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping')
+                logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping' % module_name)
 
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
@@ -351,7 +351,7 @@ class BLACS(object):
         if 'analysis_data' not in tab_data['BLACS settings']:
             tab_data['BLACS settings']['analysis_data'] = {}
         else:
-            tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
+            tab_data['BLACS settings']['analysis_data'] = eval_save_data(tab_data['BLACS settings']['analysis_data'], 'the saved analysis settings')
         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
 
         splash.update_text("starting queue manager")
@@ -361,11 +361,7 @@ class BLACS(object):
         if 'queue_data' not in tab_data['BLACS settings']:
             tab_data['BLACS settings']['queue_data'] = {}
         else:
-            # quick fix for qt objects not loading that were saved before qtutil 2 changes
-            try:
-                tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
-            except NameError:
-                tab_data['BLACS settings']['queue_data'] = {}
+            tab_data['BLACS settings']['queue_data'] = eval_save_data(tab_data['BLACS settings']['queue_data'], 'the saved queue settings')
         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
 
         blacs_data = {'exp_config':self.exp_config,
@@ -618,17 +614,13 @@ class BLACS(object):
                         if 'queue_data' not in tab_data['BLACS settings']:
                             tab_data['BLACS settings']['queue_data'] = {}
                         else:
-                            # quick fix for qt objects not loading that were saved before qtutil 2 changes
-                            try:
-                                tab_data['BLACS settings']['queue_data'] = eval(tab_data['BLACS settings']['queue_data'])
-                            except NameError:
-                                tab_data['BLACS settings']['queue_data'] = {}
+                            tab_data['BLACS settings']['queue_data'] = eval_save_data(tab_data['BLACS settings']['queue_data'], 'the saved queue settings')
                         self.queue.restore_save_data(tab_data['BLACS settings']['queue_data'])
                         # restore analysis data
                         if 'analysis_data' not in tab_data['BLACS settings']:
                             tab_data['BLACS settings']['analysis_data'] = {}
                         else:
-                            tab_data['BLACS settings']['analysis_data'] = eval(tab_data['BLACS settings']['analysis_data'])
+                            tab_data['BLACS settings']['analysis_data'] = eval_save_data(tab_data['BLACS settings']['analysis_data'], 'the saved analysis settings')
                         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
                 except Exception as e:
                     logger.exception("Unable to load the front panel in %s."%(filepath))

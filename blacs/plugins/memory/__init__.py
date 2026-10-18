@@ -59,8 +59,12 @@ class Menu(object):
     def __init__(self,BLACS):
         self.BLACS = BLACS
         self.close_notification_func = None
-        memprof.start(filepath=os.path.join(BLACS_DIR, 'memprof.txt'))        
+        self.memprof_filepath = os.path.join(BLACS_DIR, 'memprof.txt')
+        memprof.start(filepath=self.memprof_filepath)
         
+    def reset_profiler(self, *args):
+        memprof.start(filepath=self.memprof_filepath)
+
     def get_menu_items(self):
         return {'name':name,        
                 'menu_items':[{'name':'Garbage collect',
@@ -68,7 +72,7 @@ class Menu(object):
                                'icon': ':/qtutils/fugue/memory'
                               },
                               {'name':'Reset profiler',
-                               'action':memprof.start,
+                               'action':self.reset_profiler,
                                'icon': ':/qtutils/fugue/counter-reset'
                               },
                               {'name':'Diff memory usage',

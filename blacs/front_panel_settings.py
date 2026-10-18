@@ -28,6 +28,24 @@ def _ensure_str(s):
     """convert bytestrings and numpy strings to python strings"""
     return s.decode() if isinstance(s, bytes) else str(s)
 
+def _ensure_bytes(s):
+    """convert strings to UTF-8 bytestrings for storage in a fixed-width bytes field"""
+    return s if isinstance(s, bytes) else str(s).encode()
+
+# Names that the repr of numpy scalars, arrays, inf and nan refer to
+_SAVE_DATA_NAMESPACE = {
+    'np': numpy, 'numpy': numpy, 'array': numpy.array, 'inf': numpy.inf, 'nan': numpy.nan
+}
+
+def eval_save_data(text, description):
+    """Evaluate the repr of a saved settings dictionary. Returns an empty dictionary,
+    and logs a warning naming `description`, if the text cannot be evaluated."""
+    try:
+        return eval(_ensure_str(text), dict(_SAVE_DATA_NAMESPACE))
+    except Exception as e:
+        logger.warning('Could not load %s, ignoring it: %s', description, e)
+        return {}
+
 class FrontPanelSettings(object):
     def __init__(self,settings_path,connection_table):
         self.settings_path = settings_path
@@ -86,11 +104,8 @@ class FrontPanelSettings(object):
 
                 for row in dataset:
                     tab_name = _ensure_str(row['tab_name'])
-                    tab_data.setdefault(tab_name,{})
-                    try:
-                        tab_data[tab_name] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':eval(_ensure_str(row['data']))}
-                    except Exception:
-                        logger.info("Could not load tab data for %s"%tab_name)
+                    data = eval_save_data(row['data'], 'the saved tab data for %s' % tab_name)
+                    tab_data[tab_name] = {'notebook':row['notebook'], 'page':row['page'], 'visible':row['visible'], 'data':data}
 
                 #now get dataset attributes
                 tab_data['BLACS settings'] = dict(dataset.attrs)
@@ -289,7 +304,7 @@ class FrontPanelSettings(object):
                         overwrite = False
                         if not silent:
                             message = QMessageBox()
-                            message.setText("This file '%s' already contains a connection table."%current_file)
+                            message.setText("This file '%s' already contains a front panel configuration."%current_file)
                             message.setInformativeText("Do you wish to replace the existing front panel configuration in this file?")
                             message.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                             message.setDefaultButton(QMessageBox.No)
@@ -345,7 +360,7 @@ class FrontPanelSettings(object):
         data_group = hdf5_file['/'].create_group('front_panel')
 
         front_panel_list = []
-        other_data_list = []
+        other_data = {}
         front_panel_dtype = [('name','S256'),('device_name','S256'),('channel','S256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','S256')]
         max_od_length = 2 # empty dictionary
 
@@ -356,24 +371,24 @@ class FrontPanelSettings(object):
             for hardware_name, data in device_state["front_panel"].items():
                 if data != {}:
                     if isinstance(data['base_value'], (str, bytes)):
-                        logger.warning('Could not save data for channel %s on device %s because support for output values that are strings is not yet supported.'%(hardware_name, device_name))
+                        logger.debug('Could not save data for channel %s on device %s because support for output values that are strings is not yet supported.'%(hardware_name, device_name))
                         # TODO: Implement saving of Image output type
                     elif float(data['base_value']) == data['base_value']:
-                        front_panel_list.append((data['name'],
-                                                 device_name,
-                                                 hardware_name,
+                        front_panel_list.append((_ensure_bytes(data['name']),
+                                                 _ensure_bytes(device_name),
+                                                 _ensure_bytes(hardware_name),
                                                  data['base_value'],
                                                  data['locked'],
                                                  data['base_step_size'] if 'base_step_size' in data else 0,
-                                                 data['current_units'] if 'current_units' in data else ''
+                                                 _ensure_bytes(data['current_units'] if 'current_units' in data else '')
                                                 )
                                                )
                     else:
                         logger.warning('Could not save data for channel %s on device %s because the output value (in base units) was not a string or could not be coerced to a float without loss of precision'%(hardware_name, device_name))
 
             # Save "other data"
-            od = repr(device_state["save_data"])
-            other_data_list.append(od)
+            od = repr(device_state["save_data"]).encode()
+            other_data[device_name] = od
             max_od_length = len(od) if len(od) > max_od_length else max_od_length
 
         # Create datasets
@@ -383,12 +398,11 @@ class FrontPanelSettings(object):
                 front_panel_array[i] = row
             data_group.create_dataset('front_panel',data=front_panel_array)
 
-        # Save tab data
-        i = 0
-        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','S256'),('notebook','S2'),('page',int),('visible',bool),('data','S'+str(max_od_length))])
-        for device_name,data in notebook_data.items():
-            tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
-            i += 1
+        # Save tab data. A device whose tab is not open is recorded in notebook 0, page 0.
+        tab_data = numpy.empty(len(other_data),dtype=[('tab_name','S256'),('notebook','S2'),('page',int),('visible',bool),('data','S'+str(max_od_length))])
+        for i, (device_name, od) in enumerate(other_data.items()):
+            position = notebook_data.get(device_name, {"notebook": 0, "page": 0, "visible": False})
+            tab_data[i] = (_ensure_bytes(device_name),position["notebook"],position["page"],position["visible"],od)
 
         # Save BLACS Main GUI Info
         dataset = data_group.create_dataset("_notebook_data",data=tab_data)

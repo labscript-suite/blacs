@@ -238,7 +238,6 @@ class Tab(object):
         self._tab_icon_and_colour_timer = QTimer()
         self._tab_icon_and_colour_timer.timeout.connect(self.set_tab_icon_and_colour)
         self._tab_icon = self.ICON_OK
-        self._tab_text_colour = 'black'
 
         # Create instance variables
         self._not_responding_error_message = ''
@@ -734,7 +733,7 @@ class Tab(object):
         self.hide_not_responding_error_until = 2*self.not_responding_for
         self._ui.notresponding.hide()  
         self.error_message = ''
-        self._tab_text_colour = 'black'
+        self._tab_text_colour = self._ui.palette().color(QPalette.ColorRole.Text)
         self.set_tab_icon_and_colour()
             
     def check_time(self):
@@ -963,6 +962,8 @@ class PluginTab(object):
         # Load the UI
         self._ui = UiLoader().load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'plugin_tab_frame.ui'))
         self._layout = self._ui.device_layout
+        self._tab_icon = ''
+        self._tab_text_colour = self._ui.palette().color(QPalette.ColorRole.Text)
 
         self._ui.device_name.setText("<b>%s</b> [Plugin]" % (str(self.tab_name)))
         elide_label(self._ui.device_name, self._ui.horizontalLayout, Qt.ElideRight)

@@ -105,13 +105,14 @@ class Menu(object):
         # get path to text editor
         editor_path = self.BLACS['exp_config'].get('programs','text_editor')
         editor_args = self.BLACS['exp_config'].get('programs','text_editor_arguments')
-        if editor_path:  
+        if editor_path:
+            connection_table_py = self.BLACS['exp_config'].get('paths','connection_table_py')
             if '{file}' in editor_args:
-                editor_args = editor_args.replace('{file}', self.BLACS['exp_config'].get('paths','connection_table_py'))
+                editor_args = [arg.replace('{file}', connection_table_py) for arg in editor_args.split()]
             else:
-                editor_args = self.BLACS['exp_config'].get('paths','connection_table_py') + " " + editor_args            
+                editor_args = [connection_table_py] + editor_args.split()
             try:
-                subprocess.Popen([editor_path,editor_args])
+                subprocess.Popen([editor_path] + editor_args)
             except Exception:
                 QMessageBox.information(self.BLACS['ui'],"Error","Unable to launch text editor. Check the path is valid in the experiment config file (%s) (you must restart BLACS if you edit this file)"%self.BLACS['exp_config'].config_path)
         else:
