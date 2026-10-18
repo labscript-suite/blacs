@@ -995,10 +995,10 @@ class QueueManager(object):
                         # Resubmit job to the bottom of the queue:
                         try:
                             message = self.process_request(path)
+                            logger.info(message)
                         except Exception:
                             # TODO: make this error popup for the user
-                            self._logger.exception('Failed to copy h5_file (%s) for repeat run' % path)
-                        logger.info(message)      
+                            logger.exception('Failed to copy h5_file (%s) for repeat run' % path)
 
                 self.set_status("Idle")
             except Exception:
