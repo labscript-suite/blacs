@@ -339,7 +339,7 @@ class BLACS(object):
                         plugin.tabs_created(tab_dict)
 
             except Exception:
-                logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping')
+                logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping' % module_name)
 
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
