@@ -787,9 +787,14 @@ class Tab(object):
                 # Do any work that was queued up:(we only talk to the worker if work has been queued up through the yield command)
                 if isinstance(generator, GeneratorType):
                     # We need to call next recursively, queue up work and send the results back until we get a StopIteration exception
-                    generator_running = True
-                    # get the data from the first yield function
-                    worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.__next__)
+                    try:
+                        # get the data from the first yield function
+                        worker_process,worker_function,worker_args,worker_kwargs = inmain(generator.__next__)
+                    except StopIteration:
+                        # The generator returned before its first yield
+                        generator_running = False
+                    else:
+                        generator_running = True
                     # Continue until we get a StopIteration exception, or the user requests a restart
                     while generator_running:
                         try:

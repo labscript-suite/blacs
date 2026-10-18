@@ -22,6 +22,7 @@ from qtutils.qt.QtWidgets import QMessageBox, QFileDialog
 
 from blacs.compile_and_restart import CompileAndRestart
 from labscript_utils.filewatcher import FileWatcher
+from labscript_utils.labconfig import LabConfig
 from qtutils import inmain, UiLoader
 from blacs.plugins import PLUGINS_DIR
 
@@ -387,9 +388,17 @@ class Setting(object):
     def close(self):
         pass
         
+    def default_directory(self, key):
+        """The directory in which a file dialog opens: the labconfig path with the
+        given key, or C:\\ if labconfig does not define it"""
+        try:
+            return LabConfig().get('paths', key)
+        except (LabConfig.NoOptionError, LabConfig.NoSectionError):
+            return "C:\\"
+
     def add_global_file(self,*args,**kwargs):
         # create file chooser dialog
-        dialog = QFileDialog(None,"select globals files", "C:\\", "HDF5 files (*.h5 *.hdf5)")
+        dialog = QFileDialog(None,"select globals files", self.default_directory('experiment_shot_storage'), "HDF5 files (*.h5 *.hdf5)")
         dialog.setViewMode(QFileDialog.Detail)
         dialog.setFileMode(QFileDialog.ExistingFiles)
         
@@ -426,7 +435,7 @@ class Setting(object):
             
     def add_calibration_file(self):
         # create file chooser dialog
-        dialog = QFileDialog(None,"Select unit conversion scripts", "C:\\", "Python files (*.py *.pyw)")
+        dialog = QFileDialog(None,"Select unit conversion scripts", self.default_directory('userlib'), "Python files (*.py *.pyw)")
         dialog.setViewMode(QFileDialog.Detail)
         dialog.setFileMode(QFileDialog.ExistingFiles)
         
@@ -449,7 +458,7 @@ class Setting(object):
         
     def add_calibration_folder(self):
         # create file chooser dialog
-        dialog = QFileDialog(None,"Select unit conversion folder", "C:\\", "")
+        dialog = QFileDialog(None,"Select unit conversion folder", self.default_directory('userlib'), "")
         dialog.setViewMode(QFileDialog.Detail)
         dialog.setFileMode(QFileDialog.Directory)
         
