@@ -356,7 +356,7 @@ class FrontPanelSettings(object):
         data_group = hdf5_file['/'].create_group('front_panel')
 
         front_panel_list = []
-        other_data_list = []
+        other_data = {}
         front_panel_dtype = [('name','S256'),('device_name','S256'),('channel','S256'),('base_value',float),('locked',bool),('base_step_size',float),('current_units','S256')]
         max_od_length = 2 # empty dictionary
 
@@ -384,7 +384,7 @@ class FrontPanelSettings(object):
 
             # Save "other data"
             od = repr(device_state["save_data"])
-            other_data_list.append(od)
+            other_data[device_name] = od
             max_od_length = len(od) if len(od) > max_od_length else max_od_length
 
         # Create datasets
@@ -394,12 +394,11 @@ class FrontPanelSettings(object):
                 front_panel_array[i] = row
             data_group.create_dataset('front_panel',data=front_panel_array)
 
-        # Save tab data
-        i = 0
-        tab_data = numpy.empty(len(notebook_data),dtype=[('tab_name','S256'),('notebook','S2'),('page',int),('visible',bool),('data','S'+str(max_od_length))])
-        for device_name,data in notebook_data.items():
-            tab_data[i] = (device_name,data["notebook"],data["page"],data["visible"],other_data_list[i])
-            i += 1
+        # Save tab data. A device whose tab is not open is recorded in notebook 0, page 0.
+        tab_data = numpy.empty(len(other_data),dtype=[('tab_name','S256'),('notebook','S2'),('page',int),('visible',bool),('data','S'+str(max_od_length))])
+        for i, (device_name, od) in enumerate(other_data.items()):
+            position = notebook_data.get(device_name, {"notebook": 0, "page": 0, "visible": False})
+            tab_data[i] = (device_name,position["notebook"],position["page"],position["visible"],od)
 
         # Save BLACS Main GUI Info
         dataset = data_group.create_dataset("_notebook_data",data=tab_data)
