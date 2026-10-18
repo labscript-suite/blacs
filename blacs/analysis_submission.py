@@ -58,10 +58,8 @@ class AnalysisSubmission(object):
         self.mainloop_thread.start()
         
     def restore_save_data(self,data):
-        if "server" in data:
-            self.server = data["server"]
-        if "send_to_server" in data:
-            self.send_to_server = data["send_to_server"]
+        self.server = data.get("server", "localhost")
+        self.send_to_server = data.get("send_to_server", True)
         if "waiting_for_submission" in data:
             self._waiting_for_submission = list(data["waiting_for_submission"])
         self.inqueue.put(['save data restored', None])
