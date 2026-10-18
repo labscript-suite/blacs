@@ -54,6 +54,15 @@ def tempfilename(prefix='BLACS-temp-', suffix='.h5'):
 
 FILEPATH_COLUMN = 0
 
+
+def device_status(names, description):
+    """Return "Device <name> <description>", listing the names if there are several"""
+    names = sorted(names)
+    if not names:
+        return 'Device(s) ' + description
+    noun = 'Device' if len(names) == 1 else 'Devices'
+    return '%s %s %s' % (noun, ', '.join(names), description)
+
 class QueueTreeview(QTreeView):
     def __init__(self,*args,**kwargs):
         QTreeView.__init__(self,*args,**kwargs)
@@ -613,6 +622,8 @@ class QueueManager(object):
                     error_condition = False
                     abort = False
                     restarted = False
+                    error_devices = []
+                    restarted_devices = []
                     self.set_status("Transitioning to buffered...", path)
                 
                     # Enable abort button, and link in current_queue:
@@ -659,10 +670,12 @@ class QueueManager(object):
                                     if not success:
                                         logger.error('%s has an error condition, aborting run' % name)
                                         error_condition = True
+                                        error_devices.append(name)
                                         break
                                 except Exception:
                                     logger.exception('Exception while transitioning %s to buffered mode.'%(name))
                                     error_condition = True
+                                    error_devices.append(name)
                                     break
                             if error_condition:
                                 break
@@ -682,10 +695,12 @@ class QueueManager(object):
                             if result == 'fail':
                                 logger.info('abort signal received during transition to buffered of %s' % device_name)
                                 error_condition = True
+                                error_devices.append(device_name)
                                 break
                             elif result == 'restart':
                                 logger.info('Device %s was restarted, aborting shot.'%device_name)
                                 restarted = True
+                                restarted_devices.append(device_name)
                                 break
                             
                             logger.debug('%s finished transitioning to buffered mode' % device_name)
@@ -694,6 +709,7 @@ class QueueManager(object):
                             if self.get_device_error_state(device_name,transition_list):
                                 logger.error('%s has an error condition, aborting run' % device_name)
                                 error_condition = True
+                                error_devices.append(device_name)
                                 break
 
                             del transition_list[device_name]
@@ -702,8 +718,9 @@ class QueueManager(object):
                             # transitioning to buffered. Is there an error?
                             for name in transition_list:
                                 if self.get_device_error_state(name,transition_list):
+                                    logger.error('%s has an error condition, aborting run' % name)
                                     error_condition = True
-                                    break
+                                    error_devices.append(name)
                                 
                             if error_condition:
                                 break
@@ -722,13 +739,13 @@ class QueueManager(object):
                             self.manager_paused = True
                             self.prepend(path)                
                         if timed_out:
-                            self.set_status("Programming timed out\nQueue paused")
+                            self.set_status(device_status(transition_list, 'timed out programming') + "\nQueue paused")
                         elif abort:
                             self.set_status("Aborted")
                         elif restarted:
-                            self.set_status("Device restarted in transition to\nbuffered. Aborted. Queue paused.")
+                            self.set_status(device_status(restarted_devices, 'restarted in transition to buffered') + "\nQueue paused")
                         else:
-                            self.set_status("Device(s) in error state\nQueue Paused")
+                            self.set_status(device_status(error_devices, 'in error state') + "\nQueue paused")
                         
                         # Abort the run for all devices in use:
                         # need to recreate the queue here because we don't want to hear from devices that are still transitioning to buffered mode
@@ -783,6 +800,8 @@ class QueueManager(object):
                     abort = False
                     restarted = False
                     done = False
+                    error_devices = []
+                    restarted_devices = []
                     while not (abort or restarted or done):
                         try:
                             done = experiment_finished_queue.get(timeout=0.5) == 'done'
@@ -795,10 +814,13 @@ class QueueManager(object):
                                 abort = True
                             if result == 'restart':
                                 restarted = True
+                                restarted_devices.append(device_name)
                             # Check for error states in tabs
                             for device_name, tab in devices_in_use.items():
                                 if self.get_device_error_state(device_name,devices_in_use):
+                                    logger.error('%s has an error condition, aborting run' % device_name)
                                     restarted = True
+                                    error_devices.append(device_name)
                         except queue.Empty:
                             pass
                         
@@ -816,7 +838,10 @@ class QueueManager(object):
                     if restarted:                    
                         self.manager_paused = True
                         self.prepend(path)  
-                        self.set_status("Device restarted during run.\nAborted. Queue paused")
+                        if error_devices:
+                            self.set_status(device_status(error_devices, 'in error state during run') + "\nQueue paused")
+                        else:
+                            self.set_status(device_status(restarted_devices, 'restarted during run') + "\nQueue paused")
                     elif abort:
                         self.set_status("Aborted")
                     
@@ -876,6 +901,7 @@ class QueueManager(object):
                         hdf5_file.attrs['run time'] = run_time.strftime('%Y%m%dT%H%M%S.%f')
         
                     error_condition = False
+                    error_devices = []
                     response_list = {}
                     # Keep transitioning tabs to manual mode and waiting on them until they
                     # are all done or have all errored/restarted/failed. If one fails, we
@@ -891,6 +917,7 @@ class QueueManager(object):
                             except Exception:
                                 logger.exception('Exception while transitioning %s to manual mode.'%(name))
                                 error_condition = True
+                                error_devices.append(name)
                         # Wait for their responses:
                         while transition_list:
                             logger.info('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
@@ -906,6 +933,7 @@ class QueueManager(object):
                                 for name in transition_list.copy():
                                     if self.get_device_error_state(name, transition_list):
                                         error_condition = True
+                                        error_devices.append(name)
                                         logger.debug('%s is in an error state' % name)
                                         inmain(transition_list[name].disconnect_restart_receiver, restart_function)
                                         del transition_list[name]
@@ -916,12 +944,15 @@ class QueueManager(object):
                             response_list[name] = result
                             if result == 'fail':
                                 error_condition = True
+                                error_devices.append(name)
                                 logger.debug('%s failed to transition to manual' % name)
                             elif result == 'restart':
                                 error_condition = True
+                                error_devices.append(name)
                                 logger.debug('%s restarted during transition to manual' % name)
                             elif self.get_device_error_state(name, devices_in_use):
                                 error_condition = True
+                                error_devices.append(name)
                                 logger.debug('%s is in an error state' % name)
                             else:
                                 logger.debug('%s finished transitioning to manual mode' % name)
@@ -932,7 +963,7 @@ class QueueManager(object):
                             del transition_list[name]
                     
                     if error_condition:                
-                        self.set_status("Error in transtion to manual\nQueue Paused")
+                        self.set_status(device_status(error_devices, 'failed to transition to manual') + "\nQueue paused")
                                        
                 except Exception:
                     error_condition = True
