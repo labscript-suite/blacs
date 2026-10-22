@@ -28,7 +28,6 @@ from qtutils.qt.QtWidgets import (
     QVBoxLayout,
 )
 
-import labscript_utils.excepthook
 from qtutils import UiLoader
 
 from blacs import BLACS_DIR
