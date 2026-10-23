@@ -28,7 +28,7 @@ from qtutils.qt.QtCore import Qt, QTimer
 from qtutils.qt.QtGui import QIcon, QColor, QPalette
 from qtutils.qt.QtWidgets import QLabel, QWidget, QPushButton, QApplication, QVBoxLayout
 
-from qtutils import inmain_decorator, inmain, inthread, UiLoader
+from qtutils import inmain_decorator, inmain, inmain_later, inthread, UiLoader
 from labscript_utils.qtwidgets.outputbox import OutputBox
 import qtutils.icons
 
@@ -299,6 +299,7 @@ class Tab(object):
         # This should be done beofre the main_loop starts or else there is a race condition as to whether the 
         # self._mode variable is even defined!
         # However it must be done after the UI is created!
+        self._state_display_update_pending = False
         self.mode = MODE_MANUAL
         self.state = 'idle'
         
@@ -462,6 +463,21 @@ class Tab(object):
     def state(self,state):
         self._state = state        
         self._time_of_last_state_change = time.time()
+        self._queue_state_display_update()
+
+    def _queue_state_display_update(self):
+        """Post an update of the state label and tab icon to the main thread without
+        waiting for it to run. An update requested while one is already posted is
+        merged into it."""
+        if self._state_display_update_pending:
+            return
+        self._state_display_update_pending = True
+        inmain_later(self._update_state_display)
+
+    def _update_state_display(self):
+        # Runs in the main thread. The pending flag is cleared before the state is
+        # read, so that a state set after this point posts another update.
+        self._state_display_update_pending = False
         self._update_state_label()
         self._update_error_and_tab_icon()
     
