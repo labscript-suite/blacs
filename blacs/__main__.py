@@ -60,7 +60,6 @@ splash.update_text("importing zmq and zprocess")
 import zmq
 import zprocess
 from zprocess import raise_exception_in_thread
-import zprocess.locking
 
 
 splash.update_text('importing h5_lock and h5py')
