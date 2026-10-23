@@ -808,10 +808,6 @@ if __name__ == '__main__':
 
     port = int(exp_config.get('ports','BLACS'))
 
-    # Start experiment server
-    splash.update_text('starting experiment server')
-    experiment_server = ExperimentServer(port)
-
     # Create Connection Table object
     splash.update_text('loading connection table')
     logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
@@ -829,6 +825,9 @@ if __name__ == '__main__':
     app = BLACS(qapplication)
 
     logger.info('BLACS instantiated')
+
+    splash.update_text('starting experiment server')
+    experiment_server = ExperimentServer(port)
     splash.hide()
 
     def execute_program():
