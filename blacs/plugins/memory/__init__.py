@@ -68,7 +68,7 @@ class Menu(object):
     def get_menu_items(self):
         return {'name':name,        
                 'menu_items':[{'name':'Garbage collect',
-                               'action':gc.collect,
+                               'action':lambda: gc.collect(),
                                'icon': ':/qtutils/fugue/memory'
                               },
                               {'name':'Reset profiler',

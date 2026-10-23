@@ -1122,7 +1122,7 @@ class MyTab(Tab):
         self.queue_work('My worker','foo', 5,6,7,x='x')
         
     @define_state(MODE_MANUAL,True)  
-    def bar(self,button):
+    def bar(self, button=None):
         self.logger.debug('entered bar')
         results = yield(self.queue_work('My worker','bar', 5,6,7,x=5))
       
@@ -1143,7 +1143,7 @@ class MyTab(Tab):
     # This event shows what happens if you try to send a unpickleable
     # event through a queue to the subprocess:
     @define_state(MODE_MANUAL,True)  
-    def baz_unpickleable(self, button):
+    def baz_unpickleable(self, button=None):
         self.logger.debug('entered baz_unpickleable')
         results = yield(self.queue_work('My worker','baz', 5,6,7,x=threading.Lock()))
         self.logger.debug('leaving baz_unpickleable')
