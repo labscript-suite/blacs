@@ -138,7 +138,7 @@ class FrontPanelSettings(object):
                             settings,question,error = self.handle_return_code(data_dict,result,settings,question,error)
         except Exception as e:
             logger.info("Could not load saved settings")
-            logger.info(str(e))
+            logger.info('%s', e)
         return settings,question,error,tab_data
 
     def handle_return_code(self,row,result,settings,question,error):
@@ -246,7 +246,7 @@ class FrontPanelSettings(object):
             try:
                 plugin_data[module_name] = plugin.get_save_data()
             except Exception as e:
-                logger.error('Could not save data for plugin %s. Error was: %s'%(module_name,str(e)))
+                logger.error('Could not save data for plugin %s. Error was: %s', module_name, e)
 
         # save window data
         # Size of window
@@ -328,7 +328,7 @@ class FrontPanelSettings(object):
                                 message.setWindowTitle("BLACS")
                                 message.exec()
                             else:
-                                logger.info("Front Panel not saved as it already existed in the h5 file '"+current_file+"'")
+                                logger.info("Front Panel not saved as it already existed in the h5 file '%s'", current_file)
                             return
                     else:
                         # Save Front Panel in here
@@ -342,7 +342,7 @@ class FrontPanelSettings(object):
                     message.setWindowTitle("BLACS")
                     message.exec()
                 else:
-                    logger.info("Front Panel not saved as the connection table in the h5 file '"+current_file+"' didn't match the current connection table.")
+                    logger.info("Front Panel not saved as the connection table in the h5 file '%s' didn't match the current connection table.", current_file)
                 return
         else:
             with h5py.File(current_file,'w') as hdf5_file:
@@ -364,12 +364,12 @@ class FrontPanelSettings(object):
 
         # Iterate over each device within a class
         for device_name, device_state in tab_data.items():
-            logger.debug("saving front panel for device:" + device_name)
+            logger.debug("saving front panel for device:%s", device_name)
             # Insert front panel data into dataset
             for hardware_name, data in device_state["front_panel"].items():
                 if data != {}:
                     if isinstance(data['base_value'], (str, bytes)):
-                        logger.debug('Could not save data for channel %s on device %s because support for output values that are strings is not yet supported.'%(hardware_name, device_name))
+                        logger.debug('Could not save data for channel %s on device %s because support for output values that are strings is not yet supported.', hardware_name, device_name)
                         # TODO: Implement saving of Image output type
                     elif float(data['base_value']) == data['base_value']:
                         front_panel_list.append((_ensure_bytes(data['name']),
@@ -382,7 +382,7 @@ class FrontPanelSettings(object):
                                                 )
                                                )
                     else:
-                        logger.warning('Could not save data for channel %s on device %s because the output value (in base units) was not a string or could not be coerced to a float without loss of precision'%(hardware_name, device_name))
+                        logger.warning('Could not save data for channel %s on device %s because the output value (in base units) was not a string or could not be coerced to a float without loss of precision', hardware_name, device_name)
 
             # Save "other data"
             od = repr(device_state["save_data"]).encode()

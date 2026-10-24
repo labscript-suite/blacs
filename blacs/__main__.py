@@ -82,19 +82,19 @@ process_tree.zlock_client.set_process_name('BLACS')
 logger = setup_logging('BLACS')
 labscript_utils.excepthook.set_logger(logger)
 
-logger.info(f'Python version {sys.version}')
-logger.info(f'Platform: {sys.platform}')
-logger.info(f'windows version: {sys.getwindowsversion() if WINDOWS else None}')
-logger.info(f'PyZMQ version: {zmq.__version__}')
-logger.info(f'ZMQ version: {zmq.zmq_version()}')
-logger.info(f'h5py version: {h5py.version.info}')
-logger.info(f'Qt enviroment: {QT_ENV}')
-logger.info(f'PySide/PyQt version: {PYQT_VERSION_STR}')
-logger.info(f'Qt version: {qVersion()}')
-logger.info(f'qtutils version: {qtutils.__version__}')
-logger.info(f'zprocess version: {zprocess.__version__}')
-logger.info(f'labscript_utils version: {labscript_utils.__version__}')
-logger.info(f'BLACS version: {blacs.__version__}')
+logger.info('Python version %s', sys.version)
+logger.info('Platform: %s', sys.platform)
+logger.info('windows version: %s', sys.getwindowsversion() if WINDOWS else None)
+logger.info('PyZMQ version: %s', zmq.__version__)
+logger.info('ZMQ version: %s', zmq.zmq_version())
+logger.info('h5py version: %s', h5py.version.info)
+logger.info('Qt enviroment: %s', QT_ENV)
+logger.info('PySide/PyQt version: %s', PYQT_VERSION_STR)
+logger.info('Qt version: %s', qVersion())
+logger.info('qtutils version: %s', qtutils.__version__)
+logger.info('zprocess version: %s', zprocess.__version__)
+logger.info('labscript_utils version: %s', labscript_utils.__version__)
+logger.info('BLACS version: %s', blacs.__version__)
 
 # Connection Table Code
 from labscript_utils.connections import ConnectionTable
@@ -149,7 +149,7 @@ class BLACSWindow(QMainWindow):
                     try:
                         plugin.close()
                     except Exception as e:
-                        logger.error('Could not close plugin %s. Error was: %s'%(module_name,str(e)))
+                        logger.error('Could not close plugin %s. Error was: %s', module_name, e)
 
                 inmain_later(self.blacs.on_save_exit)
 
@@ -308,7 +308,7 @@ class BLACS(object):
                 self.settings_dict[device_name]["front_panel_settings"] = settings[device_name] if device_name in settings else {}
                 self.settings_dict[device_name]["saved_data"] = tab_data[device_name]['data'] if device_name in tab_data else {}
                 # Instantiate the device
-                logger.info('instantiating %s'%device_name)
+                logger.info('instantiating %s', device_name)
                 TabClass = device_registry.get_BLACS_tab(labscript_device_class_name)
                 self.tablist[device_name] = TabClass(self.tab_widgets[0],self.settings_dict[device_name])
             except Exception:
@@ -329,7 +329,7 @@ class BLACS(object):
                 # instantiate the plugin
                 self.plugins[module_name] = module.Plugin(plugin_settings[module_name] if module_name in plugin_settings else {})
             except Exception:
-                logger.exception('Could not instantiate plugin \'%s\'. Skipping' % module_name)
+                logger.exception("Could not instantiate plugin '%s'. Skipping", module_name)
 
         logger.info('creating plugin tabs')
         # setup the plugin tabs
@@ -351,7 +351,7 @@ class BLACS(object):
                         plugin.tabs_created(tab_dict)
 
             except Exception:
-                logger.exception('Could not instantiate tab for plugin \'%s\'. Skipping' % module_name)
+                logger.exception("Could not instantiate tab for plugin '%s'. Skipping", module_name)
 
         logger.info('reordering tabs')
         self.order_tabs(tab_data)
@@ -435,7 +435,7 @@ class BLACS(object):
                     settings_callbacks.append(callbacks['settings_changed'])
 
             except Exception:
-                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
+                logger.exception("Plugin '%s' error. Plugin may not be functional.", module_name)
 
 
         # setup the BLACS preferences system
@@ -457,14 +457,14 @@ class BLACS(object):
             except TypeError:
                 # backwards compatibility for old plugins
                 args = ()
-                logger.warning('Plugin \'%s\' using old API. Please update Plugin.plugin_setup_complete method to accept a dictionary of blacs_data as the only argument.'%module_name)
+                logger.warning("Plugin '%s' using old API. Please update Plugin.plugin_setup_complete method to accept a dictionary of blacs_data as the only argument.", module_name)
             except ValueError:
                 # No introspectable signature; assume the current API.
                 args = (blacs_data,)
             try:
                 setup_complete(*args)
             except Exception:
-                logger.exception('Plugin \'%s\' error. Plugin may not be functional.'%module_name)
+                logger.exception("Plugin '%s' error. Plugin may not be functional.", module_name)
 
         # Connect menu actions
         self.ui.actionOpenPreferences.triggered.connect(self.on_open_preferences)
@@ -517,7 +517,7 @@ class BLACS(object):
                     pane.setSizes(settings[pane_name])
 
         except Exception as e:
-            logger.exception("Unable to load window and notebook defaults. Exception:"+str(e))
+            logger.exception("Unable to load window and notebook defaults. Exception:%s", e)
 
     def move_window_onto_screen(self):
         """If the main window frame does not intersect the available area of any
@@ -528,7 +528,7 @@ class BLACS(object):
             if frame.intersects(screen.availableGeometry()):
                 return
         available = QApplication.primaryScreen().availableGeometry()
-        logger.info('Saved window position %s is not on any screen, moving to %s' % (frame, available))
+        logger.info('Saved window position %s is not on any screen, moving to %s', frame, available)
         frame_width = frame.width() - self.ui.width()
         frame_height = frame.height() - self.ui.height()
         self.ui.resize(
@@ -635,7 +635,7 @@ class BLACS(object):
                             tab_data['BLACS settings']['analysis_data'] = eval_save_data(tab_data['BLACS settings']['analysis_data'], 'the saved analysis settings')
                         self.analysis_submission.restore_save_data(tab_data['BLACS settings']["analysis_data"])
                 except Exception as e:
-                    logger.exception("Unable to load the front panel in %s."%(filepath))
+                    logger.exception("Unable to load the front panel in %s.", filepath)
                     message = QMessageBox()
                     message.setText("Unable to load the front panel. The error encountered is printed below.\n\n%s"%str(e))
                     message.setIcon(QMessageBox.Information)
@@ -691,7 +691,7 @@ class BLACS(object):
                 try:
                     current_page = tab.close_tab(finalise=False)
                 except Exception as e:
-                    logger.error('Couldn\'t close tab:\n%s' % str(e))
+                    logger.error("Couldn't close tab:\n%s", e)
                 del self.tablist[name]
                 continue
             fatal_error = tab.state == 'fatal error'
@@ -704,7 +704,7 @@ class BLACS(object):
                     try:
                         current_page = tab.close_tab(finalise=False)
                     except Exception as e:
-                        logger.error('Couldn\'t close tab:\n%s' % str(e))
+                        logger.error("Couldn't close tab:\n%s", e)
                         del self.tablist[name]
                     else:
                         # Call finalise_close_tab in a thread since it can be blocking.
@@ -753,14 +753,14 @@ class ExperimentServer(ZMQServer):
     def handler(self, h5_filepath):
         print(h5_filepath)
         message = self.process(h5_filepath)
-        logger.info('Request handler: %s ' % message.strip())
+        logger.info('Request handler: %s ', message.strip())
         return message
 
     def process(self,h5_filepath):
         # Convert path to local slashes and shared drive prefix:
-        logger.info('received filepath: %s'%h5_filepath)
+        logger.info('received filepath: %s', h5_filepath)
         h5_filepath = labscript_utils.shared_drive.path_to_local(h5_filepath)
-        logger.info('local filepath: %s'%h5_filepath)
+        logger.info('local filepath: %s', h5_filepath)
         return app.queue.process_request(h5_filepath)
 
 
@@ -810,7 +810,7 @@ if __name__ == '__main__':
 
     # Create Connection Table object
     splash.update_text('loading connection table')
-    logger.info('About to load connection table: %s'%exp_config.get('paths','connection_table_h5'))
+    logger.info('About to load connection table: %s', exp_config.get('paths','connection_table_h5'))
     connection_table_h5_file = exp_config.get('paths','connection_table_h5')
     connection_table = ConnectionTable(connection_table_h5_file, logging_prefix='BLACS', exceptions_in_thread=True)
 
