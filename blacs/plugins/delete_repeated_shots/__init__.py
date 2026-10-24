@@ -124,9 +124,9 @@ class Plugin(object):
                         with Lock(path_to_agnostic(h5_filepath)):
                             try:
                                 os.unlink(h5_filepath)
-                                logger.info("Deleted repeated shot file %s" % h5_filepath)
+                                logger.info("Deleted repeated shot file %s", h5_filepath)
                             except OSError:
-                                logger.exception("Couldn't delete shot file %s" % h5_filepath)
+                                logger.exception("Couldn't delete shot file %s", h5_filepath)
                 else:
                     raise ValueError(event)
             except Exception:

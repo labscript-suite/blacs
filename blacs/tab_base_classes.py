@@ -72,7 +72,7 @@ class StateQueue(object):
 
     def log_current_states(self):
         if self.logging_enabled:
-            self.logger.debug('Current items in the state queue: %s'%str(self.list_of_states))
+            self.logger.debug('Current items in the state queue: %s', self.list_of_states)
 
     @inmain_decorator(True)
     def put(self, allowed_states, queue_state_indefinitely, delete_stale_states, data, priority=0):
@@ -86,7 +86,7 @@ class StateQueue(object):
         insort(self.list_of_states, state_data)
         if self.logging_enabled:
             if not isinstance(data[0],str):
-                self.logger.debug('New state queued up. Allowed modes: %d, queue state indefinitely: %s, delete stale states: %s, function: %s'%(allowed_states,str(queue_state_indefinitely),str(delete_stale_states),data[0].__name__))
+                self.logger.debug('New state queued up. Allowed modes: %d, queue state indefinitely: %s, delete stale states: %s, function: %s', allowed_states, queue_state_indefinitely, delete_stale_states, data[0].__name__)
         self.log_current_states()
         self._on_put()
 
@@ -178,7 +178,7 @@ class StateMachine(object):
         func, (args, kwargs) = data
         self._state_name = func.__name__
         self._job = None
-        self.logger.debug('Processing event %s' % self._state_name)
+        self.logger.debug('Processing event %s', self._state_name)
         self.tab.state = '%s (GUI)' % self._state_name
         try:
             generator = func(self.tab, *args, **kwargs)
@@ -208,7 +208,7 @@ class StateMachine(object):
         except Exception:
             self._fatal_error(traceback.format_exc())
             return
-        self.logger.debug('Instructing worker %s to do job %s' % (worker_name, worker_function))
+        self.logger.debug('Instructing worker %s to do job %s', worker_name, worker_function)
         if worker_function == 'init':
             self.tab.state = 'Starting worker process (%s)' % worker_name
         else:
@@ -281,7 +281,7 @@ class StateMachine(object):
                            '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
         # Reset the hide_not_responding_error_until, since we have now heard from the child
         tab.hide_not_responding_error_until = 0
-        self.logger.debug('returning worker results to function %s' % self._state_name)
+        self.logger.debug('returning worker results to function %s', self._state_name)
         tab.state = '%s (GUI)' % self._state_name
         self._advance(self._generator.send, results)
 
@@ -291,7 +291,7 @@ class StateMachine(object):
             return
         self.failed = True
         self._generator = None
-        self.logger.critical('A fatal exception happened:\n %s'%message)
+        self.logger.critical('A fatal exception happened:\n %s', message)
         tab = self.tab
         now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
         tab.error_message += ('Fatal exception in main process - %s:<br /> '%now +
@@ -473,7 +473,7 @@ class Tab(object):
             if isinstance(tab_save_data, dict):
                 save_data.update(tab_save_data)
             else:
-                self.logger.warning('Incorrect format for tab save data from the get_save_data() method. Data should be a dict. Data was: %s'%tab_save_data)
+                self.logger.warning('Incorrect format for tab save data from the get_save_data() method. Data should be a dict. Data was: %s', tab_save_data)
         return save_data
 
     def restore_builtin_save_data(self, data):
@@ -940,7 +940,7 @@ class Worker(Process):
             # Get the next task to be done:
             self.logger.debug('Waiting for next job request')
             funcname, args, kwargs = self.from_parent.get()
-            self.logger.debug('Got job request %s' % funcname)
+            self.logger.debug('Got job request %s', funcname)
             try:
                 # See if we have a method with that name:
                 func = getattr(self,funcname)
@@ -949,12 +949,12 @@ class Worker(Process):
             except AttributeError:
                 success = False
                 message = traceback.format_exc()
-                self.logger.error('Couldn\'t start job:\n %s'%message)
+                self.logger.error("Couldn't start job:\n %s", message)
             # Report to the parent whether method lookup was successful or not:
             self.to_parent.put((success,message,None))
             if success:
                 # Try to do the requested work:
-                self.logger.debug('Starting job %s'%funcname)
+                self.logger.debug('Starting job %s', funcname)
                 try:
                     results = func(*args,**kwargs)
                     success = True
@@ -966,13 +966,13 @@ class Worker(Process):
                     traceback_lines = traceback.format_exception(*sys.exc_info())
                     del traceback_lines[1]
                     message = ''.join(traceback_lines)
-                    self.logger.error('Exception in job:\n%s'%message)
+                    self.logger.error('Exception in job:\n%s', message)
                 # Check if results object is serialisable:
                 try:
                     pickle.dumps(results)
                 except Exception:
                     message = traceback.format_exc()
-                    self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)
+                    self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n%s', message)
                     message = 'Attempt to pass unserialisable object %s to parent process:\n' % str(results) + message
                     success = False
                     results = None
@@ -1204,7 +1204,7 @@ class MyWorker(Worker):
         # import module; self.module = module. Up to you, I prefer
         # the former.
         global serial; import serial
-        self.logger.info('got x! %d' % self.x)
+        self.logger.info('got x! %d', self.x)
         # randomly fail this on init, but only occasionally
         import random
         if random.random() < 0.15:
@@ -1226,7 +1226,7 @@ class MyWorker(Worker):
         return 'results!!!'
         
     def baz(self,zzz,*args,**kwargs):
-        self.logger.debug('working on baz: time is %s'%repr(time.time()))
+        self.logger.debug('working on baz: time is %r', time.time())
         time.sleep(0.5)
         if kwargs['return_queue']:
             return queue.Queue()

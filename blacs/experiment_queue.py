@@ -124,13 +124,13 @@ class QueueTreeview(QTreeView):
             for url in event.mimeData().urls():
                 path = str(url.toLocalFile())
                 if path.endswith('.h5') or path.endswith('.hdf5'):
-                    self._logger.info('Acceptable file dropped. Path is %s'%path)
+                    self._logger.info('Acceptable file dropped. Path is %s', path)
                     if self.add_to_queue:
                         self.add_to_queue(str(path))
                     else:
                         self._logger.info('Dropped file not added to queue because there is no access to the neccessary add_to_queue method')
                 else:
-                    self._logger.info('Invalid file dropped. Path was %s'%path)
+                    self._logger.info('Invalid file dropped. Path was %s', path)
         else:
             event.ignore()
 
@@ -621,10 +621,10 @@ class QueueManager(object):
                 try:
                     shutil.move(temp_path, path)
                 except Exception:
-                    msg = ('Couldn\'t delete failed run file %s, ' % path +
+                    msg = ('Couldn\'t delete failed run file %s, '
                            'another process may be using it. Using alternate '
                            'filename for second attempt.')
-                    logger.warning(msg, exc_info=True)
+                    logger.warning(msg, path, exc_info=True)
                     shutil.move(temp_path, path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
             else:
@@ -632,9 +632,9 @@ class QueueManager(object):
                     os.remove(temp_path)
                 logger.error('Could not clean the failed run file %s. It is requeued '
                              'unchanged; remove its data group before running it '
-                             'again.' % path)
+                             'again.', path)
         except Exception:
-            logger.exception('Could not clean up the failed run file %s. Queue paused.' % path)
+            logger.exception('Could not clean up the failed run file %s. Queue paused.', path)
             cleaned = False
         self.prepend(path)
         return path, cleaned
@@ -727,7 +727,7 @@ class QueueManager(object):
                 shot = self._wait_for_next_shot()
                 if shot is None:
                     break
-                logger.info('Got a file: %s' % shot.path)
+                logger.info('Got a file: %s', shot.path)
                 self._run_shot(shot, logger)
             except Exception:
                 logger.exception("Unhandled error in the queue manager. Queue paused.")
@@ -892,7 +892,7 @@ class QueueManager(object):
                     logger.info(message)
                 except Exception:
                     # TODO: make this error popup for the user
-                    logger.exception('Failed to copy h5_file (%s) for repeat run' % path)
+                    logger.exception('Failed to copy h5_file (%s) for repeat run', path)
 
 
 class MainThreadNotifier(object):
@@ -973,7 +973,7 @@ class Shot(object):
         if name not in self.tabs:
             return
         if self.phase in ('buffered', 'starting'):
-            self.logger.info('Device %s was restarted, aborting shot.' % name)
+            self.logger.info('Device %s was restarted, aborting shot.', name)
             self.finish('restart', [name])
         elif self.phase == 'running':
             error_devices = [n for n, tab in self.tabs.items() if tab.error_message]
@@ -982,7 +982,7 @@ class Shot(object):
             in_later_group = any(name in group for group in self.stop_groups)
             if name not in self.pending and not in_later_group:
                 return
-            self.logger.debug('%s restarted before or during transition to manual' % name)
+            self.logger.debug('%s restarted before or during transition to manual', name)
             self.pending.pop(name, None)
             for group in self.stop_groups:
                 group.discard(name)
@@ -995,12 +995,12 @@ class Shot(object):
             error_devices = [name for name, tab in self.pending.items() if tab.error_message]
             if error_devices:
                 for name in error_devices:
-                    self.logger.error('%s has an error condition, aborting run' % name)
+                    self.logger.error('%s has an error condition, aborting run', name)
                 self.finish('error', error_devices)
         elif self.phase == 'manual':
             for name, tab in list(self.pending.items()):
                 if tab.error_message:
-                    self.logger.debug('%s is in an error state' % name)
+                    self.logger.debug('%s is in an error state', name)
                     del self.pending[name]
                     self.manual_error_devices.append(name)
             if not self.pending:
@@ -1043,17 +1043,17 @@ class Shot(object):
             tab = self.tabs[name]
             try:
                 if tab.error_message:
-                    self.logger.error('%s has an error condition, aborting run' % name)
+                    self.logger.error('%s has an error condition, aborting run', name)
                     self.finish('error', [name])
                     return
                 tab.connect_restart_receiver(restart_receiver)
                 tab.transition_to_buffered(self.path, self._buffered_notifier)
             except Exception:
-                self.logger.exception('Exception while transitioning %s to buffered mode.' % name)
+                self.logger.exception('Exception while transitioning %s to buffered mode.', name)
                 self.finish('error', [name])
                 return
             self.pending[name] = tab
-        self.logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s' % ', '.join(sorted(self.pending)))
+        self.logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s', ', '.join(sorted(self.pending)))
 
     def _on_buffered(self, item):
         name, result = item
@@ -1061,13 +1061,13 @@ class Shot(object):
             return
         tab = self.pending.pop(name)
         if result == 'fail':
-            self.logger.info('abort signal received during transition to buffered of %s' % name)
+            self.logger.info('abort signal received during transition to buffered of %s', name)
             self.finish('error', [name])
         elif tab.error_message:
-            self.logger.error('%s has an error condition, aborting run' % name)
+            self.logger.error('%s has an error condition, aborting run', name)
             self.finish('error', [name])
         else:
-            self.logger.debug('%s finished transitioning to buffered mode' % name)
+            self.logger.debug('%s finished transitioning to buffered mode', name)
             if not self.pending:
                 self._next_buffered_group()
 
@@ -1112,12 +1112,12 @@ class Shot(object):
                 try:
                     tab.transition_to_manual(self._manual_notifier)
                 except Exception:
-                    self.logger.exception('Exception while transitioning %s to manual mode.' % name)
+                    self.logger.exception('Exception while transitioning %s to manual mode.', name)
                     self.manual_error_devices.append(name)
                     continue
                 self.pending[name] = tab
             if self.pending:
-                self.logger.info('Waiting for the following devices to finish transitioning to manual mode: %s' % ', '.join(sorted(self.pending)))
+                self.logger.info('Waiting for the following devices to finish transitioning to manual mode: %s', ', '.join(sorted(self.pending)))
         if not self.pending:
             self.queue_manager._end_shot(self)
             self.finish('manual', self.manual_error_devices)
@@ -1129,11 +1129,11 @@ class Shot(object):
         tab = self.pending.pop(name)
         if result == 'fail':
             self.manual_error_devices.append(name)
-            self.logger.debug('%s failed to transition to manual' % name)
+            self.logger.debug('%s failed to transition to manual', name)
         elif tab.error_message:
             self.manual_error_devices.append(name)
-            self.logger.debug('%s is in an error state' % name)
+            self.logger.debug('%s is in an error state', name)
         else:
-            self.logger.debug('%s finished transitioning to manual mode' % name)
+            self.logger.debug('%s finished transitioning to manual mode', name)
         if not self.pending:
             self._next_manual_group()

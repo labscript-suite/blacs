@@ -62,17 +62,17 @@ class Notifications(object):
             if 'closed_callback' in properties and callable(properties['closed_callback']):
                 self._closed_callbacks[notification_class] = properties['closed_callback']
             elif 'closed_callback' in properties:
-                logger.warning('"Closed" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.'%(notification_class,properties['closed_callback']))
+                logger.warning('"Closed" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.', notification_class, properties['closed_callback'])
             
             if 'hidden_callback' in properties and callable(properties['hidden_callback']):
                 self._hidden_callbacks[notification_class] = properties['hidden_callback']
             elif 'hidden_callback' in properties:
-                logger.warning('"Hidden" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.'%(notification_class,properties['hidden_callback']))
+                logger.warning('"Hidden" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.', notification_class, properties['hidden_callback'])
             
             if 'shown_callback' in properties and callable(properties['shown_callback']):
                 self._shown_callbacks[notification_class] = properties['shown_callback']
             elif 'shown_callback' in properties:
-                logger.warning('"Shown" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.'%(notification_class,properties['shown_callback']))
+                logger.warning('"Shown" callback for notification class %s is not callable (and will not be called when the notification is closed. The callback specified was %s.', notification_class, properties['shown_callback'])
                         
             
             #TODO: Make the minimized widget
@@ -92,7 +92,7 @@ class Notifications(object):
             self._notifications[notification_class].set_functions(show_func,hide_func,close_func,get_state)            
             
         except Exception:
-            logger.exception('Failed to instantiate Notification class %s.'%notification_class)
+            logger.exception('Failed to instantiate Notification class %s.', notification_class)
             # Cleanup 
             # TODO: cleanup a little more
             if notification_class in self._notifications:
@@ -119,7 +119,7 @@ class Notifications(object):
             try:
                 self._shown_callbacks[notification_class]()
             except Exception:
-                logger.exception('Failed to run "shown" callback for notification class %s'%notification_class)
+                logger.exception('Failed to run "shown" callback for notification class %s', notification_class)
         
     def close_notification(self, notification_class, callback):
         self._widgets[notification_class].setVisible(False)
@@ -128,7 +128,7 @@ class Notifications(object):
             try:
                 self._closed_callbacks[notification_class]()
             except Exception:
-                logger.exception('Failed to run "closed" callback for notification class %s'%notification_class)
+                logger.exception('Failed to run "closed" callback for notification class %s', notification_class)
         
     def minimize_notification(self,notification_class, callback):
         self._widgets[notification_class].setVisible(False)
@@ -137,7 +137,7 @@ class Notifications(object):
             try:
                 self._hidden_callbacks[notification_class]()
             except Exception:
-                logger.exception('Failed to run "hidden" callback for notification class %s'%notification_class)
+                logger.exception('Failed to run "hidden" callback for notification class %s', notification_class)
     
     def get_state(self,notification_class):
         if self._widgets[notification_class].isVisible():
