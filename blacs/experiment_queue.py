@@ -19,6 +19,7 @@ import time
 import datetime
 import sys
 import shutil
+import uuid
 from collections import defaultdict
 from tempfile import gettempdir
 from binascii import hexlify
@@ -151,10 +152,22 @@ class QueueManager(object):
         # Set in the main thread when the queue manager thread may have a shot to run:
         self._wakeup = threading.Event()
 
+        # Paths of the files in the queue, and paths of files being added to it by
+        # process_request(). Accessed from any thread with self._queued_lock held, and
+        # updated in the main thread when rows are inserted or removed:
+        self._queued = set()
+        self._adding = set()
+        self._queued_lock = threading.Lock()
+        # Files and their DeviceOrders to be appended to the queue in the main thread:
+        self._appends = []
+        self._appends_posted = False
+
         # Create listview model
         self._model = QStandardItemModel()
         self._create_headers()
-        self._model.rowsInserted.connect(lambda *args: self._wakeup.set())
+        self._model.rowsInserted.connect(self._on_rows_inserted)
+        self._model.rowsRemoved.connect(self._update_queued)
+        self._model.modelReset.connect(self._update_queued)
         self._ui.treeview.setModel(self._model)
         self._ui.treeview.add_to_queue = self.process_request
         self._ui.treeview.delete_selection = self._delete_selected_items
@@ -397,16 +410,56 @@ class QueueManager(object):
                 selected_row_list[i] += 1
                 row += 1
     
-    @inmain_decorator(True)
-    def append(self, h5files, device_orders=None):
-        """Add files to the end of the queue. device_orders, if given, is the
-        DeviceOrders of the files."""
-        for file in h5files:
-            item = QStandardItem(file)
-            item.setToolTip(file)
+    def _update_queued(self, *args):
+        """Set self._queued to the paths in the model. Runs in the main thread."""
+        items = [self._model.item(row) for row in range(self._model.rowCount())]
+        with self._queued_lock:
+            self._queued = {item.text() for item in items if item is not None}
+
+    def _on_rows_inserted(self, parent, first, last):
+        self._update_queued()
+        self._wakeup.set()
+
+    def _start_adding(self, path):
+        """Record that a file is being added to the queue, unless it is in the queue or
+        being added already. Return whether it was recorded."""
+        with self._queued_lock:
+            if path in self._queued or path in self._adding:
+                return False
+            self._adding.add(path)
+            return True
+
+    def queue_length(self):
+        """Return the number of files in the queue or being added to it"""
+        with self._queued_lock:
+            return len(self._queued) + len(self._adding)
+
+    def _add(self, path, device_orders):
+        """Append a file recorded by _start_adding() to the queue. Called from the main
+        thread, the file is appended before returning; from another thread, it is
+        appended by the main thread later, together with any others added meanwhile."""
+        with self._queued_lock:
+            self._appends.append((path, device_orders))
+            post = not self._appends_posted
+            self._appends_posted = True
+        if threading.current_thread() is threading.main_thread():
+            self._append_added()
+        elif post:
+            inmain_later(self._append_added)
+
+    def _append_added(self):
+        with self._queued_lock:
+            appends = self._appends
+            self._appends = []
+            self._appends_posted = False
+        for path, device_orders in appends:
+            item = QStandardItem(path)
+            item.setToolTip(path)
             item.setData(device_orders, DEVICE_ORDERS_ROLE)
             self._model.appendRow(item)
-    
+            with self._queued_lock:
+                self._adding.discard(path)
+
     @inmain_decorator(True)
     def stop(self):
         """Stop the queue manager. A shot that is being programmed or run is aborted
@@ -423,6 +476,9 @@ class QueueManager(object):
             self._model.insertRow(0,QStandardItem(h5file))
     
     def process_request(self,h5_filepath):
+        """Check a shot file and add it to the queue, or a copy of it if it has been run
+        or is in the queue. May be called from any thread. Returns a message for the
+        user."""
         try:
             h5_file = h5py.File(h5_filepath, 'r')
         except Exception:
@@ -433,43 +489,43 @@ class QueueManager(object):
                 new_conn = ConnectionTable(h5_file, logging_prefix='BLACS')
             except Exception:
                 return "H5 file not accessible to Control PC\n"
-            result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
-            if result:
-                # Has this run file been run already?
-                rerun = 'data' in h5_file['/']
-                device_orders = DeviceOrders(h5_file)
-        if result:
-            if rerun or self.is_in_queue(h5_filepath):
-                self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
-                new_h5_filepath, repeat_number = self.new_rep_name(h5_filepath)
-                # Keep counting up until we get a filename that isn't in the filesystem:
-                while os.path.exists(new_h5_filepath):
-                    new_h5_filepath, repeat_number = self.new_rep_name(new_h5_filepath)
-                success = self.clean_h5_file(h5_filepath, new_h5_filepath, repeat_number=repeat_number)
-                if not success:
-                   return 'Cannot create a re run of this experiment. Is it a valid run file?'
-                self.append([new_h5_filepath], device_orders)
-                message = "Experiment added successfully: experiment to be re-run\n"
-            else:
-                self.append([h5_filepath], device_orders)
+            result,error = self.BLACS.connection_table.compare_to(new_conn)
+            if not result:
+                # TODO: Parse and display the contents of "error" in a more human readable format for analysis of what is wrong!
+                message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
+                           "You may have:\n"
+                           "    Submitted your file to the wrong control PC\n"
+                           "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
+                           "    Renamed a channel at the top of your script\n"
+                           "    Submitted an old file, and the experiment has since been rewired\n"
+                           "\n"
+                           "Please verify your experiment script matches the current experiment configuration, and try again\n"
+                           "The error was %s\n"%error)
+                return message
+            device_orders = DeviceOrders(h5_file)
+            # Has this run file been run already?
+            if 'data' not in h5_file['/'] and self._start_adding(h5_filepath):
+                queued_path = h5_filepath
                 message = "Experiment added successfully\n"
-            if self.manager_paused:
-                message += "Warning: Queue is currently paused\n"
-            if not self.manager_running:
-                message = "Error: Queue is not running\n"
-            return message
-        else:
-            # TODO: Parse and display the contents of "error" in a more human readable format for analysis of what is wrong!
-            message =  ("Connection table of your file is not a subset of the experimental control apparatus.\n"
-                       "You may have:\n"
-                       "    Submitted your file to the wrong control PC\n"
-                       "    Added new channels to your h5 file, without rewiring the experiment and updating the control PC\n"
-                       "    Renamed a channel at the top of your script\n"
-                       "    Submitted an old file, and the experiment has since been rewired\n"
-                       "\n"
-                       "Please verify your experiment script matches the current experiment configuration, and try again\n"
-                       "The error was %s\n"%error)
-            return message
+            else:
+                self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
+                queued_path, repeat_number = self.new_rep_name(h5_filepath)
+                # Keep counting up until we get a filename that isn't in the filesystem
+                # or the queue:
+                while os.path.exists(queued_path) or not self._start_adding(queued_path):
+                    queued_path, repeat_number = self.new_rep_name(queued_path)
+                success = self.clean_h5_file(h5_file, queued_path, repeat_number=repeat_number)
+                if not success:
+                    with self._queued_lock:
+                        self._adding.discard(queued_path)
+                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
+                message = "Experiment added successfully: experiment to be re-run\n"
+        self._add(queued_path, device_orders)
+        if self.manager_paused:
+            message += "Warning: Queue is currently paused\n"
+        if not self.manager_running:
+            message = "Error: Queue is not running\n"
+        return message
             
     def new_rep_name(self, h5_filepath):
         """Return the path of the next repeat of a shot file and its repeat number.
@@ -485,41 +541,48 @@ class QueueManager(object):
             reps = 1
         return os.path.join(directory, basename + '_rep%05d.h5' % reps), reps
         
-    def clean_h5_file(self, h5file, new_h5_file, repeat_number=0):
+    def clean_h5_file(self, old_file, new_h5_file, repeat_number=0):
+        """Write a copy of an open shot file to a new file, without the groups that are
+        written when the shot is run. The copy is made in memory and written to the new
+        file at once, without a zlock, since no other program knows of the new file.
+        Returns whether the copy was written."""
+        groups_to_copy = [
+            'devices',
+            'calibrations',
+            'script',
+            'globals',
+            'connection table',
+            'labscriptlib',
+            'waits',
+            'time_markers',
+            'shot_properties',
+        ]
         try:
-            with h5py.File(h5file, 'r') as old_file:
-                with h5py.File(new_h5_file, 'w') as new_file:
-                    groups_to_copy = [
-                        'devices',
-                        'calibrations',
-                        'script',
-                        'globals',
-                        'connection table',
-                        'labscriptlib',
-                        'waits',
-                        'time_markers',
-                        'shot_properties',
-                    ]
-                    for group in groups_to_copy:
-                        if group in old_file:
-                            new_file.copy(old_file[group], group)
-                    for name in old_file.attrs:
-                        new_file.attrs[name] = old_file.attrs[name]
-                    new_file.attrs['run repeat'] = repeat_number
+            fapl = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
+            fapl.set_fapl_core(backing_store=False)
+            # The name must differ from that of any open file. A file opened from an
+            # identifier is not locked with zlock.
+            memory_name = ('blacs_copy_%s' % uuid.uuid4()).encode()
+            with h5py.File(h5py.h5f.create(memory_name, fapl=fapl)) as new_file:
+                for group in groups_to_copy:
+                    if group in old_file:
+                        new_file.copy(old_file[group], group)
+                for name in old_file.attrs:
+                    new_file.attrs[name] = old_file.attrs[name]
+                new_file.attrs['run repeat'] = repeat_number
+                new_file.flush()
+                image = new_file.id.get_file_image()
+            with open(new_h5_file, 'wb') as f:
+                f.write(image)
         except Exception:
-            # raise
             self._logger.exception('Clean H5 File Error.')
             return False
-            
         return True
     
-    @inmain_decorator(wait_for_return=True)    
-    def is_in_queue(self,path):                
-        item = self._model.findItems(path,column=FILEPATH_COLUMN)
-        if item:
-            return True
-        else:
-            return False
+    def is_in_queue(self, path):
+        """Return whether a file is in the queue or being added to it"""
+        with self._queued_lock:
+            return path in self._queued or path in self._adding
 
     @inmain_decorator(wait_for_return=True)
     def set_status(self, queue_status, shot_filepath=None):
@@ -542,10 +605,10 @@ class QueueManager(object):
         cleaned = False
         try:
             # is this a repeat?
+            temp_path = tempfilename()
             with h5py.File(path, 'r') as h5_file:
                 repeat_number = h5_file.attrs.get('run repeat', 0)
-            temp_path = tempfilename()
-            cleaned = self.clean_h5_file(path, temp_path, repeat_number=repeat_number)
+                cleaned = self.clean_h5_file(h5_file, temp_path, repeat_number=repeat_number)
             if cleaned:
                 try:
                     shutil.move(temp_path, path)
@@ -806,7 +869,7 @@ class QueueManager(object):
 
         if repeat_shot:
             if ((self.manager_repeat_mode == self.REPEAT_ALL) or
-                (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
+                (self.manager_repeat_mode == self.REPEAT_LAST and self.queue_length() == 0)):
                 # Resubmit job to the bottom of the queue:
                 try:
                     message = self.process_request(path)
