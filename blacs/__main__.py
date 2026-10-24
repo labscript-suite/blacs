@@ -68,7 +68,7 @@ import labscript_utils.h5_lock, h5py
 
 splash.update_text('importing labscript suite modules')
 import labscript_utils
-from labscript_utils.ls_zprocess import ProcessTree, ZMQServer
+from labscript_utils.ls_zprocess import ProcessTree, ZMQServer, exit_if_port_in_use
 from labscript_utils.setup_logging import setup_logging
 import labscript_utils.shared_drive
 import blacs
@@ -807,10 +807,7 @@ if __name__ == '__main__':
     settings_path = str(settings_dir / f'{hostname()}_BLACS.h5')
 
     port = int(exp_config.get('ports','BLACS'))
-
-    # Start experiment server
-    splash.update_text('starting experiment server')
-    experiment_server = ExperimentServer(port)
+    exit_if_port_in_use('BLACS', port, splash)
 
     # Create Connection Table object
     splash.update_text('loading connection table')
@@ -829,6 +826,9 @@ if __name__ == '__main__':
     app = BLACS(qapplication)
 
     logger.info('BLACS instantiated')
+
+    splash.update_text('starting experiment server')
+    experiment_server = ExperimentServer(port)
     splash.hide()
 
     def execute_program():
