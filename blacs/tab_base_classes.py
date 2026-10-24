@@ -95,7 +95,7 @@ class StateQueue(object):
      
     def log_current_states(self):
         if self.logging_enabled:
-            self.logger.debug('Current items in the state queue: %s'%str(self.list_of_states))
+            self.logger.debug('Current items in the state queue: %s', self.list_of_states)
      
     # this should only happen in the main thread, as my implementation is not thread safe!
     @inmain_decorator(True)   
@@ -114,7 +114,7 @@ class StateQueue(object):
         
         if self.logging_enabled:
             if not isinstance(data[0],str):
-                self.logger.debug('New state queued up. Allowed modes: %d, queue state indefinitely: %s, delete stale states: %s, function: %s'%(allowed_states,str(queue_state_indefinitely),str(delete_stale_states),data[0].__name__))
+                self.logger.debug('New state queued up. Allowed modes: %d, queue state indefinitely: %s, delete stale states: %s, function: %s', allowed_states, queue_state_indefinitely, delete_stale_states, data[0].__name__)
         self.log_current_states()
     
     # this should only happen in the main thread, as my implementation is not thread safe!
@@ -184,7 +184,7 @@ class StateQueue(object):
         self.last_requested_state = state
         while True:
             if self.logging_enabled:
-                self.logger.debug('requesting next item in queue with mode %d'%state)
+                self.logger.debug('requesting next item in queue with mode %d', state)
                 inmain(self.log_current_states)
             status,data = self.check_for_next_item(state)
             if not status:
@@ -350,7 +350,7 @@ class Tab(object):
             if isinstance(tab_save_data, dict):
                 save_data.update(tab_save_data)
             else:
-                self.logger.warning('Incorrect format for tab save data from the get_save_data() method. Data should be a dict. Data was: %s'%tab_save_data)
+                self.logger.warning('Incorrect format for tab save data from the get_save_data() method. Data should be a dict. Data was: %s', tab_save_data)
         return save_data
 
     def restore_builtin_save_data(self, data):
@@ -793,7 +793,7 @@ class Tab(object):
                     logger.debug('Received quit signal')
                     break
                 args,kwargs = data
-                logger.debug('Processing event %s' % func.__name__)
+                logger.debug('Processing event %s', func.__name__)
                 self.state = '%s (GUI)'%func.__name__
                 # Run the task with the GUI lock, catching any exceptions:
                 #func = getattr(self,funcname)
@@ -813,7 +813,7 @@ class Tab(object):
                     # Continue until we get a StopIteration exception, or the user requests a restart
                     while generator_running:
                         try:
-                            logger.debug('Instructing worker %s to do job %s'%(worker_process,worker_function) )
+                            logger.debug('Instructing worker %s to do job %s', worker_process, worker_function)
                             if worker_function == 'init':
                                 # Start the worker process before running its init() method:
                                 self.state = '%s (%s)'%('Starting worker process', worker_process)
@@ -855,7 +855,7 @@ class Tab(object):
                             self.hide_not_responding_error_until = 0
                                 
                             # Send the results back to the GUI function
-                            logger.debug('returning worker results to function %s' % func.__name__)
+                            logger.debug('returning worker results to function %s', func.__name__)
                             self.state = '%s (GUI)'%func.__name__
                             next_yield = inmain(generator.send,results) 
                             # If there is another yield command, put the data in the required variables for the next loop iteration
@@ -873,7 +873,7 @@ class Tab(object):
         except Exception:
             # Some unhandled error happened. Inform the user, and give the option to restart
             message = traceback.format_exc()
-            logger.critical('A fatal exception happened:\n %s'%message)
+            logger.critical('A fatal exception happened:\n %s', message)
             now = time.strftime('%a %b %d, %H:%M:%S ',time.localtime())
             self.error_message += ('Fatal exception in main process - %s:<br /> '%now +
                            '<FONT COLOR=\'#ff0000\'>%s</FONT><br />'%escape(message).replace(' ','&nbsp;').replace('\n','<br />'))
@@ -928,7 +928,7 @@ class Worker(Process):
             # Get the next task to be done:
             self.logger.debug('Waiting for next job request')
             funcname, args, kwargs = self.from_parent.get()
-            self.logger.debug('Got job request %s' % funcname)
+            self.logger.debug('Got job request %s', funcname)
             try:
                 # See if we have a method with that name:
                 func = getattr(self,funcname)
@@ -937,12 +937,12 @@ class Worker(Process):
             except AttributeError:
                 success = False
                 message = traceback.format_exc()
-                self.logger.error('Couldn\'t start job:\n %s'%message)
+                self.logger.error("Couldn't start job:\n %s", message)
             # Report to the parent whether method lookup was successful or not:
             self.to_parent.put((success,message,None))
             if success:
                 # Try to do the requested work:
-                self.logger.debug('Starting job %s'%funcname)
+                self.logger.debug('Starting job %s', funcname)
                 try:
                     results = func(*args,**kwargs)
                     success = True
@@ -954,13 +954,13 @@ class Worker(Process):
                     traceback_lines = traceback.format_exception(*sys.exc_info())
                     del traceback_lines[1]
                     message = ''.join(traceback_lines)
-                    self.logger.error('Exception in job:\n%s'%message)
+                    self.logger.error('Exception in job:\n%s', message)
                 # Check if results object is serialisable:
                 try:
                     pickle.dumps(results)
                 except Exception:
                     message = traceback.format_exc()
-                    self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n' + message)
+                    self.logger.error('Job returned unserialisable datatypes, cannot pass them back to parent.\n%s', message)
                     message = 'Attempt to pass unserialisable object %s to parent process:\n' % str(results) + message
                     success = False
                     results = None
@@ -1192,7 +1192,7 @@ class MyWorker(Worker):
         # import module; self.module = module. Up to you, I prefer
         # the former.
         global serial; import serial
-        self.logger.info('got x! %d' % self.x)
+        self.logger.info('got x! %d', self.x)
         # randomly fail this on init, but only occasionally
         import random
         if random.random() < 0.15:
@@ -1214,7 +1214,7 @@ class MyWorker(Worker):
         return 'results!!!'
         
     def baz(self,zzz,*args,**kwargs):
-        self.logger.debug('working on baz: time is %s'%repr(time.time()))
+        self.logger.debug('working on baz: time is %r', time.time())
         time.sleep(0.5)
         if kwargs['return_queue']:
             return queue.Queue()

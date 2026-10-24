@@ -71,7 +71,7 @@ def get_callbacks(name):
                 if name in plugin_callbacks:
                     callbacks.append(plugin_callbacks[name])
         except Exception:
-            logger.exception('Error getting callbacks from %s.' % str(plugin))
+            logger.exception('Error getting callbacks from %s.', plugin)
             
     # Sort all callbacks by priority:
     callbacks.sort(key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY))
@@ -98,7 +98,8 @@ for module_name in os.listdir(PLUGINS_DIR):
             # the section itself overrides the inherited value.
             logger.warning(
                 "Plugin '%s' shares its name with a labconfig [DEFAULT] key; "
-                "using the default enabled state." % module_name
+                "using the default enabled state.",
+                module_name,
             )
             exp_config.set('BLACS/plugins', module_name, str(module_name in default_plugins))
             enabled = module_name in default_plugins
@@ -108,6 +109,6 @@ for module_name in os.listdir(PLUGINS_DIR):
             try:
                 module = importlib.import_module('blacs.plugins.'+module_name)
             except Exception:
-                logger.exception('Could not import plugin \'%s\'. Skipping.'%module_name)
+                logger.exception("Could not import plugin '%s'. Skipping.", module_name)
             else:
                 modules[module_name] = module

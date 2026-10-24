@@ -100,13 +100,13 @@ class QueueTreeview(QTreeView):
             for url in event.mimeData().urls():
                 path = str(url.toLocalFile())
                 if path.endswith('.h5') or path.endswith('.hdf5'):
-                    self._logger.info('Acceptable file dropped. Path is %s'%path)
+                    self._logger.info('Acceptable file dropped. Path is %s', path)
                     if self.add_to_queue:
                         self.add_to_queue(str(path))
                     else:
                         self._logger.info('Dropped file not added to queue because there is no access to the neccessary add_to_queue method')
                 else:
-                    self._logger.info('Invalid file dropped. Path was %s'%path)
+                    self._logger.info('Invalid file dropped. Path was %s', path)
         else:
             event.ignore()
 
@@ -547,14 +547,14 @@ class QueueManager(object):
                 try:
                     shutil.move(temp_path, path)
                 except Exception:
-                    msg = ('Couldn\'t delete failed run file %s, ' % path + 
+                    msg = ('Couldn\'t delete failed run file %s, '
                            'another process may be using it. Using alternate ' 
                            'filename for second attempt.')
-                    logger.warning(msg, exc_info=True)
+                    logger.warning(msg, path, exc_info=True)
                     shutil.move(temp_path, path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
         except Exception:
-            logger.exception('Could not clean up the failed run file %s. Queue paused.' % path)
+            logger.exception('Could not clean up the failed run file %s. Queue paused.', path)
             cleaned = False
         self.prepend(path)
         return path, cleaned
@@ -595,7 +595,7 @@ class QueueManager(object):
                 try:
                     path = self.get_next_file()
                     self.set_status('Preparing shot...', path)
-                    logger.info('Got a file: %s'%path)
+                    logger.info('Got a file: %s', path)
                 except Exception:
                     # If no files, sleep for 1s,
                     self.set_status("Idle")
@@ -619,7 +619,7 @@ class QueueManager(object):
                     try:
                         self.current_queue.put([device_name, 'restart'])
                     except Exception:
-                        logger.exception('Could not send restart message to the queue manager for device %s'%device_name)
+                        logger.exception('Could not send restart message to the queue manager for device %s', device_name)
         
                 ##########################################################################################################################################
                 #                                                       transition to buffered                                                           #
@@ -681,12 +681,12 @@ class QueueManager(object):
                                     # Connect restart signal from tabs to current_queue and transition the device to buffered mode
                                     success = self.transition_device_to_buffered(name,transition_list,path,restart_function)
                                     if not success:
-                                        logger.error('%s has an error condition, aborting run' % name)
+                                        logger.error('%s has an error condition, aborting run', name)
                                         error_condition = True
                                         error_devices.append(name)
                                         break
                                 except Exception:
-                                    logger.exception('Exception while transitioning %s to buffered mode.'%(name))
+                                    logger.exception('Exception while transitioning %s to buffered mode.', name)
                                     error_condition = True
                                     error_devices.append(name)
                                     break
@@ -695,7 +695,7 @@ class QueueManager(object):
                         
                         try:
                             # Wait for a device to transtition_to_buffered:
-                            logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s'%str(transition_list))
+                            logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s', transition_list)
                             device_name, result = self.current_queue.get(timeout=2)
                         
                             #Handle abort button signal
@@ -706,21 +706,21 @@ class QueueManager(object):
                                 break
                             
                             if result == 'fail':
-                                logger.info('abort signal received during transition to buffered of %s' % device_name)
+                                logger.info('abort signal received during transition to buffered of %s', device_name)
                                 error_condition = True
                                 error_devices.append(device_name)
                                 break
                             elif result == 'restart':
-                                logger.info('Device %s was restarted, aborting shot.'%device_name)
+                                logger.info('Device %s was restarted, aborting shot.', device_name)
                                 restarted = True
                                 restarted_devices.append(device_name)
                                 break
                             
-                            logger.debug('%s finished transitioning to buffered mode' % device_name)
+                            logger.debug('%s finished transitioning to buffered mode', device_name)
                         
                             # The tab says it's done, but does it have an error condition?
                             if self.get_device_error_state(device_name,transition_list):
-                                logger.error('%s has an error condition, aborting run' % device_name)
+                                logger.error('%s has an error condition, aborting run', device_name)
                                 error_condition = True
                                 error_devices.append(device_name)
                                 break
@@ -731,7 +731,7 @@ class QueueManager(object):
                             # transitioning to buffered. Is there an error?
                             for name in transition_list:
                                 if self.get_device_error_state(name,transition_list):
-                                    logger.error('%s has an error condition, aborting run' % name)
+                                    logger.error('%s has an error condition, aborting run', name)
                                     error_condition = True
                                     error_devices.append(name)
                                 
@@ -835,7 +835,7 @@ class QueueManager(object):
                             # Check for error states in tabs
                             for device_name, tab in devices_in_use.items():
                                 if self.get_device_error_state(device_name,devices_in_use):
-                                    logger.error('%s has an error condition, aborting run' % device_name)
+                                    logger.error('%s has an error condition, aborting run', device_name)
                                     restarted = True
                                     error_devices.append(device_name)
                         except queue.Empty:
@@ -935,12 +935,12 @@ class QueueManager(object):
                                 tab.transition_to_manual(self.current_queue)
                                 transition_list[name] = tab
                             except Exception:
-                                logger.exception('Exception while transitioning %s to manual mode.'%(name))
+                                logger.exception('Exception while transitioning %s to manual mode.', name)
                                 error_condition = True
                                 error_devices.append(name)
                         # Wait for their responses:
                         while transition_list:
-                            logger.info('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
+                            logger.info('Waiting for the following devices to finish transitioning to manual mode: %s', transition_list)
                             try:
                                 name, result = self.current_queue.get(timeout=2)
                                 if name == 'Queue Manager' and result == 'abort':
@@ -954,7 +954,7 @@ class QueueManager(object):
                                     if self.get_device_error_state(name, transition_list):
                                         error_condition = True
                                         error_devices.append(name)
-                                        logger.debug('%s is in an error state' % name)
+                                        logger.debug('%s is in an error state', name)
                                         inmain(transition_list[name].disconnect_restart_receiver, restart_function)
                                         del transition_list[name]
                                 continue
@@ -965,17 +965,17 @@ class QueueManager(object):
                             if result == 'fail':
                                 error_condition = True
                                 error_devices.append(name)
-                                logger.debug('%s failed to transition to manual' % name)
+                                logger.debug('%s failed to transition to manual', name)
                             elif result == 'restart':
                                 error_condition = True
                                 error_devices.append(name)
-                                logger.debug('%s restarted during transition to manual' % name)
+                                logger.debug('%s restarted during transition to manual', name)
                             elif self.get_device_error_state(name, devices_in_use):
                                 error_condition = True
                                 error_devices.append(name)
-                                logger.debug('%s is in an error state' % name)
+                                logger.debug('%s is in an error state', name)
                             else:
-                                logger.debug('%s finished transitioning to manual mode' % name)
+                                logger.debug('%s finished transitioning to manual mode', name)
                             # Once device has transitioned_to_manual, disconnect restart
                             # signal:
                             tab = devices_in_use[name]
@@ -1051,7 +1051,7 @@ class QueueManager(object):
                             logger.info(message)
                         except Exception:
                             # TODO: make this error popup for the user
-                            logger.exception('Failed to copy h5_file (%s) for repeat run' % path)
+                            logger.exception('Failed to copy h5_file (%s) for repeat run', path)
 
                 self.set_status("Idle")
             except Exception:
