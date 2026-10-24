@@ -363,10 +363,13 @@ class Tab(object):
         self._tab_icon_and_colour_timer = QTimer()
         self._tab_icon_and_colour_timer.timeout.connect(self.set_tab_icon_and_colour)
         self._tab_icon = self.ICON_OK
+        # The notebook, tab index, icon and text colour last set on the tab:
+        self._applied_tab_icon_and_colour = None
 
         # Create instance variables
         self._not_responding_error_message = ''
         self._error = ''
+        self._error_html = None
         self._state = ''
         self._time_of_last_state_change = time.time()
         self.not_responding_for = 0
@@ -523,7 +526,10 @@ class Tab(object):
         prefix = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:"MS Shell Dlg 2"; font-size:7.8pt; font-weight:400; font-style:normal;">'
         suffix = '</body></html>'
         #print threading.current_thread().name
-        self._ui.error_message.setHtml(prefix+self._not_responding_error_message+self._error+suffix)
+        error_html = prefix+self._not_responding_error_message+self._error+suffix
+        if error_html != self._error_html:
+            self._error_html = error_html
+            self._ui.error_message.setHtml(error_html)
         if self._error or self._not_responding_error_message:
             self._ui.notresponding.show()
             self._tab_text_colour = QColor('red')
@@ -554,6 +560,10 @@ class Tab(object):
             if currentpage == -1:
                 # shutting down:
                 return
+            applied = (self.notebook, currentpage, self._tab_icon, QColor(self._tab_text_colour))
+            if applied == self._applied_tab_icon_and_colour:
+                return
+            self._applied_tab_icon_and_colour = applied
             icon = QIcon(self._tab_icon)
             self.notebook.tabBar().setTabIcon(currentpage, icon)
             self.notebook.tabBar().setTabTextColor(currentpage, self._tab_text_colour)
@@ -838,6 +848,8 @@ class Tab(object):
         self.notebook.removeTab(self.notebook.indexOf(self._ui))
         self.notebook.insertTab(currentpage,self._ui,self.device_name)
         self.notebook.setCurrentWidget(self._ui)
+        self._applied_tab_icon_and_colour = None
+        self.set_tab_icon_and_colour()
             
         # If BLACS is waiting on this tab for something, tell it to abort!
         # self.BLACS.current_queue.put('abort')
