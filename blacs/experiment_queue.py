@@ -36,13 +36,12 @@ from labscript_utils.ls_zprocess import ProcessTree
 process_tree = ProcessTree.instance()
 import labscript_utils.h5_lock, h5py
 
-from qtutils import inmain_decorator, inmain
+from qtutils import inmain_decorator, inmain, inmain_later
 
 from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.connections import ConnectionTable
 import labscript_utils.properties
 
-from blacs.tab_base_classes import MODE_MANUAL, MODE_TRANSITION_TO_BUFFERED, MODE_TRANSITION_TO_MANUAL, MODE_BUFFERED  
 import blacs.plugins as plugins
 
 
@@ -53,6 +52,23 @@ def tempfilename(prefix='BLACS-temp-', suffix='.h5'):
 
 
 FILEPATH_COLUMN = 0
+# The item data role of the start and stop orders of the devices of a queued shot:
+DEVICE_ORDERS_ROLE = Qt.UserRole + 1
+
+
+class DeviceOrders(object):
+    """Dictionaries of the start_order and stop_order of each device in an open shot
+    file"""
+
+    def __init__(self, h5_file):
+        self.start_order = {}
+        self.stop_order = {}
+        for name, group in h5_file['devices'].items():
+            for orders, key in [(self.start_order, 'start_order'), (self.stop_order, 'stop_order')]:
+                if key in group.attrs:
+                    orders[name] = labscript_utils.properties.get_attribute(group, key)
+                else:
+                    orders[name] = None
 
 
 def device_status(names, description):
@@ -124,17 +140,21 @@ class QueueManager(object):
         self.last_opened_shots_folder = BLACS.exp_config.get('paths', 'experiment_shot_storage')
         self._manager_running = True
         self._requeue_aborted_shot = False
-        self.current_queue = queue.Queue()
         self._manager_paused = False
         self._manager_repeat = False
         self._manager_repeat_mode = self.REPEAT_ALL
         self.master_pseudoclock = self.BLACS.connection_table.master_pseudoclock
         
         self._logger = logging.getLogger('BLACS.QueueManager')   
-        
+        # The shot being run, accessed only in the main thread:
+        self._shot = None
+        # Set in the main thread when the queue manager thread may have a shot to run:
+        self._wakeup = threading.Event()
+
         # Create listview model
         self._model = QStandardItemModel()
         self._create_headers()
+        self._model.rowsInserted.connect(lambda *args: self._wakeup.set())
         self._ui.treeview.setModel(self._model)
         self._ui.treeview.add_to_queue = self.process_request
         self._ui.treeview.delete_selection = self._delete_selected_items
@@ -144,6 +164,7 @@ class QueueManager(object):
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
         self._ui.queue_clear_button.clicked.connect(self._toggle_clear)
+        self._ui.queue_abort_button.clicked.connect(self._on_abort_clicked)
         self._ui.actionAdd_to_queue.triggered.connect(self.on_add_shots_triggered)
         self._ui.queue_add_button.setDefaultAction(self._ui.actionAdd_to_queue)
         self._ui.queue_push_up.clicked.connect(self._move_up)
@@ -209,7 +230,6 @@ class QueueManager(object):
             self.last_opened_shots_folder = data['last_opened_shots_folder']
         
     @property
-    @inmain_decorator(True)
     def manager_running(self):
         return self._manager_running
         
@@ -218,6 +238,7 @@ class QueueManager(object):
     def manager_running(self,value):
         value = bool(value)
         self._manager_running = value
+        self._wakeup.set()
         
     def _toggle_pause(self,checked):    
         self.manager_paused = checked
@@ -227,7 +248,6 @@ class QueueManager(object):
         self._create_headers()
 
     @property
-    @inmain_decorator(True)
     def manager_paused(self):
         return self._manager_paused
     
@@ -236,6 +256,7 @@ class QueueManager(object):
     def manager_paused(self,value):
         value = bool(value)
         self._manager_paused = value
+        self._wakeup.set()
         if value != self._ui.queue_pause_button.isChecked():
             self._ui.queue_pause_button.setChecked(value)
     
@@ -243,7 +264,6 @@ class QueueManager(object):
         self.manager_repeat = checked
         
     @property
-    @inmain_decorator(True)
     def manager_repeat(self):
         return self._manager_repeat
 
@@ -256,7 +276,6 @@ class QueueManager(object):
             self._ui.queue_repeat_button.setChecked(value)
 
     @property
-    @inmain_decorator(True)
     def manager_repeat_mode(self):
         return self._manager_repeat_mode
 
@@ -379,19 +398,24 @@ class QueueManager(object):
                 row += 1
     
     @inmain_decorator(True)
-    def append(self, h5files):
+    def append(self, h5files, device_orders=None):
+        """Add files to the end of the queue. device_orders, if given, is the
+        DeviceOrders of the files."""
         for file in h5files:
             item = QStandardItem(file)
             item.setToolTip(file)
+            item.setData(device_orders, DEVICE_ORDERS_ROLE)
             self._model.appendRow(item)
     
+    @inmain_decorator(True)
     def stop(self):
         """Stop the queue manager. A shot that is being programmed or run is aborted
         and put back at the top of the queue. A shot that is being saved is completed.
         The queue manager thread ends once the current shot, if any, is done."""
         self._requeue_aborted_shot = True
         self.manager_running = False
-        self.current_queue.put(['Queue Manager', 'abort'])
+        if self._shot is not None:
+            self._shot.abort()
 
     @inmain_decorator(True)
     def prepend(self,h5file):
@@ -412,6 +436,7 @@ class QueueManager(object):
                     rerun = True
                 else:
                     rerun = False
+                device_orders = DeviceOrders(h5_file)
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
                 new_h5_filepath, repeat_number = self.new_rep_name(h5_filepath)
@@ -421,10 +446,10 @@ class QueueManager(object):
                 success = self.clean_h5_file(h5_filepath, new_h5_filepath, repeat_number=repeat_number)
                 if not success:
                    return 'Cannot create a re run of this experiment. Is it a valid run file?'
-                self.append([new_h5_filepath])
+                self.append([new_h5_filepath], device_orders)
                 message = "Experiment added successfully: experiment to be re-run\n"
             else:
-                self.append([h5_filepath])
+                self.append([h5_filepath], device_orders)
                 message = "Experiment added successfully\n"
             if self.manager_paused:
                 message += "Warning: Queue is currently paused\n"
@@ -506,30 +531,6 @@ class QueueManager(object):
     def get_status(self):
         return self._ui.queue_status.text()
             
-    @inmain_decorator(wait_for_return=True)
-    def get_next_file(self):
-        return str(self._model.takeRow(0)[0].text())
-    
-    @inmain_decorator(wait_for_return=True)    
-    def transition_device_to_buffered(self, name, transition_list, h5file, restart_receiver):
-        tab = self.BLACS.tablist[name]
-        if self.get_device_error_state(name,self.BLACS.tablist):
-            return False
-        tab.connect_restart_receiver(restart_receiver)
-        tab.transition_to_buffered(h5file,self.current_queue)
-        transition_list[name] = tab
-        return True
-    
-    @inmain_decorator(wait_for_return=True)
-    def get_device_error_state(self,name,device_list):
-        return device_list[name].error_message
-
-    def _abort_buffered_devices(self, devices_in_use, restart_function):
-        self.current_queue = queue.Queue()
-        for devicename, tab in devices_in_use.items():
-            if tab.mode == MODE_BUFFERED or tab.mode == MODE_TRANSITION_TO_BUFFERED:
-                tab.abort_buffered(self.current_queue)
-            inmain(tab.disconnect_restart_receiver, restart_function)
 
     def _requeue_failed_shot(self, path, logger):
         """Replace the shot file with a copy that excludes the run data, and put it
@@ -547,8 +548,8 @@ class QueueManager(object):
                 try:
                     shutil.move(temp_path, path)
                 except Exception:
-                    msg = ('Couldn\'t delete failed run file %s, ' % path + 
-                           'another process may be using it. Using alternate ' 
+                    msg = ('Couldn\'t delete failed run file %s, ' % path +
+                           'another process may be using it. Using alternate '
                            'filename for second attempt.')
                     logger.warning(msg, exc_info=True)
                     shutil.move(temp_path, path.replace('.h5','_retry.h5'))
@@ -559,503 +560,512 @@ class QueueManager(object):
         self.prepend(path)
         return path, cleaned
 
+    def _take_next_shot(self):
+        """Remove the first file from the queue and return a Shot for it, or None if the
+        queue is paused or empty. If the device orders of the shot are known and there
+        are no pre_transition_to_buffered callbacks, the transition to buffered is
+        started. Runs in the main thread."""
+        self._wakeup.clear()
+        if not self._manager_running:
+            return None
+        if self._manager_paused:
+            if self.get_status() == "Idle":
+                self._logger.info('Paused')
+                self.set_status("Queue paused")
+            return None
+        if not self._model.rowCount():
+            self.set_status("Idle")
+            return None
+        item = self._model.takeRow(0)[0]
+        path = str(item.text())
+        self._shot = Shot(self, path)
+        self.set_status("Transitioning to buffered...", path)
+        self._ui.queue_abort_button.setEnabled(True)
+        device_orders = item.data(DEVICE_ORDERS_ROLE)
+        if device_orders is not None and not plugins.get_callbacks('pre_transition_to_buffered'):
+            self._shot.transition_to_buffered(device_orders, time.time())
+        return self._shot
+
+    def _wait_for_next_shot(self):
+        """Return a Shot for the next file in the queue, waiting until there is one and
+        the queue is not paused. Returns None if the queue manager is stopped."""
+        while self.manager_running:
+            shot = inmain(self._take_next_shot)
+            if shot is not None:
+                return shot
+            self._wakeup.wait()
+        return None
+
+    def _end_shot(self, shot):
+        """Disconnect the restart receivers of the shot's tabs and disable the abort
+        button. Runs in the main thread."""
+        for tab in shot.tabs.values():
+            tab.disconnect_restart_receiver(self._on_tab_restart)
+        self._ui.queue_abort_button.setEnabled(False)
+        if self._shot is shot:
+            self._shot = None
+
+    def _on_abort_clicked(self):
+        if self._shot is not None:
+            self._shot.abort()
+
+    def _on_tab_restart(self, device_name):
+        if self._shot is not None:
+            inmain_later(self._shot.tab_restarted, device_name)
+
+    def _wait_for_event(self, shot, logger, deadline=None):
+        """Return the next event of the shot as a tuple (kind, data). Every 2 seconds
+        without an event, the tabs are checked for error states. A shot that has not
+        had an event by the deadline (a time.time() value) is timed out."""
+        while True:
+            try:
+                return shot.events.get(timeout=2)
+            except queue.Empty:
+                inmain(shot.check_error_states)
+                if deadline is not None and time.time() > deadline:
+                    logger.error('Transitioning to buffered mode timed out')
+                    inmain(shot.time_out)
+
+    def _abort_shot(self, shot):
+        """Abort the buffered run of every tab of the shot. Runs in the main thread."""
+        shot.finish(None)
+        for tab in shot.tabs.values():
+            # abort_buffered runs only in MODE_BUFFERED and is not queued indefinitely,
+            # so it is dropped by a tab that has returned to manual mode, and it runs in
+            # a tab that is still transitioning to buffered once the transition is done.
+            tab.abort_buffered(queue.Queue())
+        self._end_shot(shot)
+
     def manage(self):
-        logger = logging.getLogger('BLACS.queue_manager.thread')  
-        process_tree.zlock_client.set_thread_name('queue_manager') 
-        # While the program is running!
+        logger = logging.getLogger('BLACS.queue_manager.thread')
+        process_tree.zlock_client.set_thread_name('queue_manager')
         logger.info('starting')
-        
+
         # HDF5 prints lots of errors by default, for things that aren't
         # actually errors. These are silenced on a per thread basis,
         # and automatically silenced in the main thread when h5py is
         # imported. So we'll silence them in this thread too:
         h5py._errors.silence_errors()
-        
-        # This name stores the queue currently being used to
-        # communicate with tabs, so that abort signals can be put
-        # to it when those tabs never respond and are restarted by
-        # the user.
-        self.current_queue = queue.Queue()
 
-        #TODO: put in general configuration
-        timeout_limit = 300 #seconds
         self.set_status("Idle")
-        
-        while self.manager_running:
+        while True:
+            shot = self._wait_for_next_shot()
+            if shot is None:
+                break
+            logger.info('Got a file: %s' % shot.path)
             try:
-                # If the pause button is pushed in, sleep
-                if self.manager_paused:
-                    if self.get_status() == "Idle":
-                        logger.info('Paused')
-                        self.set_status("Queue paused") 
-                    time.sleep(1)
-                    continue
-            
-                # Get the top file
-                try:
-                    path = self.get_next_file()
-                    self.set_status('Preparing shot...', path)
-                    logger.info('Got a file: %s'%path)
-                except Exception:
-                    # If no files, sleep for 1s,
-                    self.set_status("Idle")
-                    time.sleep(1)
-                    continue
-            
-                devices_in_use = {}
-                transition_list = {}   
-                self.current_queue = queue.Queue()
-
-                # Function to be run when abort button is clicked
-                def abort_function():
-                    try:
-                        # Set device name to "Queue Manager" which will never be a labscript device name
-                        # as it is not a valid python variable name (has a space in it!)
-                        self.current_queue.put(['Queue Manager', 'abort'])
-                    except Exception:
-                        logger.exception('Could not send abort message to the queue manager')
-        
-                def restart_function(device_name):
-                    try:
-                        self.current_queue.put([device_name, 'restart'])
-                    except Exception:
-                        logger.exception('Could not send restart message to the queue manager for device %s'%device_name)
-        
-                ##########################################################################################################################################
-                #                                                       transition to buffered                                                           #
-                ########################################################################################################################################## 
-                try:  
-                    # A Queue for event-based notification when the tabs have
-                    # completed transitioning to buffered:        
-                
-                    timed_out = False
-                    error_condition = False
-                    abort = False
-                    restarted = False
-                    error_devices = []
-                    restarted_devices = []
-                    self.set_status("Transitioning to buffered...", path)
-                
-                    # Enable abort button, and link in current_queue:
-                    inmain(self._ui.queue_abort_button.clicked.connect,abort_function)
-                    inmain(self._ui.queue_abort_button.setEnabled,True)
-                    if not self.manager_running:
-                        # stop() was called after this shot was taken from the queue
-                        abort_function()
-                                
-                    ##########################################################################################################################################
-                    #                                                        Plugin callbacks                                                                #
-                    ########################################################################################################################################## 
-                    for callback in plugins.get_callbacks('pre_transition_to_buffered'):
-                        try:
-                            callback(path)
-                        except Exception:
-                            logger.exception("Plugin callback raised an exception")
-
-                    start_time = time.time()
-                
-                    with h5py.File(path, 'r') as hdf5_file:
-                        devices_in_use = {}
-                        start_order = {}
-                        stop_order = {}
-                        for name in  hdf5_file['devices']:
-                            device_properties = labscript_utils.properties.get(
-                                hdf5_file, name, 'device_properties'
-                            )
-                            devices_in_use[name] = self.BLACS.tablist[name]
-                            start_order[name] = device_properties.get('start_order', None)
-                            stop_order[name] = device_properties.get('stop_order', None)
-
-                    # Sort the devices into groups based on their start_order and stop_order
-                    start_groups = defaultdict(set)
-                    stop_groups = defaultdict(set)
-                    for name in devices_in_use:
-                        start_groups[start_order[name]].add(name)
-                        stop_groups[stop_order[name]].add(name)
-
-                    while (transition_list or start_groups) and not error_condition:
-                        if not transition_list:
-                            # Ready to transition the next group:
-                            for name in start_groups.pop(min(start_groups)):
-                                try:
-                                    # Connect restart signal from tabs to current_queue and transition the device to buffered mode
-                                    success = self.transition_device_to_buffered(name,transition_list,path,restart_function)
-                                    if not success:
-                                        logger.error('%s has an error condition, aborting run' % name)
-                                        error_condition = True
-                                        error_devices.append(name)
-                                        break
-                                except Exception:
-                                    logger.exception('Exception while transitioning %s to buffered mode.'%(name))
-                                    error_condition = True
-                                    error_devices.append(name)
-                                    break
-                            if error_condition:
-                                break
-                        
-                        try:
-                            # Wait for a device to transtition_to_buffered:
-                            logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s'%str(transition_list))
-                            device_name, result = self.current_queue.get(timeout=2)
-                        
-                            #Handle abort button signal
-                            if device_name == 'Queue Manager' and result == 'abort':
-                                # we should abort the run
-                                logger.info('abort signal received from GUI')
-                                abort = True
-                                break
-                            
-                            if result == 'fail':
-                                logger.info('abort signal received during transition to buffered of %s' % device_name)
-                                error_condition = True
-                                error_devices.append(device_name)
-                                break
-                            elif result == 'restart':
-                                logger.info('Device %s was restarted, aborting shot.'%device_name)
-                                restarted = True
-                                restarted_devices.append(device_name)
-                                break
-                            
-                            logger.debug('%s finished transitioning to buffered mode' % device_name)
-                        
-                            # The tab says it's done, but does it have an error condition?
-                            if self.get_device_error_state(device_name,transition_list):
-                                logger.error('%s has an error condition, aborting run' % device_name)
-                                error_condition = True
-                                error_devices.append(device_name)
-                                break
-
-                            del transition_list[device_name]
-                        except queue.Empty:
-                            # It's been 2 seconds without a device finishing
-                            # transitioning to buffered. Is there an error?
-                            for name in transition_list:
-                                if self.get_device_error_state(name,transition_list):
-                                    logger.error('%s has an error condition, aborting run' % name)
-                                    error_condition = True
-                                    error_devices.append(name)
-                                
-                            if error_condition:
-                                break
-                            
-                            # Has programming timed out?
-                            if time.time() - start_time > timeout_limit:
-                                logger.error('Transitioning to buffered mode timed out')
-                                timed_out = True
-                                break
-
-                    # Handle if we broke out of loop due to timeout or error:
-                    if timed_out or error_condition or abort or restarted:
-                        # Pause the queue, re add the path to the top of the queue, and set a status message!
-                        # only if we aren't responding to an abort click
-                        if not abort:
-                            self.manager_paused = True
-                            self.prepend(path)                
-                        elif self._requeue_aborted_shot:
-                            self.prepend(path)
-                        if timed_out:
-                            self.set_status(device_status(transition_list, 'timed out programming') + "\nQueue paused")
-                        elif abort and self._requeue_aborted_shot:
-                            self.set_status("Aborted, shot requeued")
-                        elif abort:
-                            self.set_status("Aborted")
-                        elif restarted:
-                            self.set_status(device_status(restarted_devices, 'restarted in transition to buffered') + "\nQueue paused")
-                        else:
-                            self.set_status(device_status(error_devices, 'in error state') + "\nQueue paused")
-                        
-                        # Abort the run for all devices in use:
-                        # need to recreate the queue here because we don't want to hear from devices that are still transitioning to buffered mode
-                        self.current_queue = queue.Queue()
-                        for tab in devices_in_use.values():                        
-                            # We call abort buffered here, because if each tab is either in mode=BUFFERED or transition_to_buffered failed in which case
-                            # it should have called abort_transition_to_buffered itself and returned to manual mode
-                            # Since abort buffered will only run in mode=BUFFERED, and the state is not queued indefinitely (aka it is deleted if we are not in mode=BUFFERED)
-                            # this is the correct method call to make for either case
-                            tab.abort_buffered(self.current_queue)
-                            # We don't need to check the results of this function call because it will either be successful, or raise a visible error in the tab.
-                        
-                            # disconnect restart signal from tabs
-                            inmain(tab.disconnect_restart_receiver,restart_function)
-                        
-                        # disconnect abort button and disable
-                        inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
-                        inmain(self._ui.queue_abort_button.setEnabled,False)
-                    
-                        # Start a new iteration
-                        continue
-                
-            
-            
-                    ##########################################################################################################################################
-                    #                                                             SCIENCE!                                                                   #
-                    ##########################################################################################################################################
-            
-                    # Get front panel data, but don't save it to the h5 file until the experiment ends:
-                    states,tab_positions,window_data,plugin_data = self.BLACS.front_panel_settings.get_save_data()
-                    self.set_status("Running (program time: %.3fs)..."%(time.time() - start_time), path)
-                    
-                    # A Queue for event-based notification of when the experiment has finished.
-                    experiment_finished_queue = queue.Queue()
-                    logger.debug('About to start the master pseudoclock')
-                    run_time = datetime.datetime.now()
-
-                    ##########################################################################################################################################
-                    #                                                        Plugin callbacks                                                                #
-                    ########################################################################################################################################## 
-                    for callback in plugins.get_callbacks('science_starting'):
-                        try:
-                            callback(path)
-                        except Exception:
-                            logger.exception("Plugin callback raised an exception")
-
-                    #TODO: fix potential race condition if BLACS is closing when this line executes?
-                    self.BLACS.tablist[self.master_pseudoclock].start_run(experiment_finished_queue)
-                
-                                                
-                    # Wait for notification of the end of run:
-                    abort = False
-                    restarted = False
-                    done = False
-                    error_devices = []
-                    restarted_devices = []
-                    while not (abort or restarted or done):
-                        try:
-                            done = experiment_finished_queue.get(timeout=0.5) == 'done'
-                        except queue.Empty:
-                            pass
-                        try:
-                            # Poll self.current_queue for abort signal from button or device restart
-                            device_name, result = self.current_queue.get_nowait()
-                            if (device_name == 'Queue Manager' and result == 'abort'):
-                                abort = True
-                            if result == 'restart':
-                                restarted = True
-                                restarted_devices.append(device_name)
-                            # Check for error states in tabs
-                            for device_name, tab in devices_in_use.items():
-                                if self.get_device_error_state(device_name,devices_in_use):
-                                    logger.error('%s has an error condition, aborting run' % device_name)
-                                    restarted = True
-                                    error_devices.append(device_name)
-                        except queue.Empty:
-                            pass
-                        
-                    if abort or restarted:
-                        for devicename, tab in devices_in_use.items():
-                            if tab.mode == MODE_BUFFERED:
-                                tab.abort_buffered(self.current_queue)
-                            # disconnect restart signal from tabs 
-                            inmain(tab.disconnect_restart_receiver,restart_function)
-                                            
-                    # Disable abort button
-                    inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
-                    inmain(self._ui.queue_abort_button.setEnabled,False)
-                
-                    if restarted:                    
-                        self.manager_paused = True
-                        self.prepend(path)  
-                        if error_devices:
-                            self.set_status(device_status(error_devices, 'in error state during run') + "\nQueue paused")
-                        else:
-                            self.set_status(device_status(restarted_devices, 'restarted during run') + "\nQueue paused")
-                    elif abort and self._requeue_aborted_shot:
-                        self.prepend(path)
-                        self.set_status("Aborted, shot requeued")
-                    elif abort:
-                        self.set_status("Aborted")
-                    
-                    if abort or restarted:
-                        # after disabling the abort button, we now start a new iteration
-                        continue                
-                
-                    logger.info('Run complete')
-                    self.set_status("Saving data...", path)
-                # End try/except block here
-                except Exception:
-                    logger.exception("Error in queue manager execution. Queue paused.")
-
-                    # Raise the error in a thread for visibility
-                    zprocess.raise_exception_in_thread(sys.exc_info())
-                    self.manager_paused = True
-                    path, cleaned = self._requeue_failed_shot(path, logger)
-                
-                    # Need to put devices back in manual mode
-                    self._abort_buffered_devices(devices_in_use, restart_function)
-                    if cleaned:
-                        self.set_status("Error in queue manager\nQueue paused")
-                    else:
-                        self.set_status("Shot file inaccessible\nQueue paused")
-
-                    # disconnect and disable abort button
-                    inmain(self._ui.queue_abort_button.clicked.disconnect,abort_function)
-                    inmain(self._ui.queue_abort_button.setEnabled,False)
-                
-                    # Start a new iteration
-                    continue
-                             
-                ##########################################################################################################################################
-                #                                                           SCIENCE OVER!                                                                #
-                ##########################################################################################################################################
-                finally:
-                    ##########################################################################################################################################
-                    #                                                        Plugin callbacks                                                                #
-                    ########################################################################################################################################## 
-                    for callback in plugins.get_callbacks('science_over'):
-                        try:
-                            callback(path)
-                        except Exception:
-                            logger.exception("Plugin callback raised an exception")
-
-            
-                ##########################################################################################################################################
-                #                                                       Transition to manual                                                             #
-                ##########################################################################################################################################
-                # start new try/except block here                   
-                try:
-                    with h5py.File(path,'r+') as hdf5_file:
-                        self.BLACS.front_panel_settings.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table=False, save_queue_data=False)
-
-                        data_group = hdf5_file['/'].require_group('data')
-                        # stamp with the run time of the experiment
-                        hdf5_file.attrs['run time'] = run_time.strftime('%Y%m%dT%H%M%S.%f')
-        
-                    error_condition = False
-                    error_devices = []
-                    response_list = {}
-                    # Keep transitioning tabs to manual mode and waiting on them until they
-                    # are all done or have all errored/restarted/failed. If one fails, we
-                    # still have to transition the rest to manual mode:
-                    while stop_groups:
-                        transition_list = {}
-                        # Transition the next group to manual mode:
-                        for name in stop_groups.pop(min(stop_groups)):
-                            tab = devices_in_use[name]
-                            try:
-                                tab.transition_to_manual(self.current_queue)
-                                transition_list[name] = tab
-                            except Exception:
-                                logger.exception('Exception while transitioning %s to manual mode.'%(name))
-                                error_condition = True
-                                error_devices.append(name)
-                        # Wait for their responses:
-                        while transition_list:
-                            logger.info('Waiting for the following devices to finish transitioning to manual mode: %s'%str(transition_list))
-                            try:
-                                name, result = self.current_queue.get(timeout=2)
-                                if name == 'Queue Manager' and result == 'abort':
-                                    # Ignore any abort signals left in the queue, it is too
-                                    # late to abort in any case:
-                                    continue
-                            except queue.Empty:
-                                # 2 seconds without a device transitioning to manual mode.
-                                # Is there an error:
-                                for name in transition_list.copy():
-                                    if self.get_device_error_state(name, transition_list):
-                                        error_condition = True
-                                        error_devices.append(name)
-                                        logger.debug('%s is in an error state' % name)
-                                        inmain(transition_list[name].disconnect_restart_receiver, restart_function)
-                                        del transition_list[name]
-                                continue
-                            if name not in transition_list:
-                                # A late response from a device already removed above
-                                continue
-                            response_list[name] = result
-                            if result == 'fail':
-                                error_condition = True
-                                error_devices.append(name)
-                                logger.debug('%s failed to transition to manual' % name)
-                            elif result == 'restart':
-                                error_condition = True
-                                error_devices.append(name)
-                                logger.debug('%s restarted during transition to manual' % name)
-                            elif self.get_device_error_state(name, devices_in_use):
-                                error_condition = True
-                                error_devices.append(name)
-                                logger.debug('%s is in an error state' % name)
-                            else:
-                                logger.debug('%s finished transitioning to manual mode' % name)
-                            # Once device has transitioned_to_manual, disconnect restart
-                            # signal:
-                            tab = devices_in_use[name]
-                            inmain(tab.disconnect_restart_receiver, restart_function)
-                            del transition_list[name]
-                    
-                    if error_condition:                
-                        self.set_status(device_status(error_devices, 'failed to transition to manual') + "\nQueue paused")
-                                       
-                except Exception:
-                    error_condition = True
-                    logger.exception("Error in queue manager execution. Queue paused.")
-                    self.set_status("Error in queue manager\nQueue paused")
-                    self._abort_buffered_devices(devices_in_use, restart_function)
-
-                    # Raise the error in a thread for visibility
-                    zprocess.raise_exception_in_thread(sys.exc_info())
-                
-                if error_condition:                
-                    self.manager_paused = True
-                    path, cleaned = self._requeue_failed_shot(path, logger)
-                    if not cleaned:
-                        self.set_status("Shot file inaccessible\nQueue paused")
-                    continue
-            
-                ##########################################################################################################################################
-                #                                                        Analysis Submission                                                             #
-                ########################################################################################################################################## 
-                logger.info('All devices are back in static mode.')  
-
-                # check for analysis Filters in Plugins
-                send_to_analysis = True
-                for callback in plugins.get_callbacks('analysis_cancel_send'):
-                    try:
-                        if callback(path):
-                            send_to_analysis = False
-                            break
-                    except Exception:
-                        logger.exception("Plugin callback raised an exception")
-
-                # Submit to the analysis server
-                if send_to_analysis:
-                    self.BLACS.analysis_submission.get_queue().put(['file', path])
-
-                ##########################################################################################################################################
-                #                                                        Plugin callbacks                                                                #
-                ########################################################################################################################################## 
-                for callback in plugins.get_callbacks('shot_complete'):
-                    try:
-                        callback(path)
-                    except Exception:
-                        logger.exception("Plugin callback raised an exception")
-
-                ##########################################################################################################################################
-                #                                                        Repeat Experiment?                                                              #
-                ##########################################################################################################################################
-                # check for repeat Filters in Plugins
-                repeat_shot = self.manager_repeat
-                for callback in plugins.get_callbacks('shot_ignore_repeat'):
-                    try:
-                        if callback(path):
-                            repeat_shot = False
-                            break
-                    except Exception:
-                        logger.exception("Plugin callback raised an exception")
-
-                if repeat_shot:
-                    if ((self.manager_repeat_mode == self.REPEAT_ALL) or
-                        (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
-                        # Resubmit job to the bottom of the queue:
-                        try:
-                            message = self.process_request(path)
-                            logger.info(message)
-                        except Exception:
-                            # TODO: make this error popup for the user
-                            logger.exception('Failed to copy h5_file (%s) for repeat run' % path)
-
-                self.set_status("Idle")
+                self._run_shot(shot, logger)
             except Exception:
                 logger.exception("Unhandled error in the queue manager. Queue paused.")
                 self.manager_paused = True
                 self.set_status("Error in queue manager\nQueue paused")
         logger.info('Stopping')
+
+    def _run_shot(self, shot, logger):
+        """Run one shot. The main thread transitions the tabs and moves the shot from
+        one phase to the next. This thread runs the plugin callbacks, reads and writes
+        the shot file, and handles the outcome of each phase."""
+        #TODO: put in general configuration
+        timeout_limit = 300 #seconds
+        path = shot.path
+        shot.science_starting_callbacks = bool(plugins.get_callbacks('science_starting'))
+        shot.science_over_callbacks = bool(plugins.get_callbacks('science_over'))
+        try:
+            try:
+                for callback in plugins.get_callbacks('pre_transition_to_buffered'):
+                    try:
+                        callback(path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+
+                if shot.start_time is None:
+                    start_time = time.time()
+                    with h5py.File(path, 'r') as hdf5_file:
+                        device_orders = DeviceOrders(hdf5_file)
+                    inmain(shot.transition_to_buffered, device_orders, start_time)
+                else:
+                    start_time = shot.start_time
+                kind, data = self._wait_for_event(shot, logger, start_time + timeout_limit)
+                if kind == 'buffered':
+                    for callback in plugins.get_callbacks('science_starting'):
+                        try:
+                            callback(path)
+                        except Exception:
+                            logger.exception("Plugin callback raised an exception")
+                    inmain(shot.start_run)
+                    kind, data = self._wait_for_event(shot, logger)
+
+                if kind != 'running':
+                    # Pause the queue and put the file back at the top of the queue,
+                    # unless the shot was aborted with the abort button:
+                    if kind != 'abort':
+                        self.manager_paused = True
+                        self.prepend(path)
+                    elif self._requeue_aborted_shot:
+                        self.prepend(path)
+                    if kind == 'timeout':
+                        self.set_status(device_status(data, 'timed out programming') + "\nQueue paused")
+                    elif kind == 'abort' and self._requeue_aborted_shot:
+                        self.set_status("Aborted, shot requeued")
+                    elif kind == 'abort':
+                        self.set_status("Aborted")
+                    elif kind == 'restart':
+                        self.set_status(device_status(data, 'restarted in transition to buffered') + "\nQueue paused")
+                    else:
+                        self.set_status(device_status(data, 'in error state') + "\nQueue paused")
+                    inmain(self._abort_shot, shot)
+                    return
+
+                save_error = None
+                try:
+                    with h5py.File(path, 'r+') as hdf5_file:
+                        self.BLACS.front_panel_settings.store_front_panel_in_h5(
+                            hdf5_file, *shot.front_panel_data, save_conn_table=False, save_queue_data=False
+                        )
+                        hdf5_file['/'].require_group('data')
+                        # stamp with the run time of the experiment
+                        hdf5_file.attrs['run time'] = shot.run_time.strftime('%Y%m%dT%H%M%S.%f')
+                except Exception as e:
+                    save_error = e
+                inmain_later(shot.front_panel_saved, save_error is None)
+
+                kind, data = self._wait_for_event(shot, logger)
+                if kind in ('abort', 'restart'):
+                    inmain(self._abort_shot, shot)
+                    if kind == 'abort' and self._requeue_aborted_shot:
+                        self._requeue_failed_shot(path, logger)
+                        self.set_status("Aborted, shot requeued")
+                    elif kind == 'abort':
+                        self.set_status("Aborted")
+                    else:
+                        restarted_devices, error_devices = data
+                        self.manager_paused = True
+                        self._requeue_failed_shot(path, logger)
+                        if error_devices:
+                            self.set_status(device_status(error_devices, 'in error state during run') + "\nQueue paused")
+                        else:
+                            self.set_status(device_status(restarted_devices, 'restarted during run') + "\nQueue paused")
+                    return
+                if save_error is not None:
+                    raise save_error
+            finally:
+                for callback in plugins.get_callbacks('science_over'):
+                    try:
+                        callback(path)
+                    except Exception:
+                        logger.exception("Plugin callback raised an exception")
+            if shot.science_over_callbacks:
+                inmain(shot.transition_to_manual)
+            kind, error_devices = self._wait_for_event(shot, logger)
+        except Exception:
+            logger.exception("Error in queue manager execution. Queue paused.")
+            # Raise the error in a thread for visibility
+            zprocess.raise_exception_in_thread(sys.exc_info())
+            self.manager_paused = True
+            inmain(self._abort_shot, shot)
+            path, cleaned = self._requeue_failed_shot(path, logger)
+            if cleaned:
+                self.set_status("Error in queue manager\nQueue paused")
+            else:
+                self.set_status("Shot file inaccessible\nQueue paused")
+            return
+
+        if error_devices:
+            self.set_status(device_status(error_devices, 'failed to transition to manual') + "\nQueue paused")
+            self.manager_paused = True
+            path, cleaned = self._requeue_failed_shot(path, logger)
+            if not cleaned:
+                self.set_status("Shot file inaccessible\nQueue paused")
+            return
+
+        logger.info('All devices are back in static mode.')
+
+        # check for analysis Filters in Plugins
+        send_to_analysis = True
+        for callback in plugins.get_callbacks('analysis_cancel_send'):
+            try:
+                if callback(path):
+                    send_to_analysis = False
+                    break
+            except Exception:
+                logger.exception("Plugin callback raised an exception")
+
+        # Submit to the analysis server
+        if send_to_analysis:
+            self.BLACS.analysis_submission.get_queue().put(['file', path])
+
+        for callback in plugins.get_callbacks('shot_complete'):
+            try:
+                callback(path)
+            except Exception:
+                logger.exception("Plugin callback raised an exception")
+
+        # check for repeat Filters in Plugins
+        repeat_shot = self.manager_repeat
+        for callback in plugins.get_callbacks('shot_ignore_repeat'):
+            try:
+                if callback(path):
+                    repeat_shot = False
+                    break
+            except Exception:
+                logger.exception("Plugin callback raised an exception")
+
+        if repeat_shot:
+            if ((self.manager_repeat_mode == self.REPEAT_ALL) or
+                (self.manager_repeat_mode == self.REPEAT_LAST and inmain(self._model.rowCount) == 0)):
+                # Resubmit job to the bottom of the queue:
+                try:
+                    message = self.process_request(path)
+                    logger.info(message)
+                except Exception:
+                    # TODO: make this error popup for the user
+                    logger.exception('Failed to copy h5_file (%s) for repeat run' % path)
+
+
+class MainThreadNotifier(object):
+    """An object with the put() method of a queue, for the tabs to notify the queue
+    manager with. Each item is passed to a function that is called in the main thread
+    from the Qt event loop."""
+
+    def __init__(self, function):
+        self._function = function
+
+    def put(self, item, *args, **kwargs):
+        inmain_later(self._function, item)
+
+
+class Shot(object):
+    """The tabs of the shot that the queue manager is running, and the phase of the
+    shot. Methods other than those of the events queue are called in the main thread.
+
+    The phase is one of 'preparing', 'buffered', 'starting', 'running', 'manual', or
+    None once the phase has ended. When a phase ends, a tuple (kind, data) is put to
+    the events queue, which the queue manager thread reads. The kinds are:
+
+    'buffered': all tabs are in buffered mode, and there are plugin callbacks to run
+        before the run is started.
+    'running': the master pseudoclock has been told to start the run.
+    'done': the run is over. The tabs are transitioned to manual mode in the main
+        thread, unless there are plugin callbacks to run first or the front panel
+        could not be saved to the shot file.
+    'manual': the tabs have transitioned to manual mode. The data is the list of
+        devices that failed to.
+    'error', 'timeout', 'restart': the data is the list of devices that failed,
+        timed out or were restarted in the transition to buffered mode. For a restart
+        during the run, the data is the restarted devices and the devices in an error
+        state.
+    'abort': the abort button was clicked.
+    """
+
+    def __init__(self, queue_manager, path):
+        self.queue_manager = queue_manager
+        self.logger = logging.getLogger('BLACS.queue_manager.shot')
+        self.path = path
+        self.events = queue.Queue()
+        self.phase = 'preparing'
+        self.tabs = {}
+        self.start_groups = []
+        self.stop_groups = []
+        # The tabs that are transitioning and have not reported back:
+        self.pending = {}
+        self.manual_error_devices = []
+        # Set by the queue manager thread:
+        self.science_starting_callbacks = False
+        self.science_over_callbacks = False
+        # Set in the main thread when all tabs are in buffered mode:
+        self.start_time = None
+        self.front_panel_data = None
+        self.run_time = None
+        # Whether the front panel has been saved to the shot file, None until it has
+        # been attempted:
+        self.saved = None
+        self.run_done = False
+        self._buffered_notifier = MainThreadNotifier(self._on_buffered)
+        self._run_notifier = MainThreadNotifier(self._on_run_notification)
+        self._manual_notifier = MainThreadNotifier(self._on_manual)
+
+    def finish(self, kind, data=None):
+        """End the current phase and put an event to the events queue, unless kind is
+        None."""
+        if self.phase is not None:
+            self.phase = None
+            if kind is not None:
+                self.events.put((kind, data))
+
+    def abort(self):
+        if self.phase in ('preparing', 'buffered', 'starting', 'running'):
+            self.logger.info('abort signal received from GUI')
+            self.finish('abort')
+
+    def tab_restarted(self, name):
+        if name not in self.tabs:
+            return
+        if self.phase in ('buffered', 'starting'):
+            self.logger.info('Device %s was restarted, aborting shot.' % name)
+            self.finish('restart', [name])
+        elif self.phase == 'running':
+            error_devices = [n for n, tab in self.tabs.items() if tab.error_message]
+            self.finish('restart', ([name], error_devices))
+        elif self.phase == 'manual':
+            in_later_group = any(name in group for group in self.stop_groups)
+            if name not in self.pending and not in_later_group:
+                return
+            self.logger.debug('%s restarted during transition to manual' % name)
+            self.pending.pop(name, None)
+            for group in self.stop_groups:
+                group.discard(name)
+            self.manual_error_devices.append(name)
+            if not self.pending:
+                self._next_manual_group()
+
+    def check_error_states(self):
+        if self.phase == 'buffered':
+            error_devices = [name for name, tab in self.pending.items() if tab.error_message]
+            if error_devices:
+                for name in error_devices:
+                    self.logger.error('%s has an error condition, aborting run' % name)
+                self.finish('error', error_devices)
+        elif self.phase == 'manual':
+            for name, tab in list(self.pending.items()):
+                if tab.error_message:
+                    self.logger.debug('%s is in an error state' % name)
+                    del self.pending[name]
+                    self.manual_error_devices.append(name)
+            if not self.pending:
+                self._next_manual_group()
+
+    def time_out(self):
+        if self.phase == 'buffered':
+            self.finish('timeout', list(self.pending))
+
+    def transition_to_buffered(self, device_orders, start_time):
+        if self.phase != 'preparing':
+            return
+        self.phase = 'buffered'
+        self.start_time = start_time
+        tablist = self.queue_manager.BLACS.tablist
+        self.tabs = {name: tablist[name] for name in device_orders.start_order}
+        self.start_groups = self._groups(device_orders.start_order)
+        self.stop_groups = self._groups(device_orders.stop_order)
+        self._next_buffered_group()
+
+    @staticmethod
+    def _groups(order):
+        """The sets of device names that have the same order, sorted by order"""
+        groups = defaultdict(set)
+        for name, value in order.items():
+            groups[value].add(name)
+        return [groups[value] for value in sorted(groups)]
+
+    def _next_buffered_group(self):
+        if not self.start_groups:
+            # Get front panel data, but don't save it to the h5 file until the run starts:
+            self.front_panel_data = self.queue_manager.BLACS.front_panel_settings.get_save_data()
+            program_time = time.time() - self.start_time
+            self.queue_manager.set_status("Running (program time: %.3fs)..." % program_time, self.path)
+            if self.science_starting_callbacks:
+                self.phase = 'starting'
+                self.events.put(('buffered', None))
+            else:
+                self.start_run()
+            return
+        restart_receiver = self.queue_manager._on_tab_restart
+        for name in self.start_groups.pop(0):
+            tab = self.tabs[name]
+            try:
+                if tab.error_message:
+                    self.logger.error('%s has an error condition, aborting run' % name)
+                    self.finish('error', [name])
+                    return
+                tab.connect_restart_receiver(restart_receiver)
+                tab.transition_to_buffered(self.path, self._buffered_notifier)
+            except Exception:
+                self.logger.exception('Exception while transitioning %s to buffered mode.' % name)
+                self.finish('error', [name])
+                return
+            self.pending[name] = tab
+        self.logger.debug('Waiting for the following devices to finish transitioning to buffered mode: %s' % ', '.join(sorted(self.pending)))
+
+    def _on_buffered(self, item):
+        name, result = item
+        if self.phase != 'buffered' or name not in self.pending:
+            return
+        tab = self.pending.pop(name)
+        if result == 'fail':
+            self.logger.info('abort signal received during transition to buffered of %s' % name)
+            self.finish('error', [name])
+        elif tab.error_message:
+            self.logger.error('%s has an error condition, aborting run' % name)
+            self.finish('error', [name])
+        else:
+            self.logger.debug('%s finished transitioning to buffered mode' % name)
+            if not self.pending:
+                self._next_buffered_group()
+
+    def start_run(self):
+        if self.phase not in ('buffered', 'starting'):
+            return
+        self.phase = 'running'
+        self.logger.debug('About to start the master pseudoclock')
+        self.run_time = datetime.datetime.now()
+        master_pseudoclock = self.queue_manager.master_pseudoclock
+        self.queue_manager.BLACS.tablist[master_pseudoclock].start_run(self._run_notifier)
+        self.events.put(('running', None))
+
+    def front_panel_saved(self, success):
+        self.saved = success
+        self._end_run()
+
+    def _on_run_notification(self, item):
+        if self.phase == 'running' and item == 'done':
+            self.logger.info('Run complete')
+            self.run_done = True
+            self._end_run()
+
+    def _end_run(self):
+        """Transition the tabs to manual mode once the run is over and the front panel
+        has been saved to the shot file"""
+        if self.phase != 'running' or not self.run_done or self.saved is None:
+            return
+        self.finish('done')
+        if self.saved and not self.science_over_callbacks:
+            self.transition_to_manual()
+
+    def transition_to_manual(self):
+        self.phase = 'manual'
+        self.queue_manager._ui.queue_abort_button.setEnabled(False)
+        self.queue_manager.set_status("Saving data...", self.path)
+        self._next_manual_group()
+
+    def _next_manual_group(self):
+        while self.stop_groups and not self.pending:
+            for name in self.stop_groups.pop(0):
+                tab = self.tabs[name]
+                try:
+                    tab.transition_to_manual(self._manual_notifier)
+                except Exception:
+                    self.logger.exception('Exception while transitioning %s to manual mode.' % name)
+                    self.manual_error_devices.append(name)
+                    continue
+                self.pending[name] = tab
+            if self.pending:
+                self.logger.info('Waiting for the following devices to finish transitioning to manual mode: %s' % ', '.join(sorted(self.pending)))
+        if not self.pending:
+            self.queue_manager._end_shot(self)
+            self.finish('manual', self.manual_error_devices)
+
+    def _on_manual(self, item):
+        name, result = item
+        if self.phase != 'manual' or name not in self.pending:
+            return
+        tab = self.pending.pop(name)
+        if result == 'fail':
+            self.manual_error_devices.append(name)
+            self.logger.debug('%s failed to transition to manual' % name)
+        elif tab.error_message:
+            self.manual_error_devices.append(name)
+            self.logger.debug('%s is in an error state' % name)
+        else:
+            self.logger.debug('%s finished transitioning to manual mode' % name)
+        if not self.pending:
+            self._next_manual_group()
