@@ -542,10 +542,10 @@ class QueueManager(object):
         return os.path.join(directory, basename + '_rep%05d.h5' % reps), reps
         
     def clean_h5_file(self, old_file, new_h5_file, repeat_number=0):
-        """Write a copy of an open shot file to a new file, without the groups that are
-        written when the shot is run. The copy is made in memory and written to the new
-        file at once, without a zlock, since no other program knows of the new file.
-        Returns whether the copy was written."""
+        """Write a copy of an open shot file to a new file, without the groups and the
+        run time attribute that are written when the shot is run. The copy is made in
+        memory and written to the new file at once, without a zlock, since no other
+        program knows of the new file. Returns whether the copy was written."""
         groups_to_copy = [
             'devices',
             'calibrations',
@@ -568,7 +568,8 @@ class QueueManager(object):
                     if group in old_file:
                         new_file.copy(old_file[group], group)
                 for name in old_file.attrs:
-                    new_file.attrs[name] = old_file.attrs[name]
+                    if name != 'run time':
+                        new_file.attrs[name] = old_file.attrs[name]
                 new_file.attrs['run repeat'] = repeat_number
                 new_file.flush()
                 image = new_file.id.get_file_image()
