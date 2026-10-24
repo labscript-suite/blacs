@@ -40,7 +40,7 @@ WINDOWS = platform.system() == 'Windows'
 QUEUE_STOP_TIMEOUT = 30
 
 # No splash update for Qt - the splash code has already imported it:
-from qtutils import inmain_decorator, inmain_later, inmain, inthread, UiLoader
+from qtutils import inmain_later, inmain, inthread, UiLoader
 import qtutils.icons  # import has side-effects we rely on
 from qtutils.qt.QtCore import QTimer, Qt, qVersion, QEvent, QByteArray
 from qtutils.qt.QtGui import QIcon, QColor, QPalette
@@ -756,7 +756,6 @@ class ExperimentServer(ZMQServer):
         logger.info('Request handler: %s ' % message.strip())
         return message
 
-    @inmain_decorator(wait_for_return=True)
     def process(self,h5_filepath):
         # Convert path to local slashes and shared drive prefix:
         logger.info('received filepath: %s'%h5_filepath)
