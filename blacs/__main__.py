@@ -59,7 +59,7 @@ PYQT_VERSION_STR = importlib.metadata.version(QT_ENV)
 splash.update_text("importing zmq and zprocess")
 import zmq
 import zprocess
-from zprocess import raise_exception_in_thread
+from zprocess import raise_exception_in_thread, port_in_use
 
 
 splash.update_text('importing h5_lock and h5py')
@@ -807,6 +807,15 @@ if __name__ == '__main__':
     settings_path = str(settings_dir / f'{hostname()}_BLACS.h5')
 
     port = int(exp_config.get('ports','BLACS'))
+    if port_in_use(port):
+        message = (
+            f"BLACS cannot start because port {port}, which is the BLACS port in the "
+            "labconfig, is in use. Another copy of BLACS is probably running."
+        )
+        logger.error(message)
+        splash.hide()
+        QMessageBox.critical(None, 'BLACS', message)
+        sys.exit(1)
 
     # Create Connection Table object
     splash.update_text('loading connection table')
