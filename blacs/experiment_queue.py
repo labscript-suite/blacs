@@ -423,20 +423,22 @@ class QueueManager(object):
             self._model.insertRow(0,QStandardItem(h5file))
     
     def process_request(self,h5_filepath):
-        # check connection table
         try:
-            new_conn = ConnectionTable(h5_filepath, logging_prefix='BLACS')
+            h5_file = h5py.File(h5_filepath, 'r')
         except Exception:
             return "H5 file not accessible to Control PC\n"
-        result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
-        if result:
-            # Has this run file been run already?
-            with h5py.File(h5_filepath, 'r') as h5_file:
-                if 'data' in h5_file['/']:
-                    rerun = True
-                else:
-                    rerun = False
+        with h5_file:
+            # check connection table
+            try:
+                new_conn = ConnectionTable(h5_file, logging_prefix='BLACS')
+            except Exception:
+                return "H5 file not accessible to Control PC\n"
+            result,error = inmain(self.BLACS.connection_table.compare_to,new_conn)
+            if result:
+                # Has this run file been run already?
+                rerun = 'data' in h5_file['/']
                 device_orders = DeviceOrders(h5_file)
+        if result:
             if rerun or self.is_in_queue(h5_filepath):
                 self._logger.debug('Run file has already been run! Creating a fresh copy to rerun')
                 new_h5_filepath, repeat_number = self.new_rep_name(h5_filepath)
