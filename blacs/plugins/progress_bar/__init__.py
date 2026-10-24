@@ -38,7 +38,7 @@ logger = logging.getLogger('BLACS.plugin.%s'%module)
 
 # The progress bar will update every UPDATE_INTERVAL seconds, or at the marker
 # times, whichever is soonest after the last update:
-UPDATE_INTERVAL = 0.02
+UPDATE_INTERVAL = 0.1
 BAR_MAX = 1000
 
 def _ensure_str(s):
@@ -245,13 +245,18 @@ class Plugin(object):
         else:
             labscript_time = time.time() - self.shot_start_time - self.time_spent_waiting
         value = int(round(labscript_time / self.stop_time * BAR_MAX))
-        self.bar.setValue(value)
-
         text = u'%.2f%ss / %.2f%ss (%%p%s%%)'
         text = text % (labscript_time, thinspace, self.stop_time, thinspace, thinspace)
         if self.bar_text_prefix is not None:
             text = self.bar_text_prefix + text
-        self.bar.setFormat(text)
+        # setValue() repaints the bar immediately. With updates disabled, the bar is
+        # instead repainted once, with both changes, by the event loop:
+        self.bar.setUpdatesEnabled(False)
+        try:
+            self.bar.setValue(value)
+            self.bar.setFormat(text)
+        finally:
+            self.bar.setUpdatesEnabled(True)
 
     def _start(self, h5_filepath):
         """Called from the mainloop when starting a shot"""
