@@ -349,7 +349,6 @@ class FrontPanelSettings(object):
                 # save connection table, save front panel
                 self.store_front_panel_in_h5(hdf5_file,states,tab_positions,window_data,plugin_data,save_conn_table=True)
 
-    @inmain_decorator(wait_for_return=True)
     def store_front_panel_in_h5(self, hdf5_file,tab_data,notebook_data,window_data,plugin_data,save_conn_table=False,save_queue_data=True):
         if save_conn_table:
             if 'connection table' in hdf5_file:
