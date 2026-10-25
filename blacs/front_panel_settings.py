@@ -31,10 +31,8 @@ def _ensure_bytes(s):
     """convert strings to UTF-8 bytestrings for storage in a fixed-width bytes field"""
     return s if isinstance(s, bytes) else str(s).encode()
 
-# Names that the repr of numpy scalars, arrays, inf and nan refer to
-_SAVE_DATA_NAMESPACE = {
-    'np': numpy, 'numpy': numpy, 'array': numpy.array, 'inf': numpy.inf, 'nan': numpy.nan
-}
+# The repr of a numpy scalar or array refers only to names in the numpy namespace
+_SAVE_DATA_NAMESPACE = dict(vars(numpy), np=numpy, numpy=numpy)
 
 def eval_save_data(text, description):
     """Evaluate the repr of a saved settings dictionary. Returns an empty dictionary,
@@ -251,13 +249,6 @@ class FrontPanelSettings(object):
         # save window data
         # Size of window
         window_data["_main_window"] = {"geometry":self.window.saveGeometry().data(),
-                                       "width":self.window.normalGeometry().width(),
-                                       "height":self.window.normalGeometry().height(),
-                                       "xpos":self.window.normalGeometry().x(),
-                                       "ypos":self.window.normalGeometry().y(),
-                                       "maximized":self.window.isMaximized(),
-                                       "frame_height":abs(self.window.frameGeometry().height()-self.window.normalGeometry().height()),
-                                       "frame_width":abs(self.window.frameGeometry().width()-self.window.normalGeometry().width()),
                                        "_analysis":self.blacs.analysis_submission.get_save_data(),
                                        "_queue":self.blacs.queue.get_save_data(),
                                       }
@@ -406,13 +397,6 @@ class FrontPanelSettings(object):
         dataset = data_group.create_dataset("_notebook_data",data=tab_data)
         # An opaque HDF5 type keeps the null bytes in the geometry intact
         dataset.attrs["window_geometry"] = numpy.void(window_data["_main_window"]["geometry"])
-        dataset.attrs["window_width"] = window_data["_main_window"]["width"]
-        dataset.attrs["window_height"] = window_data["_main_window"]["height"]
-        dataset.attrs["window_xpos"] = window_data["_main_window"]["xpos"]
-        dataset.attrs["window_ypos"] = window_data["_main_window"]["ypos"]
-        dataset.attrs["window_maximized"] = window_data["_main_window"]["maximized"]
-        dataset.attrs["window_frame_height"] = window_data["_main_window"]["frame_height"]
-        dataset.attrs["window_frame_width"] = window_data["_main_window"]["frame_width"]
         dataset.attrs['plugin_data'] = repr(plugin_data)
         dataset.attrs['analysis_data'] = repr(window_data["_main_window"]["_analysis"])
         if save_queue_data:
