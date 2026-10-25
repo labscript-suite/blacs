@@ -31,10 +31,8 @@ def _ensure_bytes(s):
     """convert strings to UTF-8 bytestrings for storage in a fixed-width bytes field"""
     return s if isinstance(s, bytes) else str(s).encode()
 
-# Names that the repr of numpy scalars, arrays, inf and nan refer to
-_SAVE_DATA_NAMESPACE = {
-    'np': numpy, 'numpy': numpy, 'array': numpy.array, 'inf': numpy.inf, 'nan': numpy.nan
-}
+# The repr of a numpy scalar or array refers only to names in the numpy namespace
+_SAVE_DATA_NAMESPACE = dict(vars(numpy), np=numpy, numpy=numpy)
 
 def eval_save_data(text, description):
     """Evaluate the repr of a saved settings dictionary. Returns an empty dictionary,
