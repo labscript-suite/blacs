@@ -734,6 +734,8 @@ class QueueManager(object):
                 zprocess.raise_exception_in_thread(sys.exc_info())
                 self.manager_paused = True
                 self.set_status("Error in queue manager\nQueue paused")
+                if self._shot is not None:
+                    inmain(self._end_shot, self._shot)
         logger.info('Stopping')
 
     def _run_shot(self, shot, logger):
