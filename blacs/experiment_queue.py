@@ -72,6 +72,13 @@ class DeviceOrders(object):
                     orders[name] = None
 
 
+SHOT_NOT_CLEANED_STATUS = (
+    "Shot file could not be cleaned\n"
+    "Remove its data group before running it again\n"
+    "Queue paused"
+)
+
+
 def device_status(names, description):
     """Return "Device <name> <description>", listing the names if there are several"""
     names = sorted(names)
@@ -601,8 +608,8 @@ class QueueManager(object):
     def _requeue_failed_shot(self, path, logger):
         """Replace the shot file with a copy that excludes the run data, and put it
         back at the top of the queue. Returns the requeued path and whether the file
-        was replaced. If the shot file cannot be read or replaced, the original path
-        is requeued."""
+        was replaced. If the shot file cannot be read, cleaned or replaced, the
+        original file is requeued unchanged."""
         cleaned = False
         try:
             # is this a repeat?
@@ -620,6 +627,12 @@ class QueueManager(object):
                     logger.warning(msg, exc_info=True)
                     shutil.move(temp_path, path.replace('.h5','_retry.h5'))
                     path = path.replace('.h5','_retry.h5')
+            else:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                logger.error('Could not clean the failed run file %s. It is requeued '
+                             'unchanged; remove its data group before running it '
+                             'again.' % path)
         except Exception:
             logger.exception('Could not clean up the failed run file %s. Queue paused.' % path)
             cleaned = False
@@ -825,7 +838,7 @@ class QueueManager(object):
             if cleaned:
                 self.set_status("Error in queue manager\nQueue paused")
             else:
-                self.set_status("Shot file inaccessible\nQueue paused")
+                self.set_status(SHOT_NOT_CLEANED_STATUS)
             return
 
         if error_devices:
@@ -833,7 +846,7 @@ class QueueManager(object):
             self.manager_paused = True
             path, cleaned = self._requeue_failed_shot(path, logger)
             if not cleaned:
-                self.set_status("Shot file inaccessible\nQueue paused")
+                self.set_status(SHOT_NOT_CLEANED_STATUS)
             return
 
         logger.info('All devices are back in static mode.')
