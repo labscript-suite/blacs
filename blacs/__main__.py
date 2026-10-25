@@ -499,18 +499,6 @@ class BLACS(object):
         try:
             if 'window_geometry' in settings:
                 self.ui.restoreGeometry(QByteArray(bytes(settings['window_geometry'])))
-                self.move_window_onto_screen()
-            elif 'window_xpos' in settings:
-                self.ui.move(
-                    settings["window_xpos"] - settings['window_frame_width'] // 2,
-                    settings["window_ypos"]
-                    - settings['window_frame_height']
-                    + settings['window_frame_width'] // 2,
-                )
-                self.ui.resize(settings["window_width"], settings["window_height"])
-                self.move_window_onto_screen()
-                if settings.get('window_maximized', False):
-                    self.ui.showMaximized()
 
             for pane_name,pane in self.panes.items():
                 if pane_name in settings:
@@ -518,24 +506,6 @@ class BLACS(object):
 
         except Exception as e:
             logger.exception("Unable to load window and notebook defaults. Exception:"+str(e))
-
-    def move_window_onto_screen(self):
-        """If the main window frame does not intersect the available area of any
-        screen, move it to the top left of the primary screen's available area,
-        reducing its size to fit if necessary."""
-        frame = self.ui.frameGeometry()
-        for screen in QApplication.screens():
-            if frame.intersects(screen.availableGeometry()):
-                return
-        available = QApplication.primaryScreen().availableGeometry()
-        logger.info('Saved window position %s is not on any screen, moving to %s' % (frame, available))
-        frame_width = frame.width() - self.ui.width()
-        frame_height = frame.height() - self.ui.height()
-        self.ui.resize(
-            min(self.ui.width(), available.width() - frame_width),
-            min(self.ui.height(), available.height() - frame_height),
-        )
-        self.ui.move(available.topLeft())
 
     def order_tabs(self,tab_data):
         # Move the tabs to the correct notebook
