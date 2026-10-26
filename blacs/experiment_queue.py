@@ -24,10 +24,9 @@ from collections import defaultdict
 from tempfile import gettempdir
 from binascii import hexlify
 
-from qtutils.qt.QtCore import Qt, QItemSelectionModel
-from qtutils.qt.QtGui import QIcon, QAction, QStandardItemModel, QStandardItem
+from qtutils.qt.QtCore import Qt
+from qtutils.qt.QtGui import QIcon, QAction
 from qtutils.qt.QtWidgets import (
-    QTreeView,
     QMenu,
     QFileDialog,
 )
@@ -44,17 +43,13 @@ from labscript_utils.connections import ConnectionTable
 import labscript_utils.properties
 
 import blacs.plugins as plugins
+from blacs.queue_view import QueueModel
 
 
 def tempfilename(prefix='BLACS-temp-', suffix='.h5'):
     """Return a filepath appropriate for use as a temporary file"""
     random_hex = hexlify(os.urandom(16)).decode()
     return os.path.join(gettempdir(), prefix + random_hex + suffix)
-
-
-FILEPATH_COLUMN = 0
-# The item data role of the start and stop orders of the devices of a queued shot:
-DEVICE_ORDERS_ROLE = Qt.UserRole + 1
 
 
 class DeviceOrders(object):
@@ -86,53 +81,6 @@ def device_status(names, description):
         return 'Device(s) ' + description
     noun = 'Device' if len(names) == 1 else 'Devices'
     return '%s %s %s' % (noun, ', '.join(names), description)
-
-class QueueTreeview(QTreeView):
-    def __init__(self,*args,**kwargs):
-        QTreeView.__init__(self,*args,**kwargs)
-        self.header().setStretchLastSection(True)
-        self.setAutoScroll(False)
-        self.add_to_queue = None
-        self.delete_selection = None
-        self._logger = logging.getLogger('BLACS.QueueManager') 
-
-    def keyPressEvent(self,event):
-        if event.key() == Qt.Key_Delete:
-            event.accept()
-            if self.delete_selection:
-                self.delete_selection()
-        QTreeView.keyPressEvent(self,event)
-        
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.accept()
-        else:
-            event.ignore()
-
-    def dragMoveEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.setDropAction(Qt.CopyAction)
-            event.accept()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.setDropAction(Qt.CopyAction)
-            event.accept()
-            
-            for url in event.mimeData().urls():
-                path = str(url.toLocalFile())
-                if path.endswith('.h5') or path.endswith('.hdf5'):
-                    self._logger.info('Acceptable file dropped. Path is %s', path)
-                    if self.add_to_queue:
-                        self.add_to_queue(str(path))
-                    else:
-                        self._logger.info('Dropped file not added to queue because there is no access to the neccessary add_to_queue method')
-                else:
-                    self._logger.info('Invalid file dropped. Path was %s', path)
-        else:
-            event.ignore()
 
 class QueueManager(object):
     
@@ -169,12 +117,12 @@ class QueueManager(object):
         self._appends = []
         self._appends_posted = False
 
-        # Create listview model
-        self._model = QStandardItemModel()
-        self._create_headers()
-        self._ui.treeview.setModel(self._model)
-        self._ui.treeview.add_to_queue = self.process_request
-        self._ui.treeview.delete_selection = self._delete_selected_items
+        self._model = QueueModel()
+        self._model.changed.connect(self._show_file_count)
+        self._show_file_count()
+        self._ui.queue_view.setModel(self._model)
+        self._ui.queue_view.add_to_queue = self.process_request
+        self._ui.queue_view.delete_selection = self._delete_selected_items
         
         # set up buttons
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
@@ -214,19 +162,12 @@ class QueueManager(object):
         self.manager.daemon=True
         self.manager.start()
 
-    def _create_headers(self):
-        self._model.setHorizontalHeaderItem(FILEPATH_COLUMN, QStandardItem('Filepath'))
-        
     def get_save_data(self):
-        # get list of files in the queue
-        file_list = []
-        for i in range(self._model.rowCount()):
-            file_list.append(self._model.item(i).text())
         # get button states
         return {'manager_paused':self.manager_paused,
                 'manager_repeat':self.manager_repeat,
                 'manager_repeat_mode':self.manager_repeat_mode,
-                'files_queued':file_list,
+                'files_queued':self._model.paths(),
                 'last_opened_shots_folder': self.last_opened_shots_folder
                }
     
@@ -259,9 +200,12 @@ class QueueManager(object):
     def _toggle_pause(self,checked):    
         self.manager_paused = checked
 
+    def _show_file_count(self, *args):
+        n = self._model.file_count()
+        self._ui.queue_length.setText('%d shot%s in queue' % (n, '' if n == 1 else 's'))
+
     def _clear_model(self):
         self._model.clear()
-        self._create_headers()
         with self._queued_lock:
             self._queued.clear()
 
@@ -329,94 +273,52 @@ class QueueManager(object):
                 self.process_request(str(filepath))
 
     def _delete_selected_items(self):
-        index_list = self._ui.treeview.selectedIndexes()
-        while index_list:
-            item = self._model.takeRow(index_list[0].row())[0]
+        for row in reversed(self._ui.queue_view.selected_positions()):
+            path, _ = self._model.pop(row)
             with self._queued_lock:
-                self._queued.discard(item.text())
-            index_list = self._ui.treeview.selectedIndexes()
+                self._queued.discard(path)
     
     def _move_up(self):        
-        # Get the selection model from the treeview
-        selection_model = self._ui.treeview.selectionModel()    
         # Create a list of select row indices
-        selected_row_list = [index.row() for index in sorted(selection_model.selectedRows())]
+        selected_row_list = self._ui.queue_view.selected_positions()
         # For each row selected
         for i,row in enumerate(selected_row_list):
             # only move the row if it is not element 0, and the row above it is not selected
             # (note that while a row above may have been initially selected, it should by now, be one row higher
             # since we start moving elements of the list upwards starting from the lowest index)
             if row > 0 and (row-1) not in selected_row_list:
-                # Remove the selected row
-                items = self._model.takeRow(row)
-                # Add the selected row into a position one above
-                self._model.insertRow(row-1,items)
-                # Since it is now a newly inserted row, select it again
-                selection_model.select(self._model.indexFromItem(items[0]),QItemSelectionModel.SelectCurrent)
+                # Move the selected row, which remains selected
+                self._model.move(row, row-1)
                 # reupdate the list of selected indices to reflect this change
                 selected_row_list[i] -= 1
        
     def _move_down(self):
-        # Get the selection model from the treeview
-        selection_model = self._ui.treeview.selectionModel()    
         # Create a list of select row indices
-        selected_row_list = [index.row() for index in reversed(sorted(selection_model.selectedRows()))]
+        selected_row_list = self._ui.queue_view.selected_positions()[::-1]
         # For each row selected
         for i,row in enumerate(selected_row_list):
             # only move the row if it is not the last element, and the row above it is not selected
             # (note that while a row below may have been initially selected, it should by now, be one row lower
             # since we start moving elements of the list upwards starting from the highest index)
-            if row < self._model.rowCount()-1 and (row+1) not in selected_row_list:
-                # Remove the selected row
-                items = self._model.takeRow(row)
-                # Add the selected row into a position one above
-                self._model.insertRow(row+1,items)
-                # Since it is now a newly inserted row, select it again
-                selection_model.select(self._model.indexFromItem(items[0]),QItemSelectionModel.SelectCurrent)
+            if row < self._model.file_count()-1 and (row+1) not in selected_row_list:
+                # Move the selected row, which remains selected
+                self._model.move(row, row+1)
                 # reupdate the list of selected indices to reflect this change
                 selected_row_list[i] += 1
         
     def _move_top(self):
-        # Get the selection model from the treeview
-        selection_model = self._ui.treeview.selectionModel()    
-        # Create a list of select row indices
-        selected_row_list = [index.row() for index in sorted(selection_model.selectedRows())]
-        # For each row selected
-        for i,row in enumerate(selected_row_list):
-            # only move the row while it is not element 0, and the row above it is not selected
-            # (note that while a row above may have been initially selected, it should by now, be one row higher
-            # since we start moving elements of the list upwards starting from the lowest index)
-            while row > 0 and (row-1) not in selected_row_list:
-                # Remove the selected row
-                items = self._model.takeRow(row)
-                # Add the selected row into a position one above
-                self._model.insertRow(row-1,items)
-                # Since it is now a newly inserted row, select it again
-                selection_model.select(self._model.indexFromItem(items[0]),QItemSelectionModel.SelectCurrent)
-                # reupdate the list of selected indices to reflect this change
-                selected_row_list[i] -= 1
-                row -= 1
-              
+        selected_row_list = self._ui.queue_view.selected_positions()
+        # Moving a row to the top does not change the positions of the rows below it
+        for i, row in enumerate(selected_row_list):
+            self._model.move(row, i)
+
     def _move_bottom(self):
-        selection_model = self._ui.treeview.selectionModel()    
-        # Create a list of select row indices
-        selected_row_list = [index.row() for index in reversed(sorted(selection_model.selectedRows()))]
-        # For each row selected
-        for i,row in enumerate(selected_row_list):
-            # only move the row while it is not the last element, and the row above it is not selected
-            # (note that while a row below may have been initially selected, it should by now, be one row lower
-            # since we start moving elements of the list upwards starting from the highest index)
-            while row < self._model.rowCount()-1 and (row+1) not in selected_row_list:
-                # Remove the selected row
-                items = self._model.takeRow(row)
-                # Add the selected row into a position one above
-                self._model.insertRow(row+1,items)
-                # Since it is now a newly inserted row, select it again
-                selection_model.select(self._model.indexFromItem(items[0]),QItemSelectionModel.SelectCurrent)
-                # reupdate the list of selected indices to reflect this change
-                selected_row_list[i] += 1
-                row += 1
-    
+        selected_row_list = self._ui.queue_view.selected_positions()[::-1]
+        # Moving a row to the bottom does not change the positions of the rows above it
+        last = self._model.file_count() - 1
+        for i, row in enumerate(selected_row_list):
+            self._model.move(row, last - i)
+
     def _start_adding(self, path):
         """Record that a file is being added to the queue, unless it is in the queue or
         being added already. Return whether it was recorded."""
@@ -449,12 +351,9 @@ class QueueManager(object):
             appends = self._appends
             self._appends = []
             self._appends_posted = False
-        for path, device_orders in appends:
-            item = QStandardItem(path)
-            item.setToolTip(path)
-            item.setData(device_orders, DEVICE_ORDERS_ROLE)
-            self._model.appendRow(item)
-            with self._queued_lock:
+        self._model.append(appends)
+        with self._queued_lock:
+            for path, _ in appends:
                 self._queued.add(path)
                 self._adding.discard(path)
         self._wakeup.set()
@@ -475,7 +374,7 @@ class QueueManager(object):
             if h5file in self._queued or h5file in self._adding:
                 return
             self._queued.add(h5file)
-        self._model.insertRow(0,QStandardItem(h5file))
+        self._model.insert(0, [(h5file, None)])
         self._wakeup.set()
     
     def process_request(self,h5_filepath):
@@ -646,14 +545,13 @@ class QueueManager(object):
                 self._logger.info('Paused')
                 self.set_status("Queue paused")
             return None
-        if not self._model.rowCount():
+        if not self._model.file_count():
             self.set_status("Idle")
             return None
-        item = self._model.takeRow(0)[0]
-        path = str(item.text())
+        path, device_orders = self._model.pop(0)
         with self._queued_lock:
             self._queued.discard(path)
-        self._shot = Shot(self, path, item.data(DEVICE_ORDERS_ROLE))
+        self._shot = Shot(self, path, device_orders)
         self.set_status("Transitioning to buffered...", path)
         self._ui.queue_abort_button.setEnabled(True)
         return self._shot

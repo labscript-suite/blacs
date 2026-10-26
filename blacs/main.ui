@@ -308,39 +308,12 @@ QToolButton:hover:checked {
              <layout class="QVBoxLayout" name="analysis"/>
             </item>
             <item row="4" column="1">
-             <widget class="QueueTreeview" name="treeview">
+             <widget class="QueueView" name="queue_view">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                 <horstretch>0</horstretch>
                 <verstretch>1</verstretch>
                </sizepolicy>
-              </property>
-              <property name="acceptDrops">
-               <bool>true</bool>
-              </property>
-              <property name="toolTip">
-               <string/>
-              </property>
-              <property name="editTriggers">
-               <set>QAbstractItemView::NoEditTriggers</set>
-              </property>
-              <property name="dragDropMode">
-               <enum>QAbstractItemView::DropOnly</enum>
-              </property>
-              <property name="selectionMode">
-               <enum>QAbstractItemView::ExtendedSelection</enum>
-              </property>
-              <property name="textElideMode">
-               <enum>Qt::ElideLeft</enum>
-              </property>
-              <property name="indentation">
-               <number>0</number>
-              </property>
-              <property name="uniformRowHeights">
-               <bool>true</bool>
-              </property>
-              <property name="animated">
-               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -516,6 +489,13 @@ QToolButton:hover:checked {
                </spacer>
               </item>
              </layout>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLabel" name="queue_length">
+              <property name="text">
+               <string>[Queue length]</string>
+              </property>
+             </widget>
             </item>
             <item row="2" column="1">
              <layout class="QVBoxLayout" name="queue_status_verticalLayout">
@@ -716,8 +696,8 @@ QToolButton:hover:checked {
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QueueTreeview</class>
-   <extends>QTreeView</extends>
+   <class>QueueView</class>
+   <extends>QAbstractScrollArea</extends>
    <header>qtutils/widgets.h</header>
   </customwidget>
  </customwidgets>
