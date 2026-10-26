@@ -808,7 +808,12 @@ if __name__ == '__main__':
     experiment_server = ExperimentServer(port)
     splash.hide()
 
-    def execute_program():
-        qapplication.exec()
+    qapplication.exec()
 
-    sys.exit(execute_program())
+    # Delete the windows now, rather than in PyQt's QObject cleanup at exit, during which
+    # Python code that creates or destroys wrapped Qt objects can crash the interpreter
+    # (https://github.com/Python-SIP/sip/pull/121). This can be removed once PyQt5-sip
+    # and PyQt6-sip releases include that fix.
+    for widget in qapplication.topLevelWidgets():
+        widget.deleteLater()
+    qapplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
