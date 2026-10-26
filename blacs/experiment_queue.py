@@ -161,7 +161,7 @@ class QueueManager(object):
 
         # Paths of the files in the queue, and paths of files being added to it by
         # process_request(). Accessed from any thread with self._queued_lock held, and
-        # updated in the main thread when rows are inserted or removed:
+        # updated in the main thread when files are added to or removed from the model:
         self._queued = set()
         self._adding = set()
         self._queued_lock = threading.Lock()
@@ -172,9 +172,6 @@ class QueueManager(object):
         # Create listview model
         self._model = QStandardItemModel()
         self._create_headers()
-        self._model.rowsInserted.connect(self._on_rows_inserted)
-        self._model.rowsRemoved.connect(self._update_queued)
-        self._model.modelReset.connect(self._update_queued)
         self._ui.treeview.setModel(self._model)
         self._ui.treeview.add_to_queue = self.process_request
         self._ui.treeview.delete_selection = self._delete_selected_items
@@ -183,7 +180,7 @@ class QueueManager(object):
         self._ui.queue_pause_button.toggled.connect(self._toggle_pause)
         self._ui.queue_repeat_button.toggled.connect(self._toggle_repeat)
         self._ui.queue_delete_button.clicked.connect(self._delete_selected_items)
-        self._ui.queue_clear_button.clicked.connect(self._toggle_clear)
+        self._ui.queue_clear_button.clicked.connect(self._clear_model)
         self._ui.queue_abort_button.clicked.connect(self._on_abort_clicked)
         self._ui.actionAdd_to_queue.triggered.connect(self.on_add_shots_triggered)
         self._ui.queue_add_button.setDefaultAction(self._ui.actionAdd_to_queue)
@@ -242,8 +239,7 @@ class QueueManager(object):
             self.manager_repeat_mode = data['manager_repeat_mode']
         if 'files_queued' in data:
             file_list = list(data['files_queued'])
-            self._model.clear()
-            self._create_headers()
+            self._clear_model()
             for file in file_list:
                 self.process_request(str(file))
         if 'last_opened_shots_folder' in data:
@@ -263,9 +259,11 @@ class QueueManager(object):
     def _toggle_pause(self,checked):    
         self.manager_paused = checked
 
-    def _toggle_clear(self):
+    def _clear_model(self):
         self._model.clear()
         self._create_headers()
+        with self._queued_lock:
+            self._queued.clear()
 
     @property
     def manager_paused(self):
@@ -333,7 +331,9 @@ class QueueManager(object):
     def _delete_selected_items(self):
         index_list = self._ui.treeview.selectedIndexes()
         while index_list:
-            self._model.takeRow(index_list[0].row())
+            item = self._model.takeRow(index_list[0].row())[0]
+            with self._queued_lock:
+                self._queued.discard(item.text())
             index_list = self._ui.treeview.selectedIndexes()
     
     def _move_up(self):        
@@ -417,16 +417,6 @@ class QueueManager(object):
                 selected_row_list[i] += 1
                 row += 1
     
-    def _update_queued(self, *args):
-        """Set self._queued to the paths in the model. Runs in the main thread."""
-        items = [self._model.item(row) for row in range(self._model.rowCount())]
-        with self._queued_lock:
-            self._queued = {item.text() for item in items if item is not None}
-
-    def _on_rows_inserted(self, parent, first, last):
-        self._update_queued()
-        self._wakeup.set()
-
     def _start_adding(self, path):
         """Record that a file is being added to the queue, unless it is in the queue or
         being added already. Return whether it was recorded."""
@@ -465,7 +455,9 @@ class QueueManager(object):
             item.setData(device_orders, DEVICE_ORDERS_ROLE)
             self._model.appendRow(item)
             with self._queued_lock:
+                self._queued.add(path)
                 self._adding.discard(path)
+        self._wakeup.set()
 
     @inmain_decorator(True)
     def stop(self):
@@ -479,8 +471,12 @@ class QueueManager(object):
 
     @inmain_decorator(True)
     def prepend(self,h5file):
-        if not self.is_in_queue(h5file):
-            self._model.insertRow(0,QStandardItem(h5file))
+        with self._queued_lock:
+            if h5file in self._queued or h5file in self._adding:
+                return
+            self._queued.add(h5file)
+        self._model.insertRow(0,QStandardItem(h5file))
+        self._wakeup.set()
     
     def process_request(self,h5_filepath):
         """Check a shot file and add it to the queue, or a copy of it if it has been run
@@ -586,7 +582,7 @@ class QueueManager(object):
             self._logger.exception('Clean H5 File Error.')
             return False
         return True
-    
+
     def is_in_queue(self, path):
         """Return whether a file is in the queue or being added to it"""
         with self._queued_lock:
@@ -655,6 +651,8 @@ class QueueManager(object):
             return None
         item = self._model.takeRow(0)[0]
         path = str(item.text())
+        with self._queued_lock:
+            self._queued.discard(path)
         self._shot = Shot(self, path, item.data(DEVICE_ORDERS_ROLE))
         self.set_status("Transitioning to buffered...", path)
         self._ui.queue_abort_button.setEnabled(True)
