@@ -95,6 +95,20 @@ all buffered instructions next shot</string>
       </widget>
      </item>
      <item>
+      <widget class="QToolButton" name="button_stop">
+       <property name="toolTip">
+        <string>Stop the worker processes and release the device</string>
+       </property>
+       <property name="text">
+        <string>...</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
+         <normaloff>:/qtutils/fugue/control-stop-square.png</normaloff>:/qtutils/fugue/control-stop-square.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QToolButton" name="button_restart">
        <property name="toolTip">
         <string>Restart tab and reinitialise device</string>
