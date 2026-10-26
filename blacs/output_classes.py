@@ -76,7 +76,7 @@ class AO(object):
                     reason = 'The parameters for the unit conversion class are not a dictionary. Check your connection table code for errors and recompile it'
                 elif cls.base_unit != default_units:
                     reason = f'The base unit of your unit conversion class does not match this hardware channel. The hardware channel has base units {default_units} while your unit conversion class uses {cls.base_unit}'
-                self._logger.error('The unit conversion class (%s) could not be loaded. Reason: %s'%(calib_class,reason))   
+                self._logger.error('The unit conversion class (%s) could not be loaded. Reason: %s', calib_class, reason)   
                 # Use default units
                 self._calibration = None
             else:
@@ -88,7 +88,7 @@ class AO(object):
                         try:
                             self._comboboxmodel.appendRow(QStandardItem(unit))
                         except Exception:
-                             self._logger.exception('Error while trying to add unit "%s"'%unit)                    
+                             self._logger.exception('Error while trying to add unit "%s"', unit)                    
                 except Exception:
                     self._logger.exception('Error while trying to instantiate unit conversion class')
                     self._calibration = None
@@ -166,7 +166,7 @@ class AO(object):
     # used on the offending side of value
     # If range is greater than the difference of the limits, we will return the difference between the limits
     def convert_range_to_base(self,value,range,unit):
-        self._logger.debug('convert_range_to_base called. value: %f, range: %f, unit: %s'%(value,range,unit))
+        self._logger.debug('convert_range_to_base called. value: %f, range: %f, unit: %s', value, range, unit)
         
         # Do we need to convert the limits?
         if unit != self._base_unit:
@@ -176,7 +176,7 @@ class AO(object):
         else:
             limits = self._limits
         
-        self._logger.debug('limits in unit: %s), limits=[%f,%f]'%(unit,limits[0],limits[1]))
+        self._logger.debug('limits in unit: %s), limits=[%f,%f]', unit, limits[0], limits[1])
         
         # limits are now in the units given to the function!
         # (As are range and value)
@@ -192,24 +192,24 @@ class AO(object):
         # we can be certain shifting the fractions will not cause us to go out of bounds on the other side
         positive_fraction = range/2.0
         negative_fraction = range/2.0
-        self._logger.debug('fractions are.... positive_fraction: %f, negative_fraction: %f'%(positive_fraction, negative_fraction))
+        self._logger.debug('fractions are.... positive_fraction: %f, negative_fraction: %f', positive_fraction, negative_fraction)
         
         # If the value+range/2 is greater than the upper limit, shift the fraction 
         if value+positive_fraction > limits[1]:           
             positive_fraction = abs(limits[1]-value)
             negative_fraction = abs(range-positive_fraction) 
-            self._logger.debug('outside upper limit. positive_fraction: %f, negative_fraction: %f'%(positive_fraction, negative_fraction))
+            self._logger.debug('outside upper limit. positive_fraction: %f, negative_fraction: %f', positive_fraction, negative_fraction)
         # Similarly if value-range/2 is less than the lower limit, shift the fraction
         elif value-negative_fraction < limits[0]:    
             negative_fraction = abs(limits[0]-value)        
             positive_fraction = abs(range-negative_fraction)
-            self._logger.debug('outside lower limit. positive_fraction: %f, negative_fraction: %f'%(positive_fraction, negative_fraction))
+            self._logger.debug('outside lower limit. positive_fraction: %f, negative_fraction: %f', positive_fraction, negative_fraction)
         
         self._logger.debug('converting values to base units')            
         # Now do the conversion!
         bound1 = self.convert_value_to_base(value+positive_fraction,unit)
         bound2 = self.convert_value_to_base(value-negative_fraction,unit)
-        self._logger.debug('range in base units is: %f'%(abs(bound1-bound2)))
+        self._logger.debug('range in base units is: %f', abs(bound1-bound2))
         
         return abs(bound1-bound2)
     
@@ -297,9 +297,9 @@ class AO(object):
         property_value_list = [self._current_value,self._limits[0],self._limits[1]]
         property_range_list = [self._step_size]
         
-        self._logger.debug('changing unit to %s'%unit)
-        self._logger.debug('Values in base units are: value: %f, lower_limit: %f, upper_limit: %f'%(property_value_list[0],property_value_list[1],property_value_list[2]))
-        self._logger.debug('ranges in base units are: step_size: %f'%(property_range_list[0]))
+        self._logger.debug('changing unit to %s', unit)
+        self._logger.debug('Values in base units are: value: %f, lower_limit: %f, upper_limit: %f', property_value_list[0], property_value_list[1], property_value_list[2])
+        self._logger.debug('ranges in base units are: step_size: %f', property_range_list[0])
         
         # Now convert to the new unit
         if unit != self._base_unit:
@@ -310,14 +310,14 @@ class AO(object):
                 #convert each to base units
                 property_range_list[index] = self.convert_range_from_base(self._current_value,param,unit)
             
-            self._logger.debug('Values in new unit are: value: %f, lower_limit: %f, upper_limit: %f'%(property_value_list[0],property_value_list[1],property_value_list[2]))
-            self._logger.debug('ranges in new unit are: step_size: %f'%(property_range_list[0]))        
+            self._logger.debug('Values in new unit are: value: %f, lower_limit: %f, upper_limit: %f', property_value_list[0], property_value_list[1], property_value_list[2])
+            self._logger.debug('ranges in new unit are: step_size: %f', property_range_list[0])        
             
             # figure out how many decimal points we need in the new unit
             smallest_step = 10**(-self._decimals)
-            self._logger.debug('Smallest step size in base units: %f'%smallest_step)
+            self._logger.debug('Smallest step size in base units: %f', smallest_step)
             smallest_step_in_new_unit = self.convert_range_from_base(self._current_value+smallest_step,smallest_step,unit)
-            self._logger.debug('Smallest step size in new_unit: %f'%smallest_step_in_new_unit)
+            self._logger.debug('Smallest step size in new_unit: %f', smallest_step_in_new_unit)
             try:
                 if smallest_step_in_new_unit > 1:
                     if smallest_step_in_new_unit > 10:
@@ -391,7 +391,7 @@ class AO(object):
             widget.unblock_spinbox_signals()
     
     def set_step_size(self,step_size,unit):
-        self._logger.debug('set_step_size called. step_size: %f, unit: %s'%(step_size,unit))
+        self._logger.debug('set_step_size called. step_size: %f, unit: %s', step_size, unit)
         if unit != self._base_unit:
             # convert and store!
             value = self.convert_value_from_base(self._current_value,unit)
@@ -403,14 +403,14 @@ class AO(object):
                 step_size = abs(self._limits[0]-self._limits[1])
             self._step_size = step_size
         
-        self._logger.debug('step_size in base units: %f'%self._step_size)
+        self._logger.debug('step_size in base units: %f', self._step_size)
         
         #self._current_step_size = self._step_size
         self._settings['base_step_size'] = self._step_size
         
         # now convert to current units
         self._current_step_size = self.get_step_size(self._current_units)        
-        self._logger.debug('step_size in current units (%s): %f'%(self._current_units,self._current_step_size))
+        self._logger.debug('step_size in current units (%s): %f', self._current_units, self._current_step_size)
     
         # Update the step size for all widgets
         for widget in self._widgets:
