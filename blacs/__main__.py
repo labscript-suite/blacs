@@ -508,6 +508,10 @@ class BLACS(object):
             logger.exception("Unable to load window and notebook defaults. Exception:%s", e)
 
     def order_tabs(self,tab_data):
+        # Shot files do not contain tab positions
+        if not any('notebook' in data for data in tab_data.values()):
+            return
+
         # Move the tabs to the correct notebook
         for tab_name in self.tablist.keys():
             notebook_num = 0
@@ -575,7 +579,7 @@ class BLACS(object):
                     # TODO: Warn that this will restore values, but not channels that are locked
                     message = QMessageBox()
                     message.setText("""Warning: This will modify front panel values and cause device output values to update.
-                    \nThe queue and files waiting to be sent for analysis will be cleared.
+                    \nIf the file is a BLACS settings file, the queue and files waiting to be sent for analysis will be replaced by those in the file.
                     \n
                     \nNote: Channels that are locked will not be updated.\n\nDo you wish to continue?""")
                     message.setIcon(QMessageBox.Warning)

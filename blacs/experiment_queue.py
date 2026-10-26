@@ -793,8 +793,8 @@ class QueueManager(object):
                 save_error = None
                 try:
                     with h5py.File(path, 'r+') as hdf5_file:
-                        self.BLACS.front_panel_settings.store_front_panel_in_h5(
-                            hdf5_file, *shot.front_panel_data, save_conn_table=False, save_queue_data=False
+                        self.BLACS.front_panel_settings.store_shot_front_panel_in_h5(
+                            hdf5_file, shot.front_panel_data
                         )
                         hdf5_file['/'].require_group('data')
                         # stamp with the run time of the experiment
@@ -1032,7 +1032,7 @@ class Shot(object):
     def _next_buffered_group(self):
         if not self.start_groups:
             # Get front panel data, but don't save it to the h5 file until the run starts:
-            self.front_panel_data = self.queue_manager.BLACS.front_panel_settings.get_save_data()
+            self.front_panel_data = self.queue_manager.BLACS.front_panel_settings.get_shot_data()
             program_time = time.time() - self.start_time
             self.queue_manager.set_status("Running (program time: %.3fs)..." % program_time, self.path)
             self.phase = 'starting'
