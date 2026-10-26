@@ -664,8 +664,8 @@ class BLACS(object):
                     logger.error("Couldn't close tab:\n%s", e)
                 del self.tablist[name]
                 continue
-            fatal_error = tab.state == 'fatal error'
-            if not tab.shutdown_workers_complete and overdue or fatal_error:
+            stopped = tab.state in ('fatal error', 'stopping', 'stopped')
+            if not tab.shutdown_workers_complete and overdue or stopped:
                 # Give up on cleanly shutting down this tab's worker processes:
                 tab.shutdown_workers_complete = True
             if tab.shutdown_workers_complete:

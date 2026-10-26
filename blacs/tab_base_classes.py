@@ -227,6 +227,8 @@ class StateMachine(object):
 
     def _state_finished(self):
         self._state_name = None
+        if self.closed:
+            return
         self.tab.state = 'idle'
         self.logger.debug('Waiting for next event')
         self.schedule()
@@ -309,10 +311,13 @@ class StateMachine(object):
         tab.state = 'fatal error'
         tab._ui.button_close.setEnabled(False)
         self.logger.info('Exiting')
+        inthread(tab._end_workers)
 
     def close(self):
         """Stop running states, interrupt any communication with the workers, and stop
         the job thread. Called in the main thread."""
+        if self.closed:
+            return
         self.closed = True
         self._generator = None
         for worker, to_worker, from_worker in self.workers.values():
@@ -357,6 +362,12 @@ class Tab(object):
     ICON_BUSY = ':/qtutils/fugue/hourglass'
     ICON_ERROR = ':/qtutils/fugue/exclamation'
     ICON_FATAL_ERROR = ':/qtutils/fugue/exclamation-red'
+    ICON_STOPPED = ':/qtutils/fugue/control-stop-square'
+    ICON_START = ':/qtutils/fugue/control'
+
+    # Duration in seconds for which a restart or stop waits for the workers' shutdown()
+    # methods to return before it ends the workers:
+    SHUTDOWN_TIMEOUT = 2
 
     def __init__(self,notebook,settings,restart=False):  
         # Store important parameters
@@ -391,6 +402,7 @@ class Tab(object):
         self._supports_smart_programming = False
         self._restart_receiver = []
         self.shutdown_workers_complete = False
+        self._end_workers_lock = threading.Lock()
 
         self.remote_process_client = self._get_remote_configuration()
         self.BLACS_connection = self.settings['connection_table'].find_by_name(self.device_name).BLACS_connection
@@ -426,7 +438,8 @@ class Tab(object):
         self.force_full_buffered_reprogram = True
         self._ui.button_show_terminal.toggled.connect(self.set_terminal_visible)
         self._ui.button_close.clicked.connect(self.hide_error)
-        self._ui.button_restart.clicked.connect(self.restart)        
+        self._ui.button_restart.clicked.connect(self.restart)
+        self._ui.button_stop.clicked.connect(self._on_stop_clicked)
         self._update_error_and_tab_icon()
         self.supports_smart_programming(False)
         
@@ -540,7 +553,14 @@ class Tab(object):
         if error_html != self._error_html:
             self._error_html = error_html
             self._ui.error_message.setHtml(error_html)
-        if self._error or self._not_responding_error_message:
+        if self.state in ('stopping', 'stopped'):
+            self._ui.notresponding.show()
+            self._tab_text_colour = QColor('grey')
+            if self.state == 'stopped':
+                self._tab_icon = self.ICON_STOPPED
+            else:
+                self._tab_icon = self.ICON_BUSY
+        elif self._error or self._not_responding_error_message:
             self._ui.notresponding.show()
             self._tab_text_colour = QColor('red')
             if self.error_message:
@@ -620,6 +640,19 @@ class Tab(object):
         self._state_display_update_pending = False
         self._update_state_label()
         self._update_error_and_tab_icon()
+        self._update_stop_button()
+
+    def _update_stop_button(self):
+        """Show the stop button as a start button while the workers are not running"""
+        if self.state in ('stopped', 'fatal error'):
+            icon = self.ICON_START
+            tooltip = 'Start the worker processes and initialise the device'
+        else:
+            icon = self.ICON_STOPPED
+            tooltip = 'Stop the worker processes and release the device'
+        if self._ui.button_stop.toolTip() != tooltip:
+            self._ui.button_stop.setIcon(QIcon(icon))
+            self._ui.button_stop.setToolTip(tooltip)
     
     @inmain_decorator(True)
     def _update_state_label(self):
@@ -788,7 +821,12 @@ class Tab(object):
         WORKER_QUIT_TIMEOUT seconds. A worker interrupts the job that it is running, and
         if the job has not stopped after WORKER_ABORT_TIMEOUT seconds, exits when it has
         no HDF5 file open for writing, or after WORKER_KILL_LOCK_TIMEOUT seconds. A
-        worker that has not finished starting up is killed at once."""
+        worker that has not finished starting up is killed at once. A second call waits
+        for the first to return."""
+        with self._end_workers_lock:
+            self._end_workers_locked()
+
+    def _end_workers_locked(self):
         if self.remote_process_client is not None:
             # Timeout for requests to the remote process server:
             kwargs = {'get_timeout': 5}
@@ -839,14 +877,83 @@ class Tab(object):
         if function in self._restart_receiver:
             self._restart_receiver.remove(function)
     
-    def restart(self,*args):
-        # notify all connected receivers:
+    def _notify_restart_receivers(self):
         for f in self._restart_receiver:
             try:
                 f(self.device_name)
             except Exception:
                 self.logger.exception('Could not notify a connected receiver function')
-                
+
+    def _shut_down_workers_then(self, callback):
+        """Run the workers' shutdown() methods before any other state, and then call
+        callback in the main thread, or call it after SHUTDOWN_TIMEOUT seconds if the
+        shutdown() methods have not returned. If the state machine is not running,
+        call callback at once. Called in the main thread."""
+        if self._statemachine.closed or self._statemachine.failed:
+            callback()
+            return
+        callbacks = [callback]
+
+        def call_once():
+            if callbacks:
+                callbacks.pop()()
+
+        self.event_queue.put(
+            MODE_MANUAL|MODE_BUFFERED|MODE_TRANSITION_TO_BUFFERED|MODE_TRANSITION_TO_MANUAL,
+            True,
+            False,
+            [Tab._shut_down_workers, [(call_once,), {}]],
+            priority=-1,
+        )
+        QTimer.singleShot(int(self.SHUTDOWN_TIMEOUT * 1000), call_once)
+
+    def _shut_down_workers(self, callback):
+        for worker_name in self.workers:
+            yield (self.queue_work(worker_name, 'shutdown'))
+        callback()
+
+    def _on_stop_clicked(self):
+        if self.state in ('stopped', 'fatal error'):
+            self.restart()
+        else:
+            self.stop()
+
+    def stop(self):
+        """Run the workers' shutdown() methods and end the worker processes. The tab
+        stays open with its state machine stopped until it is restarted."""
+        self._notify_restart_receivers()
+        self._ui.button_stop.setEnabled(False)
+        self._ui.button_restart.setEnabled(False)
+        self._shut_down_workers_then(self._stop_after_shutdown)
+
+    def _stop_after_shutdown(self):
+        self.logger.info('***STOP***')
+        self._statemachine.close()
+        now = time.strftime('%a %b %d, %H:%M:%S', time.localtime())
+        self.error_message += (
+            'Worker processes stopped - %s<br />' % now
+            + 'Click the start button to start them and initialise the device.<br />'
+        )
+        self._ui.button_close.setEnabled(False)
+        self.state = 'stopping'
+        inthread(self._end_workers_for_stop)
+
+    def _end_workers_for_stop(self):
+        self._end_workers()
+        inmain_later(self._stopped)
+
+    def _stopped(self):
+        self.state = 'stopped'
+        self._ui.button_stop.setEnabled(True)
+        self._ui.button_restart.setEnabled(True)
+
+    def restart(self,*args):
+        self._notify_restart_receivers()
+        self._ui.button_stop.setEnabled(False)
+        self._ui.button_restart.setEnabled(False)
+        self._shut_down_workers_then(self._restart_after_shutdown)
+
+    def _restart_after_shutdown(self):
         currentpage = self.close_tab(finalise=False)
         self.logger.info('***RESTART***')
         self.settings['saved_data'] = self.get_all_save_data()
@@ -910,7 +1017,7 @@ class Tab(object):
         self.set_tab_icon_and_colour()
             
     def check_time(self):
-        if self.state in ['idle','fatal error']:
+        if self.state in ['idle','fatal error','stopped']:
             self.not_responding_for = 0
             if self._not_responding_error_message:
                 self._not_responding_error_message = ''
@@ -935,6 +1042,10 @@ class Tab(object):
 
 class Worker(Process):
     def init(self):
+        # To be overridden by subclasses
+        pass
+
+    def shutdown(self):
         # To be overridden by subclasses
         pass
     

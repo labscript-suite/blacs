@@ -784,7 +784,7 @@ class QueueManager(object):
                     elif kind == 'abort':
                         self.set_status("Aborted")
                     elif kind == 'restart':
-                        self.set_status(device_status(data, 'restarted in transition to buffered') + "\nQueue paused")
+                        self.set_status(device_status(data, 'restarted or stopped in transition to buffered') + "\nQueue paused")
                     else:
                         self.set_status(device_status(data, 'in error state') + "\nQueue paused")
                     inmain(self._abort_shot, shot)
@@ -818,7 +818,7 @@ class QueueManager(object):
                         if error_devices:
                             self.set_status(device_status(error_devices, 'in error state during run') + "\nQueue paused")
                         else:
-                            self.set_status(device_status(restarted_devices, 'restarted during run') + "\nQueue paused")
+                            self.set_status(device_status(restarted_devices, 'restarted or stopped during run') + "\nQueue paused")
                     return
                 if save_error is not None:
                     raise save_error
