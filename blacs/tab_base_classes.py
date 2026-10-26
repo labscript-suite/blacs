@@ -10,9 +10,10 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from zprocess import Process, Interruptor, Interrupted
+from zprocess import Process, Interruptor, Interrupted, interrupt_main_thread
 import time
 import sys
+import signal
 import threading
 import traceback
 import logging
@@ -55,6 +56,15 @@ MODE_MANUAL = 1
 MODE_TRANSITION_TO_BUFFERED = 2
 MODE_TRANSITION_TO_MANUAL = 4
 MODE_BUFFERED = 8  
+
+# Duration in seconds for which a worker that has been told to quit waits for its
+# interrupted job to stop:
+WORKER_ABORT_TIMEOUT = 5
+# Duration in seconds for which a worker with a job that did not stop waits for its HDF5
+# files to be closed before it exits:
+WORKER_KILL_LOCK_TIMEOUT = 60
+# Duration in seconds for which a tab waits for a worker to exit before killing it:
+WORKER_QUIT_TIMEOUT = WORKER_ABORT_TIMEOUT + WORKER_KILL_LOCK_TIMEOUT + 5
             
 class StateQueue(object):
     """The queued states of a tab, in order of priority and then of insertion. Only the
@@ -764,35 +774,62 @@ class Tab(object):
         return currentpage
     
     def finalise_close_tab(self, currentpage):
-        TERMINATE_TIMEOUT = 2
-        if not self._statemachine.join(TERMINATE_TIMEOUT):
+        JOB_THREAD_TIMEOUT = 2
+        if not self._statemachine.join(JOB_THREAD_TIMEOUT):
             self.logger.warning("job thread of %s did not stop", self.device_name)
-        kwargs = {'wait_timeout': TERMINATE_TIMEOUT}  # timeout passed to .wait()
-        if self.remote_process_client is not None:
-            # Set up a zprocess.Interruptor to interrupt communication with the remote
-            # process server if the timeout is reached:
-            interruptor = Interruptor()
-            kwargs['get_interruptor'] = interruptor
-            timer = inmain(QTimer)
-            inmain(timer.singleShot, int(TERMINATE_TIMEOUT * 1000), interruptor.set)
         try:
-            # Delete the workers from the dict as we go, ensuring their __del__ method
-            # will be called. This is important so that the remote process server, if
-            # any, knows we have deleted the object:
-            for name in self.workers.copy():
-                worker, _, _ = self.workers.pop(name)
-                worker.terminate(**kwargs)
-        except Interrupted:
-            self.logger.warning(
-                "Terminating workers of %s timed out", self.device_name
-            )
-            return
+            self._end_workers()
         finally:
              # Shutdown the output box by joining its thread:
             self._output_box.shutdown()
-            if self.remote_process_client is not None:
-                inmain(timer.stop)
-        
+
+    def _end_workers(self):
+        """Tell the workers to quit, and kill each one that has not exited after
+        WORKER_QUIT_TIMEOUT seconds. A worker interrupts the job that it is running, and
+        if the job has not stopped after WORKER_ABORT_TIMEOUT seconds, exits when it has
+        no HDF5 file open for writing, or after WORKER_KILL_LOCK_TIMEOUT seconds. A
+        worker that has not finished starting up is killed at once."""
+        if self.remote_process_client is not None:
+            # Timeout for requests to the remote process server:
+            kwargs = {'get_timeout': 5}
+        else:
+            kwargs = {}
+        # Delete the workers from the dict, so that their __del__ methods are called
+        # when this method returns. This is important so that the remote process server,
+        # if any, knows we have deleted the objects:
+        workers = [self.workers.pop(name) for name in list(self.workers)]
+        children = []
+        for worker, to_worker, _ in workers:
+            worker.interrupt_startup()
+            if worker.child is None:
+                continue
+            if to_worker is not None:
+                try:
+                    # The queue's own interruptor is set when the state machine closes:
+                    to_worker.put('quit', timeout=1, interruptor=Interruptor())
+                except TimeoutError:
+                    pass
+                else:
+                    children.append(worker.child)
+                    continue
+            try:
+                worker.child.kill(**kwargs)
+            except (OSError, TimeoutError):
+                # The process has exited, or the remote process server is unreachable
+                pass
+        deadline = time.monotonic() + WORKER_QUIT_TIMEOUT
+        for child in children:
+            try:
+                while child.poll(**kwargs) is None:
+                    if time.monotonic() > deadline:
+                        self.logger.warning(
+                            "A worker of %s did not exit, killing it", self.device_name
+                        )
+                        child.kill(**kwargs)
+                        break
+                    time.sleep(0.05)
+            except (OSError, TimeoutError):
+                pass
 
     def connect_restart_receiver(self,function):
         if function not in self._restart_receiver:
@@ -936,10 +973,23 @@ class Worker(Process):
         )
 
     def mainloop(self):
+        """Run jobs in the main thread. A thread receives the job requests from the
+        parent, so that a request to quit is received while a job is running."""
+        self._job_requests = queue.Queue()
+        # Set while no job is running:
+        self._idle = threading.Event()
+        self._idle.set()
+        # Set while the main thread is running a job. _on_sigint() raises
+        # KeyboardInterrupt only while this is set, so that the interrupt is raised in
+        # the job and not in the code that runs after it:
+        self._job_running = False
+        signal.signal(signal.SIGINT, self._on_sigint)
+        threading.Thread(target=self._receive, daemon=True).start()
         while True:
             # Get the next task to be done:
             self.logger.debug('Waiting for next job request')
-            funcname, args, kwargs = self.from_parent.get()
+            funcname, args, kwargs = self._job_requests.get()
+            self._idle.clear()
             self.logger.debug('Got job request %s', funcname)
             try:
                 # See if we have a method with that name:
@@ -956,11 +1006,15 @@ class Worker(Process):
                 # Try to do the requested work:
                 self.logger.debug('Starting job %s', funcname)
                 try:
-                    results = func(*args,**kwargs)
+                    try:
+                        self._job_running = True
+                        results = func(*args,**kwargs)
+                    finally:
+                        self._job_running = False
                     success = True
                     message = ''
                     self.logger.debug('Job complete')
-                except Exception:
+                except (Exception, KeyboardInterrupt):
                     results = None
                     success = False
                     traceback_lines = traceback.format_exception(*sys.exc_info())
@@ -979,6 +1033,35 @@ class Worker(Process):
                 # Report to the parent whether work was successful or not,
                 # and what the results were:
                 self.to_parent.put((success,message,results))
+            self._idle.set()
+
+    def _receive(self):
+        while True:
+            request = self.from_parent.get()
+            if request == 'quit':
+                self._quit()
+            self._job_requests.put(request)
+
+    def _quit(self):
+        """Interrupt the job that is running, if any, and exit. If the job has not
+        stopped after WORKER_ABORT_TIMEOUT seconds, exit when no HDF5 file is open for
+        writing, or after WORKER_KILL_LOCK_TIMEOUT seconds."""
+        if not self._idle.is_set():
+            interrupt_main_thread()
+            if not self._idle.wait(WORKER_ABORT_TIMEOUT):
+                print(
+                    'The job did not stop after %d seconds. The worker will exit when '
+                    'it has no HDF5 file open for writing, or after %d seconds.'
+                    % (WORKER_ABORT_TIMEOUT, WORKER_KILL_LOCK_TIMEOUT),
+                    file=sys.stderr,
+                )
+        sys.stdout.flush()
+        sys.stderr.flush()
+        self.kill_lock.exit_when_released(status=0, timeout=WORKER_KILL_LOCK_TIMEOUT)
+
+    def _on_sigint(self, signum, frame):
+        if self._job_running:
+            raise KeyboardInterrupt
 
 
 class PluginTab(object):
