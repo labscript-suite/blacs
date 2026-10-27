@@ -461,7 +461,6 @@ class Tab(object):
                 
         # Add the tab to the notebook
         self.notebook.addTab(self._ui,self.device_name)
-        self._ui.show()
     
     def _get_remote_configuration(self):
         # Create and return zprocess remote process client, if the device is configured
@@ -1199,8 +1198,6 @@ class PluginTab(object):
 
         # Add the tab to the notebook
         self.notebook.addTab(self._ui, self.tab_name)
-
-        self._ui.show()
 
         # Call the initialise GUI function
         self.initialise_GUI()
