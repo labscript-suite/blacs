@@ -45,12 +45,9 @@
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="wait_warning">
+      <widget class="IconLabel" name="wait_warning">
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Warning: either there is no wait monitor, or the wait monitor device does not support wait completed events. Progress bar will display as if all waits completed immediately.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-       </property>
-       <property name="pixmap">
-        <pixmap resource="../../../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">:/qtutils/fugue/clock--exclamation.png</pixmap>
        </property>
       </widget>
      </item>
@@ -58,6 +55,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>IconLabel</class>
+   <extends>QWidget</extends>
+   <header>qtutils/widgets.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="../../../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
  </resources>

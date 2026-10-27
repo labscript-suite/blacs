@@ -26,12 +26,13 @@ from types import GeneratorType
 from bisect import insort
 
 from qtutils.qt.QtCore import Qt, QTimer
-from qtutils.qt.QtGui import QIcon, QColor, QPalette
+from qtutils.qt.QtGui import QColor, QPalette
 from qtutils.qt.QtWidgets import QLabel, QWidget, QPushButton, QApplication, QVBoxLayout
 
 from qtutils import inmain_decorator, inmain, inmain_later, inthread, UiLoader
 from labscript_utils.qtwidgets.outputbox import OutputBox
 import qtutils.icons
+from qtutils.icons import Icon
 
 from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.ls_zprocess import ProcessTree, RemoteProcessClient
@@ -599,7 +600,7 @@ class Tab(object):
             if applied == self._applied_tab_icon_and_colour:
                 return
             self._applied_tab_icon_and_colour = applied
-            icon = QIcon(self._tab_icon)
+            icon = Icon(self._tab_icon)
             self.notebook.tabBar().setTabIcon(currentpage, icon)
             self.notebook.tabBar().setTabTextColor(currentpage, self._tab_text_colour)
     
@@ -656,7 +657,7 @@ class Tab(object):
             icon = self.ICON_STOPPED
             tooltip = 'Stop the worker processes and release the device'
         if self._ui.button_stop.toolTip() != tooltip:
-            self._ui.button_stop.setIcon(QIcon(icon))
+            self._ui.button_stop.setIcon(Icon(icon))
             self._ui.button_stop.setToolTip(tooltip)
     
     @inmain_decorator(True)
@@ -804,7 +805,7 @@ class Tab(object):
             temp_widget = QLabel("Waiting for worker(s) to exit")
             temp_widget.setAlignment(Qt.AlignCenter)
             self.notebook.insertTab(currentpage, temp_widget, '[%s]' % self.device_name)
-            self.notebook.tabBar().setTabIcon(currentpage, QIcon(self.ICON_BUSY))
+            self.notebook.tabBar().setTabIcon(currentpage, Icon(self.ICON_BUSY))
             self.notebook.tabBar().setTabTextColor(currentpage, QColor('grey'))
             self.notebook.setCurrentWidget(temp_widget)  
         if finalise:
@@ -1215,7 +1216,7 @@ class PluginTab(object):
             if currentpage == -1:
                 # shutting down:
                 return
-            icon = QIcon(self._tab_icon)
+            icon = Icon(self._tab_icon)
             self.notebook.tabBar().setTabIcon(currentpage, icon)
             self.notebook.tabBar().setTabTextColor(currentpage, QColor(self._tab_text_colour))
 

@@ -42,6 +42,7 @@ QUEUE_STOP_TIMEOUT = 30
 # No splash update for Qt - the splash code has already imported it:
 from qtutils import inmain_later, inmain, inthread, UiLoader
 import qtutils.icons  # import has side-effects we rely on
+from qtutils.icons import Icon
 from qtutils.qt.QtCore import QTimer, Qt, qVersion, QEvent, QByteArray
 from qtutils.qt.QtGui import QIcon, QColor, QPalette
 from qtutils.qt.QtWidgets import (
@@ -181,8 +182,8 @@ class EasterEggButton(QToolButton):
     def __init__(self):
         QToolButton.__init__(self)
         self.setFixedSize(24, 24) # Ensure we're the same size as the other buttons
-        self.icon_atom = QIcon(':qtutils/custom/atom')
-        self.icon_smiley = QIcon(':qtutils/fugue/smiley-lol')
+        self.icon_atom = Icon(':qtutils/custom/atom')
+        self.icon_smiley = Icon(':qtutils/fugue/smiley-lol')
         self.icon_none = QIcon(None)
         self.icon_mouse_over = self.icon_atom
         self.clicked.connect(self.on_click)
@@ -394,7 +395,7 @@ class BLACS(object):
                         create_menu(child,child_menu_params)
                 else:
                     if 'icon' in menu_parameters:
-                        child = parent.addAction(QIcon(menu_parameters['icon']), menu_parameters['name'])
+                        child = parent.addAction(Icon(menu_parameters['icon']), menu_parameters['name'])
                     else:
                         child = parent.addAction(menu_parameters['name'])
 
