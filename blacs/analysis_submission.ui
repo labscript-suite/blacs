@@ -84,17 +84,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="server_online">
-          <property name="text">
-           <string/>
-          </property>
-          <property name="pixmap">
-           <pixmap resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">:/qtutils/fugue/status-offline.png</pixmap>
-          </property>
-          <property name="scaledContents">
-           <bool>false</bool>
-          </property>
-         </widget>
+         <widget class="IconLabel" name="server_online"/>
         </item>
        </layout>
       </item>
@@ -178,6 +168,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>IconLabel</class>
+   <extends>QWidget</extends>
+   <header>qtutils/widgets.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc"/>
  </resources>

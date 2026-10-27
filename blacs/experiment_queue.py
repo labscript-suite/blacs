@@ -25,7 +25,7 @@ from tempfile import gettempdir
 from binascii import hexlify
 
 from qtutils.qt.QtCore import Qt
-from qtutils.qt.QtGui import QIcon, QAction
+from qtutils.qt.QtGui import QAction
 from qtutils.qt.QtWidgets import (
     QMenu,
     QFileDialog,
@@ -37,6 +37,7 @@ process_tree = ProcessTree.instance()
 import labscript_utils.h5_lock, h5py
 
 from qtutils import inmain_decorator, inmain, inmain_later
+from qtutils.icons import Icon
 
 from labscript_utils.qtwidgets.elide_label import elide_label
 from labscript_utils.connections import ConnectionTable
@@ -145,8 +146,8 @@ class QueueManager(object):
         # Set up repeat mode button menu:
         self.repeat_mode_menu = QMenu(self._ui)
 
-        self.action_repeat_all = QAction(QIcon(self.ICON_REPEAT), 'Repeat all', self._ui)
-        self.action_repeat_last = QAction(QIcon(self.ICON_REPEAT_LAST), 'Repeat last', self._ui)
+        self.action_repeat_all = QAction(Icon(self.ICON_REPEAT), 'Repeat all', self._ui)
+        self.action_repeat_last = QAction(Icon(self.ICON_REPEAT_LAST), 'Repeat last', self._ui)
 
         self.action_repeat_all.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_ALL))
         self.action_repeat_last.triggered.connect(lambda *args: setattr(self, 'manager_repeat_mode', self.REPEAT_LAST))
@@ -249,9 +250,9 @@ class QueueManager(object):
         self._manager_repeat_mode = value
         button = self._ui.queue_repeat_button
         if value == self.REPEAT_ALL:
-            button.setIcon(QIcon(self.ICON_REPEAT))
+            button.setIcon(Icon(self.ICON_REPEAT))
         elif value == self.REPEAT_LAST:
-            button.setIcon(QIcon(self.ICON_REPEAT_LAST))
+            button.setIcon(Icon(self.ICON_REPEAT_LAST))
 
     def on_add_shots_triggered(self):
         shot_files = QFileDialog.getOpenFileNames(self._ui, 'Select shot files',

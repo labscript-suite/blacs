@@ -17,8 +17,8 @@ import time
 import sys
 import queue
 
-from qtutils.qt.QtCore import Qt, QSize
-from qtutils.qt.QtGui import QIcon
+from qtutils.qt.QtCore import Qt
+from qtutils.icons import Icon
 
 from qtutils import inmain_decorator, UiLoader
 from zprocess import TimeoutError, raise_exception_in_thread
@@ -130,14 +130,13 @@ class AnalysisSubmission(object):
                     'offline': 'Server not responding',
                     '': 'Disabled'}
 
-        icon = QIcon(icon_names.get(self._server_online, ':/qtutils/fugue/exclamation-red'))
-        pixmap = icon.pixmap(QSize(16, 16))
+        icon = Icon(icon_names.get(self._server_online, ':/qtutils/fugue/exclamation-red'))
         tooltip = tooltips.get(self._server_online, "Invalid server status: %s" % self._server_online)
         if self.failure_reason is not None:
             tooltip += '\n' + self.failure_reason
 
         # Update GUI:
-        self._ui.server_online.setPixmap(pixmap)
+        self._ui.server_online.setIcon(icon)
         self._ui.server_online.setToolTip(tooltip)
         self.update_waiting_files_message()
 

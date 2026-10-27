@@ -17,7 +17,6 @@ import time
 from queue import Queue
 
 from qtutils.qt.QtCore import QTimer
-from qtutils.qt.QtGui import QIcon
 from qtutils.qt.QtWidgets import (
     QWidget,
     QSpacerItem,
@@ -29,6 +28,7 @@ from qtutils.qt.QtWidgets import (
 )
 
 from qtutils import UiLoader
+from qtutils.icons import Icon
 
 from blacs import BLACS_DIR
 from blacs.tab_base_classes import Tab, Worker, define_state
@@ -596,7 +596,7 @@ class DeviceTab(Tab):
             # Add an "apply" button and link to on_resolve_value_inconsistency
             buttonWidget = QWidget()
             buttonlayout = QHBoxLayout(buttonWidget)
-            button = QPushButton(QIcon(':/qtutils/fugue/arrow-turn-000-left'), "Apply")
+            button = QPushButton(Icon(':/qtutils/fugue/arrow-turn-000-left'), "Apply")
             button.clicked.connect(self.on_resolve_value_inconsistency)
             buttonlayout.addWidget(button)
             buttonlayout.addStretch()
