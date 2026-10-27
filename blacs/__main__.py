@@ -819,6 +819,12 @@ if __name__ == '__main__':
     # Python code that creates or destroys wrapped Qt objects can crash the interpreter
     # (https://github.com/Python-SIP/sip/pull/121). This can be removed once PyQt5-sip
     # and PyQt6-sip releases include that fix.
-    for widget in qapplication.topLevelWidgets():
-        widget.deleteLater()
-    qapplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    from qtutils.qt import PYQT_LIBS
+    if QT_ENV in PYQT_LIBS:
+        import importlib
+        sip = importlib.import_module(f'{QT_ENV}.sip')
+        for widget in qapplication.topLevelWidgets():
+            # Other top-level widgets are owned by C++ objects, which delete them
+            if sip.ispyowned(widget):
+                widget.deleteLater()
+        qapplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
