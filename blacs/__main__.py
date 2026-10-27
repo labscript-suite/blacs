@@ -106,7 +106,8 @@ from labscript_profile import hostname
 # Analysis Submission code
 from blacs.analysis_submission import AnalysisSubmission
 # Queue Manager Code
-from blacs.experiment_queue import QueueManager, QueueTreeview
+from blacs.experiment_queue import QueueManager
+from blacs.queue_view import QueueView
 # Module containing hardware compatibility:
 from labscript_utils import device_registry
 # Save/restore frontpanel code
@@ -248,7 +249,7 @@ class BLACS(object):
         logger.info('Loading BLACS ui')
         #self.ui = BLACSWindow(self).ui
         loader = UiLoader()
-        loader.registerCustomWidget(QueueTreeview)
+        loader.registerCustomWidget(QueueView)
         #loader.registerCustomPromotion('BLACS',BLACSWindow)
         self.ui = loader.load(os.path.join(BLACS_DIR, 'main.ui'), BLACSWindow())
         logger.info('BLACS ui loaded')
