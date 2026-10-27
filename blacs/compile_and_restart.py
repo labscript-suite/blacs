@@ -43,6 +43,7 @@ class CompileAndRestart(QDialog):
         self.ui.restart.clicked.connect(self.restart)
         self.ui.compile.clicked.connect(self.compile)
         self.ui.cancel.clicked.connect(self.reject)
+        self.finished.connect(self.output_box.shutdown)
         
         self.setLayout(self.ui.layout())
         self.resize(500, 300)
