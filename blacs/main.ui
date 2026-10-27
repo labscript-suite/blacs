@@ -697,7 +697,7 @@ QToolButton:hover:checked {
  <customwidgets>
   <customwidget>
    <class>QueueView</class>
-   <extends>QAbstractScrollArea</extends>
+   <extends>QTableView</extends>
    <header>qtutils/widgets.h</header>
   </customwidget>
  </customwidgets>

@@ -118,7 +118,9 @@ class QueueManager(object):
         self._appends_posted = False
 
         self._model = QueueModel()
-        self._model.changed.connect(self._show_file_count)
+        self._model.rowsInserted.connect(self._show_file_count)
+        self._model.rowsRemoved.connect(self._show_file_count)
+        self._model.modelReset.connect(self._show_file_count)
         self._show_file_count()
         self._ui.queue_view.setModel(self._model)
         self._ui.queue_view.add_to_queue = self.process_request
