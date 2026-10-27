@@ -95,7 +95,6 @@ class QueueManager(object):
         self.BLACS = BLACS
         self.last_opened_shots_folder = BLACS.exp_config.get('paths', 'experiment_shot_storage')
         self._manager_running = True
-        self._requeue_aborted_shot = False
         self._manager_paused = False
         self._manager_repeat = False
         self._manager_repeat_mode = self.REPEAT_ALL
@@ -363,7 +362,6 @@ class QueueManager(object):
         """Stop the queue manager. A shot that is being programmed or run is aborted
         and put back at the top of the queue. A shot that is being saved is completed.
         The queue manager thread ends once the current shot, if any, is done."""
-        self._requeue_aborted_shot = True
         self.manager_running = False
         if self._shot is not None:
             self._shot.abort()
@@ -499,6 +497,11 @@ class QueueManager(object):
     def get_status(self):
         return self._ui.queue_status.text()
             
+
+    def _aborted_status(self):
+        if self.manager_running:
+            return "Aborted, shot requeued\nQueue paused"
+        return "Aborted, shot requeued"
 
     def _requeue_failed_shot(self, path, logger):
         """Replace the shot file with a copy that excludes the run data, and put it
@@ -666,19 +669,15 @@ class QueueManager(object):
                     kind, data = self._wait_for_event(shot, logger)
 
                 if kind != 'running':
-                    # Pause the queue and put the file back at the top of the queue,
-                    # unless the shot was aborted with the abort button:
-                    if kind != 'abort':
+                    # Put the file back at the top of the queue and pause the queue,
+                    # unless the shot was aborted because the queue manager is stopping:
+                    if kind != 'abort' or self.manager_running:
                         self.manager_paused = True
-                        self.prepend(path)
-                    elif self._requeue_aborted_shot:
-                        self.prepend(path)
+                    self.prepend(path)
                     if kind == 'timeout':
                         self.set_status(device_status(data, 'timed out programming') + "\nQueue paused")
-                    elif kind == 'abort' and self._requeue_aborted_shot:
-                        self.set_status("Aborted, shot requeued")
                     elif kind == 'abort':
-                        self.set_status("Aborted")
+                        self.set_status(self._aborted_status())
                     elif kind == 'restart':
                         self.set_status(device_status(data, 'restarted or stopped in transition to buffered') + "\nQueue paused")
                     else:
@@ -702,15 +701,13 @@ class QueueManager(object):
                 kind, data = self._wait_for_event(shot, logger)
                 if kind in ('abort', 'restart'):
                     inmain(self._abort_shot, shot)
-                    if kind == 'abort' and self._requeue_aborted_shot:
-                        self._requeue_failed_shot(path, logger)
-                        self.set_status("Aborted, shot requeued")
-                    elif kind == 'abort':
-                        self.set_status("Aborted")
+                    if kind != 'abort' or self.manager_running:
+                        self.manager_paused = True
+                    self._requeue_failed_shot(path, logger)
+                    if kind == 'abort':
+                        self.set_status(self._aborted_status())
                     else:
                         restarted_devices, error_devices = data
-                        self.manager_paused = True
-                        self._requeue_failed_shot(path, logger)
                         if error_devices:
                             self.set_status(device_status(error_devices, 'in error state during run') + "\nQueue paused")
                         else:
