@@ -696,7 +696,7 @@ class QueueManager(object):
                         )
                         hdf5_file['/'].require_group('data')
                         # stamp with the run time of the experiment
-                        hdf5_file.attrs['run time'] = shot.run_time.strftime('%Y%m%dT%H%M%S.%f')
+                        hdf5_file.attrs['run time'] = shot.run_time.strftime('%Y%m%dT%H%M%S.%f%z')
                 except Exception as e:
                     save_error = e
                 inmain_later(shot.front_panel_saved, save_error is None)
@@ -972,7 +972,7 @@ class Shot(object):
             return
         self.phase = 'running'
         self.logger.debug('About to start the master pseudoclock')
-        self.run_time = datetime.datetime.now()
+        self.run_time = datetime.datetime.now().astimezone()
         master_pseudoclock = self.queue_manager.master_pseudoclock
         self.queue_manager.BLACS.tablist[master_pseudoclock].start_run(self._run_notifier)
         self.events.put(('running', None))
