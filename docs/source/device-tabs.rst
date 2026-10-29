@@ -63,8 +63,8 @@ faithfully displays the output state. BLACS also provides an architecture to per
 poll device values for devices that support such queries. This is particularly important for
 devices that are not physically restricted to being controlled by a single user (for example,
 devices controlled via a web interface) or devices that don’t remember their state after
-being power cycled. For such devices, BLACS continually compares the device state with
-the values displayed in the GUI. If a difference is detected, BLACS presents the user with
+being power cycled. For such devices, BLACS compares the device state with
+the values displayed in the GUI every 30 seconds in manual mode. If a difference is detected, BLACS presents the user with
 options to select either the device state or the local state on a per output basis (see 
 :numref:`fig-monitoring`).
 
@@ -84,222 +84,182 @@ options to select either the device state or the local state on a per output bas
 Worker processes
 ----------------
 
-For each device, BLACS launches at least one separate Python process (a worker process)
-for communicating with the hardware. BLACS communicates with the worker process
-through our own remote procedure call (RPC) protocol. The python process(es) run a
-thin wrapper around a specified Python class, which allows the parent process (in this case
-BLACS) to remotely call methods of the class in the worker process. A method in the
-worker process is invoked by the tab state machine (see :ref:`device-tabs:State machine`), via a message sent over a
-ZMQ socket. The only task of a worker process is to process any data that is sent to it (via
-the invocation of one of its methods), interact appropriately with the hardware device(s) it
-manages, and return any relevant data to the state machine. A third party software library,
-used to interact with a hardware device (typically provided by a hardware manufacturer),
-is then only loaded within the isolated worker process. There are several benefits to this
-‘sandboxing’ model. Details on writing the
-code for a worker process can be found in :doc:`labscript-devices:adding_devices`.
+For each device, BLACS starts at least one separate Python process (a worker process)
+for communicating with the hardware. BLACS communicates with the worker processes
+through zprocess, which sends messages over ZMQ sockets. A worker process runs an
+instance of a worker class of the device, and BLACS calls methods of that instance
+remotely. The tab's state machine (see :ref:`device-tabs:State machine`) sends these
+calls to the worker. A worker process only processes the data that is sent to it with
+each call, interacts with the hardware device(s) that it manages, and returns the
+results to the tab. A third party software library that is used to interact with a
+hardware device (typically provided by the hardware manufacturer) is loaded only in
+the worker process. Details on writing the code for a worker process can be found in
+:doc:`labscript-devices:adding_devices`.
 
-As previously implied, we have implemented the ability for a BLACS device tab to spawn
-multiple worker processes. This is particularly useful for devices that handle both inputs
-and output, and whose API allows these inputs and outputs to be separated and managed
-by separate processes. An example of such a device is a National Instruments acquisition
-card such as the NI PCIe-6363. For this device, we spawn three worker processes: the first
-handles analog and digital outputs, the second handles analog acquisition and the third
-handles monitoring of a counter in order to measure the lengths of any waits.
-Multiprocessing also results in a reduction in device programming time prior to the
-start of an experiment shot. Most device programming is I/O bound (not limited by the
-processing power of the PC). Simultaneously programming all devices used in a shot thus
-typically completes in the time it takes to program the longest device (rather than the sum
-of all programming times for sequential programming).
+A device tab can start several worker processes. This is useful for devices that handle
+both inputs and outputs, and the API of which allows these inputs and outputs to be
+managed by separate processes. An example is a National Instruments acquisition card
+such as the NI PCIe-6363. For this device, BLACS starts up to three worker processes: the
+first handles analog and digital outputs, the second handles analog acquisition and the
+third monitors a counter in order to measure the durations of any waits.
+
+Each device is programmed by its own worker processes, so devices that are programmed at
+the same time before a shot (see :doc:`shot-management`) are programmed in parallel. Most
+device programming is limited by communication with the device rather than by the
+processing power of the PC, so the programming of a group of devices typically takes as
+long as the programming of the slowest device in the group.
 
 State machine
 -------------
 
-One of the major changes in BLACS v2.0 (written and released after our paper [2]_ was
-published) was the introduction of a more advanced state machine for each device tab. State
-machines are an important tool in building complex systems as they enforce a workflow (in
-this case, for GUI-hardware interaction) which improves the stability of the control system.
-By using a state machine, we enforce control over what actions can be taken at any given
-time, improving the robustness of our control software. For example, manual controls on the
-BLACS front panel should not be able to control hardware devices that are under precision
-timing while executing a shot. A state machine allows such events to either be discarded or
-queued until an appropriate time, under a consistent set of easily defined rules.
+Each device tab has a state machine, which controls when the code of the device tab runs
+and when it calls the methods of its worker processes. For example, the manual controls
+on the BLACS front panel must not program a device while it is running a shot. The state
+machine either discards such requests or queues them until the device is back in manual
+mode.
 
-The aim of this state machine is to manage the execution of the device-specific code
-described previously, which falls into the categories of GUI code and worker-process code.
-This code exists within Python methods of the device classes,
-and so will be referred to in this section as the execution of a ‘GUI method’ and a ‘worker
-process method’ respectively. We have implemented a non-standard nested state machine,
-for which we will coin the term 2D state machine. It consists of two orthogonal sets of
-states (which we term the inner and outer states) which are linked by the device code. This
-architecture differs from a standard nested state machine in that it is not hierarchical (events
-are not passed to the parent state machine as in the hierarchical finite state machine). Our
-implementation is also unique in that the workflow of the inner (dimension of the) state
-machine is identical regardless of the outer state.
+The code of a device tab that the state machine runs is in methods of the device tab
+class, called state functions. A state function is a method decorated with
+`define_state`. Calling a state function does not run it; the call is added to the
+tab's queue of states and returns `None` immediately. The state machine runs the queued
+calls one at a time.
 
-The outer dimension follows a classical state machine. There are four possible states
-(which we call modes to distinguish them from the states on the inner dimension):
+The state machine has four modes:
 
-* mode_manual,
-* mode_transition_to_buffered,
-* mode_buffered, and
-* mode_transition_to_manual.
+* `MODE_MANUAL`,
+* `MODE_TRANSITION_TO_BUFFERED`,
+* `MODE_BUFFERED`, and
+* `MODE_TRANSITION_TO_MANUAL`.
 
-These four modes represent the two possible modes of operation for the hardware; manual
-control from BLACS or stepping through instructions during execution of an experiment
-shot, and the transitions between these modes (where the programming required to change
-the mode of the device, for example the programming of hardware instructions, usually
-takes place).
+These four modes represent the two modes of operation of the hardware (manual control from
+BLACS, or stepping through instructions during a shot) and the transitions between them,
+in which the device is usually programmed. The current mode is the `mode` attribute of
+the tab, which state functions set.
 
-The inner dimension of this two-dimensional state machine is similar to the state machine
-that existed in BLACS v1.0. There are 5 possible states:
+The arguments of `define_state` are the modes in which the state function may run
+(several modes are combined with ``|``), whether a call that may not run in the current
+mode stays in the queue until the tab enters such a mode (`True`) or is discarded when the
+state machine takes the next call from the queue (`False`), and the optional
+`delete_stale_states`. If
+`delete_stale_states` is `True` and the queue holds several consecutive calls of the
+state function, only the last of them runs. This is useful for state functions that
+take a long time to run and can be queued rapidly, for instance when a user changes the
+output values of a device that is slow to program.
 
-* idle,
-* execute (part of) GUI method,
-* request execution of worker process method via ZMQ,
-* wait for results from worker process method via ZMQ, and
-* fatal error.
+Calls are added to the queue in response to user actions (for example clicking one of
+the manual control buttons), by the queue manager when it runs a shot (see
+:doc:`shot-management`), and by timers (for example for regular status checks of the
+hardware, with `statemachine_timeout_add`).
 
-The inner state machine spends the majority of time in the idle state where it waits for an
-event to become available from a queue. Events are typically placed in the queue in response
-to user actions (for example clicking one of the manual control buttons), the ‘queue manager’
-processing a shot (see :doc:`shot-management`), or the timeout of a timer (for example for regular status checks
-of the hardware).
-
-We define GUI methods that may be queued in the inner state by using a Python
-decorator, which abstracts away the state machine so that users can call the Python method
-as normal and be assured that it will always run as part of the state machine (although this
-enforces the requirement that such methods will return immediately and not return a result
-to the caller). The decorator itself takes arguments that indicate the modes (of the outer
-state machine) that the GUI method is allowed to run in, and whether the method should
-remain in the event queue until the outer state machine enters a mode where it can run, or
-if it should just be deleted once it reaches the head of the queue. We also provide an option
-to only run the most recent entry for a method if duplicate entries for the GUI method
-exist in the queue (albeit with different arguments). This is particularly useful for methods
-that take a long time to complete but which may be queued up rapidly, for instance a user
-rapidly changing output values of a device that is slow to program. An example of how you
-might use the state machine is shown in the definition of a GUI method below.
+The state machine runs each state function in the main thread of BLACS, from the Qt
+event loop, so that state functions can update the GUI. A state function that is a
+generator yields the calls that it makes to the worker processes:
 
 .. code-block:: python
 
-    class MyDevice(blacs.device_base_classes.DeviceTab):
-        # only run in MODE_MANUAL and keep the state in the queue until
-        # the mode condition is met
-        @define_state(MODE_MANUAL, True)
-        def transition_to_buffered(self, h5_file, notify_queue):
-            # set the mode to MODE_TRANSITION_TO_BUFFERED
-            self.mode = MODE_TRANSITION_TO_BUFFERED
-            # define the set of arguments and keyword arguments
-            # to be passed to the worker processes
-            args, kwargs = (h5_file,) , {}
-            # Yield to the state machine so that the worker process
-            # can be run
-            result = yield(self.queue_work(self.primary_worker,
-                'transition_to_buffered', *args, **kwargs))
-            # check that everything was successful ...
-            if result :
-                # success !
-                # update the mode and notify the caller
-                self.mode = MODE_BUFFERED
-                notify_queue.put([self.device_name, 'success'])
-            else:
-                # Failure !
-                # notify the caller
-                notify_queue.put([self.device_name, 'fail'])
-                # queue up a method in the state machine
-                # to return to MODE_MANUAL and instruct the
-                # worker to program the device ready for
-                # manual operation
-                self.abort_transition_to_buffered()
+    result = yield self.queue_work('worker_name', 'worker_method_name', *args, **kwargs)
 
-        @define_state(MODE_TRANSITION_TO_BUFFERED, False )
-        def abort_transition_to_buffered(self):
+The state machine then pauses the state function, and a separate thread of the tab sends
+the call to the named worker process and waits for its result. The main thread
+continues to process GUI events in the meantime. When the result arrives, the state
+machine resumes the state function in the main thread, with the result as the value of
+the `yield` expression. If the worker method raises an exception, the traceback is
+shown in the error area of the tab and the value of the `yield` expression is `None`.
+The state machine runs the next queued call once the state function has returned. If a
+state function raises an exception, the tab enters the fatal error state: it runs no
+further state functions, ends its worker processes and shows the traceback. The tab must
+then be restarted.
 
-This is an example of how one might define the GUI method for triggering the programming
-of devices so that they are ready for buffered execution of a shot (ready to step
-through hardware instructions). The GUI method transition_to_buffered has been decorated
-in order to ensure it is only run as part of the state machine, which means the method
-will sit in the inner state machine’s event queue until the outer state machine mode is set
-to ‘MODE_MANUAL’. When finally executed by the state machine, the method updates
-the mode of the outer state machine, and yields to the inner state machine in order to tell a
-worker process to transition into buffered mode (which typically involves programming the
-table of hardware instructions from the hdf5 shot file). If successful, the outer state machine
-mode is updated again and the caller of the method (in this case the ‘Queue Manager’) is
-notified of the result. If unsuccessful, we call the abort_transition_to_buffered method
-(which is also decorated as a GUI method) which queues up a new event for the inner state
-machine. In practice, common functionality like these methods are abstracted away from
-the user and contained within the blacs.device_base_classes.DeviceTab class. They
-are implemented in a similar (but more generalised) way to the code shown here. For example
-transition_to_buffered is actually written to support an arbitrary number of worker
-processes. Further information on adding support for new devices (and how to use the state
-machine architecture) is included in :doc:`labscript-devices:adding_devices`.
-
-The state machine for each device tab runs in its own thread and follows a well defined
-workflow (also shown graphically in figure 6.4) which can be influenced by the device code.
-When an event is available in the queue (that can run in the current mode of the outer state
-machine), the inner state machine transitions to the ‘execute GUI method’ state, and calls
-the Python method that was queued up. As this method likely interacts with the GUI, the
-method is executed in the main thread (via a request to the GUI event loop provided by
-the Qt widget toolkit). This method executes (temporarily blocking interaction with the
-GUI) until it either completes, or hits the yield Python keyword. The yield keyword in
-Python returns control of the program to the calling code (in this case our state machine).
-The yield keyword also allows the called method to return information to the calling code
-(for example the data variable would be returned if called as yield(data)). We utilise this
-to allow the GUI method to request that the inner state machine transition through the
-inner states relating to the worker process, in this case by calling:
-
-.. code-block:: python
-
-    yield(self.queue_work('worker_name', 'worker_method_name'))
-
-If such a statement is encountered, the inner state machine enters the ‘request execution of
-worker method’ state and requests the named worker process execute the named method. It
-then immediately transitions to the ‘wait for results from worker’ state. Once results have
-been received from the worker process (after it has run the worker method), the inner state
-machine re-enters the ‘execute GUI method’ state, passing in the results from the worker
-process as the return value of the yield keyword, and continues with the execution of the
-GUI method from the point it left. This continues until the execution of the GUI method
-is complete, where the state machine then enters the ‘idle’ state again. The exception to
-this is if a Python Exception is raised in the GUI method, in which case the state machine
-enters the ‘Fatal error’ state. The GUI method may also request a change in the outer state
-machine mode, which then determines which events can be processed when the inner state
-machine next returns to the ‘Idle’ state.
+The state label of the tab shows the mode and the state: `idle`, the name of the state
+function followed by `(GUI)` while it runs in the main thread, the name of a worker
+method and the worker process while the tab waits for the worker, `fatal error`, or
+`stopped` once the stop button has ended the worker processes. The logic of the state
+machine is shown in :numref:`fig-statemachine`.
 
 .. _fig-statemachine:
 
-.. figure:: img/blacs_statemachine.png 
+.. figure:: img/blacs_statemachine.png
 
-    A flowchart of the logic for the BLACS state machine as described in :ref:`device-tabs:State machine`.
+    A flowchart of the logic of the state machine of a device tab, as described in
+    :ref:`device-tabs:State machine`.
 
-This results in a flexible state machine architecture that allows the device code to control
-some portions of the state machine, while maintaining a fixed state machine structure across
-device tabs. By exposing the internals of the state machine only via the BLACS tab GUI
-methods, we can abstract away much of the state machine implementation and simplify
-the necessary coding skills needed to implement support for new devices. We believe this
-is a critical requirement of meeting the flexibility goal of our control system, and further
-details on the simplicity of adding support for new devices is discussed in :doc:`labscript-devices:adding_devices`. Our state
-machine architecture also allows us to provide a consistent and responsive GUI to a user
-by obscuring hardware specific details and offloading these to a separate process.
+The following is a simplified version of the state function that programs a device for
+a shot, `transition_to_buffered`, and of the state function that it calls if
+programming fails:
+
+.. code-block:: python
+
+    from blacs.device_base_class import (
+        DeviceTab,
+        define_state,
+        MODE_MANUAL,
+        MODE_TRANSITION_TO_BUFFERED,
+        MODE_BUFFERED,
+    )
+
+    class MyDeviceTab(DeviceTab):
+        # Run only in MODE_MANUAL, and keep the call in the queue until the tab is in
+        # that mode:
+        @define_state(MODE_MANUAL, True)
+        def transition_to_buffered(self, h5_file, notify_queue):
+            self.mode = MODE_TRANSITION_TO_BUFFERED
+            front_panel_values = self.get_front_panel_values()
+            # Call transition_to_buffered() in the worker process and wait for its
+            # result:
+            final_values = yield self.queue_work(
+                self.primary_worker,
+                'transition_to_buffered',
+                self.device_name,
+                h5_file,
+                front_panel_values,
+                True,
+            )
+            if final_values is not None:
+                self.mode = MODE_BUFFERED
+                notify_queue.put([self.device_name, 'success'])
+            else:
+                notify_queue.put([self.device_name, 'fail'])
+                # Queue a call of another state function:
+                self.abort_transition_to_buffered()
+
+        @define_state(MODE_TRANSITION_TO_BUFFERED, False)
+        def abort_transition_to_buffered(self):
+            success = yield self.queue_work(
+                self.primary_worker, 'abort_transition_to_buffered'
+            )
+            if not success:
+                raise RuntimeError('Could not abort transition_to_buffered')
+            self.mode = MODE_MANUAL
+            self.program_device()
+
+When the queue manager calls `transition_to_buffered`, the call stays in the queue until
+the tab is in `MODE_MANUAL`. The state function then sets the mode to
+`MODE_TRANSITION_TO_BUFFERED`, and yields a call of the worker method
+`transition_to_buffered`, which typically programs the device with the hardware
+instructions from the shot file. If the worker method succeeds, the state function sets
+the mode to `MODE_BUFFERED` and notifies the queue manager. If it fails, the state function
+notifies the queue manager and queues a call of `abort_transition_to_buffered`. The
+class :class:`blacs.device_base_class.DeviceTab` implements these state functions for every
+device, in a similar way, for any number of worker processes. Further information on
+adding support for new devices is in :doc:`labscript-devices:adding_devices`.
 
 Handling waits
 --------------
 
-In order to use waits, one of the devices in BLACS must monitor
-the length of each wait so that a mapping between labscript time and experiment time can
-be made. This mapping is then used by analog acquisition devices in BLACS to correctly
-break up acquired traces into the requested acquisitions. The length of the wait is also used
-in real (software) time by the wait monitor in order to ensure the experiment is not stuck
-in a wait forever.
+In order to use waits, one of the devices in BLACS must measure the duration of each wait
+so that a mapping between labscript time and experiment time can be made. Analog
+acquisition devices in BLACS use this mapping to break up acquired traces into the
+requested acquisitions. Each wait has a timeout, after which the shot continues, so that
+the experiment cannot wait forever.
 
-The current wait monitor implementation uses one of the inbuilt counters that are in
-many National Instruments acquisition devices, however other implementations are of course
-possible if support is added when creating the device classes. At the completion
-of an experiment shot, the wait monitor calculates the durations of each wait (based on
-data it acquired during the shot) and writes these to the shot file. The wait monitor then
-broadcasts a ZMQ event indicating this has been completed. Device code that relies on the
-wait information (for example, for breaking up analog acquisitions into the requested set
-of traces), waits for this event to be received during the transition to manual mode, before
-performing any action. This ensures that the measured lengths of the waits are always
-available in the hdf5 file when required.
+The wait monitor is implemented by the worker processes of the device that is the wait
+monitor of the shot: a counter of a National Instruments acquisition device, a
+PrawnBlaster or a NarwhalPulseGenerator. At the end of a shot, the wait monitor writes
+the durations of the waits to the shot file and then broadcasts the ZMQ event
+`wait_durations_analysed`. Device code that relies on the wait durations (for example, for
+breaking up analog acquisitions into the requested set of traces) waits for this event
+during the transition to manual mode, so that the measured durations of the waits are in
+the shot file when it reads them.
 
 
 .. rubric:: Footnotes
@@ -307,11 +267,6 @@ available in the hdf5 file when required.
 .. [1] Incrementing or decrementing the value can be done using the up/down arrows next to the value, the
     mouse scroll wheel, or the arrow keys on the keyboard. The page up/down keys can also be used, which
     will adjust the value by 10 times the step size. This is distinct from typing a value directly into the
-    widget, which is not affected by the step size. However both incrementing/decrementing and typing
-    a value in will be equally affected by any quantisation demanded by the hardware device, which we
-    discuss in the following paragraph.
-
-.. [2] P. T. Starkey, C. J. Billington, S. P. Johnstone, M. Jasperse, K. Helmerson,
-    L. D. Turner, and R. P. Anderson. *A scripted control system for autonomous
-    hardware-timed experiments* Review of Scientific Instruments **84**, 085111 (2013).
-    https://doi.org/10.1063/1.4817213
+    widget, which is not affected by the step size. Both incrementing/decrementing and typing
+    a value in are affected by any quantisation demanded by the hardware device, which is
+    described in the following paragraph.
