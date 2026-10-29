@@ -36,8 +36,8 @@ dependencies = [
     "desktop-app>=0.1.2",
     "labscript_utils>=3.1.0b1",
     "runmanager>=3.0.0",
-    "qtutils>=4.4.0",
-    "zprocess>=3.0.0",
+    "qtutils>=4.4.1",
+    "zprocess>=3.0.1",
 ]
 dynamic = ["version"]
 
