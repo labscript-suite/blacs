@@ -100,6 +100,7 @@ logger.info('BLACS version: %s', blacs.__version__)
 # Connection Table Code
 from labscript_utils.connections import ConnectionTable
 #Draggable Tab Widget Code
+from labscript_utils.qtwidgets.application import setup_application
 from labscript_utils.qtwidgets.dragdroptab import DragDropTabWidget
 # Lab config code
 from labscript_utils.labconfig import LabConfig
@@ -804,6 +805,7 @@ if __name__ == '__main__':
     qapplication = QApplication.instance()
     if qapplication is None:
         qapplication = QApplication(sys.argv)
+    setup_application(qapplication)
     qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
     logger.info('QApplication instantiated')
     app = BLACS(qapplication)
