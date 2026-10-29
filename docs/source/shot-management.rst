@@ -18,17 +18,21 @@ GUI (see :numref:`fig-queue`).
 
     The queue manager GUI within BLACS (with the device tabs hidden). (1)
     The pause button stops the queue from processing new shots (a currently running shot
-    will finish). (2) The repeat button, when enabled, will duplicate a completed shot and
-    either place the duplicate at the bottom or the top of the queue (depending on the mode
-    selected). (3) The abort button immediately stops the execution of the current shot and
-    returns hardware to manual mode. (4-5) Buttons to add or delete selected shots from the
-    queue. (6) A button to clear the entire queue. (7-10) Buttons to reorder selected shots
-    within the queue. (11) The current status of the queue is displayed here. For example, the
-    status may indicate that devices are currently being programmed, the master pseudoclock
-    has been triggered and the experiment is running, or that acquired data is currently being
-    saved into the hdf5 shot file. (12) The list of shot files in the queue, in the order they
-    will be executed (the topmost is executed first). (13) A button to enable or disable the
-    forwarding of shots to lyse for analysis. (14) The network hostname of the PC running lyse.
+    will finish). (2) The repeat button, with the drop-down menu that selects its mode. When
+    the button is checked, a completed shot is added to the end of the queue again: in the
+    'Repeat all' mode every completed shot is added, and in the 'Repeat last' mode a
+    completed shot is added only if the queue is empty. (3) The abort button immediately
+    stops the execution of the current shot and returns hardware to manual mode. (4-5)
+    Buttons to add shots to the queue and to delete the selected shots from it. (6) A button
+    to clear the entire queue. (7-10) Buttons to reorder selected shots within the queue.
+    (11) The current status of the queue is displayed here. For example, the status may
+    indicate that devices are currently being programmed, the master pseudoclock has been
+    triggered and the experiment is running, or that acquired data is currently being saved
+    into the hdf5 shot file. (12) The list of shot files in the queue, in the order in which
+    they will be executed (the topmost is executed first). (13) A button to enable or
+    disable the forwarding of shots to lyse for analysis. (14) The network hostname of the
+    PC running lyse; the tick to its right shows that the lyse server at that host
+    responds. (15) The number of shots in the queue.
 
 The queue is processed by a thread in BLACS, which we term the ‘queue manager’, that
 takes the top-most shot in the queue and, in turn, executes it. Shot execution follows the

@@ -30,15 +30,17 @@ and :numref:`fig-PCIe6363-Tab`):
 
 .. figure:: img/blacs_pulseblastertab.png
 
-    An example of a BLACS tab for a PulseBlaster DDS-II-300-AWG device. The numbered labels
-    match the listing in :ref:`device-tabs:The graphical interface`.
+    An example of a BLACS tab for a PulseBlaster DDS-II-300-AWG device, the worker of which
+    has failed to start because no board is connected. The numbered labels match
+    the listing in :ref:`device-tabs:The graphical interface`.
 
 .. _fig-PCIe6363-Tab:
 
 .. figure:: img/blacs_pcie6363tab.png 
 
     An example of a BLACS tab for an NI PCIe-6363 device. The numbered labels match the
-    listing in :ref:`device-tabs:The graphical interface`.
+    listing in :ref:`device-tabs:The graphical interface`; this device has no custom
+    controls, and its error region is hidden because its worker has no error.
 
 The most prominent feature is the arrays of manual controls. These are particularly
 useful for manual debugging of an experiment apparatus outside of running shots. For
@@ -71,12 +73,12 @@ options to select either the device state or the local state on a per output bas
 .. figure:: img/blacs_monitoring.png 
 
     An example showing how devices in BLACS can monitor the consistency between
-    the front panel state and the output of the device (when not running a shot). Here we show a
-    Novatech DDS9m device that has just been power cycled, which causes the output states to
-    reset to a default setting. BLACS detects an inconsistency between the front panel values of
-    BLACS and the output state reported by the device, and presents the GUI pictured above.
-    The user can then to choose either use the local or remote value for each output channel.
-    Once selected, the front panel values of BLACS are updated to the selected value and the
+    the front panel state and the output of the device (when not running a shot). The
+    NovaTech DDS9m shown has been power cycled, which resets its outputs to a default
+    setting. BLACS detects an inconsistency between the front panel values of BLACS and the
+    output state reported by the device, and presents the GUI pictured above. The user can
+    then choose either the local or the remote value for each output channel. Once
+    selected, the front panel values of BLACS are updated to the selected value and the
     device is reprogrammed to match, restoring consistency.
 
 Worker processes
