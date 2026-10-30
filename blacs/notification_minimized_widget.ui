@@ -30,7 +30,7 @@
     <number>2</number>
    </property>
    <item>
-    <widget class="QPushButton" name="show_button">
+    <widget class="QToolButton" name="show_button">
      <property name="toolTip">
       <string>Show the notification</string>
      </property>
@@ -40,6 +40,9 @@
      <property name="icon">
       <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
        <normaloff>:/qtutils/fugue/toggle-small-expand.png</normaloff>:/qtutils/fugue/toggle-small-expand.png</iconset>
+     </property>
+     <property name="autoRaise">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -51,7 +54,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QPushButton" name="close_button">
+    <widget class="QToolButton" name="close_button">
      <property name="toolTip">
       <string>Close the notification</string>
      </property>
@@ -61,6 +64,9 @@
      <property name="icon">
       <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
        <normaloff>:/qtutils/fugue/cross.png</normaloff>:/qtutils/fugue/cross.png</iconset>
+     </property>
+     <property name="autoRaise">
+      <bool>true</bool>
      </property>
     </widget>
    </item>

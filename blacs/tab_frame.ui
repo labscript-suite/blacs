@@ -75,6 +75,9 @@ all buffered instructions next shot</string>
         <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
          <normaloff>:/qtutils/fugue/brain--minus.png</normaloff>:/qtutils/fugue/brain--minus.png</iconset>
        </property>
+       <property name="autoRaise">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item>
@@ -92,6 +95,9 @@ all buffered instructions next shot</string>
        <property name="checkable">
         <bool>true</bool>
        </property>
+       <property name="autoRaise">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item>
@@ -106,6 +112,9 @@ all buffered instructions next shot</string>
         <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
          <normaloff>:/qtutils/fugue/control-stop-square.png</normaloff>:/qtutils/fugue/control-stop-square.png</iconset>
        </property>
+       <property name="autoRaise">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item>
@@ -119,6 +128,9 @@ all buffered instructions next shot</string>
        <property name="icon">
         <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
          <normaloff>:/qtutils/fugue/arrow-circle.png</normaloff>:/qtutils/fugue/arrow-circle.png</iconset>
+       </property>
+       <property name="autoRaise">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -174,7 +186,7 @@ all buffered instructions next shot</string>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="button_close">
+             <widget class="QToolButton" name="button_close">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -202,6 +214,9 @@ all buffered instructions next shot</string>
               <property name="icon">
                <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
                 <normaloff>:/qtutils/fugue/cross.png</normaloff>:/qtutils/fugue/cross.png</iconset>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
               </property>
              </widget>
             </item>

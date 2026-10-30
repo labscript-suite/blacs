@@ -183,6 +183,7 @@ class EasterEggButton(QToolButton):
     def __init__(self):
         QToolButton.__init__(self)
         self.setFixedSize(24, 24) # Ensure we're the same size as the other buttons
+        self.setAutoRaise(True)
         self.icon_atom = Icon(':qtutils/custom/atom')
         self.icon_smiley = Icon(':qtutils/fugue/smiley-lol')
         self.icon_none = QIcon(None)

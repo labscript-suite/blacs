@@ -126,6 +126,9 @@ Repeated shots older than this will be deleted from disk.</string>
           <property name="arrowType">
            <enum>Qt::NoArrow</enum>
           </property>
+          <property name="autoRaise">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item>
