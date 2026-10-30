@@ -742,33 +742,6 @@ class ExperimentServer(ZMQServer):
 
 
 if __name__ == '__main__':
-    if 'tracelog' in sys.argv:
-        ##########
-        import labscript_utils.tracelog
-        labscript_utils.tracelog.log(os.path.join(BLACS_DIR, 'blacs_trace.log'),
-                                     ['__main__','BLACS.tab_base_classes',
-                                      'qtutils',
-                                      'labscript_utils.qtwidgets.ddsoutput',
-                                      'labscript_utils.qtwidgets.analogoutput',
-                                      'BLACS.hardware_interfaces.ni_pcie_6363',
-                                      'BLACS.hardware_interfaces.output_classes',
-                                      'BLACS.device_base_class',
-                                      'BLACS.tab_base_classes',
-                                      'BLACS.plugins.connection_table',
-                                      'BLACS.recompile_and_restart',
-                                      'filewatcher',
-                                      'queue',
-                                      'notifications',
-                                      'connections',
-                                      'analysis_submission',
-                                      'settings',
-                                      'front_panel_settings',
-                                      'labscript_utils.h5_lock',
-                                      'labscript_utils.shared_drive',
-                                      'labscript_utils.labconfig',
-                                      'zprocess',
-                                     ], sub=True)
-
     splash.update_text('loading labconfig')
     required_config_params = {
         "DEFAULT": ["apparatus_name", "app_saved_configs"],
