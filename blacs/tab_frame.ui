@@ -193,6 +193,9 @@ all buffered instructions next shot</string>
                 <height>16777215</height>
                </size>
               </property>
+              <property name="toolTip">
+               <string>Dismiss the message</string>
+              </property>
               <property name="text">
                <string/>
               </property>
