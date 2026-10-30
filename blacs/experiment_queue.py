@@ -790,6 +790,8 @@ class QueueManager(object):
                     # TODO: make this error popup for the user
                     logger.exception('Failed to copy h5_file (%s) for repeat run', path)
 
+        self.set_status("Idle")
+
 
 class MainThreadNotifier(object):
     """An object with the put() method of a queue, for the tabs to notify the queue
