@@ -33,10 +33,4 @@ like a DDS that are represented by several analog numbers) also integrate with t
 conversions specified in the connection table, allowing both control and the display of units
 other than the (device specific) default hardware unit. Channels connected to sensitive
 equipment can have the output values limited or the control locked entirely to prevent
-accidental changes. Output values are stored on exit, and restored on start-up, to avoid
-unexpected output transients.
-
-.. rubric:: Footnotes
-
-.. [1] Documentation taken from Phillip T. Starkey *A software framework for control and automation of precisely timed experiments*
-    Thesis, Monash University (2019) https://doi.org/10.26180/5d1db8ffe29ef
+accidental changes. Output values are stored on exit, and restored on start-up.

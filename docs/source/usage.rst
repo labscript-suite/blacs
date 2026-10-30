@@ -19,8 +19,3 @@ BLACS is also readily extensible using a plugin system, discussed in :doc:`plugi
     device-tabs
     shot-management
     plugins
-
-.. rubric:: Footnotes
-
-.. [1] Documentation taken from Phillip T. Starkey *A software framework for control and automation of precisely timed experiments*
-    Thesis, Monash University (2019) https://doi.org/10.26180/5d1db8ffe29ef

@@ -11,6 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import copy
+import datetime
 import os
 from pathlib import Path
 from jinja2 import FileSystemLoader, Environment
@@ -19,7 +20,7 @@ import importlib.metadata
 # -- Project information (unique to each project) -------------------------------------
 
 project = "blacs"
-copyright = "2020, labscript suite"
+copyright = f"2013–{datetime.date.today().year}, labscript suite contributors"
 author = "labscript suite contributors"
 
 # The full version, including alpha/beta/rc tags
@@ -43,7 +44,6 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
-    "sphinx.ext.todo",
     "sphinx.ext.viewcode",
     "sphinx_rtd_theme",
     "myst_parser",
@@ -51,8 +51,13 @@ extensions = [
 
 autodoc_typehints = 'description'
 autosummary_generate = True
+# blacs.plugins has a class Callback and a class callback, the pages of which would
+# have the same file name on a case-insensitive file system:
+autosummary_filename_map = {'blacs.plugins.callback': 'blacs.plugins.callback-decorator'}
 numfig = True
-autodoc_mock_imports = ['labscript_utils']
+# Importing labscript_utils.h5_lock connects to a zlock server, and starts one if
+# none is running on localhost:
+autodoc_mock_imports = ['labscript_utils.h5_lock']
 
 # mock missing site package methods
 import site
@@ -100,21 +105,16 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'qtutils': ('https://qtutils.readthedocs.io/en/stable/', None),
-    'pyqtgraph': (
-        'https://pyqtgraph.readthedocs.io/en/latest/',
-        None,
-    ),  # change to stable once v0.11 is published
+    'pyqtgraph': ('https://pyqtgraph.readthedocs.io/en/latest/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'h5py': ('https://docs.h5py.org/en/stable/', None),
-    'pydaqmx': ('https://pythonhosted.org/PyDAQmx/', None),
+    # An inventory of the PyQt5 docs, made with
+    # https://github.com/MSLNZ/msl-qt/blob/master/docs/create_pyqt_objects.py (MIT
+    # License). The names of Qt classes and methods are the same in PySide6 and PyQt6.
     'qt': (
         'https://riverbankcomputing.com/static/Docs/PyQt5/',
         'pyqt5-modified-objects.inv',
-    )  # from https://github.com/MSLNZ/msl-qt/blob/master/docs/create_pyqt_objects.py
-    # under MIT License
-    # TODO
-    # desktop-app
-    # spinapi/pynivision/etc
+    ),
 }
 
 # list of all labscript suite components that have docs
@@ -191,17 +191,6 @@ if project != "the labscript suite":
 # Make `some code` equivalent to :code:`some code`
 default_role = 'code'
 
-# hide todo notes if on readthedocs and not building the latest
-if os.environ.get('READTHEDOCS') and (
-    os.environ.get('READTHEDOCS_VERSION') != 'latest'
-    or (
-        os.environ.get('READTHEDOCS_PROJECT') == project
-        or os.environ.get('READTHEDOCS_PROJECT') == 'labscriptsuite'
-    )
-):
-    todo_include_todos = False
-else:
-    todo_include_todos = True
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -211,7 +200,7 @@ else:
 html_theme = "sphinx_rtd_theme"
 html_title = "labscript suite | {project}".format(
     project=project
-    if project != "labscript-suite"
+    if project != "the labscript suite"
     else "experiment control and automation"
 )
 html_short_title = "labscript suite"

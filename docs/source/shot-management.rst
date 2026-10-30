@@ -18,65 +18,66 @@ GUI (see :numref:`fig-queue`).
 
     The queue manager GUI within BLACS (with the device tabs hidden). (1)
     The pause button stops the queue from processing new shots (a currently running shot
-    will finish). (2) The repeat button, when enabled, will duplicate a completed shot and
-    either place the duplicate at the bottom or the top of the queue (depending on the mode
-    selected). (3) The abort button immediately stops the execution of the current shot and
-    returns hardware to manual mode. (4-5) Buttons to add or delete selected shots from the
-    queue. (6) A button to clear the entire queue. (7-10) Buttons to reorder selected shots
-    within the queue. (11) The current status of the queue is displayed here. For example, the
-    status may indicate that devices are currently being programmed, the master pseudoclock
-    has been triggered and the experiment is running, or that acquired data is currently being
-    saved into the hdf5 shot file. (12) The list of shot files in the queue, in the order they
-    will be executed (the topmost is executed first). (13) A button to enable or disable the
-    forwarding of shots to lyse for analysis. (14) The network hostname of the PC running lyse.
+    will finish). (2) The repeat button, with the drop-down menu that selects its mode. When
+    the button is checked, a completed shot is added to the end of the queue again: in the
+    'Repeat all' mode every completed shot is added, and in the 'Repeat last' mode a
+    completed shot is added only if the queue is empty. (3) The abort button immediately
+    stops the execution of the current shot and returns hardware to manual mode. (4-5)
+    Buttons to add shots to the queue and to delete the selected shots from it. (6) A button
+    to clear the entire queue. (7-10) Buttons to reorder selected shots within the queue.
+    (11) The current status of the queue is displayed here. For example, the status may
+    indicate that devices are currently being programmed, the master pseudoclock has been
+    triggered and the experiment is running, or that acquired data is currently being saved
+    into the hdf5 shot file. (12) The list of shot files in the queue, in the order in which
+    they will be executed (the topmost is executed first). (13) A button to enable or
+    disable the forwarding of shots to lyse for analysis. (14) The network hostname of the
+    PC running lyse; the tick to its right shows that the lyse server at that host
+    responds. (15) The number of shots in the queue.
 
-The queue is processed by a thread in BLACS, which we term the ‘queue manager’, that
-takes the top-most shot in the queue and, in turn, executes it. Shot execution follows the
-following pattern (a flowchart of this process is also shown in :numref:`fig-flowchart`):
+The queue is processed by a thread in BLACS, the queue manager, which takes the top-most
+shot in the queue and executes it. Shot execution follows this pattern (a flowchart of
+this process is also shown in :numref:`fig-flowchart`):
 
-#.  For each device in use in the shot, a message is sent to the corresponding device tab
-    state machine indicating that the device should program the device for hardware timed
-    execution of a shot. These messages are sent asynchronously, which ensures devices
-    program in parallel if possible (subject to the state machine being available to process
-    the message). Included in this message is the path to the hdf5 shot file, which each
-    device tab ultimately passes to a worker process that in turn, reads out the hardware
-    instructions and programs the hardware. During this programming, the device tab
-    enters the mode ‘transition_to_buffered’ (see §6.1.1.3).
-#.  The queue manager then waits until all devices have reported they have programmed,
-    at which point all device tabs in use should be in the ‘buffered’ state machine mode.
-    If a device does not report it has completed within a 5 minute timeout, or a device
-    reports an error has occurred during programming, the queue manager aborts the shot
-    by pausing the queue, instructing all device tabs to abort, and replacing the shot at
-    the top of the queue.
-#.  Provided all devices report they are ready, the queue manager proceeds with starting
-    the shot. This involves recording the current state of all manual controls (as these usually
-    affect the initial values of the shot and may affect results in certain experiments)
-    and then instructing the master pseudoclock to begin execution of the programmed
-    instructions.
-#.  The queue manager then waits for the master pseudoclock to report that the experiment 
-    shot has completed. If an error occurs in a device tab during a shot, the queue
-    manager aborts the shot (as previously described) and pauses the queue.
-#.  Once a shot has completed, the queue manager instructs all device tabs to ‘transition
-    to manual’ mode. At this stage, device tabs enter the ‘transition_to_manual’ state
-    machine mode where they save any acquired data and reprogram the hardware device
-    for manual operation via the BLACS GUI. Again, if errors occur during this process,
-    the queue manager aborts the shot as before, but with the additional step of cleaning
-    any saved data from the hdf5 file (so that the shot file is returned to the state prior
-    to execution).
-#.  The path to the shot file is now sent to a separate thread that runs a routine for
-    managing submission of shots to lyse for analysis. This routine forwards the shot file
-    paths to the lyse server specified in the BLACS GUI if analysis submission is enabled
-    (see figure 6.5 (13–14)). If lyse does not respond to these messages, the shot file paths
-    are buffered until such time as lyse does respond, to ensure no shots are missing from
-    analysis.
-#.  Finally, the queue manager checks the state of the repeat button in the BLACS GUI
-    and, if required, duplicates the shot (minus the acquired data) and places the duplicate
-    in the appropriate place in the queue.
+#.  The devices in use in the shot are programmed for hardware-timed execution of the shot
+    in groups, in the order of their `start_order` (see :class:`labscript.Device
+    <labscript.base.Device>`). Devices without a `start_order` have the order 0. The queue
+    manager calls the `transition_to_buffered` state function of the tab of every device in
+    a group (see :ref:`device-tabs:State machine`), with the path to the shot file, and the
+    devices of the group program in parallel. Each device tab passes the path to its worker
+    processes, which read the hardware instructions and program the hardware. During
+    programming, the device tab is in the mode `MODE_TRANSITION_TO_BUFFERED`.
+#.  The queue manager waits until every device of the group has reported that it is
+    programmed, and is in the mode `MODE_BUFFERED`, before it programs the next group. If
+    the devices are not all programmed within 5 minutes, or a device reports an error
+    during programming, the queue manager aborts the shot: it pauses the queue, instructs
+    all device tabs to abort, and puts the shot back at the top of the queue.
+#.  When all devices are programmed, the queue manager starts the shot. It records the
+    current state of all manual controls, which usually set the initial values of the
+    shot, and instructs the master pseudoclock to begin executing the programmed
+    instructions. The state of the manual controls is then written to the shot file.
+#.  The queue manager waits for the master pseudoclock to report that the shot has
+    completed. If an error occurs in a device tab during a shot, the queue manager aborts
+    the shot as before.
+#.  Once a shot has completed, the queue manager instructs the device tabs to transition
+    to manual mode, in groups in the order of their `stop_order`. The device tabs enter the
+    mode `MODE_TRANSITION_TO_MANUAL`, in which they save any acquired data and program the
+    hardware devices for manual operation from the BLACS GUI. If errors occur during this
+    process, the queue manager pauses the queue, removes the acquired data from the shot
+    file, so that the file is in the state that it was in before it was run, and puts the
+    shot back at the top of the queue.
+#.  The path to the shot file is sent to a separate thread that submits shots to lyse for
+    analysis. If analysis submission is enabled, this thread sends the path to the lyse
+    server named in the BLACS GUI (see :numref:`fig-queue` (13–14)). If lyse does not
+    respond, the thread keeps the shot file paths until lyse responds, so that no shots are
+    missing from the analysis.
+#.  Finally, if the repeat button is checked, the queue manager copies the shot file
+    without the acquired data and adds the copy to the end of the queue: always in the
+    'Repeat all' mode, and only if the queue is empty in the 'Repeat last' mode.
 
 .. _fig-flowchart:
 
 .. figure:: img/blacs_queueflowchart.png
 
-    A flowchart of the logic for the BLACS queue manager. For brevity, we have
-    not included the logic for pausing the queue via the GUI or handling error conditions. See
-    the listing above for further details.
+    A flowchart of the logic of the BLACS queue manager. The flowchart does not show the
+    programming of devices in groups, pausing the queue from the GUI, or the handling of
+    error conditions. See the list above for further details.
