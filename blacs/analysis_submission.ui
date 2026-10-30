@@ -57,7 +57,7 @@
          <number>3</number>
         </property>
         <item>
-         <widget class="QPushButton" name="send_to_server">
+         <widget class="QToolButton" name="send_to_server">
           <property name="focusPolicy">
            <enum>Qt::NoFocus</enum>
           </property>
@@ -72,6 +72,12 @@
             <normaloff>:/qtutils/custom/lyse.png</normaloff>:/qtutils/custom/lyse.png</iconset>
           </property>
           <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="toolButtonStyle">
+           <enum>Qt::ToolButtonTextBesideIcon</enum>
+          </property>
+          <property name="autoRaise">
            <bool>true</bool>
           </property>
          </widget>
@@ -131,6 +137,9 @@
             <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
              <normaloff>:/qtutils/fugue/arrow-circle.png</normaloff>:/qtutils/fugue/arrow-circle.png</iconset>
            </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
           </widget>
          </item>
          <item>
@@ -144,6 +153,9 @@
            <property name="icon">
             <iconset resource="../../../../usr/local/lib/python2.7/dist-packages/qtutils/icons/icons.qrc">
              <normaloff>:/qtutils/fugue/minus.png</normaloff>:/qtutils/fugue/minus.png</iconset>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
