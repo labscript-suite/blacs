@@ -742,6 +742,14 @@ class ExperimentServer(ZMQServer):
 
 
 if __name__ == '__main__':
+    splash.update_text('initialising Qt application')
+    qapplication = QApplication.instance()
+    if qapplication is None:
+        qapplication = QApplication(sys.argv)
+    setup_application(qapplication)
+    qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
+    logger.info('QApplication instantiated')
+
     splash.update_text('loading labconfig')
     required_config_params = {
         "DEFAULT": ["apparatus_name", "app_saved_configs"],
@@ -774,13 +782,6 @@ if __name__ == '__main__':
 
     logger.info('connection table loaded')
 
-    splash.update_text('initialising Qt application')
-    qapplication = QApplication.instance()
-    if qapplication is None:
-        qapplication = QApplication(sys.argv)
-    setup_application(qapplication)
-    qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
-    logger.info('QApplication instantiated')
     app = BLACS(qapplication)
 
     logger.info('BLACS instantiated')
