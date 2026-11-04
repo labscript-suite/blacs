@@ -34,6 +34,7 @@ import sys
 import time
 from pathlib import Path
 import platform
+import signal
 import importlib.metadata
 WINDOWS = platform.system() == 'Windows'
 # Seconds to wait for the queue manager to finish the current shot when BLACS is closed
@@ -772,6 +773,8 @@ if __name__ == '__main__':
         )
         logger.error(message)
         splash.hide()
+        # Upon seeing a ctrl-c interrupt, close the message box:
+        signal.signal(signal.SIGINT, lambda *args: qapplication.exit())
         QMessageBox.critical(None, 'BLACS', message)
         sys.exit(1)
 
